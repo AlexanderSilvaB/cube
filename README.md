@@ -1,2 +1,2 @@
 # NanoLang
-Nano is dynamic typed programing language
+Nano is a dynamic typed programing language
