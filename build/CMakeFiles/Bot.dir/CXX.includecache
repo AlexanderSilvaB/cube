@@ -19,8 +19,8 @@ map
 -
 Var.h
 /home/alexander/Development/Experiences/NanoLang/src/Var.h
-SP.h
-/home/alexander/Development/Experiences/NanoLang/src/SP.h
+memory
+-
 
 /home/alexander/Development/Experiences/NanoLang/src/Input.cpp
 Input.h
@@ -57,8 +57,8 @@ sstream
 -
 vector
 -
-SP.h
-/home/alexander/Development/Experiences/NanoLang/src/SP.h
+memory
+-
 
 /home/alexander/Development/Experiences/NanoLang/src/Parser.cpp
 Parser.h
@@ -74,20 +74,6 @@ Node.h
 map
 -
 set
--
-
-/home/alexander/Development/Experiences/NanoLang/src/RC.h
-
-/home/alexander/Development/Experiences/NanoLang/src/SP.cpp
-SP.h
-/home/alexander/Development/Experiences/NanoLang/src/SP.h
-
-/home/alexander/Development/Experiences/NanoLang/src/SP.h
-RC.h
-/home/alexander/Development/Experiences/NanoLang/src/RC.h
-iostream
--
-memory
 -
 
 /home/alexander/Development/Experiences/NanoLang/src/Token.h
@@ -125,8 +111,8 @@ sstream
 /home/alexander/Development/Experiences/NanoLang/src/Var.h
 string
 -
-SP.h
-/home/alexander/Development/Experiences/NanoLang/src/SP.h
+memory
+-
 
 /home/alexander/Development/Experiences/NanoLang/src/main.cpp
 string

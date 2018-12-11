@@ -119,18 +119,18 @@ string Node_st::ToString(int spaces)
             break;
         case NodeType::BINARY:
             ss << "Binary: " << _string << endl;
-            if(!left.empty())
+            if(left)
                 ss << left->ToString(spaces + 1);
-            if(!middle.empty())
+            if(middle)
                 ss << middle->ToString(spaces + 1);
-            if(!right.empty())
+            if(right)
                 ss << right->ToString(spaces + 1);
             break;
         case NodeType::IF:
             ss << "If: " << endl;
             ss << cond->ToString(spaces + 1);
             ss << then->ToString(spaces + 1);
-            if(!contr.empty())
+            if(contr)
             {
                 ss << contr->ToString(spaces + 1);
             }

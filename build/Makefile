@@ -258,33 +258,6 @@ src/Parser.cpp.s:
 	$(MAKE) -f CMakeFiles/Bot.dir/build.make CMakeFiles/Bot.dir/src/Parser.cpp.s
 .PHONY : src/Parser.cpp.s
 
-src/SP.o: src/SP.cpp.o
-
-.PHONY : src/SP.o
-
-# target to build an object file
-src/SP.cpp.o:
-	$(MAKE) -f CMakeFiles/Bot.dir/build.make CMakeFiles/Bot.dir/src/SP.cpp.o
-.PHONY : src/SP.cpp.o
-
-src/SP.i: src/SP.cpp.i
-
-.PHONY : src/SP.i
-
-# target to preprocess a source file
-src/SP.cpp.i:
-	$(MAKE) -f CMakeFiles/Bot.dir/build.make CMakeFiles/Bot.dir/src/SP.cpp.i
-.PHONY : src/SP.cpp.i
-
-src/SP.s: src/SP.cpp.s
-
-.PHONY : src/SP.s
-
-# target to generate assembly for a file
-src/SP.cpp.s:
-	$(MAKE) -f CMakeFiles/Bot.dir/build.make CMakeFiles/Bot.dir/src/SP.cpp.s
-.PHONY : src/SP.cpp.s
-
 src/Tokenizer.o: src/Tokenizer.cpp.o
 
 .PHONY : src/Tokenizer.o
@@ -390,9 +363,6 @@ help:
 	@echo "... src/Parser.o"
 	@echo "... src/Parser.i"
 	@echo "... src/Parser.s"
-	@echo "... src/SP.o"
-	@echo "... src/SP.i"
-	@echo "... src/SP.s"
 	@echo "... src/Tokenizer.o"
 	@echo "... src/Tokenizer.i"
 	@echo "... src/Tokenizer.s"

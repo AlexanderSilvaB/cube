@@ -21,7 +21,7 @@ class Interpreter
 
         int ExitCode();
 
-        bool Evaluate(const std::string& src);
+        bool Evaluate(const std::string& src, bool interactive);
 };
 
 #endif

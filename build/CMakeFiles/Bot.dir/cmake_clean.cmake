@@ -4,7 +4,6 @@ file(REMOVE_RECURSE
   "CMakeFiles/Bot.dir/src/Interpreter.cpp.o"
   "CMakeFiles/Bot.dir/src/Node.cpp.o"
   "CMakeFiles/Bot.dir/src/Parser.cpp.o"
-  "CMakeFiles/Bot.dir/src/SP.cpp.o"
   "CMakeFiles/Bot.dir/src/Tokenizer.cpp.o"
   "CMakeFiles/Bot.dir/src/Var.cpp.o"
   "CMakeFiles/Bot.dir/src/main.cpp.o"

@@ -2,7 +2,7 @@
 #define _VAR_H_
 
 #include <string>
-#include "SP.h"
+#include <memory>
 
 namespace VarType
 {
@@ -10,7 +10,7 @@ namespace VarType
 }
 
 class Var;
-typedef SP<Var> SVar;
+typedef std::shared_ptr<Var> SVar;
 
 class Var
 {

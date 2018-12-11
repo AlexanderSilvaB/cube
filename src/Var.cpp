@@ -108,7 +108,7 @@ std::ostream& operator<<(std::ostream& stream, Var& var)
 
 std::ostream& operator<<(std::ostream& stream, SVar& var) 
 {
-    if(!var.empty())
+    if(var)
         stream << var->ToString();
     return stream;
  }

@@ -3,15 +3,15 @@
 
 #include <map>
 #include "Var.h"
-#include "SP.h"
+#include <memory>
 
 class Env;
-typedef SP<Env> SEnv;
+typedef std::shared_ptr<Env> SEnv;
 
 class Env
 {
     private:
-        std::map<std::string, Var > vars;
+        std::map<std::string, SVar > vars;
         SEnv parent;
     
     public:

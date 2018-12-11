@@ -122,22 +122,9 @@ CMakeFiles/Bot.dir/src/Parser.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/Bot.dir/src/Parser.cpp.s"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/alexander/Development/Experiences/NanoLang/src/Parser.cpp -o CMakeFiles/Bot.dir/src/Parser.cpp.s
 
-CMakeFiles/Bot.dir/src/SP.cpp.o: CMakeFiles/Bot.dir/flags.make
-CMakeFiles/Bot.dir/src/SP.cpp.o: ../src/SP.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/alexander/Development/Experiences/NanoLang/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building CXX object CMakeFiles/Bot.dir/src/SP.cpp.o"
-	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/Bot.dir/src/SP.cpp.o -c /home/alexander/Development/Experiences/NanoLang/src/SP.cpp
-
-CMakeFiles/Bot.dir/src/SP.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/Bot.dir/src/SP.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/alexander/Development/Experiences/NanoLang/src/SP.cpp > CMakeFiles/Bot.dir/src/SP.cpp.i
-
-CMakeFiles/Bot.dir/src/SP.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/Bot.dir/src/SP.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/alexander/Development/Experiences/NanoLang/src/SP.cpp -o CMakeFiles/Bot.dir/src/SP.cpp.s
-
 CMakeFiles/Bot.dir/src/Tokenizer.cpp.o: CMakeFiles/Bot.dir/flags.make
 CMakeFiles/Bot.dir/src/Tokenizer.cpp.o: ../src/Tokenizer.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/alexander/Development/Experiences/NanoLang/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building CXX object CMakeFiles/Bot.dir/src/Tokenizer.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/alexander/Development/Experiences/NanoLang/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building CXX object CMakeFiles/Bot.dir/src/Tokenizer.cpp.o"
 	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/Bot.dir/src/Tokenizer.cpp.o -c /home/alexander/Development/Experiences/NanoLang/src/Tokenizer.cpp
 
 CMakeFiles/Bot.dir/src/Tokenizer.cpp.i: cmake_force
@@ -150,7 +137,7 @@ CMakeFiles/Bot.dir/src/Tokenizer.cpp.s: cmake_force
 
 CMakeFiles/Bot.dir/src/Var.cpp.o: CMakeFiles/Bot.dir/flags.make
 CMakeFiles/Bot.dir/src/Var.cpp.o: ../src/Var.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/alexander/Development/Experiences/NanoLang/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Building CXX object CMakeFiles/Bot.dir/src/Var.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/alexander/Development/Experiences/NanoLang/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building CXX object CMakeFiles/Bot.dir/src/Var.cpp.o"
 	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/Bot.dir/src/Var.cpp.o -c /home/alexander/Development/Experiences/NanoLang/src/Var.cpp
 
 CMakeFiles/Bot.dir/src/Var.cpp.i: cmake_force
@@ -163,7 +150,7 @@ CMakeFiles/Bot.dir/src/Var.cpp.s: cmake_force
 
 CMakeFiles/Bot.dir/src/main.cpp.o: CMakeFiles/Bot.dir/flags.make
 CMakeFiles/Bot.dir/src/main.cpp.o: ../src/main.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/alexander/Development/Experiences/NanoLang/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Building CXX object CMakeFiles/Bot.dir/src/main.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/alexander/Development/Experiences/NanoLang/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Building CXX object CMakeFiles/Bot.dir/src/main.cpp.o"
 	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/Bot.dir/src/main.cpp.o -c /home/alexander/Development/Experiences/NanoLang/src/main.cpp
 
 CMakeFiles/Bot.dir/src/main.cpp.i: cmake_force
@@ -181,7 +168,6 @@ Bot_OBJECTS = \
 "CMakeFiles/Bot.dir/src/Interpreter.cpp.o" \
 "CMakeFiles/Bot.dir/src/Node.cpp.o" \
 "CMakeFiles/Bot.dir/src/Parser.cpp.o" \
-"CMakeFiles/Bot.dir/src/SP.cpp.o" \
 "CMakeFiles/Bot.dir/src/Tokenizer.cpp.o" \
 "CMakeFiles/Bot.dir/src/Var.cpp.o" \
 "CMakeFiles/Bot.dir/src/main.cpp.o"
@@ -194,13 +180,12 @@ Bot: CMakeFiles/Bot.dir/src/Input.cpp.o
 Bot: CMakeFiles/Bot.dir/src/Interpreter.cpp.o
 Bot: CMakeFiles/Bot.dir/src/Node.cpp.o
 Bot: CMakeFiles/Bot.dir/src/Parser.cpp.o
-Bot: CMakeFiles/Bot.dir/src/SP.cpp.o
 Bot: CMakeFiles/Bot.dir/src/Tokenizer.cpp.o
 Bot: CMakeFiles/Bot.dir/src/Var.cpp.o
 Bot: CMakeFiles/Bot.dir/src/main.cpp.o
 Bot: CMakeFiles/Bot.dir/build.make
 Bot: CMakeFiles/Bot.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/alexander/Development/Experiences/NanoLang/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Linking CXX executable Bot"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/alexander/Development/Experiences/NanoLang/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Linking CXX executable Bot"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/Bot.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.

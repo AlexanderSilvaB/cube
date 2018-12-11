@@ -4,7 +4,7 @@
 #include <string>
 #include <sstream>
 #include <vector>
-#include "SP.h"
+#include <memory>
 
 namespace NodeType
 {
@@ -20,20 +20,20 @@ struct Node_st
     std::string _string;
     double _number;   
     bool _bool;
-    std::vector<SP<struct Node_st> > nodes;
+    std::vector<std::shared_ptr<struct Node_st> > nodes;
     std::vector<std::string> vars;
-    SP<struct Node_st> body;
-    SP<struct Node_st> func;
-    SP<struct Node_st> cond;
-    SP<struct Node_st> then;
-    SP<struct Node_st> contr;
-    SP<struct Node_st> left, middle, right;
+    std::shared_ptr<struct Node_st> body;
+    std::shared_ptr<struct Node_st> func;
+    std::shared_ptr<struct Node_st> cond;
+    std::shared_ptr<struct Node_st> then;
+    std::shared_ptr<struct Node_st> contr;
+    std::shared_ptr<struct Node_st> left, middle, right;
 
 
     std::string ToString(int spaces = 0);
 };
 
-typedef SP<struct Node_st> Node;
+typedef std::shared_ptr<struct Node_st> Node;
 #define MKNODE() Node(new struct Node_st())
 
 #endif

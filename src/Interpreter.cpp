@@ -19,28 +19,30 @@ int Interpreter::ExitCode()
     return exitCode;
 }
 
-bool Interpreter::Evaluate(const string& src)
+bool Interpreter::Evaluate(const string& src, bool interactive)
 {
     Node root = parser.Parse(src);
     if(root->type == NodeType::ERROR)
     {
         cout << root->ToString() << endl;
-        exitCode = -1;
+        exitCode = interactive ? 0 : -1;
     }
     else
     {
         SVar var = Evaluate(root, env);
-        if(var.empty() || var->IsType(VarType::ERROR))
-            exitCode = -1;
-        else
-            exitCode = 0;
-        if(var.empty())
+        if(!var)
         {
             cout << "Error: Undefined error" << endl;
+            exitCode = interactive ? 0 : -1;
         }
         else if(var->IsType(VarType::ERROR))
         {
             cout << "Error: " << var << endl;
+            exitCode = interactive ? 0 : -1;
+        }
+        else
+        {
+            exitCode = 0;
         }
     }
 
@@ -50,7 +52,6 @@ bool Interpreter::Evaluate(const string& src)
 SVar Interpreter::Evaluate(Node node, SEnv env)
 {
     SVar var = MKVAR();
-    cout << node->ToString() << endl;
     switch(node->type)
     {
         case NodeType::NONE:

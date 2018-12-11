@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
     Interpreter interpreter;
     if(!interactive)
     {
-        interpreter.Evaluate(src);
+        interpreter.Evaluate(src, false);
     }
     else
     {
@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
             cout << ">>> ";
             string line;
             getline(cin, line);
-            if(!interpreter.Evaluate(line))
+            if(!interpreter.Evaluate(line, true))
                 break;
         }
     }
