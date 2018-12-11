@@ -1,3 +1,0 @@
-/home/alexander/Development/Experiences/NanoLang/build/CMakeFiles/rebuild_cache.dir
-/home/alexander/Development/Experiences/NanoLang/build/CMakeFiles/Bot.dir
-/home/alexander/Development/Experiences/NanoLang/build/CMakeFiles/edit_cache.dir
