@@ -4,14 +4,20 @@
 #include "Env.h"
 #include "Var.h"
 #include "Parser.h"
+#include <map>
 
 class Interpreter
 {
     private:
         int exitCode;
         bool needBreak;
+        bool exit;
         Parser parser;
         Env* env;
+
+        std::map<std::string, int> colors;
+        bool IsColor(const std::string& color);
+        void ReplaceString(std::string& subject, const std::string& search, const std::string& replace);
 
         void MakeError(Var* var, const std::string& text);
         void MakeError(Var* var, const std::string& text, Node& node);

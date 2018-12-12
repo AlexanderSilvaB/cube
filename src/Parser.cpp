@@ -30,6 +30,8 @@ Parser::Parser()
     noright.insert("++");
     noright.insert("--");
 
+    noleft.insert("+");
+    noleft.insert("-");
     noleft.insert("++");
     noleft.insert("--");
     noleft.insert("~");
@@ -116,7 +118,7 @@ Node Parser::MaybeBinary(Node left, int prec)
                     if(right->type == NodeType::ERROR)
                         return right;
                     node->right = MaybeBinary(right, nprec);
-                    if(node->middle && node->left->middle && node->type == NodeType::BINARY && node->_string == ":" && node->left->type == NodeType::BINARY && node->left->_string == ":")
+                    if(!node->middle && !node->left->middle && node->type == NodeType::BINARY && node->_string == ":" && node->left->type == NodeType::BINARY && node->left->_string == ":")
                     {
                         Node left = node->left->left;
                         Node middle = node->left->right;

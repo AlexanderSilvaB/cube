@@ -48,7 +48,7 @@ Var* Env::get(const string& name)
     if(contains(name))
         return &vars[name];
     stringstream ss;
-    ss << "Undefined variable '" << name << "'";
+    ss << "Undefined variable or function '" << name << "'";
     Var *error = MKVAR();
     error->Error(ss.str());
     return error;
@@ -60,7 +60,7 @@ Var* Env::set(const string& name, Var* value)
     if(!scope && parent)
     {
         stringstream ss;
-        ss << "Undefined variable '" << name << "'";
+        ss << "Undefined variable or function '" << name << "'";
         Var* error = MKVAR();
         error->Error(ss.str());
         return error;

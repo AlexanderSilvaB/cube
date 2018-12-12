@@ -1,5 +1,9 @@
 #include "Interpreter.h"
 #include <iostream>
+#include <cmath>
+#include <algorithm>
+#include <string>
+#include <time.h> 
 
 using namespace std;
 
@@ -8,6 +12,16 @@ Interpreter::Interpreter()
     env = new Env();
     exitCode = 0;
     needBreak = false;
+    exit = false;
+
+    colors["black"] = 30;
+    colors["red"] = 31;
+    colors["green"] = 32;
+    colors["yellow"] = 33;
+    colors["blue"] = 34;
+    colors["magenta"] = 35;
+    colors["cyan"] = 36;
+    colors["white"] = 37;
 }
 
 Interpreter::~Interpreter()
@@ -27,12 +41,14 @@ bool Interpreter::NeedBreak()
 
 bool Interpreter::Evaluate(const string& src, bool interactive)
 {
+    exitCode = 0;
     needBreak = false;
     Node root = parser.Parse(src);
     if(root->type == NodeType::ERROR)
     {
         cout << root->ToString() << endl;
-        exitCode = interactive ? 0 : -1;
+        exitCode = -1;
+        exit = !interactive;
     }
     else
     {
@@ -40,22 +56,24 @@ bool Interpreter::Evaluate(const string& src, bool interactive)
         if(!var)
         {
             cout << "Error: Undefined error" << endl;
-            exitCode = interactive ? 0 : -1;
+            exitCode = -1;
+            exit = !interactive;
         }
         else if(var->IsType(VarType::ERROR))
         {
             cout << "Error: " << var << endl;
-            exitCode = interactive ? 0 : -1;
+            exitCode = -1;
+            exit = !interactive;
         }
         else
         {
-            exitCode = 0;
+            env->def("ans", var);
         }
         if(var && !var->Stored())
             delete var;
     }
 
-    return exitCode == 0;
+    return !exit;
 }
 
 Var* Interpreter::Evaluate(Node node, Env* env)
@@ -68,6 +86,9 @@ Var* Interpreter::Evaluate(Node node, Env* env)
     }
     switch(node->type)
     {
+        case NodeType::IGNORE:
+            var = MKVAR();
+            break;
         case NodeType::NONE:
             var = MKVAR();
             var->SetType(VarType::NONE);
@@ -84,8 +105,83 @@ Var* Interpreter::Evaluate(Node node, Env* env)
             var = MKVAR();
             *var = node->_string;
             break;
+        case NodeType::ARRAY:
+        {
+            var = MKVAR();
+            Array _array(node->nodes.size());
+            bool error = false;
+            for(int i = 0; i < node->nodes.size(); i++)
+            {
+                Var* v = Evaluate(node->nodes[i], env);
+                if(!v)
+                {
+                    MakeError(var, "Invalid array value", node->nodes[i]);
+                    error = true;
+                    break;
+                }
+                if(v->IsType(VarType::ERROR))
+                {
+                    var = v;
+                    error = true;
+                }
+                _array[i] = *v;
+                if(!v->Stored())
+                    delete v;
+            }
+            if(!error)
+            {
+                *var = _array;
+            }
+        }
+            break;
+        case NodeType::DICT:
+        {
+            var = MKVAR();
+            Dict _dict;
+            bool error = false;
+            for(int i = 0; i < node->nodes.size(); i++)
+            {
+                Var* v = Evaluate(node->nodes[i]->right, env);
+                if(!v)
+                {
+                    MakeError(var, "Invalid dict value", node->nodes[i]->right);
+                    error = true;
+                    break;
+                }
+                if(v->IsType(VarType::ERROR))
+                {
+                    var = v;
+                    error = true;
+                }
+                _dict[node->nodes[i]->left->_string] = *v;
+                if(!v->Stored())
+                    delete v;
+            }
+            if(!error)
+            {
+                *var = _dict;
+            }
+        }
+            break;
+        case NodeType::FUNCTION:
+            var = MKVAR();
+            *var = node;
+            var = env->set(node->_string, var);
+            break;
+        case NodeType::LAMBDA:
+            var = MKVAR();
+            *var = node;
+            break;
         case NodeType::VARIABLE:
             var = env->get(node->_string);
+            break;
+        case NodeType::RETURN:
+            var = Evaluate(node->body, env);
+            if(var)
+            {
+                if(!var->IsType(VarType::ERROR))
+                    var->Return(true);
+            }
             break;
         case NodeType::ASSIGN:
         {
@@ -110,6 +206,12 @@ Var* Interpreter::Evaluate(Node node, Env* env)
         case NodeType::BINARY:
             var = ApplyOperator(node->_string, Evaluate(node->left, env), Evaluate(node->middle, env), Evaluate(node->right, env), env);
             break;
+        case NodeType::INDEX:
+        {
+            var = MKVAR();
+            var->SetType(VarType::NONE);
+        }
+            break;
         case NodeType::CALL:
         {
             bool process = true;
@@ -118,10 +220,18 @@ Var* Interpreter::Evaluate(Node node, Env* env)
                 vector<Var*> args(node->nodes.size());
                 for(int i = 0; i < node->nodes.size(); i++)
                 {
-                    args[i] = Evaluate(node->nodes[i], env);
-                    if(args[i]->IsType(VarType::ERROR))
+                    if(node->func->_string == "color" && IsColor(node->nodes[i]->_string))
                     {
-                        return args[i];
+                        args[i] = MKVAR();
+                        *args[i] = node->nodes[i]->_string;
+                    }
+                    else
+                    {
+                        args[i] = Evaluate(node->nodes[i], env);
+                        if(args[i]->IsType(VarType::ERROR))
+                        {
+                            return args[i];
+                        }
                     }
                 }
                 var = Call(node->func->_string, args, env);
@@ -130,6 +240,30 @@ Var* Interpreter::Evaluate(Node node, Env* env)
             {
                 MakeError(var, "Cannot call this like a function", node->func);
             }
+        }
+            break;
+        case NodeType::FOR:
+        {
+            var = MKVAR();
+            var->SetType(VarType::NONE);
+        }
+            break;
+        case NodeType::WHILE:
+        {
+            var = MKVAR();
+            var->SetType(VarType::NONE);
+        }
+            break;
+        case NodeType::DOWHILE:
+        {
+            var = MKVAR();
+            var->SetType(VarType::NONE);
+        }
+            break;
+        case NodeType::LET:
+        {
+            var = MKVAR();
+            var->SetType(VarType::NONE);
         }
             break;
         case NodeType::CONTEXT:
@@ -144,6 +278,11 @@ Var* Interpreter::Evaluate(Node node, Env* env)
                 var = Evaluate(node->nodes[i], env);
                 if(var && var->IsType(VarType::ERROR))
                 {
+                    return var;
+                }
+                if(var && var->Returned())
+                {
+                    var->Return(false);
                     return var;
                 }
             }
@@ -193,6 +332,53 @@ Var* Interpreter::ApplyOperator(const string& op, Var* left, Var* middle, Var* r
     {
         *res = *left * *right;
     }
+    else if(op == ":")
+    {
+        if(!left->IsType(VarType::NUMBER))
+        {
+            stringstream ss;
+            ss << "Invalid range start '" << left << "'";
+            MakeError(res, ss.str());
+        }
+        else if(!right->IsType(VarType::NUMBER))
+        {
+            stringstream ss;
+            ss << "Invalid range end '" << right << "'";
+            MakeError(res, ss.str());
+        }
+        else
+        {
+            if(!middle->IsType(VarType::IGNORE) && !middle->IsType(VarType::NUMBER))
+            {
+                stringstream ss;
+                ss << "Invalid range middle '" << middle << "'";
+                MakeError(res, ss.str());
+            }
+            else
+            {
+                double start = left->Number();
+                double step = 1;
+                double end = right->Number();
+
+                if(!middle->IsType(VarType::IGNORE))
+                    step = middle->Number();
+                else
+                {
+                    if(start > end)
+                        step = -1;
+                }
+
+                Array _array;
+                for(; start <= end; start += step)
+                {
+                    Var item;
+                    item = start;
+                    _array.push_back(item);
+                }
+                *res = _array;
+            }
+        }
+    }
     else
     {
         stringstream ss;
@@ -203,6 +389,16 @@ Var* Interpreter::ApplyOperator(const string& op, Var* left, Var* middle, Var* r
     return res;
 }
 
+void Interpreter::ReplaceString(std::string& subject, const std::string& search,
+                          const std::string& replace) 
+{
+    size_t pos = 0;
+    while ((pos = subject.find(search, pos)) != std::string::npos) {
+         subject.replace(pos, search.length(), replace);
+         pos += replace.length();
+    }
+}
+
 Var* Interpreter::Call(const std::string& func, std::vector<Var*>& args, Env *env)
 {
     Var* res = MKVAR();
@@ -210,18 +406,153 @@ Var* Interpreter::Call(const std::string& func, std::vector<Var*>& args, Env *en
     {
         for(int i = 0; i < args.size(); i++)
         {
-            cout << args[i]->ToString();
-            if(i < args.size()-1)
+            string str = args[i]->ToString();
+            cout << str;
+            if(i < args.size()-1 && str[0] != '\033')
                 cout << " ";
         }
+        cout << "\033[0m";
         if(func == "println")
             cout << endl;
         else
             needBreak = true;
     }
+    else if(func == "color")
+    {
+        stringstream ss;
+        ss << "\033[0;";
+        if(args.size() > 0)
+        {
+            if(args[0]->IsType(VarType::STRING) && IsColor(args[0]->String()))
+            {
+                ss << colors[args[0]->String()];
+            }
+            else if(args[0]->IsType(VarType::NUMBER))
+            {
+                ss << (int)args[0]->Number();
+            }
+            else
+            {
+                MakeError(res, "Invalid foreground color");
+                return res;
+            }
+        }
+        if(args.size() > 1)
+        {
+            if(args[1]->IsType(VarType::STRING) && IsColor(args[1]->String()))
+            {
+                ss << ";" << (colors[args[1]->String()] + 10);
+            }
+            else if(args[1]->IsType(VarType::NUMBER))
+            {
+                ss << ";" << (int)args[1]->Number();
+            }
+            else
+            {
+                MakeError(res, "Invalid background color");
+                return res;
+            }
+        }
+        ss << "m";
+        *res = ss.str();
+    }
+    else if(func == "date")
+    {
+        string format = "%c";
+        if(args.size() > 0)
+        {
+            if(args[0]->IsType(VarType::STRING))
+            {
+                format = args[0]->String();
+            }
+            else
+            {
+                MakeError(res, "Invalid date format");
+                return res;
+            }
+        }
+        ReplaceString(format, "YYYY", "%Y");
+        ReplaceString(format, "YY", "%y");
+        ReplaceString(format, "MM", "%m");
+        ReplaceString(format, "mm", "%M");
+        ReplaceString(format, "ss", "%S");
+        ReplaceString(format, "hh", "%I");
+        ReplaceString(format, "HH", "%H");
+        ReplaceString(format, "dd", "%d");
+        ReplaceString(format, "D", "%e");
+
+        time_t rawtime;
+        struct tm * timeinfo;
+        char buffer [256];
+        time (&rawtime);
+        timeinfo = localtime (&rawtime);
+        strftime (buffer, 256,format.c_str(),timeinfo);
+        string date(buffer);
+        *res = date;
+    }
     else if(func == "env")
     {
         cout << env->toString();
     }
+    else if(func == "exit")
+    {
+        exitCode = 0;
+        exit = true;
+        if(args.size() > 0)
+        {
+            if(args[0]->IsType(VarType::NUMBER))
+                exitCode = (int)args[0]->Number();
+        }
+        res->Return(true);
+    }
+    else
+    {
+        Var* var = env->get(func);
+        if(var->IsType(VarType::ERROR))
+        {
+            delete res;
+            return var;
+        }
+        if(!var->IsType(VarType::FUNC))
+        {
+            delete var;
+            stringstream ss;
+            ss << "'" << func << "' is not callable";
+            MakeError(res, ss.str());
+        }
+        else
+        {
+            Env *funcEnv = env->extend();
+            Node _func = var->Func();
+            Array _array(args.size());
+            for(int i = 0; i < _func->vars.size(); i++)
+            {
+                if(i < args.size())
+                {
+                    funcEnv->def(_func->vars[i], args[i]);
+                    _array[i] = *args[i];
+                }
+                else
+                {
+                    Var *none = MKVAR();
+                    none->SetType(VarType::NONE);
+                    funcEnv->def(_func->vars[i], none);
+                    delete none;
+                }
+            }
+            Var *_args = MKVAR();
+            *_args = _array;
+            funcEnv->def("args", _args);
+            Var *_res = Evaluate(_func->body, funcEnv);
+            *res = *_res;
+            delete funcEnv;
+        }
+    }
     return res;
+}
+
+bool Interpreter::IsColor(const std::string& color)
+{
+    map<string, int>::iterator it = colors.find(color);
+    return it != colors.end();
 }
