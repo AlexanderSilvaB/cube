@@ -1,16 +1,28 @@
 #include "Var.h"
 #include <sstream>
+#include <iostream>
 
 using namespace std;
 
 Var::Var()
 {
-    type = VarType::NONE;
+    type = VarType::IGNORE;
+    stored = false;
 }
 
 Var::~Var()
 {
 
+}
+
+void Var::Store()
+{
+    stored = true;
+}
+
+bool Var::Stored()
+{
+    return stored;
 }
 
 VarType::Types Var::Type()
@@ -44,15 +56,6 @@ Var& Var::operator=(const Var& value)
     return *this;
 }
 
-Var& Var::operator=(SVar& value)
-{
-    this->type = value->type;
-    this->_bool = value->_bool;
-    this->_number = value->_number;
-    this->_string = value->_string;
-    return *this;
-}
-
 Var& Var::operator=(const bool& value)
 {
     this->type = VarType::BOOL;
@@ -72,6 +75,66 @@ Var& Var::operator=(const string& value)
     this->type = VarType::STRING;
     this->_string = value;
     return *this;
+}
+
+Var Var::operator+(const Var& other)
+{
+    Var res;
+    switch(type)
+    {
+        case VarType::BOOL:
+            break;
+        case VarType::NUMBER:
+            break;
+        case VarType::STRING:
+            break;
+    }
+    return res;
+}
+
+Var Var::operator-(const Var& other)
+{
+    Var res;
+    switch(type)
+    {
+        case VarType::BOOL:
+            break;
+        case VarType::NUMBER:
+            break;
+        case VarType::STRING:
+            break;
+    }
+    return res;
+}
+
+Var Var::operator/(const Var& other)
+{
+    Var res;
+    switch(type)
+    {
+        case VarType::BOOL:
+            break;
+        case VarType::NUMBER:
+            break;
+        case VarType::STRING:
+            break;
+    }
+    return res;
+}
+
+Var Var::operator*(const Var& other)
+{
+    Var res;
+    switch(type)
+    {
+        case VarType::BOOL:
+            break;
+        case VarType::NUMBER:
+            break;
+        case VarType::STRING:
+            break;
+    }
+    return res;
 }
 
 std::string Var::ToString()
@@ -106,7 +169,7 @@ std::ostream& operator<<(std::ostream& stream, Var& var)
     return stream;
  }
 
-std::ostream& operator<<(std::ostream& stream, SVar& var) 
+std::ostream& operator<<(std::ostream& stream, Var* var) 
 {
     if(var)
         stream << var->ToString();

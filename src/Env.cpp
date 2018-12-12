@@ -6,10 +6,10 @@ using namespace std;
 
 Env::Env()
 {
-    
+    this->parent = NULL;   
 }
 
-Env::Env(SEnv parent)
+Env::Env(Env* parent)
 {
     this->parent = parent;
 }
@@ -19,15 +19,15 @@ Env::~Env()
     
 }
 
-SEnv Env::extend()
+Env* Env::extend()
 {
-    SEnv env(new Env(SEnv(this)));
+    Env* env = new Env(this);
     return env;
 }
 
-SEnv Env::lookup(const string& name)
+Env* Env::lookup(const string& name)
 {
-    SEnv scope(this);
+    Env* scope = this;
     while(scope)
     {
         if(scope->contains(name))
@@ -39,52 +39,55 @@ SEnv Env::lookup(const string& name)
 
 bool Env::contains(const string& name)
 {
-    map<string, SVar>::iterator it = vars.find(name);
+    map<string, Var>::iterator it = vars.find(name);
     return it != vars.end();
 }
 
-SVar Env::get(const string& name)
+Var* Env::get(const string& name)
 {
     if(contains(name))
-        return vars[name];
+        return &vars[name];
     stringstream ss;
     ss << "Undefined variable '" << name << "'";
-    SVar error = MKVAR();
+    Var *error = MKVAR();
     error->Error(ss.str());
     return error;
 }
 
-SVar Env::set(const string& name, SVar value)
+Var* Env::set(const string& name, Var* value)
 {
-    SEnv scope = lookup(name);
+    Env* scope = lookup(name);
     if(!scope && parent)
     {
         stringstream ss;
         ss << "Undefined variable '" << name << "'";
-        SVar error = MKVAR();
+        Var* error = MKVAR();
         error->Error(ss.str());
         return error;
     }
     if(!scope)
     {
-        this->vars[name] = value;
-        return this->vars[name];
+        this->vars[name] = *value;
+        this->vars[name].Store();
+        return &this->vars[name];
     }
-    scope->vars[name] = value;
-    return scope->vars[name];
+    scope->vars[name] = *value;
+    scope->vars[name].Store();
+    return &scope->vars[name];
     
 }
 
-SVar Env::def(const string& name, SVar value)
+Var* Env::def(const string& name, Var* value)
 {
-    vars[name] = value;
-    return value;
+    vars[name] = *value;
+    vars[name].Store();
+    return &vars[name];
 }
 
 string Env::toString()
 {
     stringstream ss;
-    for(map<string, SVar>::iterator it = vars.begin(); it != vars.end(); it++)
+    for(map<string, Var>::iterator it = vars.begin(); it != vars.end(); it++)
     {
         ss << it->first << " : " << it->second << endl;
     }

@@ -6,11 +6,11 @@
 
 namespace VarType
 {
-    enum Types {ERROR, BOOL, NUMBER, STRING, NONE};
+    enum Types {IGNORE, ERROR, BOOL, NUMBER, STRING, NONE};
 }
 
-class Var;
-typedef std::shared_ptr<Var> SVar;
+//class Var;
+//typedef std::shared_ptr<Var> SVar;
 
 class Var
 {
@@ -19,6 +19,7 @@ class Var
         bool _bool;
         double _number;
         std::string _string;
+        bool stored;
     
     public:
         Var();
@@ -29,20 +30,27 @@ class Var
         Var& SetType(VarType::Types type);
 
         void Error(const std::string& text);
+        void Store();
+        bool Stored();
 
         Var& operator=(const Var& value);
-        Var& operator=(SVar& value);
         Var& operator=(const bool& value);
         Var& operator=(const double& value);
         Var& operator=(const std::string& value);
+
+        Var operator+(const Var& other);
+        Var operator-(const Var& other);
+        Var operator/(const Var& other);
+        Var operator*(const Var& other);
 
         std::string ToString();
 };
 
 
-#define MKVAR() SVar(new Var())
+//#define MKVAR() SVar(new Var())
+#define MKVAR() new Var()
 
 std::ostream& operator<< (std::ostream& stream, Var& var);
-std::ostream& operator<< (std::ostream& stream, SVar& var);
+std::ostream& operator<< (std::ostream& stream, Var* var);
 
 #endif

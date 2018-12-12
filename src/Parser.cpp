@@ -351,10 +351,25 @@ Node Parser::ParseDoWhile()
 Node Parser::ParseArray()
 {
     Node node = MKNODE();
-    node->type = NodeType::ARRAY;
-    
     if(!DelimitedNodes(node->nodes, "[", "]", ",", true))
         MakeError(node, "Invalid array definition", tokens.Peek());
+    else
+    {
+        node->type = NodeType::DICT;
+        for(int i = 0; i < node->nodes.size(); i++)
+        {
+            if(node->nodes[i]->type != NodeType::ASSIGN)
+            {
+                node->type = NodeType::ARRAY;
+                break;
+            }
+            else if(node->nodes[i]->left->type != NodeType::VARIABLE)
+            {
+                MakeError(node, "Invalid dict key", tokens.Peek());
+                return node;
+            }
+        }
+    }
     return node;
 }
 

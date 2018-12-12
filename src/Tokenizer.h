@@ -4,6 +4,7 @@
 #include "Input.h"
 #include "Token.h"
 #include <list>
+#include <set>
 
 class Tokenizer
 {
@@ -12,6 +13,7 @@ class Tokenizer
         Token token;
         bool eof;
         std::list<std::string> keywords;
+        std::set<std::string> operators;
 
         static bool IsDigit(char c);
         static bool IsLetter(char c);
@@ -24,6 +26,8 @@ class Tokenizer
         void ReadNumber();
         void ReadName();
         void ReadOperator();
+
+        bool IsOperator(const std::string& op);
 
         void MakeError(const std::string& msg, char c = 0);
     public:

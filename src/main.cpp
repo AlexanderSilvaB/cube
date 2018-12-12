@@ -36,6 +36,8 @@ int main(int argc, char *argv[])
             getline(cin, line);
             if(!interpreter.Evaluate(line, true))
                 break;
+            if(interpreter.NeedBreak())
+                cout << endl;
         }
     }
 

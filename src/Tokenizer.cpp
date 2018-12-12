@@ -26,6 +26,29 @@ Tokenizer::Tokenizer()
     keywords.push_back("in");
     keywords.push_back("let");
     keywords.push_back("do");
+
+    operators.insert("+");
+    operators.insert("++");
+    operators.insert("-");
+    operators.insert("--");
+    operators.insert("*");
+    operators.insert("/");
+    operators.insert("%");
+    operators.insert("!");
+    operators.insert("=");
+    operators.insert("=>");
+    operators.insert("<=");
+    operators.insert(">");
+    operators.insert("<");
+    operators.insert("[");
+    operators.insert("]");
+    operators.insert("^");
+    operators.insert("~");
+    operators.insert("|");
+    operators.insert("||");
+    operators.insert("&");
+    operators.insert("&&");
+    operators.insert(":");
 }
 
 Tokenizer::~Tokenizer()
@@ -282,16 +305,9 @@ void Tokenizer::ReadOperator()
     string str = "";
     char c = input.Peek();
     str += c;
-    if(c == '[' || c == ']')
-    {
-        token._string = str;
-        token.type = TokenType::OPERATOR;
-        input.Next();
-        return;
-    }
 
     c = input.Next();
-    while(IsOperator(c))
+    while(IsOperator(c) && IsOperator(str+c))
     {
         str += c;
         c = input.Next();
@@ -311,4 +327,9 @@ void Tokenizer::MakeError(const string& msg, char c)
     ss << " [Line " << input.Row() << ", Column: " << input.Col() << "]";
     token._string = ss.str();
     token.type = TokenType::ERROR;
+}
+
+bool Tokenizer::IsOperator(const std::string& op)
+{
+    return operators.count(op) > 0;
 }

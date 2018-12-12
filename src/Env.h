@@ -5,26 +5,23 @@
 #include "Var.h"
 #include <memory>
 
-class Env;
-typedef std::shared_ptr<Env> SEnv;
-
 class Env
 {
     private:
-        std::map<std::string, SVar > vars;
-        SEnv parent;
+        std::map<std::string, Var > vars;
+        Env* parent;
     
     public:
         Env();
-        Env(SEnv parent);
+        Env(Env* parent);
         ~Env();
 
-        SEnv extend();
-        SEnv lookup(const std::string& name);
+        Env* extend();
+        Env* lookup(const std::string& name);
         bool contains(const std::string& name);
-        SVar get(const std::string& name);
-        SVar set(const std::string& name, SVar value);
-        SVar def(const std::string& name, SVar value);
+        Var* get(const std::string& name);
+        Var* set(const std::string& name, Var* value);
+        Var* def(const std::string& name, Var* value);
 
         std::string toString();
 };

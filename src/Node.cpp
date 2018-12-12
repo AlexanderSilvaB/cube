@@ -46,6 +46,15 @@ string Node_st::ToString(int spaces)
             }
             ss << makeSpaces(spaces) << "]" << endl;
             break;
+        case NodeType::DICT:
+            ss << "Dict: " << endl;
+            ss << makeSpaces(spaces) << "[" << endl;
+            for(int i = 0; i < nodes.size(); i++)
+            {
+                ss << makeSpaces(spaces + 1) << nodes[i]->left->_string << " = " << nodes[i]->right->ToString(0);
+            }
+            ss << makeSpaces(spaces) << "]" << endl;
+            break;
          case NodeType::INDEX:
             ss << "Index: " << endl;
             ss << left->ToString(spaces + 1);
