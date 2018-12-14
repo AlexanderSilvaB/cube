@@ -108,7 +108,7 @@ Var* Interpreter::Evaluate(Node node, Env* env)
         case NodeType::ARRAY:
         {
             var = MKVAR();
-            Array _array(node->nodes.size());
+            VarArray _array(node->nodes.size());
             bool error = false;
             for(int i = 0; i < node->nodes.size(); i++)
             {
@@ -137,7 +137,7 @@ Var* Interpreter::Evaluate(Node node, Env* env)
         case NodeType::DICT:
         {
             var = MKVAR();
-            Dict _dict;
+            VarDict _dict;
             bool error = false;
             for(int i = 0; i < node->nodes.size(); i++)
             {
@@ -204,12 +204,92 @@ Var* Interpreter::Evaluate(Node node, Env* env)
         }
             break;
         case NodeType::BINARY:
-            var = ApplyOperator(node->_string, Evaluate(node->left, env), Evaluate(node->middle, env), Evaluate(node->right, env), env);
+        {
+            if(node->_string == "&&")
+            {
+                Var *left = Evaluate(node->left, env);
+                if(left->IsFalse())
+                {
+                    if(!left->Stored())
+                        delete left;
+                    var = MKVAR();
+                    *var = false;
+                }
+                else
+                {
+                    var = ApplyOperator(node->_string, left, Evaluate(node->middle, env), Evaluate(node->right, env), env);    
+                }
+            }
+            else if(node->_string == ".")
+            {
+                Var *left = Evaluate(node->left, env);
+                if(!left->IsType(VarType::DICT))
+                {
+                    var = MKVAR();
+                    stringstream ss;
+                    ss << "Cannot apply the operator '.' to '" << left->TypeName() << "'";
+                    MakeError(var, ss.str(), node);
+                    if(!left->Stored())
+                        delete left;
+                }
+                else
+                {
+                    VarDict &dict = left->Dict();
+                    if(node->right->type != NodeType::VARIABLE)
+                    {
+                        var = MKVAR();
+                        stringstream ss;
+                        ss << "Could not apply the operator '.' to '" << node->right->ToString() << "'";
+                        MakeError(var, ss.str(), node);
+                    }
+                    else
+                    {
+                        for(VarDict::iterator it = dict.begin(); it != dict.end(); it++)
+                        {
+                            if(it->first == node->right->_string)
+                            {
+                                var = MKVAR();
+                                *var = it->second;
+                            }
+                        }
+                        if(var == NULL)
+                        {
+                            var = MKVAR();
+                            stringstream ss;
+                            ss << "Member '" << node->right->_string << "' not found";
+                            MakeError(var, ss.str(), node);
+                        }
+                    }
+                }
+            }
+            else
+                var = ApplyOperator(node->_string, Evaluate(node->left, env), Evaluate(node->middle, env), Evaluate(node->right, env), env);
+        }
             break;
         case NodeType::INDEX:
         {
             var = MKVAR();
-            var->SetType(VarType::NONE);
+            Var* left = Evaluate(node->left, env);
+            VarArray index;
+            for(int i = 0; i < node->nodes.size(); i++)
+            {
+                Var* v = Evaluate(node->nodes[i], env);
+                if(v->IsType(VarType::ARRAY))
+                {
+                    VarArray &A = v->Array();
+                    for(int j = 0; j < A.size(); j++)
+                        index.push_back(A[j]);
+                }
+                else
+                    index.push_back(*v);
+                if(!v->Stored())
+                    delete v;
+            }
+            Var in;
+            in = index;
+            *var = left->operator[](in);
+            if(!left->Stored())
+                delete left;
         }
             break;
         case NodeType::CALL:
@@ -316,13 +396,89 @@ void Interpreter::MakeError(Var* var, const string& text, Node &node)
 Var* Interpreter::ApplyOperator(const string& op, Var* left, Var* middle, Var* right, Env *env)
 {
     Var* res = MKVAR();
-    if(op == "+")
+    if(op == "==")
     {
-        *res = *left + *right;
+        *res = *left == *right;
+    }
+    else if(op == "!=")
+    {
+        *res = *left != *right;
+    }
+    else if(op == ">")
+    {
+        *res = *left > *right;
+    }
+    else if(op == "<")
+    {
+        *res = *left < *right;
+    }
+    else if(op == ">=")
+    {
+        *res = *left >= *right;
+    }
+    else if(op == "<=")
+    {
+        *res = *left <= *right;
+    }
+    else if(op == "||")
+    {
+        *res = *left || *right;
+    }
+    else if(op == "&&")
+    {
+        *res = *left && *right;
+    }
+    else if(op == "|")
+    {
+        *res = *left | *right;
+    }
+    else if(op == "&")
+    {
+        *res = *left & *right;
+    }
+    else if(op == ">>")
+    {
+        *res = *left >> *right;
+    }
+    else if(op == "<<")
+    {
+        *res = *left << *right;
+    }
+    else if(op == "^")
+    {
+        *res = *left ^ *right;
+    }
+    else if(op == "~")
+    {
+        *res = ~ *right;
+    }
+    else if(op == "!")
+    {
+        *res = ! *right;
+    }
+    else if(op == "%")
+    {
+        *res = *left % *right;
+    }
+    else if(op == "**")
+    {
+        *res = left->pow(*right);
+    }
+    else if(op == "+")
+    {
+        if(left->IsType(VarType::IGNORE))
+            *res = *right;
+        else
+            *res = *left + *right;
     }
     else if(op == "-")
     {
-        *res = *left - *right;
+        Var zero;
+        zero = -1.0;
+        if(left->IsType(VarType::IGNORE))
+            *res = zero * *right;
+        else
+            *res = *left - *right;
     }
     else if(op == "/")
     {
@@ -331,6 +487,36 @@ Var* Interpreter::ApplyOperator(const string& op, Var* left, Var* middle, Var* r
     else if(op == "*")
     {
         *res = *left * *right;
+    }
+    else if(op == "++")
+    {
+        Var inc;
+        inc = (double)1;
+        if(!left->IsType(VarType::IGNORE))
+        {
+            *res = *left;
+            *left = *left + inc;
+        }
+        else
+        {
+            *right = *right + inc;
+            *res = *right;
+        }
+    }
+    else if(op == "--")
+    {
+        Var dec;
+        dec = (double)1;
+        if(!left->IsType(VarType::IGNORE))
+        {
+            *res = *left;
+            *left = *left - dec;
+        }
+        else
+        {
+            *right = *right - dec;
+            *res = *right;
+        }
     }
     else if(op == ":")
     {
@@ -368,7 +554,7 @@ Var* Interpreter::ApplyOperator(const string& op, Var* left, Var* middle, Var* r
                         step = -1;
                 }
 
-                Array _array;
+                VarArray _array;
                 for(; start <= end; start += step)
                 {
                     Var item;
@@ -385,6 +571,13 @@ Var* Interpreter::ApplyOperator(const string& op, Var* left, Var* middle, Var* r
         ss << "Invalid operator '" << op << "'";
         MakeError(res, ss.str());
     }
+
+    if(!left->Stored())
+        delete left;
+    if(!middle->Stored())
+        delete middle;
+    if(!right->Stored())
+        delete right;
 
     return res;
 }
@@ -406,6 +599,7 @@ Var* Interpreter::Call(const std::string& func, std::vector<Var*>& args, Env *en
     {
         for(int i = 0; i < args.size(); i++)
         {
+            res = args[i];
             string str = args[i]->ToString();
             cout << str;
             if(i < args.size()-1 && str[0] != '\033')
@@ -524,7 +718,7 @@ Var* Interpreter::Call(const std::string& func, std::vector<Var*>& args, Env *en
         {
             Env *funcEnv = env->extend();
             Node _func = var->Func();
-            Array _array(args.size());
+            VarArray _array(args.size());
             for(int i = 0; i < _func->vars.size(); i++)
             {
                 if(i < args.size())

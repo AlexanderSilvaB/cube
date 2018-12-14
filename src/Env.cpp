@@ -39,7 +39,7 @@ Env* Env::lookup(const string& name)
 
 bool Env::contains(const string& name)
 {
-    map<string, Var>::iterator it = vars.find(name);
+    VarDict::iterator it = vars.find(name);
     return it != vars.end();
 }
 
@@ -87,7 +87,7 @@ Var* Env::def(const string& name, Var* value)
 string Env::toString()
 {
     stringstream ss;
-    for(map<string, Var>::iterator it = vars.begin(); it != vars.end(); it++)
+    for(VarDict::iterator it = vars.begin(); it != vars.end(); it++)
     {
         ss << it->first << " : " << it->second << endl;
     }

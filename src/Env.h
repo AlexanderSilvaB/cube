@@ -8,7 +8,7 @@
 class Env
 {
     private:
-        std::map<std::string, Var > vars;
+        VarDict vars;
         Env* parent;
     
     public:

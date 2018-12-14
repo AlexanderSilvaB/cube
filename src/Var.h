@@ -13,8 +13,8 @@ namespace VarType
 }
 
 class Var;
-typedef std::vector<Var> Array;
-typedef std::map<std::string, Var> Dict;
+typedef std::vector<Var> VarArray;
+typedef std::map<std::string, Var> VarDict;
 
 class Var
 {
@@ -23,20 +23,88 @@ class Var
         bool _bool;
         double _number;
         std::string _string;
-        Array _array;
-        Dict _dict;
+        VarArray _array;
+        VarDict _dict;
         Node _func;
 
         bool ret;
         bool stored;
+
+        friend Var operator+(const bool& a, Var& b);
+        friend Var operator+(const double& a, Var& b);
+        friend Var operator+(const std::string& a, Var& b);
+        friend Var operator+(const VarArray& a, Var& b);
+        friend Var operator+(const VarDict& a, Var& b);
+
+        friend Var operator-(const bool& a, Var& b);
+        friend Var operator-(const double& a, Var& b);
+        friend Var operator-(const std::string& a, Var& b);
+        friend Var operator-(const VarArray& a, Var& b);
+        friend Var operator-(const VarDict& a, Var& b);
     
+        friend Var operator/(const bool& a, Var& b);
+        friend Var operator/(const double& a, Var& b);
+        friend Var operator/(const std::string& a, Var& b);
+        friend Var operator/(const VarArray& a, Var& b);
+        friend Var operator/(const VarDict& a, Var& b);
+
+        friend Var operator*(const bool& a, Var& b);
+        friend Var operator*(const double& a, Var& b);
+        friend Var operator*(const std::string& a, Var& b);
+        friend Var operator*(const VarArray& a, Var& b);
+        friend Var operator*(const VarDict& a, Var& b);
+
+        friend Var operator|(const bool& a, Var& b);
+        friend Var operator|(const double& a, Var& b);
+        friend Var operator|(const std::string& a, Var& b);
+        friend Var operator|(const VarArray& a, Var& b);
+        friend Var operator|(const VarDict& a, Var& b);
+
+        friend Var operator&(const bool& a, Var& b);
+        friend Var operator&(const double& a, Var& b);
+        friend Var operator&(const std::string& a, Var& b);
+        friend Var operator&(const VarArray& a, Var& b);
+        friend Var operator&(const VarDict& a, Var& b);
+
+        friend Var operator>>(const bool& a, Var& b);
+        friend Var operator>>(const double& a, Var& b);
+        friend Var operator>>(const std::string& a, Var& b);
+        friend Var operator>>(const VarArray& a, Var& b);
+        friend Var operator>>(const VarDict& a, Var& b);
+
+        friend Var operator<<(const bool& a, Var& b);
+        friend Var operator<<(const double& a, Var& b);
+        friend Var operator<<(const std::string& a, Var& b);
+        friend Var operator<<(const VarArray& a, Var& b);
+        friend Var operator<<(const VarDict& a, Var& b);
+
+        friend Var operator^(const bool& a, Var& b);
+        friend Var operator^(const double& a, Var& b);
+        friend Var operator^(const std::string& a, Var& b);
+        friend Var operator^(const VarArray& a, Var& b);
+        friend Var operator^(const VarDict& a, Var& b);
+
+        friend Var operator%(const bool& a, Var& b);
+        friend Var operator%(const double& a, Var& b);
+        friend Var operator%(const std::string& a, Var& b);
+        friend Var operator%(const VarArray& a, Var& b);
+        friend Var operator%(const VarDict& a, Var& b);
+
+        Var pow(const bool& a, Var& b);
+        Var pow(const double& a, Var& b);
+        Var pow(const std::string& a, Var& b);
+        Var pow(const VarArray& a, Var& b);
+        Var pow(const VarDict& a, Var& b);
+
     public:
         Var();
         ~Var();
 
         VarType::Types Type();
+        std::string TypeName();
         bool IsType(VarType::Types type);
         Var& SetType(VarType::Types type);
+        bool IsFalse();
 
         void Error(const std::string& text);
         void Store();
@@ -48,19 +116,41 @@ class Var
         Var& operator=(const bool& value);
         Var& operator=(const double& value);
         Var& operator=(const std::string& value);
-        Var& operator=(const Array& value);
-        Var& operator=(const Dict& value);
+        Var& operator=(const VarArray& value);
+        Var& operator=(const VarDict& value);
         Var& operator=(Node value);
 
         Node Func();
-        std::string String();
-        double Number();
-        bool Bool();
+        std::string& String();
+        double& Number();
+        bool& Bool();
+        VarArray& Array();
+        VarDict& Dict();
 
-        Var operator+(const Var& other);
-        Var operator-(const Var& other);
-        Var operator/(const Var& other);
-        Var operator*(const Var& other);
+        bool operator==(Var& other);
+        bool operator!=(Var& other);
+        bool operator>(Var& other);
+        bool operator<(Var& other);
+        bool operator>=(Var& other);
+        bool operator<=(Var& other);
+        bool operator&&(Var& other);
+        bool operator||(Var& other);
+
+        Var operator+(Var& other);
+        Var operator-(Var& other);
+        Var operator/(Var& other);
+        Var operator*(Var& other);
+        Var operator|(Var& other);
+        Var operator&(Var& other);
+        Var operator>>(Var& other);
+        Var operator<<(Var& other);
+        Var operator~();
+        Var operator^(Var& other);
+        Var operator!();
+        Var operator%(Var& other);
+        Var pow(Var& other);
+
+        Var operator[](Var& other);
 
         std::string ToString();
 };

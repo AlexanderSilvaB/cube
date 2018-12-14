@@ -5,27 +5,33 @@ using namespace std;
 
 Parser::Parser()
 {
-    precedence["="] = 1;
-    precedence["in"] = 2;
-    precedence["++"] = 2;
-    precedence["--"] = 2;
-    precedence["||"] = 3;
-    precedence["&&"] = 4;
-    precedence["<"] = 7;
-    precedence[">"] = 7;
-    precedence["<="] = 7;
-    precedence[">="] = 7;
-    precedence["=="] = 7;
-    precedence["!="] = 7;
-    precedence["~"] = 8;
-    precedence["!"] = 8;
-    precedence["+"] = 10;
-    precedence["-"] = 10;
-    precedence["*"] = 20;
-    precedence["/"] = 20;
-    precedence["%"] = 20;
-    precedence["^"] = 20;
-    precedence[":"] = 30;
+    precedence["="] = 1;//ok
+    precedence["."] = 2;//ok
+    precedence["in"] = 3;
+    precedence["++"] = 3;//ok
+    precedence["--"] = 3;//ok
+    precedence["||"] = 4;//ok
+    precedence["&&"] = 5;//ok
+    precedence["<"] = 8;//ok
+    precedence[">"] = 8;//ok
+    precedence["<="] = 8;//ok
+    precedence[">="] = 8;//ok
+    precedence["=="] = 8;//ok
+    precedence["!="] = 8;//ok
+    precedence["|"] = 8;//ok
+    precedence["&"] = 8;//ok
+    precedence["<<"] = 8;//ok
+    precedence[">>"] = 8;//ok
+    precedence["~"] = 8;//ok
+    precedence["^"] = 8;//ok
+    precedence["!"] = 9;//ok
+    precedence["+"] = 10;//ok
+    precedence["-"] = 10;//ok
+    precedence["*"] = 20;//ok
+    precedence["/"] = 20;//ok
+    precedence["%"] = 20;//ok
+    precedence["**"] = 20;//ok
+    precedence[":"] = 30;//ok
 
     noright.insert("++");
     noright.insert("--");

@@ -27,6 +27,7 @@ Tokenizer::Tokenizer()
     keywords.push_back("let");
     keywords.push_back("do");
 
+    operators.insert(".");
     operators.insert("+");
     operators.insert("++");
     operators.insert("-");
@@ -36,6 +37,8 @@ Tokenizer::Tokenizer()
     operators.insert("%");
     operators.insert("!");
     operators.insert("=");
+    operators.insert("==");
+    operators.insert("!=");
     operators.insert("=>");
     operators.insert("<=");
     operators.insert(">");
@@ -49,6 +52,9 @@ Tokenizer::Tokenizer()
     operators.insert("&");
     operators.insert("&&");
     operators.insert(":");
+    operators.insert("**");
+    operators.insert(">>");
+    operators.insert("<<");
 }
 
 Tokenizer::~Tokenizer()
@@ -150,7 +156,8 @@ bool Tokenizer::IsOperator(char c)
             c == '~' ||
             c == '|' ||
             c == '&' ||
-            c == ':'
+            c == ':' ||
+            c == '.'
     );
 }
 
