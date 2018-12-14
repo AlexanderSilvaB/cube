@@ -135,6 +135,7 @@ class Var
         bool operator<=(Var& other);
         bool operator&&(Var& other);
         bool operator||(Var& other);
+        bool in(Var& other);
 
         Var operator+(Var& other);
         Var operator-(Var& other);
@@ -149,8 +150,8 @@ class Var
         Var operator!();
         Var operator%(Var& other);
         Var pow(Var& other);
-
         Var operator[](Var& other);
+        Var split();
 
         std::string ToString();
 };

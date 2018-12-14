@@ -1,0 +1,14 @@
+for(i = 0; i < 10; i++)
+{
+    println(i)
+}
+
+for(i in 0:10)
+{
+    println(i)
+}
+
+for(i in "ABCD"*5)
+{
+    println(i)
+}

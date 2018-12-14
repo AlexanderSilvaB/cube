@@ -92,6 +92,7 @@ bool Var::IsFalse()
 {
     return (this->type == VarType::NONE || 
             this->type == VarType::IGNORE || 
+            this->type == VarType::ERROR || 
             (this->type == VarType::BOOL && this->_bool == false) ||
             (this->type == VarType::NUMBER && this->_number == 0) ||
             (this->type == VarType::STRING && this->_string.size() == 0) ||
@@ -4144,6 +4145,82 @@ Var Var::operator[](Var& other)
         {
             stringstream ss;
             ss << "Cannot apply the operator '[]' to '" << TypeName() << "'";
+            res.Error(ss.str());
+        }
+            break;
+    }
+    return res;
+}
+
+Var Var::split()
+{
+    Var res;
+    switch(Type())
+    {
+        case VarType::BOOL:
+        {
+            VarArray _array(1);
+            _array[0] = Bool();
+            res = _array;
+        }
+            break;
+        case VarType::NUMBER:
+       {
+            VarArray _array(1);
+            _array[0] = Number();
+            res = _array;
+        }
+            break;
+        case VarType::STRING:
+        {
+            string &str = String();
+            VarArray _array(str.size());
+            for(int i = 0; i < str.size(); i++)
+            {
+                string s = "";
+                s = s + str[i];
+                _array[i] = s;
+            }
+            res = _array;
+        }
+            break;
+        case VarType::ARRAY:
+        {
+            return *this;
+        }
+            break;
+        case VarType::DICT:
+        {
+            VarArray _array(1);
+            _array[0] = Dict();
+            res = _array;
+        }
+            break;
+        case VarType::ERROR:
+        {
+            VarArray _array(1);
+            _array[0].Error(String());
+            res = _array;
+        }
+            break;
+        case VarType::NONE:
+        {
+            VarArray _array(1);
+            _array[0].SetType(VarType::NONE);
+            res = _array;
+        }
+            break;
+        case VarType::FUNC:
+        {
+            VarArray _array(1);
+            _array[0] = Func();
+            res = _array;
+        }
+            break;
+        default:
+        {
+            stringstream ss;
+            ss << "Cannot apply the operator 'in' to '" << TypeName() << "'";
             res.Error(ss.str());
         }
             break;

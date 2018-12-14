@@ -45,18 +45,22 @@ bool Env::contains(const string& name)
 
 Var* Env::get(const string& name)
 {
-    if(contains(name))
-        return &vars[name];
-    stringstream ss;
-    ss << "Undefined variable or function '" << name << "'";
-    Var *error = MKVAR();
-    error->Error(ss.str());
-    return error;
+    Env* scope = lookup(name);
+    if(!scope)
+    {
+        stringstream ss;
+        ss << "Undefined variable or function '" << name << "'";
+        Var *error = MKVAR();
+        error->Error(ss.str());
+        return error;
+    }
+    return &scope->vars[name];
 }
 
 Var* Env::set(const string& name, Var* value)
 {
     Env* scope = lookup(name);
+    /*
     if(!scope && parent)
     {
         stringstream ss;
@@ -65,6 +69,7 @@ Var* Env::set(const string& name, Var* value)
         error->Error(ss.str());
         return error;
     }
+    */
     if(!scope)
     {
         this->vars[name] = *value;
@@ -90,6 +95,11 @@ string Env::toString()
     for(VarDict::iterator it = vars.begin(); it != vars.end(); it++)
     {
         ss << it->first << " : " << it->second << endl;
+    }
+    if(parent != NULL)
+    {
+        ss << "-----------" << endl;
+        ss << parent->toString();
     }
     return ss.str();
 }

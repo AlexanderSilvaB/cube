@@ -318,6 +318,7 @@ Var* Interpreter::Evaluate(Node node, Env* env)
             }
             else
             {
+                var = MKVAR();
                 MakeError(var, "Cannot call this like a function", node->func);
             }
         }
@@ -325,25 +326,218 @@ Var* Interpreter::Evaluate(Node node, Env* env)
         case NodeType::FOR:
         {
             var = MKVAR();
-            var->SetType(VarType::NONE);
+            if(node->nodes.size() == 0 || node->nodes.size() > 3)
+            {
+                MakeError(var, "Invalid for arguments for 'for' loop", node);
+            }
+            else
+            {
+                Node in;
+                Node start;
+                Node cond;
+                Node inc;
+                if(node->nodes.size() == 1 && node->nodes[0]->type == NodeType::BINARY && node->nodes[0]->_string == "in")
+                {
+                    in = node->nodes[0];
+                }
+                else
+                {
+                    start = node->nodes[0];
+                    if(node->nodes.size() > 1)
+                        cond = node->nodes[1];
+                    if(node->nodes.size() > 2)
+                        inc = node->nodes[2];
+                }
+                Env *forEnv = env->extend();
+                bool valid = true;
+                Var *inVar = NULL;
+                int inIndex = 0;
+                Var parts;
+                if(in)
+                {
+                    if(in->left->type != NodeType::VARIABLE)
+                    {
+                        MakeError(var, "Invalid type for 'in' operator");
+                        valid = false;
+                    }
+                    else
+                    {
+                        Var *right = Evaluate(in->right, forEnv);
+                        parts = right->split();
+                        if(parts.IsType(VarType::ERROR))
+                        {
+                            *var = parts;
+                            valid = false;
+                        }
+                        else
+                        {
+                            if(parts.Array().size() > 0)
+                            {
+                                inVar = &parts.Array()[inIndex];
+                                forEnv->set(in->left->_string, inVar);
+                                inIndex++;
+                            }
+                            else
+                            {
+                                var->SetType(VarType::IGNORE);
+                                valid = false;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    Var *st = Evaluate(start, forEnv);
+                    if(st->IsType(VarType::ERROR))
+                    {
+                        *var = *st;
+                        valid = false;
+                    }
+                    else
+                    {
+                        if(cond)
+                        {
+                            Var *cd = Evaluate(cond, forEnv);
+                            if(cd->IsType(VarType::ERROR))
+                            {
+                                *var = *cd;
+                                valid = false;
+                            }
+                            else if(cd->IsFalse())
+                            {
+                                var->SetType(VarType::IGNORE);
+                                valid = false;
+                            }
+                        }
+                    }
+                }
+                if(valid)
+                {
+                    do
+                    {
+                        var = Evaluate(node->body, forEnv);
+                        if(var->IsType(VarType::ERROR))
+                        {
+                            break;
+                        }
+                        if(in)
+                        {
+                            if(inIndex < parts.Array().size())
+                            {
+                                inVar = &parts.Array()[inIndex];
+                                forEnv->set(in->left->_string, inVar);
+                                inIndex++;
+                            }
+                            else
+                            {
+                                valid = false;
+                            }
+                        }
+                        else
+                        {
+                            if(inc)
+                            {
+                                Var *ic = Evaluate(inc, forEnv);
+                                if(ic->IsType(VarType::ERROR))
+                                {
+                                    *var = *ic;
+                                    valid = false;
+                                }
+                            }
+
+                            if(cond)
+                            {
+                                Var *cd = Evaluate(cond, forEnv);
+                                if(cd->IsType(VarType::ERROR))
+                                {
+                                    *var = *cd;
+                                    valid = false;
+                                }
+                                else if(cd->IsFalse())
+                                {
+                                    var->SetType(VarType::IGNORE);
+                                    valid = false;
+                                }
+                            }
+                        }
+                    }while(valid);
+                }
+                delete forEnv;
+            }
         }
             break;
         case NodeType::WHILE:
         {
-            var = MKVAR();
-            var->SetType(VarType::NONE);
+            Env *whileEnv = env->extend();
+            Var *cond = Evaluate(node->cond, whileEnv);
+            if(cond->IsFalse())
+            {
+                *var = *cond;
+            }
+            while(!cond->IsFalse())
+            {
+                if(var != NULL && !var->Stored())
+                    delete var;
+                var = Evaluate(node->body, whileEnv);
+                if(var->IsType(VarType::ERROR))
+                {
+                    break;
+                }
+                if(cond != NULL && !cond->Stored())
+                    delete cond;
+                cond = Evaluate(node->cond, whileEnv);
+                if(cond->IsType(VarType::ERROR))
+                {
+                    *var = *cond;
+                    break;
+                }
+            }
+            delete whileEnv;
         }
             break;
         case NodeType::DOWHILE:
         {
-            var = MKVAR();
-            var->SetType(VarType::NONE);
+            Env *whileEnv = env->extend();
+            Var *cond = NULL;
+            do
+            {
+                if(var != NULL && !var->Stored())
+                    delete var;
+                var = Evaluate(node->body, whileEnv);
+                if(var->IsType(VarType::ERROR))
+                {
+                    break;
+                }
+                if(cond != NULL && !cond->Stored())
+                    delete cond;
+                cond = Evaluate(node->cond, whileEnv);
+                if(cond->IsType(VarType::ERROR))
+                {
+                    *var = *cond;
+                    break;
+                }
+            }while(!cond->IsFalse());
+            delete whileEnv;
         }
             break;
         case NodeType::LET:
         {
-            var = MKVAR();
-            var->SetType(VarType::NONE);
+            Env *letEnv = env->extend();
+            bool valid = true;
+            for(int i = 0; i < node->nodes.size(); i++)
+            {
+                var = Evaluate(node->nodes[i], letEnv);
+                if(var->IsType(VarType::ERROR))
+                {
+                    valid = false;
+                    break;
+                }
+            }
+            if(valid)
+            {
+                var = Evaluate(node->body, letEnv);
+            }
+            delete letEnv;
         }
             break;
         case NodeType::CONTEXT:
