@@ -208,9 +208,38 @@ void Tokenizer::ReadString()
     string str = "";
     char endChar = input.Peek() == '\'' ? '\'' : '"';
     char c = input.Next();
-    while(!(c == endChar))
+    bool parse = false;
+    while(!(c == endChar) || parse)
     {
-        str += c;
+        if(parse == false && c == '\\')
+            parse = true;
+        else if(parse == true)
+        {
+            if(c == 'a')
+                str += "\a";
+            else if(c == 'b')
+                str += "\b";
+            else if(c == 'n')
+                str += "\n";
+            else if(c == 'v')
+                str += "\v";
+            else if(c == 'r')
+                str += "\r";
+            else if(c == 't')
+                str += "\t";
+            else if(c == '\'' && endChar == '\'')
+                str += "\'";
+            else if(c == '"' && endChar == '"')
+                str += "\"";
+            else
+            {
+                str += "\\";
+                str += c;
+            }
+            parse = false;
+        }
+        else
+            str += c;
         c = input.Next();
         if(input.Eof())
         {
@@ -296,7 +325,7 @@ void Tokenizer::ReadName()
     str += c;
 
     c = input.Next();
-    while(IsLetter(c) || c == '_')
+    while(IsLetter(c) || c == '_' || IsDigit(c))
     {
         str += c;
         c = input.Next();
