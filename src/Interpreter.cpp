@@ -29,7 +29,7 @@ Interpreter::Interpreter()
 
 Interpreter::~Interpreter()
 {
-
+    delete env;
 }
 
 int Interpreter::ExitCode()
@@ -1084,6 +1084,128 @@ Var* Interpreter::Call(const std::string& func, std::vector<Var*>& args, Env *en
     else if(func == "env")
     {
         cout << env->toString();
+    }
+    else if(func == "type")
+    {
+        if(args.size() == 0)
+            res->SetType(VarType::NONE);
+        else if(args.size() == 1)
+        {
+            *res = args[0]->TypeName();
+        }
+        else
+        {
+            VarArray _array(args.size());
+            for(int i = 0; i < args.size(); i++)
+            {
+                _array[i] = args[i]->TypeName();
+            }
+            *res = _array;
+        }
+    }
+    else if(func == "bool")
+    {
+        if(args.size() == 0)
+        {
+            res->operator=(false);
+        }
+        else if(args.size() == 1)
+        {
+            *res = args[0]->AsBool();
+        }
+        else
+        {
+            VarArray _array(args.size());
+            for(int i = 0; i < args.size(); i++)
+            {
+                _array[i] = args[i]->AsBool();
+            }
+            *res = _array;
+        }
+    }
+    else if(func == "number")
+    {
+        if(args.size() == 0)
+        {
+            res->operator=(0.0);
+        }
+        else if(args.size() == 1)
+        {
+            *res = args[0]->AsNumber();
+        }
+        else
+        {
+            VarArray _array(args.size());
+            for(int i = 0; i < args.size(); i++)
+            {
+                _array[i] = args[i]->AsNumber();
+            }
+            *res = _array;
+        }
+    }
+    else if(func == "string")
+    {
+        if(args.size() == 0)
+        {
+            string str = "";
+            res->operator=(str);
+        }
+        else if(args.size() == 1)
+        {
+            *res = args[0]->AsString();
+        }
+        else
+        {
+            VarArray _array(args.size());
+            for(int i = 0; i < args.size(); i++)
+            {
+                _array[i] = args[i]->AsString();
+            }
+            *res = _array;
+        }
+    }
+    else if(func == "array")
+    {
+        if(args.size() == 0)
+        {
+            VarArray _array;
+            res->operator=(_array);
+        }
+        else if(args.size() == 1)
+        {
+            *res = args[0]->AsArray();
+        }
+        else
+        {
+            VarArray _array(args.size());
+            for(int i = 0; i < args.size(); i++)
+            {
+                _array[i] = args[i]->AsArray();
+            }
+            *res = _array;
+        }
+    }
+    else if(func == "int")
+    {
+        if(args.size() == 0)
+        {
+            res->operator=(0.0);
+        }
+        else if(args.size() == 1)
+        {
+            *res = args[0]->AsNumber();
+            *res = (double)((int)res->Number());
+        }
+        else
+        {
+            VarArray _array(args.size());
+            for(int i = 0; i < args.size(); i++)
+            {
+                _array[i] = args[i]->AsNumber();
+                _array[i] = (double)((int)_array[i].Number());
+            }
+            *res = _array;
+        }
     }
     else if(func == "exit")
     {

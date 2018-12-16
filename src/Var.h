@@ -130,6 +130,11 @@ class Var
         VarArray& Array();
         VarDict& Dict();
 
+        Var AsBool();
+        Var AsNumber();
+        Var AsString();
+        Var AsArray();
+
         bool operator==(Var& other);
         bool operator!=(Var& other);
         bool operator>(Var& other);

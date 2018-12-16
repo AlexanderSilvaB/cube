@@ -207,6 +207,128 @@ VarDict& Var::Dict()
     return _dict;
 }
 
+Var Var::AsBool()
+{
+    Var var;
+    switch(type)
+    {
+        case VarType::BOOL:
+            var = Bool();
+            break;
+        case VarType::NUMBER:
+            var = Number() != 0;
+            break;
+        case VarType::STRING:
+            var = String() == "true";
+            break;
+        case VarType::ARRAY:
+            var = Array().size() > 0;
+            break;
+        case VarType::DICT:
+            var = Dict().size() > 0;
+            break;
+        default:
+            var = false;
+            break;
+    }
+    return var;
+}
+
+Var Var::AsNumber()
+{
+    Var var;
+    switch(type)
+    {
+        case VarType::BOOL:
+            var = Bool() ? 1.0 : 0.0;
+            break;
+        case VarType::NUMBER:
+            var = Number();
+            break;
+        case VarType::STRING:
+        {
+            stringstream ss;
+            ss << String();
+            double v = 0;
+            ss >> v;
+            var = v;
+        }
+            break;
+        case VarType::ARRAY:
+            var = (double)Array().size();
+            break;
+        case VarType::DICT:
+            var = (double)Dict().size();
+            break;
+        default:
+            var = 0.0;
+            break;
+    }
+    return var;
+}
+
+Var Var::AsString()
+{
+    Var var;
+    switch(type)
+    {
+        case VarType::BOOL:
+        {
+            string v;
+            if(Bool())
+                v = "true";
+            else
+                v = "false";
+            var = v;
+        }
+            break;
+        case VarType::NUMBER:
+        {
+            stringstream ss;
+            ss << Number();
+            var = ss.str();
+        }
+            break;
+        case VarType::STRING:
+        {
+            var = String();
+        }
+            break;
+        case VarType::ARRAY:
+        {
+            stringstream ss;
+            VarArray &A = Array();
+            for(int i = 0; i < A.size(); i++)
+            {
+                Var a = A[i].AsString();
+                ss << a.String();
+            }
+            var = ss.str();
+        }
+            break;
+        case VarType::DICT:
+            var = ToString();
+            break;
+        default:
+            var = ToString();
+            break;
+    }
+    return var;
+}
+
+Var Var::AsArray()
+{
+    Var var;
+    var = split();
+    if(var.IsType(VarType::ERROR))
+    {
+        VarArray _array(1);
+        _array[0] = *this;
+        var = _array;
+    }
+    return var;
+}
+
 bool Var::operator==(Var &other)
 {
     if(type != other.type)
