@@ -6,4 +6,5 @@ func fatorial(num)
         return num * fatorial(num - 1)
 }
 
-print(fatorial(5))
+println("fatorial(5) = ", fatorial(5))
+println("5! = ", 5!)

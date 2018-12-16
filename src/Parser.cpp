@@ -35,13 +35,13 @@ Parser::Parser()
 
     noright.insert("++");
     noright.insert("--");
+    noright.insert("!");
 
     noleft.insert("+");
     noleft.insert("-");
     noleft.insert("++");
     noleft.insert("--");
     noleft.insert("~");
-    noleft.insert("!");
 }
 
 Parser::~Parser()

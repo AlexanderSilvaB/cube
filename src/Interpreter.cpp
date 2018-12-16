@@ -850,7 +850,7 @@ Var* Interpreter::ApplyOperator(const string& op, Var* left, Var* middle, Var* r
     }
     else if(op == "!")
     {
-        *res = ! *right;
+        *res = ! *left;
     }
     else if(op == "%")
     {
