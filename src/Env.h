@@ -23,6 +23,8 @@ class Env
         Var* set(const std::string& name, Var* value);
         Var* def(const std::string& name, Var* value);
 
+        VarDict& Vars();
+
         std::string toString();
 };
 

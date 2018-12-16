@@ -1,4 +1,5 @@
 #include "Var.h"
+#include "Env.h"
 #include <sstream>
 #include <iostream>
 #include <cmath>
@@ -70,6 +71,9 @@ string Var::TypeName()
         case VarType::DICT:
             return "dict";
             break;
+        case VarType::LIB:
+            return "lib";
+            break;
         case VarType::FUNC:
             return "func";
             break;
@@ -109,6 +113,13 @@ void Var::Error(const string& text)
 Var& Var::SetType(VarType::Types type)
 {
     this->type = type;
+    return *this;
+}
+
+Var& Var::operator=(Env* env)
+{
+    this->type = VarType::LIB;
+    this->_dict = env->Vars();
     return *this;
 }
 
@@ -4128,7 +4139,10 @@ Var Var::operator[](Var& other)
                     }
                     if(valid)
                     {
-                        res = data;
+                        if(data.size() == 1)
+                            res = data[0];
+                        else
+                            res = data;
                     }
                 }
             }
@@ -4228,6 +4242,35 @@ Var Var::split()
     return res;
 }
 
+int Var::Size()
+{
+    switch(Type())
+    {
+        case VarType::BOOL:
+            return 1;
+            break;
+        case VarType::NUMBER:
+            return 1;
+            break;
+        case VarType::STRING:
+            return String().size();
+            break;
+        case VarType::ARRAY:
+            return Array().size();
+            break;
+        case VarType::DICT:
+            return 1;
+            break;
+        case VarType::ERROR:
+            return 1;
+            break;
+        default:
+            return 1;
+            break;
+    }
+    return 1;
+}
+
 std::string Var::ToString()
 {
     stringstream ss;
@@ -4266,6 +4309,19 @@ std::string Var::ToString()
                     ss << ", ";
             }
             ss << "]";
+        }
+            break;
+        case VarType::LIB:
+        {
+            int i = 0;
+            ss << "{";
+            for(VarDict::iterator it = _dict.begin(); it != _dict.end(); it++, i++)
+            {
+                ss << it->first << " = " << it->second;
+                if(i < _dict.size()-1)
+                    ss << ", ";
+            }
+            ss << "}";
         }
             break;
         case VarType::FUNC:

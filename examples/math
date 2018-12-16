@@ -1,0 +1,39 @@
+pi = 3.1416
+
+func deg(x)
+{
+    return x * 57.2958
+}
+
+func rad(x)
+{
+    return x * 0.0174533
+}
+
+func sqrt(n)
+{
+    x = n
+    y = 1
+    e = 1e-6
+    while(x - y > e)
+    {
+        x = (x + y)/2
+        y = n/x
+    }
+    return x
+}
+
+func sin(x)
+{
+    y = (16*x*(pi - x))/(5*pi**2 - 4*x*(pi -x))
+    return y
+}
+
+func cos(x)
+{
+    y = sqrt(1 - sin(x)**2)
+    return y
+}
+
+if(__name__ == "__main__")
+    print(pi, "rad =", deg(pi), "º")

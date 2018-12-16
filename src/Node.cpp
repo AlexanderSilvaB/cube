@@ -166,6 +166,17 @@ string Node_st::ToString(int spaces)
             ss << "Body: " << endl;
             ss << body->ToString(spaces + 2);
             break;
+        case NodeType::IMPORT:
+            ss << "Import: " << endl;
+            for(int i = 0; i < nodes.size(); i++)
+            {
+                ss << makeSpaces(spaces + 1);
+                ss << nodes[i]->_string;
+                if(nodes[i]->_nick.size() > 0)
+                    ss << " as " << nodes[i]->_nick;
+                ss << endl;
+            }
+            break;
         case NodeType::CONTEXT:
             ss << "Context: " << endl;
             ss << makeSpaces(spaces) << "{" << endl;

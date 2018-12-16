@@ -89,6 +89,11 @@ Var* Env::def(const string& name, Var* value)
     return &vars[name];
 }
 
+VarDict& Env::Vars()
+{
+    return vars;
+}
+
 string Env::toString()
 {
     stringstream ss;

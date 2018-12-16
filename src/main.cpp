@@ -10,22 +10,21 @@ int main(int argc, char *argv[])
 {
     bool interactive = true;
 
+    Interpreter interpreter;
+
     string src = "";
     if(argc > 1)
     {
         string fileName(argv[1]);
-        ifstream t(fileName);
-        t.seekg(0, std::ios::end);   
-        src.reserve(t.tellg());
-        t.seekg(0, std::ios::beg);
-        src.assign((istreambuf_iterator<char>(t)), istreambuf_iterator<char>());
+        src = interpreter.OpenFile(fileName);
         interactive = false;
     }
 
-    Interpreter interpreter;
     if(!interactive)
     {
         interpreter.Evaluate(src, false);
+        if(interpreter.NeedBreak())
+            cout << "\033[0m" << endl;
     }
     else
     {
@@ -37,7 +36,7 @@ int main(int argc, char *argv[])
             if(!interpreter.Evaluate(line, true))
                 break;
             if(interpreter.NeedBreak())
-                cout << endl;
+                cout << "\033[0m" << endl;
         }
     }
 

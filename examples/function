@@ -1,9 +1,0 @@
-func log()
-{
-    print(color('red'), date('dd/MM/YYYY HH:mm:ss: '))
-    for(arg in args)
-        print(arg)
-    println()
-}
-
-log('ABCDEF', 'ffd')

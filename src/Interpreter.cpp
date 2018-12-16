@@ -3,7 +3,10 @@
 #include <cmath>
 #include <algorithm>
 #include <string>
-#include <time.h> 
+#include <time.h>
+#include <streambuf>
+#include <iostream> 
+#include <fstream>
 
 using namespace std;
 
@@ -52,7 +55,15 @@ bool Interpreter::Evaluate(const string& src, bool interactive)
     }
     else
     {
-        Var* var = Evaluate(root, env);
+        Var *var = MKVAR();
+        string name = "";
+        if(!interactive)
+        {
+            name = "__main__";
+        }
+        *var = name;
+        env->set("__name__", var);
+        var = Evaluate(root, env);
         if(!var)
         {
             cout << "Error: Undefined error" << endl;
@@ -189,7 +200,9 @@ Var* Interpreter::Evaluate(Node node, Env* env)
             {
                 Var* value = Evaluate(node->right, env);
                 if(!value->IsType(VarType::ERROR))
+                {
                     var = env->set(node->left->_string, value);
+                }
                 else  
                     var = value;
             }
@@ -223,7 +236,7 @@ Var* Interpreter::Evaluate(Node node, Env* env)
             else if(node->_string == ".")
             {
                 Var *left = Evaluate(node->left, env);
-                if(!left->IsType(VarType::DICT))
+                if(!left->IsType(VarType::DICT) && !left->IsType(VarType::LIB))
                 {
                     var = MKVAR();
                     stringstream ss;
@@ -235,14 +248,14 @@ Var* Interpreter::Evaluate(Node node, Env* env)
                 else
                 {
                     VarDict &dict = left->Dict();
-                    if(node->right->type != NodeType::VARIABLE)
+                    if(node->right->type != NodeType::VARIABLE && node->right->type != NodeType::CALL)
                     {
                         var = MKVAR();
                         stringstream ss;
                         ss << "Could not apply the operator '.' to '" << node->right->ToString() << "'";
                         MakeError(var, ss.str(), node);
                     }
-                    else
+                    else if(node->right->type == NodeType::VARIABLE)
                     {
                         for(VarDict::iterator it = dict.begin(); it != dict.end(); it++)
                         {
@@ -260,10 +273,89 @@ Var* Interpreter::Evaluate(Node node, Env* env)
                             MakeError(var, ss.str(), node);
                         }
                     }
+                    else
+                    {
+                        if(node->right->func->type = NodeType::VARIABLE)
+                        {
+                            Var *func = NULL;
+                            Env* callEnv = env->extend();
+                            for(VarDict::iterator it = dict.begin(); it != dict.end(); it++)
+                            {
+                                callEnv->def(it->first, &it->second);
+                                if(it->first == node->right->func->_string)
+                                {
+                                    func = &it->second;
+                                }
+                            }
+                            if(func == NULL)
+                            {
+                                var = MKVAR();
+                                stringstream ss;
+                                ss << "'" << node->right->func->_string << "' does not name a function member"; 
+                                MakeError(var, ss.str(), node->right->func);
+                            }
+                            else
+                            {
+                                bool valid = true;
+                                vector<Var*> args(node->right->nodes.size());
+                                for(int i = 0; i < node->right->nodes.size(); i++)
+                                {
+                                    args[i] = Evaluate(node->right->nodes[i], env);
+                                    if(args[i]->IsType(VarType::ERROR))
+                                    {
+                                        var = MKVAR();
+                                        *var = args[i];
+                                        valid = false;
+                                    }
+                                }
+                                if(valid)
+                                    var = Call(node->right->func->_string, args, callEnv);
+                            }
+                            delete callEnv;
+                        }
+                        else
+                        {
+                            var = MKVAR();
+                            MakeError(var, "Cannot call this like a function", node->right->func);
+                        }
+                    }
                 }
             }
             else
-                var = ApplyOperator(node->_string, Evaluate(node->left, env), Evaluate(node->middle, env), Evaluate(node->right, env), env);
+            {
+                bool valid = true;
+                Var *l = Evaluate(node->left, env);
+                if(l->IsType(VarType::ERROR))
+                {
+                    var = MKVAR();
+                    *var = *l;
+                    valid = false;
+                }
+                Var *m = NULL;
+                if(valid)
+                {
+                    m = Evaluate(node->middle, env);
+                    if(m->IsType(VarType::ERROR))
+                    {
+                        var = MKVAR();
+                        *var = *m;
+                        valid = false;
+                    }
+                }
+                Var *r = NULL;
+                if(valid)
+                {
+                    r = Evaluate(node->right, env);
+                    if(r->IsType(VarType::ERROR))
+                    {
+                        var = MKVAR();
+                        *var = *r;
+                        valid = false;
+                    }
+                }
+                if(valid)
+                    var = ApplyOperator(node->_string, l, m, r, env);
+            }
         }
             break;
         case NodeType::INDEX:
@@ -273,7 +365,32 @@ Var* Interpreter::Evaluate(Node node, Env* env)
             VarArray index;
             for(int i = 0; i < node->nodes.size(); i++)
             {
+                bool changeLeft = false;
+                bool changeRight = false;
+                if(node->nodes[i]->type == NodeType::BINARY && node->nodes[i]->_string == ":" )
+                {
+                    if(node->nodes[i]->left->_string == "start")
+                    {
+                        node->nodes[i]->left->_number = 0;
+                        node->nodes[i]->left->type = NodeType::NUMBER;
+                        changeLeft = true;
+                    }
+                    if(node->nodes[i]->right->_string == "end")
+                    {
+                        node->nodes[i]->right->_number = left->Size()-1;
+                        node->nodes[i]->right->type = NodeType::NUMBER;
+                        changeRight = true;
+                    }
+                }
                 Var* v = Evaluate(node->nodes[i], env);
+                if(changeLeft)
+                {
+                    node->nodes[i]->left->type = NodeType::VARIABLE;
+                }
+                if(changeRight)
+                {
+                    node->nodes[i]->right->type = NodeType::VARIABLE;
+                }
                 if(v->IsType(VarType::ARRAY))
                 {
                     VarArray &A = v->Array();
@@ -320,6 +437,24 @@ Var* Interpreter::Evaluate(Node node, Env* env)
             {
                 var = MKVAR();
                 MakeError(var, "Cannot call this like a function", node->func);
+            }
+        }
+            break;
+        case NodeType::IF:
+        {
+            var = MKVAR();
+            Var *cond = Evaluate(node->cond, env);
+            if(cond->IsType(VarType::ERROR))
+            {
+                *var = *cond;
+            }
+            else if(!cond->IsFalse())
+            {
+                var = Evaluate(node->then, env);
+            }
+            else if(node->contr)
+            {
+                var = Evaluate(node->contr, env);
             }
         }
             break;
@@ -374,7 +509,7 @@ Var* Interpreter::Evaluate(Node node, Env* env)
                             if(parts.Array().size() > 0)
                             {
                                 inVar = &parts.Array()[inIndex];
-                                forEnv->set(in->left->_string, inVar);
+                                forEnv->def(in->left->_string, inVar);
                                 inIndex++;
                             }
                             else
@@ -425,7 +560,7 @@ Var* Interpreter::Evaluate(Node node, Env* env)
                             if(inIndex < parts.Array().size())
                             {
                                 inVar = &parts.Array()[inIndex];
-                                forEnv->set(in->left->_string, inVar);
+                                forEnv->def(in->left->_string, inVar);
                                 inIndex++;
                             }
                             else
@@ -472,6 +607,7 @@ Var* Interpreter::Evaluate(Node node, Env* env)
             Var *cond = Evaluate(node->cond, whileEnv);
             if(cond->IsFalse())
             {
+                var = MKVAR();
                 *var = *cond;
             }
             while(!cond->IsFalse())
@@ -562,11 +698,77 @@ Var* Interpreter::Evaluate(Node node, Env* env)
             }
         }
             break;
+        case NodeType::IMPORT:
+        {
+            var = MKVAR();
+            for(int i = 0; i < node->nodes.size(); i++)
+            {
+                string src = OpenFile(node->nodes[i]->_string);
+                string name = node->nodes[i]->_string;
+                bool global = false;
+                if(node->nodes[i]->_nick.length() > 0)
+                {
+                    name = node->nodes[i]->_nick;
+                    global = name == "__global__";
+                }
+
+
+                Node root = parser.Parse(src);
+                *var = node->nodes[i]->_string;
+                if(global)
+                {
+                    env->set("__name__", var);
+                    var = Evaluate(root, env);
+                }
+                else
+                {
+                    Env *libEnv = new Env();
+
+                    libEnv->set("__name__", var);
+                    Evaluate(root, libEnv);
+                    
+                    *var = libEnv;
+                    env->def(name, var);
+                    delete libEnv;
+                }
+            }
+            var->SetType(VarType::IGNORE);
+        }
+            break;
         default:
+            var = MKVAR();
             MakeError(var, "Could not evaluate", node);
             break;
     }
     return var;
+}
+
+std::string Interpreter::OpenFile(const std::string& fileName)
+{
+    string ret = "";
+    ifstream t(fileName.c_str());
+    if(!t.good())
+    {
+        for(set<string>::iterator it = paths.begin(); it != paths.end(); it++)
+        {
+            string path = (*it) + "/" + fileName;
+            t = ifstream(path.c_str());
+            if(t.good())
+                break;
+        }
+    }
+
+    if(t.good())
+    {
+        t.seekg(0, std::ios::end);   
+        ret.reserve(t.tellg());
+        t.seekg(0, std::ios::beg);
+        ret.assign((istreambuf_iterator<char>(t)), istreambuf_iterator<char>());
+        string folder = GetFolder(fileName);
+        if(paths.count(folder) == 0)
+            paths.insert(folder);
+    }
+    return ret;
 }
 
 void Interpreter::MakeError(Var* var, const string& text)
@@ -799,9 +1001,10 @@ Var* Interpreter::Call(const std::string& func, std::vector<Var*>& args, Env *en
             if(i < args.size()-1 && str[0] != '\033')
                 cout << " ";
         }
-        cout << "\033[0m";
         if(func == "println")
-            cout << endl;
+        {
+            cout << "\033[0m" << endl;
+        }
         else
             needBreak = true;
     }
@@ -913,11 +1116,13 @@ Var* Interpreter::Call(const std::string& func, std::vector<Var*>& args, Env *en
             Env *funcEnv = env->extend();
             Node _func = var->Func();
             VarArray _array(args.size());
-            for(int i = 0; i < _func->vars.size(); i++)
+            int limit = max(_func->vars.size(), args.size());
+            for(int i = 0; i < limit; i++)
             {
                 if(i < args.size())
                 {
-                    funcEnv->def(_func->vars[i], args[i]);
+                    if(i < _func->vars.size())
+                        funcEnv->def(_func->vars[i], args[i]);
                     _array[i] = *args[i];
                 }
                 else
@@ -943,4 +1148,20 @@ bool Interpreter::IsColor(const std::string& color)
 {
     map<string, int>::iterator it = colors.find(color);
     return it != colors.end();
+}
+
+string Interpreter::GetFolder(const string& path)
+{
+    int i = path.size()-1;
+    while(i >= 0)
+    {
+        if(path[i] == '\\' || path[i] == '/')
+        {
+            break;
+        }
+        i--;
+    }
+    if(i >= 0)
+        return path.substr(0, i);
+    return "";       
 }

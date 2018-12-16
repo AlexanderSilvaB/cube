@@ -1,4 +1,6 @@
-let(a = 10, b = a * 10)
+x = let(a = 10, b = a * 10)
 {
     a + b
 }
+
+print(x)

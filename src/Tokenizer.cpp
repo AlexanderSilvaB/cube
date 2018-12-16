@@ -26,6 +26,9 @@ Tokenizer::Tokenizer()
     keywords.push_back("in");
     keywords.push_back("let");
     keywords.push_back("do");
+    keywords.push_back("import");
+    keywords.push_back("as");
+    keywords.push_back("global");
 
     operators.insert(".");
     operators.insert("+");

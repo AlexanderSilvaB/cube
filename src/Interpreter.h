@@ -5,6 +5,7 @@
 #include "Var.h"
 #include "Parser.h"
 #include <map>
+#include <set>
 
 class Interpreter
 {
@@ -15,9 +16,12 @@ class Interpreter
         Parser parser;
         Env* env;
 
+        std::set<std::string> paths;
+
         std::map<std::string, int> colors;
         bool IsColor(const std::string& color);
         void ReplaceString(std::string& subject, const std::string& search, const std::string& replace);
+        std::string GetFolder(const std::string& path);
 
         void MakeError(Var* var, const std::string& text);
         void MakeError(Var* var, const std::string& text, Node& node);
@@ -31,6 +35,8 @@ class Interpreter
 
         int ExitCode();
         bool NeedBreak();
+
+        std::string OpenFile(const std::string& fileName);
 
         bool Evaluate(const std::string& src, bool interactive);
 };

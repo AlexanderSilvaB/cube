@@ -30,7 +30,7 @@ Parser::Parser()
     precedence["*"] = 20;//ok
     precedence["/"] = 20;//ok
     precedence["%"] = 20;//ok
-    precedence["**"] = 20;//ok
+    precedence["**"] = 25;//ok
     precedence[":"] = 30;//ok
 
     noright.insert("++");
@@ -193,6 +193,52 @@ bool Parser::DelimitedNames(std::vector<string> &names, const std::string &start
     if(!SkipSymbol(stop) && (op && !SkipOperator(stop)))
         return false;
     return true;
+}
+
+Node Parser::ParseImport()
+{
+    Node node = MKNODE();
+    node->type = NodeType::IMPORT;
+    bool first = true;
+    while(!tokens.Eof())
+    {
+        if(first)
+            first = false;
+        else
+        {
+            if(!SkipSymbol(","))
+                break;
+        }
+        string name = ParseVarName();
+        if(name.length() == 0)
+        {
+            MakeError(node, "Invalid import name", tokens.Peek());
+            break;
+        }
+        Node var = MKNODE();
+        var->type = NodeType::VARIABLE;
+        var->_string = name;
+        Token as = tokens.Peek();
+        if(as.type == TokenType::KEYWORD && as._string == "as")
+        {
+            tokens.Next();
+            string nick = ParseVarName();
+            if(nick.length() == 0)
+            {
+                MakeError(node, "Invalid import nickname", tokens.Peek());
+                break;
+            }
+            var->_nick = nick;
+        }
+        else if(as.type == TokenType::KEYWORD && as._string == "global")
+        {
+            tokens.Next();
+            var->_nick = "__global__";
+        }
+
+        node->nodes.push_back(var);
+    }
+    return node;
 }
 
 Node Parser::ParseCall(Node func)
@@ -479,6 +525,13 @@ Node Parser::ParseAtom()
         node->body = ParseExpression();
         if(node->body->type == NodeType::ERROR)
             return node->body;
+    }
+    else if(IsKeyword("import"))
+    {
+        tokens.Next();
+        node = ParseImport();
+        if(node->type == NodeType::ERROR)
+            return node;
     }
     else if(IsKeyword("none"))
     {

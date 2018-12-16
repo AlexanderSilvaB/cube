@@ -9,12 +9,14 @@
 
 namespace VarType
 {
-    enum Types {IGNORE, ERROR, BOOL, NUMBER, STRING, ARRAY, DICT, FUNC, NONE};
+    enum Types {IGNORE, ERROR, BOOL, NUMBER, STRING, ARRAY, DICT, LIB, FUNC, NONE};
 }
 
 class Var;
 typedef std::vector<Var> VarArray;
 typedef std::map<std::string, Var> VarDict;
+
+class Env;
 
 class Var
 {
@@ -112,6 +114,7 @@ class Var
         void Return(bool ret);
         bool Returned();
 
+        Var& operator=(Env* env);
         Var& operator=(const Var& value);
         Var& operator=(const bool& value);
         Var& operator=(const double& value);
@@ -152,6 +155,8 @@ class Var
         Var pow(Var& other);
         Var operator[](Var& other);
         Var split();
+
+        int Size();
 
         std::string ToString();
 };

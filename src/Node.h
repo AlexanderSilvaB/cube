@@ -10,14 +10,14 @@ namespace NodeType
 {
     enum Types
     {
-        IGNORE, ERROR, NONE, VARIABLE, BOOL, NUMBER, STRING, ARRAY, DICT, INDEX, ASSIGN, BINARY, RETURN, LET, LAMBDA, FUNCTION, IF, FOR, WHILE, DOWHILE, CONTEXT, CALL
+        IGNORE, ERROR, NONE, VARIABLE, BOOL, NUMBER, STRING, ARRAY, DICT, INDEX, ASSIGN, BINARY, RETURN, LET, LAMBDA, FUNCTION, IF, FOR, WHILE, DOWHILE, CONTEXT, CALL, IMPORT
     };
 }
 
 struct Node_st
 {   
     NodeType::Types type;
-    std::string _string;
+    std::string _string, _nick;
     double _number;   
     bool _bool;
     std::vector<std::shared_ptr<struct Node_st> > nodes;

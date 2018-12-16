@@ -7,6 +7,9 @@ f = "This is a string with 'single' quotes"
 g = true
 h = none
 i = @(x) {return x+5}
-j = [1, 2, 3, 4, 5]
-k = h[0, 2:end] 
-l = 0:2:100
+j = i(9)
+k = [1, 2, 3, 4, 5]
+l = k[0, 3:end] 
+m = 0:2:100
+
+env()
