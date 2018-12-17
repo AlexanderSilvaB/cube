@@ -19,6 +19,7 @@ class Input
         
         char Peek();
         char Next();
+        char Back();
 
         size_t Col();
         size_t Row();

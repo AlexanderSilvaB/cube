@@ -22,6 +22,8 @@ class Env
         Var* get(const std::string& name);
         Var* set(const std::string& name, Var* value);
         Var* def(const std::string& name, Var* value);
+        Env* copy(Env *env = NULL);
+        void paste(Env *env);
 
         VarDict& Vars();
 

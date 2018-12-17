@@ -328,10 +328,32 @@ Node Parser::ParseFunction()
 
     Token name = tokens.Peek();
     node->_string = ParseVarName();
-    if(node->_string.length() == 0)
+    if(IsOperator("."))
     {
-        MakeError(node, "Invalid function name", name);
-        return node;
+        if(node->_string.length() == 0)
+        {
+            MakeError(node, "Invalid extension type name", name);
+            return node;
+        }
+        tokens.Next();
+        name = tokens.Peek();
+        string func = ParseVarName();
+        if(func.length() == 0)
+        {
+            MakeError(node, "Invalid extension name", name);
+            return node;
+        }
+        node->type = NodeType::EXTENSION;
+        node->_nick = node->_string;
+        node->_string = func;
+    }
+    else
+    {
+        if(node->_string.length() == 0)
+        {
+            MakeError(node, "Invalid function name", name);
+            return node;
+        }
     }
     if(!DelimitedNames(node->vars, "(", ")", ","))
     {
@@ -342,6 +364,33 @@ Node Parser::ParseFunction()
     if(body->type == NodeType::ERROR)
         return body;
     node->body = body;
+    return node;
+}
+
+Node Parser::ParseTry()
+{
+    Node node = MKNODE();
+    node->type = NodeType::TRY;
+    Node then = ParseExpression();
+    if(then->type == NodeType::ERROR)
+        return then;
+    if(SkipKeyword("catch"))
+    {
+        if(IsSymbol("("))
+        {
+            if(!DelimitedNames(node->vars, "(", ")", ",") || node->vars.size() > 1)
+            {
+                MakeError(node, "Invalid number of arguments for try/catch (must be 1)", tokens.Peek());
+                return node;
+            }
+            node->_string = node->vars[0];
+        }
+        Node contr = ParseExpression();
+        if(contr->type == NodeType::ERROR)
+            return contr;
+        node->contr = contr;
+    }
+    node->body = then;
     return node;
 }
 
@@ -530,6 +579,13 @@ Node Parser::ParseAtom()
     {
         tokens.Next();
         node = ParseImport();
+        if(node->type == NodeType::ERROR)
+            return node;
+    }
+    else if(IsKeyword("try"))
+    {
+        tokens.Next();
+        node = ParseTry();
         if(node->type == NodeType::ERROR)
             return node;
     }

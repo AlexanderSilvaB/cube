@@ -94,6 +94,27 @@ VarDict& Env::Vars()
     return vars;
 }
 
+Env* Env::copy(Env *env)
+{
+    if(env == NULL)
+        env = new Env();
+    for(VarDict::iterator it = vars.begin(); it != vars.end(); it++)
+    {
+        env->def(it->first, &it->second);
+    }
+    if(parent != NULL)
+        parent->copy(env);
+    return env;
+}
+
+void Env::paste(Env *env)
+{
+    for(VarDict::iterator it = env->vars.begin(); it != env->vars.end(); it++)
+    {
+        set(it->first, &it->second);
+    }
+}
+
 string Env::toString()
 {
     stringstream ss;

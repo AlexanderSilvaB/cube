@@ -1,13 +1,21 @@
 pi = 3.1416
 
-func deg(x)
+func deg(x) x * 57.2958
+
+func rad(x) x * 0.0174533
+
+func min(a, b)
 {
-    return x * 57.2958
+    if(a < b)
+        return a
+    return b
 }
 
-func rad(x)
+func max(a, b)
 {
-    return x * 0.0174533
+    if(a > b)
+        return a
+    return b
 }
 
 func sqrt(n)

@@ -4381,7 +4381,7 @@ int Var::Size()
             return Array().size();
             break;
         case VarType::DICT:
-            return 1;
+            return Dict().size();
             break;
         case VarType::ERROR:
             return 1;

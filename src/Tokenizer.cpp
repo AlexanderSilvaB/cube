@@ -29,6 +29,8 @@ Tokenizer::Tokenizer()
     keywords.push_back("import");
     keywords.push_back("as");
     keywords.push_back("global");
+    keywords.push_back("try");
+    keywords.push_back("catch");
 
     operators.insert(".");
     operators.insert("+");
@@ -265,6 +267,7 @@ void Tokenizer::ReadNumber()
     char c = input.Peek();
     ss << c;
     count++;
+    int afterDigit = 0;
 
     c = input.Next();
     do
@@ -273,6 +276,8 @@ void Tokenizer::ReadNumber()
         {
             ss << c;
             count++;
+            if(hasPoint)
+                afterDigit++;
         }
         else if((c == '+' || c == '-') && hasExpoent && !hasSignal)
         {
@@ -286,6 +291,8 @@ void Tokenizer::ReadNumber()
         }
         else if((c == 'e' || c == 'E') && !hasExpoent)
         {
+            if(hasPoint && afterDigit == 0)
+                break;
             if(count > 0)
                 ss >> base;
             else
@@ -299,6 +306,8 @@ void Tokenizer::ReadNumber()
         c = input.Next();
     }
     while(!input.Eof());
+    if(hasPoint && afterDigit == 0)
+        input.Back();
     if(hasExpoent)
     {
         if(count > 0)

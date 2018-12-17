@@ -1,0 +1,15 @@
+try
+{
+    i = 2
+    j = 0
+    k = i/j
+}
+catch(e)
+{
+    println("Oh! An error")
+}
+
+try
+{
+    i = 9/0
+}

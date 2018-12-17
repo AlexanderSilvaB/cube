@@ -1,2 +1,2 @@
-# NanoLang
-Nano is a dynamic typed programing language
+# Cube
+Cube is a dynamic typed programing language

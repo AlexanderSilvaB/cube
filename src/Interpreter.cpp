@@ -179,6 +179,11 @@ Var* Interpreter::Evaluate(Node node, Env* env)
             *var = node;
             var = env->set(node->_string, var);
             break;
+        case NodeType::EXTENSION:
+            var = MKVAR();
+            *var = node;
+            var = env->set(node->_nick+"."+node->_string, var);
+            break;
         case NodeType::LAMBDA:
             var = MKVAR();
             *var = node;
@@ -236,16 +241,7 @@ Var* Interpreter::Evaluate(Node node, Env* env)
             else if(node->_string == ".")
             {
                 Var *left = Evaluate(node->left, env);
-                if(!left->IsType(VarType::DICT) && !left->IsType(VarType::LIB))
-                {
-                    var = MKVAR();
-                    stringstream ss;
-                    ss << "Cannot apply the operator '.' to '" << left->TypeName() << "'";
-                    MakeError(var, ss.str(), node);
-                    if(!left->Stored())
-                        delete left;
-                }
-                else
+                if(left->IsType(VarType::DICT) || left->IsType(VarType::LIB))
                 {
                     VarDict &dict = left->Dict();
                     if(node->right->type != NodeType::VARIABLE && node->right->type != NodeType::CALL)
@@ -317,6 +313,53 @@ Var* Interpreter::Evaluate(Node node, Env* env)
                         {
                             var = MKVAR();
                             MakeError(var, "Cannot call this like a function", node->right->func);
+                        }
+                    }
+                }
+                else
+                {
+                    if(node->right->type != NodeType::CALL)
+                    {
+                        var = MKVAR();
+                        stringstream ss;
+                        ss << "Could not apply the operator '.' to '" << node->right->ToString() << "'";
+                        MakeError(var, ss.str(), node);
+                        if(!left->Stored())
+                            delete left;
+                    }
+                    else
+                    {
+                        string name = left->TypeName() + "." + node->right->func->_string;
+                        Var *func = env->get(name);
+                        if(func->IsType(VarType::ERROR))
+                        {
+                            var = MKVAR();
+                            stringstream ss;
+                            ss << "'" << left->TypeName() << "' does not have an extension called '" << node->right->func->_string << "'";
+                            MakeError(var, ss.str(), node);
+                            if(!left->Stored())
+                                delete left;
+                        }
+                        else
+                        {
+                            Env* callEnv = env->extend();
+                            bool valid = true;
+                            vector<Var*> args(node->right->nodes.size());
+                            for(int i = 0; i < node->right->nodes.size(); i++)
+                            {
+                                args[i] = Evaluate(node->right->nodes[i], env);
+                                if(args[i]->IsType(VarType::ERROR))
+                                {
+                                    var = MKVAR();
+                                    *var = args[i];
+                                    valid = false;
+                                }
+                            }
+                            if(valid)
+                                var = Call(name, args, callEnv, left);
+                            delete callEnv;
+                            if(!left->Stored())
+                                delete left;
                         }
                     }
                 }
@@ -455,6 +498,31 @@ Var* Interpreter::Evaluate(Node node, Env* env)
             else if(node->contr)
             {
                 var = Evaluate(node->contr, env);
+            }
+        }
+            break;
+        case NodeType::TRY:
+        {
+            var = MKVAR();
+            Env* tryEnv = env->copy();
+            Var *body = Evaluate(node->body, tryEnv);
+            if(!body->IsType(VarType::ERROR))
+            {
+                env->paste(tryEnv);
+                delete tryEnv;
+            }
+            else if(node->contr)
+            {
+                delete tryEnv;
+                tryEnv = env->copy();
+                if(node->_string.size() > 0)
+                    tryEnv->def(node->_string, body);
+                Var *contr = Evaluate(node->contr, tryEnv);
+                if(contr->IsType(VarType::ERROR))
+                {
+                    *var = *contr;
+                }
+                delete tryEnv;
             }
         }
             break;
@@ -988,7 +1056,7 @@ void Interpreter::ReplaceString(std::string& subject, const std::string& search,
     }
 }
 
-Var* Interpreter::Call(const std::string& func, std::vector<Var*>& args, Env *env)
+Var* Interpreter::Call(const std::string& func, std::vector<Var*>& args, Env *env, Var* caller)
 {
     Var* res = MKVAR();
     if(func == "print" || func == "println")
@@ -1207,6 +1275,26 @@ Var* Interpreter::Call(const std::string& func, std::vector<Var*>& args, Env *en
             *res = _array;
         }
     }
+    else if(func == "len")
+    {
+        if(args.size() == 0)
+        {
+            res->operator=(0.0);
+        }
+        else if(args.size() == 1)
+        {
+            *res = (double)args[0]->Size();
+        }
+        else
+        {
+            VarArray _array(args.size());
+            for(int i = 0; i < args.size(); i++)
+            {
+                _array[i] = (double)args[i]->Size();
+            }
+            *res = _array;
+        }
+    }
     else if(func == "exit")
     {
         exitCode = 0;
@@ -1236,6 +1324,10 @@ Var* Interpreter::Call(const std::string& func, std::vector<Var*>& args, Env *en
         else
         {
             Env *funcEnv = env->extend();
+            if(caller != NULL)
+            {
+                funcEnv->def("this", caller);
+            }
             Node _func = var->Func();
             VarArray _array(args.size());
             int limit = max(_func->vars.size(), args.size());

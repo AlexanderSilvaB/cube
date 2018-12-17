@@ -84,6 +84,35 @@ string Node_st::ToString(int spaces)
             ss << "Body: " << endl;
             ss << body->ToString(spaces + 2);
             break;
+        case NodeType::EXTENSION:
+            ss << "Extension: " << _nick << "." << _string << endl;
+            ss << makeSpaces(spaces + 1);
+            ss << "Vars: ";
+            for(int i = 0; i < vars.size(); i++)
+            {
+                ss << vars[i];
+                if(i < vars.size()-1)
+                    ss << ", ";
+            }
+            ss << endl;
+            ss << makeSpaces(spaces + 1);
+            ss << "Body: " << endl;
+            ss << body->ToString(spaces + 2);
+            break;
+         case NodeType::TRY:
+            ss << "Try: " << endl;
+            ss << makeSpaces(spaces + 1) << "Body: " << endl;
+            ss << body->ToString(spaces + 1);
+            if(contr)
+            {
+                ss << makeSpaces(spaces + 1) << "Catch";
+                if(_string.length() > 0)
+                    ss << ": " << _string << endl;
+                else
+                    ss << endl;
+                ss << contr->ToString(spaces + 1);
+            }
+            break;
         case NodeType::LAMBDA:
             ss << "Lambda: " << endl;
             ss << makeSpaces(spaces + 1);

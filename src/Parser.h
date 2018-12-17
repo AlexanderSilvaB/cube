@@ -37,6 +37,7 @@ class Parser
         Node False();
         Node Ignore();
         Node ParseImport();
+        Node ParseTry();
 
         bool HasOperator(const std::string& op);
         bool IsSymbol(const std::string& symbol = "");

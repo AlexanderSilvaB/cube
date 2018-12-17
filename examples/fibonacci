@@ -1,0 +1,31 @@
+func fibRecursive(n)
+{
+    if(n < 2)
+        return n
+    else
+        return fibRecursive(n - 1) + fibRecursive(n - 2)
+}
+
+func fibIterative(n)
+{
+    j = 1
+    i = 0
+    println("Start: ")
+    env()
+    for (k = 1; k < n; k++)
+    {
+        t = i + j
+        i = j
+        j = t
+        println("Mid K: ", k)
+        env()
+        println(type(j))
+    }
+    println("End: ")
+    env()
+    println(type(j))
+    return j
+}
+
+println("Fibonacci Recursive(10) = ", fibRecursive(10))
+println("Fibonacci Iterative(10) = ", fibIterative(10))
