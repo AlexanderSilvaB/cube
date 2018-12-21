@@ -43,6 +43,12 @@ bool Env::contains(const string& name)
     return it != vars.end();
 }
 
+bool Env::exists(const string& name)
+{
+    Env* scope = lookup(name);
+    return scope != NULL;
+}
+
 Var* Env::get(const string& name)
 {
     Env* scope = lookup(name);

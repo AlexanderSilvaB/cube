@@ -9,7 +9,7 @@
 
 namespace VarType
 {
-    enum Types {IGNORE, ERROR, BOOL, NUMBER, STRING, ARRAY, DICT, LIB, FUNC, NONE};
+    enum Types {IGNORE, ERROR, BOOL, NUMBER, STRING, ARRAY, DICT, LIB, FUNC, CLASS, NONE};
 }
 
 class Var;
@@ -28,6 +28,8 @@ class Var
         VarArray _array;
         VarDict _dict;
         Node _func;
+        int _counter;
+        Env* _env;
 
         bool ret;
         bool stored;
@@ -123,12 +125,19 @@ class Var
         Var& operator=(const VarDict& value);
         Var& operator=(Node value);
 
+        int Counter();
+        void ToClass(const std::string &name);
+        void SetInitial();
+
+        Var* Clone();
+
         Node Func();
         std::string& String();
         double& Number();
         bool& Bool();
         VarArray& Array();
         VarDict& Dict();
+        Env *Context();
 
         Var AsBool();
         Var AsNumber();

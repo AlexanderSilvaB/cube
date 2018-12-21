@@ -209,7 +209,7 @@ Node Parser::ParseImport()
             if(!SkipSymbol(","))
                 break;
         }
-        string name = ParseVarName();
+        string name = ParseVarNameOrString();
         if(name.length() == 0)
         {
             MakeError(node, "Invalid import name", tokens.Peek());
@@ -241,6 +241,47 @@ Node Parser::ParseImport()
     return node;
 }
 
+Node Parser::ParseClass()
+{
+    Node node = MKNODE();
+    node->type = NodeType::CLASS;
+    string name = ParseVarName();
+    if(name.size() == 0)
+    {
+        MakeError(node, "Invalid class name", tokens.Peek());
+        return node;
+    }
+    node->_string = name;
+    if(SkipOperator(":"))
+    {
+        bool first = true;
+        while(!tokens.Eof())
+        {
+            if(first)
+                first = false;
+            else
+            {
+                if(!SkipSymbol(","))
+                    break;
+            }
+            string name = ParseVarName();
+            if(name.length() == 0)
+            {
+                MakeError(node, "Invalid base class name", tokens.Peek());
+                break;
+            }
+            node->vars.push_back(name);
+        }
+        if(node->type == NodeType::ERROR)
+            return node;
+    }
+    Node body = ParseExpression();
+    if(body->type == NodeType::ERROR)
+        return body;
+    node->body = body;
+    return node;
+}
+
 Node Parser::ParseCall(Node func)
 {
     Node node = MKNODE();
@@ -259,6 +300,16 @@ string Parser::ParseVarName()
         return "";
     return name._string;
 }
+
+string Parser::ParseVarNameOrString()
+{
+    Token name = tokens.Peek();
+    tokens.Next();
+    if(name.type != TokenType::VARIABLE && name.type != TokenType::STRING)
+        return "";
+    return name._string;
+}
+
 
 Node Parser::ParseIf()
 {
@@ -586,6 +637,13 @@ Node Parser::ParseAtom()
     {
         tokens.Next();
         node = ParseTry();
+        if(node->type == NodeType::ERROR)
+            return node;
+    }
+    else if(IsKeyword("class"))
+    {
+        tokens.Next();
+        node = ParseClass();
         if(node->type == NodeType::ERROR)
             return node;
     }

@@ -87,7 +87,7 @@ bool Interpreter::Evaluate(const string& src, bool interactive)
     return !exit;
 }
 
-Var* Interpreter::Evaluate(Node node, Env* env)
+Var* Interpreter::Evaluate(Node node, Env* env, bool isClass, Var *caller)
 {
     Var* var = NULL;
     if(!node)
@@ -102,75 +102,97 @@ Var* Interpreter::Evaluate(Node node, Env* env)
             break;
         case NodeType::NONE:
             var = MKVAR();
-            var->SetType(VarType::NONE);
+            if(isClass)
+                MakeError(var, "id type in class", node);
+            else
+                var->SetType(VarType::NONE);
             break;
         case NodeType::BOOL:
             var = MKVAR();
-            *var = node->_bool;
+            if(isClass)
+                MakeError(var, "id type in class", node);
+            else
+                *var = node->_bool;
             break;
         case NodeType::NUMBER:
             var = MKVAR();
-            *var = node->_number;
+            if(isClass)
+                MakeError(var, "id type in class", node);
+            else
+                *var = node->_number;
             break;
         case NodeType::STRING:
             var = MKVAR();
-            *var = node->_string;
+            if(isClass)
+                MakeError(var, "id type in class", node);
+            else
+                *var = node->_string;
             break;
         case NodeType::ARRAY:
         {
             var = MKVAR();
-            VarArray _array(node->nodes.size());
-            bool error = false;
-            for(int i = 0; i < node->nodes.size(); i++)
+            if(isClass)
+                MakeError(var, "id type in class", node);
+            else
             {
-                Var* v = Evaluate(node->nodes[i], env);
-                if(!v)
+                VarArray _array(node->nodes.size());
+                bool error = false;
+                for(int i = 0; i < node->nodes.size(); i++)
                 {
-                    MakeError(var, "Invalid array value", node->nodes[i]);
-                    error = true;
-                    break;
+                    Var* v = Evaluate(node->nodes[i], env);
+                    if(!v)
+                    {
+                        MakeError(var, "Invalid array value", node->nodes[i]);
+                        error = true;
+                        break;
+                    }
+                    if(v->IsType(VarType::ERROR))
+                    {
+                        var = v;
+                        error = true;
+                    }
+                    _array[i] = *v;
+                    if(!v->Stored())
+                        delete v;
                 }
-                if(v->IsType(VarType::ERROR))
+                if(!error)
                 {
-                    var = v;
-                    error = true;
+                    *var = _array;
                 }
-                _array[i] = *v;
-                if(!v->Stored())
-                    delete v;
-            }
-            if(!error)
-            {
-                *var = _array;
             }
         }
             break;
         case NodeType::DICT:
         {
             var = MKVAR();
-            VarDict _dict;
-            bool error = false;
-            for(int i = 0; i < node->nodes.size(); i++)
+            if(isClass)
+                MakeError(var, "id type in class", node);
+            else
             {
-                Var* v = Evaluate(node->nodes[i]->right, env);
-                if(!v)
+                VarDict _dict;
+                bool error = false;
+                for(int i = 0; i < node->nodes.size(); i++)
                 {
-                    MakeError(var, "Invalid dict value", node->nodes[i]->right);
-                    error = true;
-                    break;
+                    Var* v = Evaluate(node->nodes[i]->right, env);
+                    if(!v)
+                    {
+                        MakeError(var, "Invalid dict value", node->nodes[i]->right);
+                        error = true;
+                        break;
+                    }
+                    if(v->IsType(VarType::ERROR))
+                    {
+                        var = v;
+                        error = true;
+                    }
+                    _dict[node->nodes[i]->left->_string] = *v;
+                    if(!v->Stored())
+                        delete v;
                 }
-                if(v->IsType(VarType::ERROR))
+                if(!error)
                 {
-                    var = v;
-                    error = true;
+                    *var = _dict;
                 }
-                _dict[node->nodes[i]->left->_string] = *v;
-                if(!v->Stored())
-                    delete v;
-            }
-            if(!error)
-            {
-                *var = _dict;
             }
         }
             break;
@@ -181,35 +203,70 @@ Var* Interpreter::Evaluate(Node node, Env* env)
             break;
         case NodeType::EXTENSION:
             var = MKVAR();
-            *var = node;
-            var = env->set(node->_nick+"."+node->_string, var);
+            if(isClass)
+                MakeError(var, "id type in class", node);
+            else
+            {
+                *var = node;
+                var = env->set(node->_nick+"."+node->_string, var);
+            }
             break;
         case NodeType::LAMBDA:
             var = MKVAR();
-            *var = node;
+            if(isClass)
+                MakeError(var, "id type in class", node);
+            else
+                *var = node;
             break;
         case NodeType::VARIABLE:
-            var = env->get(node->_string);
+            if(isClass)
+            {
+                var = MKVAR();
+                var->SetType(VarType::NONE);
+                var = env->def(node->_string, var);
+            }
+            else
+            {
+                var = env->get(node->_string);
+            }
             break;
         case NodeType::RETURN:
-            var = Evaluate(node->body, env);
-            if(var)
+            if(isClass)
             {
-                if(!var->IsType(VarType::ERROR))
-                    var->Return(true);
+                var = MKVAR();
+                MakeError(var, "id type in class", node);
+            }
+            else
+            {
+                var = Evaluate(node->body, env);
+                if(var)
+                {
+                    if(!var->IsType(VarType::ERROR))
+                        var->Return(true);
+                }
             }
             break;
         case NodeType::ASSIGN:
         {
+            var = MKVAR();
             if(node->left->type == NodeType::VARIABLE)
             {
                 Var* value = Evaluate(node->right, env);
                 if(!value->IsType(VarType::ERROR))
                 {
-                    var = env->set(node->left->_string, value);
+                    if(value->IsType(VarType::CLASS) && value->Counter() == 0)
+                    {
+                        MakeError(var, "Cannot apply the operator '=' to an class", node->right);
+                    }
+                    else
+                    {
+                        var = env->set(node->left->_string, value);
+                    }
                 }
                 else  
+                {
                     var = value;
+                }
             }
             else if(node->left->type == NodeType::INDEX)
             {
@@ -223,75 +280,143 @@ Var* Interpreter::Evaluate(Node node, Env* env)
             break;
         case NodeType::BINARY:
         {
-            if(node->_string == "&&")
+            if(isClass)
             {
-                Var *left = Evaluate(node->left, env);
-                if(left->IsFalse())
-                {
-                    if(!left->Stored())
-                        delete left;
-                    var = MKVAR();
-                    *var = false;
-                }
-                else
-                {
-                    var = ApplyOperator(node->_string, left, Evaluate(node->middle, env), Evaluate(node->right, env), env);    
-                }
+                var = MKVAR();
+                MakeError(var, "id type in class", node);
             }
-            else if(node->_string == ".")
+            else
             {
-                Var *left = Evaluate(node->left, env);
-                if(left->IsType(VarType::DICT) || left->IsType(VarType::LIB))
+                if(node->_string == "&&")
                 {
-                    VarDict &dict = left->Dict();
-                    if(node->right->type != NodeType::VARIABLE && node->right->type != NodeType::CALL)
+                    Var *left = Evaluate(node->left, env);
+                    if(left->IsFalse())
                     {
+                        if(!left->Stored())
+                            delete left;
                         var = MKVAR();
-                        stringstream ss;
-                        ss << "Could not apply the operator '.' to '" << node->right->ToString() << "'";
-                        MakeError(var, ss.str(), node);
-                    }
-                    else if(node->right->type == NodeType::VARIABLE)
-                    {
-                        for(VarDict::iterator it = dict.begin(); it != dict.end(); it++)
-                        {
-                            if(it->first == node->right->_string)
-                            {
-                                var = MKVAR();
-                                *var = it->second;
-                            }
-                        }
-                        if(var == NULL)
-                        {
-                            var = MKVAR();
-                            stringstream ss;
-                            ss << "Member '" << node->right->_string << "' not found";
-                            MakeError(var, ss.str(), node);
-                        }
+                        *var = false;
                     }
                     else
                     {
-                        if(node->right->func->type = NodeType::VARIABLE)
+                        var = ApplyOperator(node->_string, left, Evaluate(node->middle, env), Evaluate(node->right, env), env);    
+                    }
+                }
+                else if(node->_string == ".")
+                {
+                    Var *left = Evaluate(node->left, env);
+                    if(left->IsType(VarType::DICT) || left->IsType(VarType::LIB))
+                    {
+                        VarDict &dict = left->Dict();
+                        if(node->right->type != NodeType::VARIABLE && node->right->type != NodeType::CALL)
                         {
-                            Var *func = NULL;
-                            Env* callEnv = env->extend();
+                            var = MKVAR();
+                            stringstream ss;
+                            ss << "Could not apply the operator '.' to '" << node->right->ToString() << "'";
+                            MakeError(var, ss.str(), node);
+                        }
+                        else if(node->right->type == NodeType::VARIABLE)
+                        {
                             for(VarDict::iterator it = dict.begin(); it != dict.end(); it++)
                             {
-                                callEnv->def(it->first, &it->second);
-                                if(it->first == node->right->func->_string)
+                                if(it->first == node->right->_string)
                                 {
-                                    func = &it->second;
+                                    var = MKVAR();
+                                    *var = it->second;
                                 }
                             }
-                            if(func == NULL)
+                            if(var == NULL)
                             {
                                 var = MKVAR();
                                 stringstream ss;
-                                ss << "'" << node->right->func->_string << "' does not name a function member"; 
-                                MakeError(var, ss.str(), node->right->func);
+                                ss << "Member '" << node->right->_string << "' not found";
+                                MakeError(var, ss.str(), node);
+                            }
+                        }
+                        else
+                        {
+                            if(node->right->func->type = NodeType::VARIABLE)
+                            {
+                                Var *func = NULL;
+                                Env* callEnv = env->extend();
+                                for(VarDict::iterator it = dict.begin(); it != dict.end(); it++)
+                                {
+                                    callEnv->def(it->first, &it->second);
+                                    if(it->first == node->right->func->_string)
+                                    {
+                                        func = &it->second;
+                                    }
+                                }
+                                if(func == NULL)
+                                {
+                                    var = MKVAR();
+                                    stringstream ss;
+                                    ss << "'" << node->right->func->_string << "' does not name a function member"; 
+                                    MakeError(var, ss.str(), node->right->func);
+                                }
+                                else
+                                {
+                                    bool valid = true;
+                                    vector<Var*> args(node->right->nodes.size());
+                                    for(int i = 0; i < node->right->nodes.size(); i++)
+                                    {
+                                        args[i] = Evaluate(node->right->nodes[i], env);
+                                        if(args[i]->IsType(VarType::ERROR))
+                                        {
+                                            var = MKVAR();
+                                            *var = args[i];
+                                            valid = false;
+                                        }
+                                    }
+                                    if(valid)
+                                        var = Call(node->right->func->_string, args, callEnv);
+                                }
+                                delete callEnv;
                             }
                             else
                             {
+                                var = MKVAR();
+                                MakeError(var, "Cannot call this like a function", node->right->func);
+                            }
+                        }
+                    }
+                    else if(left->IsType(VarType::CLASS))
+                    {
+                        if(left->Counter() == 0)
+                        {
+                            var = MKVAR();
+                            MakeError(var, "The call must be from an object", node->right);
+                        }
+                        else
+                            var = Evaluate(node->right, left->Context(), false, left);
+                    }
+                    else
+                    {
+                        if(node->right->type != NodeType::CALL)
+                        {
+                            var = MKVAR();
+                            stringstream ss;
+                            ss << "Could not apply the operator '.' to '" << node->right->ToString() << "'";
+                            MakeError(var, ss.str(), node);
+                            if(!left->Stored())
+                                delete left;
+                        }
+                        else
+                        {
+                            string name = left->TypeName() + "." + node->right->func->_string;
+                            Var *func = env->get(name);
+                            if(func->IsType(VarType::ERROR))
+                            {
+                                var = MKVAR();
+                                stringstream ss;
+                                ss << "'" << left->TypeName() << "' does not have an extension called '" << node->right->func->_string << "'";
+                                MakeError(var, ss.str(), node);
+                                if(!left->Stored())
+                                    delete left;
+                            }
+                            else
+                            {
+                                Env* callEnv = env->extend();
                                 bool valid = true;
                                 vector<Var*> args(node->right->nodes.size());
                                 for(int i = 0; i < node->right->nodes.size(); i++)
@@ -305,349 +430,279 @@ Var* Interpreter::Evaluate(Node node, Env* env)
                                     }
                                 }
                                 if(valid)
-                                    var = Call(node->right->func->_string, args, callEnv);
+                                    var = Call(name, args, callEnv, left);
+                                delete callEnv;
+                                if(!left->Stored())
+                                    delete left;
                             }
-                            delete callEnv;
-                        }
-                        else
-                        {
-                            var = MKVAR();
-                            MakeError(var, "Cannot call this like a function", node->right->func);
                         }
                     }
                 }
                 else
                 {
-                    if(node->right->type != NodeType::CALL)
+                    bool valid = true;
+                    Var *l = Evaluate(node->left, env);
+                    if(l->IsType(VarType::ERROR))
                     {
                         var = MKVAR();
-                        stringstream ss;
-                        ss << "Could not apply the operator '.' to '" << node->right->ToString() << "'";
-                        MakeError(var, ss.str(), node);
-                        if(!left->Stored())
-                            delete left;
+                        *var = *l;
+                        valid = false;
                     }
-                    else
+                    Var *m = NULL;
+                    if(valid)
                     {
-                        string name = left->TypeName() + "." + node->right->func->_string;
-                        Var *func = env->get(name);
-                        if(func->IsType(VarType::ERROR))
+                        m = Evaluate(node->middle, env);
+                        if(m->IsType(VarType::ERROR))
                         {
                             var = MKVAR();
-                            stringstream ss;
-                            ss << "'" << left->TypeName() << "' does not have an extension called '" << node->right->func->_string << "'";
-                            MakeError(var, ss.str(), node);
-                            if(!left->Stored())
-                                delete left;
+                            *var = *m;
+                            valid = false;
                         }
-                        else
+                    }
+                    Var *r = NULL;
+                    if(valid)
+                    {
+                        r = Evaluate(node->right, env);
+                        if(r->IsType(VarType::ERROR))
                         {
-                            Env* callEnv = env->extend();
-                            bool valid = true;
-                            vector<Var*> args(node->right->nodes.size());
-                            for(int i = 0; i < node->right->nodes.size(); i++)
-                            {
-                                args[i] = Evaluate(node->right->nodes[i], env);
-                                if(args[i]->IsType(VarType::ERROR))
-                                {
-                                    var = MKVAR();
-                                    *var = args[i];
-                                    valid = false;
-                                }
-                            }
-                            if(valid)
-                                var = Call(name, args, callEnv, left);
-                            delete callEnv;
-                            if(!left->Stored())
-                                delete left;
+                            var = MKVAR();
+                            *var = *r;
+                            valid = false;
                         }
                     }
+                    if(valid)
+                        var = ApplyOperator(node->_string, l, m, r, env);
                 }
-            }
-            else
-            {
-                bool valid = true;
-                Var *l = Evaluate(node->left, env);
-                if(l->IsType(VarType::ERROR))
-                {
-                    var = MKVAR();
-                    *var = *l;
-                    valid = false;
-                }
-                Var *m = NULL;
-                if(valid)
-                {
-                    m = Evaluate(node->middle, env);
-                    if(m->IsType(VarType::ERROR))
-                    {
-                        var = MKVAR();
-                        *var = *m;
-                        valid = false;
-                    }
-                }
-                Var *r = NULL;
-                if(valid)
-                {
-                    r = Evaluate(node->right, env);
-                    if(r->IsType(VarType::ERROR))
-                    {
-                        var = MKVAR();
-                        *var = *r;
-                        valid = false;
-                    }
-                }
-                if(valid)
-                    var = ApplyOperator(node->_string, l, m, r, env);
             }
         }
             break;
         case NodeType::INDEX:
         {
-            var = MKVAR();
-            Var* left = Evaluate(node->left, env);
-            VarArray index;
-            for(int i = 0; i < node->nodes.size(); i++)
+            if(isClass)
             {
-                bool changeLeft = false;
-                bool changeRight = false;
-                if(node->nodes[i]->type == NodeType::BINARY && node->nodes[i]->_string == ":" )
-                {
-                    if(node->nodes[i]->left->_string == "start")
-                    {
-                        node->nodes[i]->left->_number = 0;
-                        node->nodes[i]->left->type = NodeType::NUMBER;
-                        changeLeft = true;
-                    }
-                    if(node->nodes[i]->right->_string == "end")
-                    {
-                        node->nodes[i]->right->_number = left->Size()-1;
-                        node->nodes[i]->right->type = NodeType::NUMBER;
-                        changeRight = true;
-                    }
-                }
-                Var* v = Evaluate(node->nodes[i], env);
-                if(changeLeft)
-                {
-                    node->nodes[i]->left->type = NodeType::VARIABLE;
-                }
-                if(changeRight)
-                {
-                    node->nodes[i]->right->type = NodeType::VARIABLE;
-                }
-                if(v->IsType(VarType::ARRAY))
-                {
-                    VarArray &A = v->Array();
-                    for(int j = 0; j < A.size(); j++)
-                        index.push_back(A[j]);
-                }
-                else
-                    index.push_back(*v);
-                if(!v->Stored())
-                    delete v;
-            }
-            Var in;
-            in = index;
-            *var = left->operator[](in);
-            if(!left->Stored())
-                delete left;
-        }
-            break;
-        case NodeType::CALL:
-        {
-            bool process = true;
-            if(node->func->type = NodeType::VARIABLE)
-            {
-                vector<Var*> args(node->nodes.size());
-                for(int i = 0; i < node->nodes.size(); i++)
-                {
-                    if(node->func->_string == "color" && IsColor(node->nodes[i]->_string))
-                    {
-                        args[i] = MKVAR();
-                        *args[i] = node->nodes[i]->_string;
-                    }
-                    else
-                    {
-                        args[i] = Evaluate(node->nodes[i], env);
-                        if(args[i]->IsType(VarType::ERROR))
-                        {
-                            return args[i];
-                        }
-                    }
-                }
-                var = Call(node->func->_string, args, env);
+                var = MKVAR();
+                MakeError(var, "id type in class", node);
             }
             else
             {
                 var = MKVAR();
-                MakeError(var, "Cannot call this like a function", node->func);
+                Var* left = Evaluate(node->left, env);
+                VarArray index;
+                for(int i = 0; i < node->nodes.size(); i++)
+                {
+                    bool changeLeft = false;
+                    bool changeRight = false;
+                    if(node->nodes[i]->type == NodeType::BINARY && node->nodes[i]->_string == ":" )
+                    {
+                        if(node->nodes[i]->left->_string == "start")
+                        {
+                            node->nodes[i]->left->_number = 0;
+                            node->nodes[i]->left->type = NodeType::NUMBER;
+                            changeLeft = true;
+                        }
+                        if(node->nodes[i]->right->_string == "end")
+                        {
+                            node->nodes[i]->right->_number = left->Size()-1;
+                            node->nodes[i]->right->type = NodeType::NUMBER;
+                            changeRight = true;
+                        }
+                    }
+                    Var* v = Evaluate(node->nodes[i], env);
+                    if(changeLeft)
+                    {
+                        node->nodes[i]->left->type = NodeType::VARIABLE;
+                    }
+                    if(changeRight)
+                    {
+                        node->nodes[i]->right->type = NodeType::VARIABLE;
+                    }
+                    if(v->IsType(VarType::ARRAY))
+                    {
+                        VarArray &A = v->Array();
+                        for(int j = 0; j < A.size(); j++)
+                            index.push_back(A[j]);
+                    }
+                    else
+                        index.push_back(*v);
+                    if(!v->Stored())
+                        delete v;
+                }
+                Var in;
+                in = index;
+                *var = left->operator[](in);
+                if(!left->Stored())
+                    delete left;
+            }
+        }
+            break;
+        case NodeType::CALL:
+        {
+            if(isClass)
+            {
+                var = MKVAR();
+                MakeError(var, "id type in class", node);
+            }
+            else
+            {
+                bool process = true;
+                if(node->func->type = NodeType::VARIABLE)
+                {
+                    vector<Var*> args(node->nodes.size());
+                    for(int i = 0; i < node->nodes.size(); i++)
+                    {
+                        if(node->func->_string == "color" && IsColor(node->nodes[i]->_string))
+                        {
+                            args[i] = MKVAR();
+                            *args[i] = node->nodes[i]->_string;
+                        }
+                        else
+                        {
+                            args[i] = Evaluate(node->nodes[i], env);
+                            if(args[i]->IsType(VarType::ERROR))
+                            {
+                                return args[i];
+                            }
+                        }
+                    }
+                    var = Call(node->func->_string, args, env, caller);
+                }
+                else
+                {
+                    var = MKVAR();
+                    MakeError(var, "Cannot call this like a function", node->func);
+                }
             }
         }
             break;
         case NodeType::IF:
         {
             var = MKVAR();
-            Var *cond = Evaluate(node->cond, env);
-            if(cond->IsType(VarType::ERROR))
+            if(isClass)
+                MakeError(var, "id type in class", node);
+            else
             {
-                *var = *cond;
-            }
-            else if(!cond->IsFalse())
-            {
-                var = Evaluate(node->then, env);
-            }
-            else if(node->contr)
-            {
-                var = Evaluate(node->contr, env);
+                Var *cond = Evaluate(node->cond, env);
+                if(cond->IsType(VarType::ERROR))
+                {
+                    *var = *cond;
+                }
+                else if(!cond->IsFalse())
+                {
+                    var = Evaluate(node->then, env);
+                }
+                else if(node->contr)
+                {
+                    var = Evaluate(node->contr, env);
+                }
             }
         }
             break;
         case NodeType::TRY:
         {
             var = MKVAR();
-            Env* tryEnv = env->copy();
-            Var *body = Evaluate(node->body, tryEnv);
-            if(!body->IsType(VarType::ERROR))
+            if(isClass)
+                MakeError(var, "id type in class", node);
+            else
             {
-                env->paste(tryEnv);
-                delete tryEnv;
-            }
-            else if(node->contr)
-            {
-                delete tryEnv;
-                tryEnv = env->copy();
-                if(node->_string.size() > 0)
-                    tryEnv->def(node->_string, body);
-                Var *contr = Evaluate(node->contr, tryEnv);
-                if(contr->IsType(VarType::ERROR))
+                Env* tryEnv = env->copy();
+                Var *body = Evaluate(node->body, tryEnv);
+                if(!body->IsType(VarType::ERROR))
                 {
-                    *var = *contr;
+                    env->paste(tryEnv);
+                    delete tryEnv;
                 }
-                delete tryEnv;
+                else if(node->contr)
+                {
+                    delete tryEnv;
+                    tryEnv = env->copy();
+                    if(node->_string.size() > 0)
+                        tryEnv->def(node->_string, body);
+                    Var *contr = Evaluate(node->contr, tryEnv);
+                    if(contr->IsType(VarType::ERROR))
+                    {
+                        *var = *contr;
+                    }
+                    delete tryEnv;
+                }
             }
         }
             break;
         case NodeType::FOR:
         {
             var = MKVAR();
-            if(node->nodes.size() == 0 || node->nodes.size() > 3)
-            {
-                MakeError(var, "Invalid for arguments for 'for' loop", node);
-            }
+            if(isClass)
+                MakeError(var, "id type in class", node);
             else
             {
-                Node in;
-                Node start;
-                Node cond;
-                Node inc;
-                if(node->nodes.size() == 1 && node->nodes[0]->type == NodeType::BINARY && node->nodes[0]->_string == "in")
+                if(node->nodes.size() == 0 || node->nodes.size() > 3)
                 {
-                    in = node->nodes[0];
+                    MakeError(var, "Invalid for arguments for 'for' loop", node);
                 }
                 else
                 {
-                    start = node->nodes[0];
-                    if(node->nodes.size() > 1)
-                        cond = node->nodes[1];
-                    if(node->nodes.size() > 2)
-                        inc = node->nodes[2];
-                }
-                Env *forEnv = env->extend();
-                bool valid = true;
-                Var *inVar = NULL;
-                int inIndex = 0;
-                Var parts;
-                if(in)
-                {
-                    if(in->left->type != NodeType::VARIABLE)
+                    Node in;
+                    Node start;
+                    Node cond;
+                    Node inc;
+                    if(node->nodes.size() == 1 && node->nodes[0]->type == NodeType::BINARY && node->nodes[0]->_string == "in")
                     {
-                        MakeError(var, "Invalid type for 'in' operator");
-                        valid = false;
+                        in = node->nodes[0];
                     }
                     else
                     {
-                        Var *right = Evaluate(in->right, forEnv);
-                        parts = right->split();
-                        if(parts.IsType(VarType::ERROR))
+                        start = node->nodes[0];
+                        if(node->nodes.size() > 1)
+                            cond = node->nodes[1];
+                        if(node->nodes.size() > 2)
+                            inc = node->nodes[2];
+                    }
+                    Env *forEnv = env->extend();
+                    bool valid = true;
+                    Var *inVar = NULL;
+                    int inIndex = 0;
+                    Var parts;
+                    if(in)
+                    {
+                        if(in->left->type != NodeType::VARIABLE)
                         {
-                            *var = parts;
+                            MakeError(var, "Invalid type for 'in' operator");
                             valid = false;
                         }
                         else
                         {
-                            if(parts.Array().size() > 0)
+                            Var *right = Evaluate(in->right, forEnv);
+                            parts = right->split();
+                            if(parts.IsType(VarType::ERROR))
                             {
-                                inVar = &parts.Array()[inIndex];
-                                forEnv->def(in->left->_string, inVar);
-                                inIndex++;
+                                *var = parts;
+                                valid = false;
                             }
                             else
                             {
-                                var->SetType(VarType::IGNORE);
-                                valid = false;
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    Var *st = Evaluate(start, forEnv);
-                    if(st->IsType(VarType::ERROR))
-                    {
-                        *var = *st;
-                        valid = false;
-                    }
-                    else
-                    {
-                        if(cond)
-                        {
-                            Var *cd = Evaluate(cond, forEnv);
-                            if(cd->IsType(VarType::ERROR))
-                            {
-                                *var = *cd;
-                                valid = false;
-                            }
-                            else if(cd->IsFalse())
-                            {
-                                var->SetType(VarType::IGNORE);
-                                valid = false;
-                            }
-                        }
-                    }
-                }
-                if(valid)
-                {
-                    do
-                    {
-                        var = Evaluate(node->body, forEnv);
-                        if(var->IsType(VarType::ERROR))
-                        {
-                            break;
-                        }
-                        if(in)
-                        {
-                            if(inIndex < parts.Array().size())
-                            {
-                                inVar = &parts.Array()[inIndex];
-                                forEnv->def(in->left->_string, inVar);
-                                inIndex++;
-                            }
-                            else
-                            {
-                                valid = false;
-                            }
-                        }
-                        else
-                        {
-                            if(inc)
-                            {
-                                Var *ic = Evaluate(inc, forEnv);
-                                if(ic->IsType(VarType::ERROR))
+                                if(parts.Array().size() > 0)
                                 {
-                                    *var = *ic;
+                                    inVar = &parts.Array()[inIndex];
+                                    forEnv->def(in->left->_string, inVar);
+                                    inIndex++;
+                                }
+                                else
+                                {
+                                    var->SetType(VarType::IGNORE);
                                     valid = false;
                                 }
                             }
-
+                        }
+                    }
+                    else
+                    {
+                        Var *st = Evaluate(start, forEnv);
+                        if(st->IsType(VarType::ERROR))
+                        {
+                            *var = *st;
+                            valid = false;
+                        }
+                        else
+                        {
                             if(cond)
                             {
                                 Var *cd = Evaluate(cond, forEnv);
@@ -663,85 +718,160 @@ Var* Interpreter::Evaluate(Node node, Env* env)
                                 }
                             }
                         }
-                    }while(valid);
+                    }
+                    if(valid)
+                    {
+                        do
+                        {
+                            var = Evaluate(node->body, forEnv);
+                            if(var->IsType(VarType::ERROR))
+                            {
+                                break;
+                            }
+                            if(in)
+                            {
+                                if(inIndex < parts.Array().size())
+                                {
+                                    inVar = &parts.Array()[inIndex];
+                                    forEnv->def(in->left->_string, inVar);
+                                    inIndex++;
+                                }
+                                else
+                                {
+                                    valid = false;
+                                }
+                            }
+                            else
+                            {
+                                if(inc)
+                                {
+                                    Var *ic = Evaluate(inc, forEnv);
+                                    if(ic->IsType(VarType::ERROR))
+                                    {
+                                        *var = *ic;
+                                        valid = false;
+                                    }
+                                }
+
+                                if(cond)
+                                {
+                                    Var *cd = Evaluate(cond, forEnv);
+                                    if(cd->IsType(VarType::ERROR))
+                                    {
+                                        *var = *cd;
+                                        valid = false;
+                                    }
+                                    else if(cd->IsFalse())
+                                    {
+                                        var->SetType(VarType::IGNORE);
+                                        valid = false;
+                                    }
+                                }
+                            }
+                        }while(valid);
+                    }
+                    delete forEnv;
                 }
-                delete forEnv;
             }
         }
             break;
         case NodeType::WHILE:
         {
-            Env *whileEnv = env->extend();
-            Var *cond = Evaluate(node->cond, whileEnv);
-            if(cond->IsFalse())
+            if(isClass)
             {
                 var = MKVAR();
-                *var = *cond;
+                MakeError(var, "id type in class", node);
             }
-            while(!cond->IsFalse())
+            else
             {
-                if(var != NULL && !var->Stored())
-                    delete var;
-                var = Evaluate(node->body, whileEnv);
-                if(var->IsType(VarType::ERROR))
+                Env *whileEnv = env->extend();
+                Var *cond = Evaluate(node->cond, whileEnv);
+                if(cond->IsFalse())
                 {
-                    break;
-                }
-                if(cond != NULL && !cond->Stored())
-                    delete cond;
-                cond = Evaluate(node->cond, whileEnv);
-                if(cond->IsType(VarType::ERROR))
-                {
+                    var = MKVAR();
                     *var = *cond;
-                    break;
                 }
+                while(!cond->IsFalse())
+                {
+                    if(var != NULL && !var->Stored())
+                        delete var;
+                    var = Evaluate(node->body, whileEnv);
+                    if(var->IsType(VarType::ERROR))
+                    {
+                        break;
+                    }
+                    if(cond != NULL && !cond->Stored())
+                        delete cond;
+                    cond = Evaluate(node->cond, whileEnv);
+                    if(cond->IsType(VarType::ERROR))
+                    {
+                        *var = *cond;
+                        break;
+                    }
+                }
+                delete whileEnv;
             }
-            delete whileEnv;
         }
             break;
         case NodeType::DOWHILE:
         {
-            Env *whileEnv = env->extend();
-            Var *cond = NULL;
-            do
+            if(isClass)
             {
-                if(var != NULL && !var->Stored())
-                    delete var;
-                var = Evaluate(node->body, whileEnv);
-                if(var->IsType(VarType::ERROR))
+                var = MKVAR();
+                MakeError(var, "id type in class", node);
+            }
+            else
+            {
+                Env *whileEnv = env->extend();
+                Var *cond = NULL;
+                do
                 {
-                    break;
-                }
-                if(cond != NULL && !cond->Stored())
-                    delete cond;
-                cond = Evaluate(node->cond, whileEnv);
-                if(cond->IsType(VarType::ERROR))
-                {
-                    *var = *cond;
-                    break;
-                }
-            }while(!cond->IsFalse());
-            delete whileEnv;
+                    if(var != NULL && !var->Stored())
+                        delete var;
+                    var = Evaluate(node->body, whileEnv);
+                    if(var->IsType(VarType::ERROR))
+                    {
+                        break;
+                    }
+                    if(cond != NULL && !cond->Stored())
+                        delete cond;
+                    cond = Evaluate(node->cond, whileEnv);
+                    if(cond->IsType(VarType::ERROR))
+                    {
+                        *var = *cond;
+                        break;
+                    }
+                }while(!cond->IsFalse());
+                delete whileEnv;
+            }
         }
             break;
         case NodeType::LET:
         {
-            Env *letEnv = env->extend();
-            bool valid = true;
-            for(int i = 0; i < node->nodes.size(); i++)
+            if(isClass)
             {
-                var = Evaluate(node->nodes[i], letEnv);
-                if(var->IsType(VarType::ERROR))
+                var = MKVAR();
+                MakeError(var, "id type in class", node);
+            }
+            else
+            {
+                Env *letEnv = env->extend();
+                bool valid = true;
+                for(int i = 0; i < node->nodes.size(); i++)
                 {
-                    valid = false;
-                    break;
+                    var = Evaluate(node->nodes[i], letEnv);
+                    if(var->IsType(VarType::ERROR))
+                    {
+                        valid = false;
+                        break;
+                    }
                 }
+                if(valid)
+                {
+                    var = Evaluate(node->body, letEnv);
+                }
+                delete letEnv;
             }
-            if(valid)
-            {
-                var = Evaluate(node->body, letEnv);
-            }
-            delete letEnv;
         }
             break;
         case NodeType::CONTEXT:
@@ -753,12 +883,12 @@ Var* Interpreter::Evaluate(Node node, Env* env)
                     delete var;
                     var = NULL;
                 }
-                var = Evaluate(node->nodes[i], env);
+                var = Evaluate(node->nodes[i], env, isClass);
                 if(var && var->IsType(VarType::ERROR))
                 {
                     return var;
                 }
-                if(var && var->Returned())
+                if(var && var->Returned() && !isClass)
                 {
                     var->Return(false);
                     return var;
@@ -769,39 +899,53 @@ Var* Interpreter::Evaluate(Node node, Env* env)
         case NodeType::IMPORT:
         {
             var = MKVAR();
-            for(int i = 0; i < node->nodes.size(); i++)
+            if(isClass)
+                MakeError(var, "id type in class", node);
+            else
             {
-                string src = OpenFile(node->nodes[i]->_string);
-                string name = node->nodes[i]->_string;
-                bool global = false;
-                if(node->nodes[i]->_nick.length() > 0)
+                for(int i = 0; i < node->nodes.size(); i++)
                 {
-                    name = node->nodes[i]->_nick;
-                    global = name == "__global__";
-                }
+                    string src = OpenFile(node->nodes[i]->_string+".cube");
+                    string name = GetName(node->nodes[i]->_string); 
+                    bool global = false;
+                    if(node->nodes[i]->_nick.length() > 0)
+                    {
+                        name = node->nodes[i]->_nick;
+                        global = name == "__global__";
+                    }
 
 
-                Node root = parser.Parse(src);
-                *var = node->nodes[i]->_string;
-                if(global)
-                {
-                    env->set("__name__", var);
-                    var = Evaluate(root, env);
-                }
-                else
-                {
-                    Env *libEnv = new Env();
+                    Node root = parser.Parse(src);
+                    *var = GetName(node->nodes[i]->_string); 
+                    if(global)
+                    {
+                        env->set("__name__", var);
+                        var = Evaluate(root, env);
+                    }
+                    else
+                    {
+                        Env *libEnv = new Env();
 
-                    libEnv->set("__name__", var);
-                    Evaluate(root, libEnv);
-                    
-                    *var = libEnv;
-                    env->def(name, var);
-                    delete libEnv;
+                        libEnv->set("__name__", var);
+                        Evaluate(root, libEnv);
+                        
+                        *var = libEnv;
+                        env->def(name, var);
+                        delete libEnv;
+                    }
                 }
+                var->SetType(VarType::IGNORE);
             }
-            var->SetType(VarType::IGNORE);
         }
+            break;
+        case NodeType::CLASS:
+            if(isClass)
+            {
+                var = MKVAR();
+                MakeError(var, "id type in class", node);
+            }
+            else
+                var = CreateClass(node, env);
             break;
         default:
             var = MKVAR();
@@ -1314,12 +1458,33 @@ Var* Interpreter::Call(const std::string& func, std::vector<Var*>& args, Env *en
             delete res;
             return var;
         }
-        if(!var->IsType(VarType::FUNC))
+        if(!var->IsType(VarType::FUNC) && !var->IsType(VarType::CLASS))
         {
             delete var;
             stringstream ss;
             ss << "'" << func << "' is not callable";
             MakeError(res, ss.str());
+        }
+        else if(var->IsType(VarType::CLASS))
+        {
+            if(var->Counter() != 0)
+            {
+                MakeError(res, "Objects cannot be called like classes");
+            }
+            else
+            {
+                Var *obj = var->Clone();
+                var = obj;
+                if(var->Context()->get(func)->IsType(VarType::FUNC))
+                {
+                    Var *res = Call(func, args, var->Context(), var);
+                    if(res->IsType(VarType::ERROR))
+                    {
+                        *var = *res;
+                    }
+                }
+                res = var;
+            }
         }
         else
         {
@@ -1378,4 +1543,62 @@ string Interpreter::GetFolder(const string& path)
     if(i >= 0)
         return path.substr(0, i);
     return "";       
+}
+
+string Interpreter::GetName(const string& path)
+{
+    int i = path.size()-1;
+    while(i >= 0)
+    {
+        if(path[i] == '\\' || path[i] == '/')
+        {
+            break;
+        }
+        i--;
+    }
+    if(i >= 0)
+        return path.substr(i, path.length()-i);
+    return "";       
+}
+
+Var* Interpreter::CreateClass(Node node, Env* env)
+{
+    Var* var = MKVAR();
+    if(env->exists(node->_string))
+    {
+        MakeError(var, "Class name already defined", node);
+        return var;
+    }
+    
+    var->ToClass(node->_string);
+
+    for(int i = 0; i < node->vars.size(); i++)
+    {
+        Var *in = env->get(node->vars[i]);
+        if(!in || in->IsType(VarType::ERROR))
+        {
+            MakeError(var, "Undefined class '"+node->vars[i]+"'", node);
+            return var;
+        }
+        else if(!in->IsType(VarType::CLASS) && in->Counter() != 0)
+        {
+            MakeError(var, "The name '"+node->vars[i]+"' is not a class", node);
+            return var;
+        }
+        else
+        {
+            var->Context()->paste(in->Context());
+        }
+    }
+
+    Var *res = Evaluate(node->body, var->Context(), true);
+    if(res->IsType(VarType::ERROR))
+    {
+        delete var;
+        return res;
+    }
+
+    var = env->def(node->_string, var);
+    var->SetInitial();
+    return var;
 }

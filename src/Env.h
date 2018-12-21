@@ -19,6 +19,7 @@ class Env
         Env* extend();
         Env* lookup(const std::string& name);
         bool contains(const std::string& name);
+        bool exists(const std::string& name);
         Var* get(const std::string& name);
         Var* set(const std::string& name, Var* value);
         Var* def(const std::string& name, Var* value);

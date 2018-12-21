@@ -1,4 +1,5 @@
-a = 3
+# Variables
+a = 3.5
 b = 13e2
 c = "ABC"
 d = 'ABC'

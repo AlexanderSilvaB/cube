@@ -31,6 +31,7 @@ Tokenizer::Tokenizer()
     keywords.push_back("global");
     keywords.push_back("try");
     keywords.push_back("catch");
+    keywords.push_back("class");
 
     operators.insert(".");
     operators.insert("+");

@@ -14,6 +14,7 @@ Var::Var()
     type = VarType::IGNORE;
     stored = false;
     ret = false;
+    _env = NULL;
 }
 
 Var::~Var()
@@ -77,6 +78,12 @@ string Var::TypeName()
         case VarType::FUNC:
             return "func";
             break;
+        case VarType::CLASS:
+            if(_counter == 0)
+                return "class";
+            else
+                return "object";
+            break;
         case VarType::ERROR:
             return "error";
             break;
@@ -132,6 +139,8 @@ Var& Var::operator=(const Var& value)
     this->_array = value._array;
     this->_dict = value._dict;
     this->_func = value._func;
+    this->_env = value._env;
+    this->_counter = value._counter;
     return *this;
 }
 
@@ -177,6 +186,33 @@ Var& Var::operator=(Node value)
     return *this;
 }
 
+Var* Var::Clone()
+{
+    Var *v = new Var();
+    *v = *this;
+    v->_counter = rand();
+    v->_env = _env->copy();
+}
+
+int Var::Counter()
+{
+    return _counter;
+}
+
+void Var::ToClass(const string &name)
+{
+    this->type = VarType::CLASS;
+    this->_string = name;
+    this->_counter = 0;
+    if(this->_env == NULL)
+        this->_env = new Env();
+}
+
+void Var::SetInitial()
+{
+    this->_counter = 0;
+}
+
 Node Var::Func()
 {
     return _func;
@@ -205,6 +241,11 @@ VarArray& Var::Array()
 VarDict& Var::Dict()
 {
     return _dict;
+}
+
+Env *Var::Context()
+{
+    return _env;
 }
 
 Var Var::AsBool()
@@ -4272,9 +4313,76 @@ Var Var::operator[](Var& other)
             break;
         case VarType::DICT:
         {
-            stringstream ss;
-            ss << "Cannot apply the operator '[]' to '" << TypeName() << "'";
-            res.Error(ss.str());
+            vector<string> index;
+            bool valid = true;
+            if(!other.IsType(VarType::STRING) && !other.IsType(VarType::ARRAY))
+            {
+                stringstream ss;
+                ss << "Cannot apply the operator '[]' to 'dict' and '" << other.TypeName() << "'";
+                res.Error(ss.str());
+                valid = false;
+            }
+            else
+            {
+                if(other.IsType(VarType::STRING))
+                {
+                    index.push_back(other.String());
+                }
+                else
+                {
+                    VarArray &indexes = other.Array();
+                    for(int i = 0; i < indexes.size(); i++)
+                    {
+                        if(!indexes[i].IsType(VarType::STRING))
+                        {
+                            stringstream ss;
+                            ss << "Cannot apply the operator '[]' to 'dict' and '" << indexes[i].TypeName() << "'";
+                            res.Error(ss.str());
+                            valid = false;
+                            break;
+                        }
+                        else
+                        {
+                            index.push_back(indexes[i].String());
+                        }
+                    }
+                }
+            }
+            if(valid)
+            {
+                if(index.size() == 0)
+                    res.SetType(VarType::NONE);
+                else
+                {
+                    VarDict data;
+                    VarDict &value = Dict();
+                    valid = true;
+                    for(int i = 0; i < index.size(); i++)
+                    {
+                        string &name = index[i];
+                        VarDict::iterator it = value.find(name);
+                        if(it != value.end())
+                        {
+                            data[it->first] = it->second;
+                        }
+                        else
+                        {
+                            stringstream ss;
+                            ss << "Index '" << name << "' does not exists";
+                            res.Error(ss.str());
+                            valid = false;
+                            break;
+                        }
+                    }
+                    if(valid)
+                    {
+                        if(data.size() == 1)
+                            res = data.begin()->second;
+                        else
+                            res = data;
+                    }
+                }
+            }
         }
             break;
         default:
@@ -4459,6 +4567,16 @@ std::string Var::ToString()
                     ss << ", ";
             }
             ss << ")";
+        }
+            break;
+        case VarType::CLASS:
+        {
+            if(_counter == 0)
+                ss << "class ";
+            else
+                ss << "object ";
+            //ss << _string << " ( " << _counter << " )";
+            ss << _string;
         }
             break;
         case VarType::ERROR:

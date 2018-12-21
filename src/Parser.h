@@ -22,6 +22,7 @@ class Parser
         bool DelimitedNames(std::vector<std::string> &names, const std::string &start, const std::string &stop, const std::string &separator, bool op = false);
         Node ParseCall(Node func);
         std::string ParseVarName();
+        std::string ParseVarNameOrString();
         Node ParseIf();
         Node ParseLet();
         Node ParseLambda();
@@ -38,6 +39,7 @@ class Parser
         Node Ignore();
         Node ParseImport();
         Node ParseTry();
+        Node ParseClass();
 
         bool HasOperator(const std::string& op);
         bool IsSymbol(const std::string& symbol = "");

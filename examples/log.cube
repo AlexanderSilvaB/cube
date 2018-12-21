@@ -6,8 +6,7 @@ func log()
     {
         print(arg, ' ')
     }
-    println()
 }
 
 if(__name__ == "__main__")
-    log('This is a log', 'EXAMPLE')
+    log('This is', 'a', 'log')

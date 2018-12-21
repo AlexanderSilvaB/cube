@@ -206,6 +206,21 @@ string Node_st::ToString(int spaces)
                 ss << endl;
             }
             break;
+        case NodeType::CLASS:
+            ss << "Class " << _string;
+            if(vars.size() > 0)
+            {
+                ss << " : ";
+                for(int i = 0; i < vars.size(); i++)
+                {
+                    ss << vars[i];
+                    if(i < vars.size()-1)
+                        ss << ", ";
+                }
+            }
+            ss << endl;
+            ss << body->ToString(spaces + 1);
+            break;
         case NodeType::CONTEXT:
             ss << "Context: " << endl;
             ss << makeSpaces(spaces) << "{" << endl;
