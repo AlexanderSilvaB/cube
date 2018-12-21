@@ -4,8 +4,6 @@ class Animal
     legs = none
     name = none
 
-    func Animal(){}
-
     func say()
     {
         if(name == none)
