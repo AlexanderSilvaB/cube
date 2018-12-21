@@ -1,0 +1,49 @@
+class Animal
+{
+    arms = none
+    legs = none
+    name = none
+
+    func Animal(){}
+
+    func say()
+    {
+        if(name == none)
+            println("I am just an animal")
+        else
+            println("I am a ", name, " and I have ", legs, " legs and ", arms, " arms")
+    }
+}
+
+class Dog : Animal
+{
+    legs = 4
+    name = "dog"
+
+    func Dog()
+    {
+        print("Au au, ")
+    }
+}
+
+class Human : Animal
+{
+    legs = 2
+    arms = 2
+    name = "human"
+
+    func Human()
+    {
+        print("Hi, ")
+    }
+}
+
+
+objAnimal = Animal()
+objAnimal.say()
+
+objDog = Dog()
+objDog.say()
+
+objHuman = Human()
+objHuman.say()
