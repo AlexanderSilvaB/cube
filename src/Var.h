@@ -9,10 +9,11 @@
 
 namespace VarType
 {
-    enum Types {IGNORE, ERROR, BOOL, NUMBER, STRING, ARRAY, DICT, LIB, FUNC, CLASS, NONE};
+    enum Types {IGNORE, ERROR, BOOL, NUMBER, STRING, ARRAY, DICT, LIB, FUNC, CLASS, NATIVE, FUNC_DEF, NONE};
 }
 
 class Var;
+typedef std::vector<std::string> NamesArray;
 typedef std::vector<Var> VarArray;
 typedef std::map<std::string, Var> VarDict;
 
@@ -24,12 +25,15 @@ class Var
         VarType::Types type;
         bool _bool;
         double _number;
-        std::string _string;
+        std::string _string, _return;
         VarArray _array;
         VarDict _dict;
+        NamesArray _names;
         Node _func;
         int _counter;
         Env* _env;
+        void* _handler;
+        Var *_ref;
 
         bool ret;
         bool stored;
@@ -115,6 +119,7 @@ class Var
         bool Stored();
         void Return(bool ret);
         bool Returned();
+        void ClearRef();
 
         Var& operator=(Env* env);
         Var& operator=(const Var& value);
@@ -127,6 +132,8 @@ class Var
 
         int Counter();
         void ToClass(const std::string &name);
+        void ToNative(const std::string &name, void *handler);
+        void ToFuncDef(void* handler, const std::string& name, const std::string& ret, NamesArray& vars);
         void SetInitial();
 
         Var* Clone();
@@ -138,6 +145,7 @@ class Var
         VarArray& Array();
         VarDict& Dict();
         Env *Context();
+        void* Handler();
 
         Var AsBool();
         Var AsNumber();

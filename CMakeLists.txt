@@ -8,3 +8,4 @@ file(GLOB_RECURSE SRC
     "src/*.h")
 
 add_executable(${PROJECT_NAME} ${SRC})
+target_link_libraries(${PROJECT_NAME} dl)

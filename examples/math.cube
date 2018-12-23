@@ -1,7 +1,6 @@
 pi = 3.1416
 
 func deg(x) x * 57.2958
-
 func rad(x) x * 0.0174533
 
 func min(a, b)

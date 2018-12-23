@@ -236,6 +236,14 @@ Node Parser::ParseImport()
             var->_nick = "__global__";
         }
 
+        var->_bool = false;
+        Token next = tokens.Peek();
+        if(next.type == TokenType::KEYWORD && next._string == "native")
+        {
+            tokens.Next();
+            var->_bool = true;
+        }
+
         node->nodes.push_back(var);
     }
     return node;
@@ -411,10 +419,28 @@ Node Parser::ParseFunction()
         MakeError(node, "Invalid lambda argument", tokens.Peek());
         return node;
     }
-    Node body = ParseExpression();
-    if(body->type == NodeType::ERROR)
-        return body;
-    node->body = body;
+    if(IsOperator(":"))
+    {
+        tokens.Next();
+        Token tk = tokens.Peek();
+        if(tk.type != TokenType::VARIABLE && tk.type != TokenType::KEYWORD)
+        {
+            MakeError(node, "Invalid return type", tk);
+        }
+        else
+        {
+            node->_nick = tk._string;
+            node->type = NodeType::FUNCTION_DEF;
+            tokens.Next();
+        }
+    }
+    else
+    {
+        Node body = ParseExpression();
+        if(body->type == NodeType::ERROR)
+            return body;
+        node->body = body;
+    }
     return node;
 }
 

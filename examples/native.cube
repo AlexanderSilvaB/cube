@@ -1,0 +1,6 @@
+import "libvpf.so.3.2" as vpf native
+
+func dlopen(string) : double
+func dlclose(double) : none
+
+env()

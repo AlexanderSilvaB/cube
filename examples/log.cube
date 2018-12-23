@@ -1,6 +1,6 @@
 func log()
 {
-    print(color('green'), date('dd/MM/YYYY HH:mm:ss: '))
+    print(color('green'), date('dd/MM/YYYY HH:mm:ss: '), color())
 
     for(arg in args)
     {
@@ -9,4 +9,4 @@ func log()
 }
 
 if(__name__ == "__main__")
-    log('This is', 'a', 'log')
+    log('This', 'is', 'a', 'log')

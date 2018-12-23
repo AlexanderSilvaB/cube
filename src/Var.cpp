@@ -15,6 +15,8 @@ Var::Var()
     stored = false;
     ret = false;
     _env = NULL;
+    _handler =  NULL;
+    _ref = NULL;
 }
 
 Var::~Var()
@@ -40,6 +42,11 @@ void Var::Return(bool ret)
 bool Var::Returned()
 {
     return ret;
+}
+
+void Var::ClearRef()
+{
+    _ref = NULL;
 }
 
 VarType::Types Var::Type()
@@ -141,6 +148,13 @@ Var& Var::operator=(const Var& value)
     this->_func = value._func;
     this->_env = value._env;
     this->_counter = value._counter;
+    this->_handler = value._handler;
+    this->_return = value._return;
+    this->_names = value._names;
+    if(_ref != NULL)
+        _ref->operator=(value);
+    else
+        this->_ref = value._ref;
     return *this;
 }
 
@@ -208,6 +222,22 @@ void Var::ToClass(const string &name)
         this->_env = new Env();
 }
 
+void Var::ToNative(const std::string &name, void *handler)
+{
+    this->type = VarType::NATIVE;
+    this->_string = name;
+    this->_handler = handler;
+}
+
+void Var::ToFuncDef(void* handler, const std::string& name, const std::string& ret, NamesArray& vars)
+{
+    this->type = VarType::FUNC_DEF;
+    this->_string = name;
+    this->_return = ret;
+    this->_names = vars;
+    this->_handler = handler;
+}
+
 void Var::SetInitial()
 {
     this->_counter = 0;
@@ -246,6 +276,11 @@ VarDict& Var::Dict()
 Env *Var::Context()
 {
     return _env;
+}
+
+void* Var::Handler()
+{
+    return _handler;
 }
 
 Var Var::AsBool()
@@ -4273,6 +4308,7 @@ Var Var::operator[](Var& other)
                             if(in < value.size())
                             {
                                 data.push_back(value[in]);
+                                data[data.size()-1]._ref = &value[in];
                             }
                             else
                             {
@@ -4289,6 +4325,7 @@ Var Var::operator[](Var& other)
                             if(in_ >= 0 && in_ < value.size())
                             {
                                 data.push_back(value[in_]);
+                                data[data.size()-1]._ref = &value[in_];
                             }
                             else
                             {
@@ -4569,6 +4606,18 @@ std::string Var::ToString()
             ss << ")";
         }
             break;
+        case VarType::FUNC_DEF:
+        {
+            ss << "func " << _string << "( ";
+            for(int i = 0; i < _names.size(); i++)
+            {
+                ss << _names[i];
+                if(i < _names.size()-1)
+                    ss << ", ";
+            }
+            ss << " ) : " << _return;
+        }
+            break;
         case VarType::CLASS:
         {
             if(_counter == 0)
@@ -4578,6 +4627,15 @@ std::string Var::ToString()
             //ss << _string << " ( " << _counter << " )";
             ss << _string;
         }
+            break;
+        case VarType::NATIVE:
+            ss << "native " << _string << endl;
+            for(int i = 0; i < _array.size(); i++)
+            {
+                ss << "  " << _array[i];
+                if(i < _array.size()-1)
+                    ss << endl;
+            }
             break;
         case VarType::ERROR:
             ss << _string;

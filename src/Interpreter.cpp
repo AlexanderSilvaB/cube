@@ -13,6 +13,7 @@ using namespace std;
 Interpreter::Interpreter()
 {
     env = new Env();
+    loader = new Loader();
     exitCode = 0;
     needBreak = false;
     exit = false;
@@ -42,11 +43,41 @@ bool Interpreter::NeedBreak()
     return needBreak;
 }
 
+vector<char> Interpreter::Compile(const string& src)
+{
+    vector<char> data;
+    Node root = parser.Parse(src);   
+    if(root->type == NodeType::ERROR)
+    {
+        cout << root->ToString() << endl;
+        exitCode = -1;
+        return data;
+    }
+    const char *begin = "!<CUBE>";
+    data.insert(data.end(), begin, begin + 7);
+
+    vector<char> rootData = root->Serialize();
+    serializeV(data, rootData);
+    exitCode = 0;
+    return data;
+}
+
 bool Interpreter::Evaluate(const string& src, bool interactive)
 {
     exitCode = 0;
     needBreak = false;
-    Node root = parser.Parse(src);
+    Node root;
+
+    if(src.size() > 7 && src.substr(0, 7) == "!<CUBE>")
+    {
+        root = MKNODE();
+        string byteCode = src.substr(7);
+        vector<char> data;
+        data.insert(data.end(), byteCode.begin(), byteCode.end());
+        root->Deserialize(data);
+    }
+    else
+        root = parser.Parse(src);
     if(root->type == NodeType::ERROR)
     {
         cout << root->ToString() << endl;
@@ -201,6 +232,25 @@ Var* Interpreter::Evaluate(Node node, Env* env, bool isClass, Var *caller)
             *var = node;
             var = env->set(node->_string, var);
             break;
+        case NodeType::FUNCTION_DEF:
+        {
+            if(caller == NULL)
+            {
+                var = MKVAR();
+                MakeError(var, "Cannot create a function definition in this context (just native context)");
+            }
+            else
+            {
+                Var fn;
+                NamesArray names(node->vars.size());
+                for(int i = 0; i < node->vars.size(); i++)
+                    names[i] = node->vars[i];
+                fn.ToFuncDef(caller->Handler(), node->_string, node->_nick, names);
+                caller->Array().push_back(fn);
+                var = caller;
+            }
+        }
+            break;
         case NodeType::EXTENSION:
             var = MKVAR();
             if(isClass)
@@ -261,6 +311,7 @@ Var* Interpreter::Evaluate(Node node, Env* env, bool isClass, Var *caller)
                     else
                     {
                         var = env->set(node->left->_string, value);
+                        var->ClearRef();
                     }
                 }
                 else  
@@ -270,7 +321,26 @@ Var* Interpreter::Evaluate(Node node, Env* env, bool isClass, Var *caller)
             }
             else if(node->left->type == NodeType::INDEX)
             {
-                MakeError(var, "Index not implemented ", node->left);
+                Var* value = Evaluate(node->right, env);
+                if(!value->IsType(VarType::ERROR))
+                {
+                    if(value->IsType(VarType::CLASS) && value->Counter() == 0)
+                    {
+                        MakeError(var, "Cannot apply the operator '=' to an class", node->right);
+                    }
+                    else
+                    {
+                        var = Evaluate(node->left, env);
+                        if(!var->IsType(VarType::ERROR))
+                        {
+                            *var = *value;
+                        }
+                    }
+                }
+                else  
+                {
+                    var = value;
+                }
             }
             else
             {
@@ -389,6 +459,10 @@ Var* Interpreter::Evaluate(Node node, Env* env, bool isClass, Var *caller)
                         }
                         else
                             var = Evaluate(node->right, left->Context(), false, left);
+                    }
+                    else if(left->IsType(VarType::NATIVE))
+                    {
+                        var = Evaluate(node->right, env, false, left);
                     }
                     else
                     {
@@ -876,6 +950,8 @@ Var* Interpreter::Evaluate(Node node, Env* env, bool isClass, Var *caller)
             break;
         case NodeType::CONTEXT:
         {
+            bool native = false;
+            Var *vNative = NULL;
             for(int i = 0; i < node->nodes.size(); i++)
             {
                 if(var && !var->Stored())
@@ -883,7 +959,10 @@ Var* Interpreter::Evaluate(Node node, Env* env, bool isClass, Var *caller)
                     delete var;
                     var = NULL;
                 }
-                var = Evaluate(node->nodes[i], env, isClass);
+                if(native)
+                    var = Evaluate(node->nodes[i], env, isClass, vNative);
+                else
+                    var = Evaluate(node->nodes[i], env, isClass);
                 if(var && var->IsType(VarType::ERROR))
                 {
                     return var;
@@ -892,6 +971,11 @@ Var* Interpreter::Evaluate(Node node, Env* env, bool isClass, Var *caller)
                 {
                     var->Return(false);
                     return var;
+                }
+                if(var && var->IsType(VarType::NATIVE))
+                {
+                    native = true;
+                    vNative = var;
                 }
             }
         }
@@ -905,36 +989,54 @@ Var* Interpreter::Evaluate(Node node, Env* env, bool isClass, Var *caller)
             {
                 for(int i = 0; i < node->nodes.size(); i++)
                 {
-                    string src = OpenFile(node->nodes[i]->_string+".cube");
                     string name = GetName(node->nodes[i]->_string); 
                     bool global = false;
+                    bool native = node->nodes[i]->_bool;
                     if(node->nodes[i]->_nick.length() > 0)
                     {
+                        global = node->nodes[i]->_nick == "__global__";
                         name = node->nodes[i]->_nick;
-                        global = name == "__global__";
                     }
 
-
-                    Node root = parser.Parse(src);
-                    *var = GetName(node->nodes[i]->_string); 
-                    if(global)
+                    if(native)
                     {
-                        env->set("__name__", var);
-                        var = Evaluate(root, env);
+                        void *handler;
+                        if(!loader->Load(node->nodes[i]->_string, &handler))
+                        {
+                            MakeError(var, "Could not load the native library");
+                        }
+                        else
+                        {
+                            var->ToNative(name, handler);
+                            var = env->def(name, var);
+                        }
+                        break;
                     }
                     else
                     {
-                        Env *libEnv = new Env();
+                        string src = OpenFile(node->nodes[i]->_string+".cube");
+                        Node root = parser.Parse(src);
+                        *var = GetName(node->nodes[i]->_string); 
+                        if(global)
+                        {
+                            env->set("__name__", var);
+                            var = Evaluate(root, env);
+                        }
+                        else
+                        {
+                            Env *libEnv = new Env();
 
-                        libEnv->set("__name__", var);
-                        Evaluate(root, libEnv);
-                        
-                        *var = libEnv;
-                        env->def(name, var);
-                        delete libEnv;
+                            libEnv->set("__name__", var);
+                            Evaluate(root, libEnv);
+                            
+                            *var = libEnv;
+                            env->def(name, var);
+                            delete libEnv;
+                        }
                     }
                 }
-                var->SetType(VarType::IGNORE);
+                if(!var->IsType(VarType::NATIVE) && !var->IsType(VarType::ERROR))
+                    var->SetType(VarType::IGNORE);
             }
         }
             break;
@@ -1211,7 +1313,7 @@ Var* Interpreter::Call(const std::string& func, std::vector<Var*>& args, Env *en
             string str = args[i]->ToString();
             cout << str;
             if(i < args.size()-1 && str[0] != '\033')
-                cout << " ";
+                cout << "";
         }
         if(func == "println")
         {
@@ -1219,6 +1321,18 @@ Var* Interpreter::Call(const std::string& func, std::vector<Var*>& args, Env *en
         }
         else
             needBreak = true;
+    }
+    else if(func == "input")
+    {
+        for(int i = 0; i < args.size(); i++)
+        {
+            cout << args[i]->String();
+            if(i < args.size()-1)
+                cout << "";
+        }
+        string str;
+        getline(cin, str);
+        *res = str;
     }
     else if(func == "color")
     {
@@ -1558,7 +1672,7 @@ string Interpreter::GetName(const string& path)
     }
     if(i >= 0)
         return path.substr(i, path.length()-i);
-    return "";       
+    return path;       
 }
 
 Var* Interpreter::CreateClass(Node node, Env* env)

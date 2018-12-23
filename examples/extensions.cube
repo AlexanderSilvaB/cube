@@ -13,7 +13,7 @@ func number.sig()
 }
 
 str = "ABC"
-println(str,"\b.len() = ", str.len())
+println(str,".len() = ", str.len())
 
-println(5, "\b.sig() = ", 5.sig())
-println(-5, "\b.sig() = ", -5.sig())
+println(5, ".sig() = ", 5.sig())
+println(-5, ".sig() = ", -5.sig())

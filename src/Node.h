@@ -10,7 +10,7 @@ namespace NodeType
 {
     enum Types
     {
-        IGNORE, ERROR, NONE, VARIABLE, BOOL, NUMBER, STRING, ARRAY, DICT, INDEX, ASSIGN, BINARY, RETURN, LET, LAMBDA, FUNCTION, EXTENSION, IF, FOR, WHILE, DOWHILE, CONTEXT, CALL, IMPORT, TRY, CLASS
+        IGNORE = 1, ERROR, NONE, VARIABLE, BOOL, NUMBER, STRING, ARRAY, DICT, INDEX, ASSIGN, BINARY, RETURN, LET, LAMBDA, FUNCTION, FUNCTION_DEF, EXTENSION, IF, FOR, WHILE, DOWHILE, CONTEXT, CALL, IMPORT, TRY, CLASS
     };
 }
 
@@ -31,9 +31,26 @@ struct Node_st
 
 
     std::string ToString(int spaces = 0);
+    std::vector<char> Serialize();
+    void Deserialize(std::vector<char>& data);
 };
+
+typedef union
+{
+    bool _bool;
+    int _int;
+    double _double;
+    char bytes[sizeof(double)];
+}binary;
 
 typedef std::shared_ptr<struct Node_st> Node;
 #define MKNODE() Node(new struct Node_st())
+
+#define serialize(bin, data, value, type) bin._ ## type = (type)value, data.insert(data.end(), bin.bytes, bin.bytes + sizeof(type))
+#define serializeS(bin, data, str) {serialize(bin, data, str.length(), int); const char *s = str.c_str(); data.insert(data.end(), s, s+str.length());}
+#define serializeV(data, other) data.insert( data.end(), other.begin(), other.end() )
+
+#define deserialize(bin, data, name, type, cast) bin._ ## type = *(type*)data.data(), name = (cast)bin._ ## type, data.erase(data.begin(), data.begin() + sizeof(type))
+#define deserializeS(bin, data, str) {int sz; deserialize(bin, data, sz, int, int); string s(data.data(), sz); str = s; data.erase(data.begin(), data.begin() + sz);}
 
 #endif

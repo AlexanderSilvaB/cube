@@ -1,0 +1,85 @@
+println("Conway's Game of Life")
+w = int(input("Width: "))
+h = int(input("Height: "))
+
+sz = w*h
+map = (1:sz)*0
+map[2*w + 3] = 1
+map[2*w + 2] = 1
+map[1*w + 2] = 1
+
+func neigh(map, x, y, w, h)
+{
+    n = 0
+    mx = x-1
+    Mx = x+1
+    my = y-1
+    My = y+1
+    for(i = my; i <= My; i++)
+    {
+        if(i >= 0 && i < h)
+        {
+            for(j = mx; j <= Mx; j++)
+            {
+                if(j >= 0 && j < w)
+                {
+                    if(i != y && j != x)
+                    {
+                        if(map[i*w + j] > 0)
+                        {
+                            n = n + 1
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return n
+}
+
+func update(map, w, h)
+{
+    for (y = 0; y < h; y++)
+    {
+        for(x = 0; x < w; x++)
+        {
+            n = neigh(map, x, y, w, h)
+            i = y*w + x
+            println(n)
+            if(n < 2)
+            {
+                map[i] = 0
+            }
+            if(n > 3)
+            {
+                map[i] = 0
+            }            
+            if(n == 3)
+            {
+                map[i] = 1
+            }
+        }
+    }
+    return map
+}
+
+func show(map, w, h)
+{
+    for (y = 0; y < h; y++)
+    {
+        for(x = 0; x < w; x++)
+        {
+            print(map[y*w + x])
+        }
+        println()
+    }
+}
+
+println("P: 0")
+show(map, w, h)
+for(p in 1:1)
+{
+    map = update(map, w, h)
+    println("P: ", p)
+    show(map, w, h)
+}

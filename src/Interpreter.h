@@ -4,6 +4,7 @@
 #include "Env.h"
 #include "Var.h"
 #include "Parser.h"
+#include "Loader.h"
 #include <map>
 #include <set>
 
@@ -15,6 +16,7 @@ class Interpreter
         bool exit;
         Parser parser;
         Env* env;
+        Loader *loader;
 
         std::set<std::string> paths;
 
@@ -42,6 +44,7 @@ class Interpreter
         std::string OpenFile(const std::string& fileName);
 
         bool Evaluate(const std::string& src, bool interactive);
+        std::vector<char> Compile(const std::string& src);
 };
 
 #endif

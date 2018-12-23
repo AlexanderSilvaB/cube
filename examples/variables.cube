@@ -22,5 +22,13 @@ n =
         return 5 + x!
     }
 ]
+class o
+{
+    func o()
+    {
+        println(this)
+    }
+}
+p = o()
 
 env()

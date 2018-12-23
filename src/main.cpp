@@ -13,32 +13,54 @@ int main(int argc, char *argv[])
     Interpreter interpreter;
 
     string src = "";
-    if(argc > 1)
+    string output = "";
+    for(int i = 1; i < argc; i++)
     {
-        string fileName(argv[1]);
-        src = interpreter.OpenFile(fileName);
-        interactive = false;
-    }
-
-    if(!interactive)
-    {
-        interpreter.Evaluate(src, false);
-        if(interpreter.NeedBreak())
-            cout << "\033[0m" << endl;
-    }
-    else
-    {
-        while(true)
+        string arg = argv[i];
+        if(arg == "-c")
         {
-            cout << ">>> ";
-            string line;
-            getline(cin, line);
-            if(!interpreter.Evaluate(line, true))
-                break;
-            if(interpreter.NeedBreak())
-                cout << "\033[0m" << endl;
+            i++;
+            output = argv[i];
+        }
+        else
+        {
+            string fileName(arg);
+            src = interpreter.OpenFile(fileName);
+            interactive = false;
         }
     }
 
+    if(output.size() > 0)
+    {
+        vector<char> data = interpreter.Compile(src);
+        if(data.size() > 0)
+        {
+            ofstream out(output);
+            out.write(data.data(), data.size());
+            out.close();
+        }
+    }
+    else
+    {
+        if(!interactive)
+        {
+            interpreter.Evaluate(src, false);
+            if(interpreter.NeedBreak())
+                cout << "\033[0m" << endl;
+        }
+        else
+        {
+            while(true)
+            {
+                cout << ">>> ";
+                string line;
+                getline(cin, line);
+                if(!interpreter.Evaluate(line, true))
+                    break;
+                if(interpreter.NeedBreak())
+                    cout << "\033[0m" << endl;
+            }
+        }
+    }
     return interpreter.ExitCode();
 }
