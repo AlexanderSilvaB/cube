@@ -78,6 +78,8 @@ bool Interpreter::Evaluate(const string& src, bool interactive)
     }
     else
         root = parser.Parse(src);
+    cout << root->ToString() << endl;
+    return true;
     if(root->type == NodeType::ERROR)
     {
         cout << root->ToString() << endl;
@@ -405,7 +407,7 @@ Var* Interpreter::Evaluate(Node node, Env* env, bool isClass, Var *caller)
                         }
                         else
                         {
-                            if(node->right->func->type = NodeType::VARIABLE)
+                            if(node->right->func->type == NodeType::VARIABLE)
                             {
                                 Var *func = NULL;
                                 Env* callEnv = env->extend();
@@ -619,7 +621,7 @@ Var* Interpreter::Evaluate(Node node, Env* env, bool isClass, Var *caller)
             else
             {
                 bool process = true;
-                if(node->func->type = NodeType::VARIABLE)
+                if(node->func->type == NodeType::VARIABLE)
                 {
                     vector<Var*> args(node->nodes.size());
                     for(int i = 0; i < node->nodes.size(); i++)

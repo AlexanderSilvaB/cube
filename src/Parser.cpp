@@ -126,12 +126,12 @@ Node Parser::MaybeBinary(Node left, int prec)
                     node->right = MaybeBinary(right, nprec);
                     if(!node->middle && !node->left->middle && node->type == NodeType::BINARY && node->_string == ":" && node->left->type == NodeType::BINARY && node->left->_string == ":")
                     {
-                        Node left = node->left->left;
-                        Node middle = node->left->right;
-                        Node right = node->right;
-                        node->left = left;
-                        node->middle = middle;
-                        node->right = right;
+                        Node l = node->left->left;
+                        Node m = node->left->right;
+                        Node r = node->right;
+                        node->left = l;
+                        node->middle = m;
+                        node->right = r;
                     }
                 }
                 else
