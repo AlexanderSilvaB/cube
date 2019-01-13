@@ -11,6 +11,7 @@ int main(int argc, char *argv[])
     bool interactive = true;
 
     Interpreter interpreter;
+    interpreter.AddToPath(string(argv[0]));
 
     string src = "";
     string output = "";

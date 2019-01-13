@@ -1,0 +1,5 @@
+import native
+env()
+
+i = vpf.open('text.txt')
+print(i)

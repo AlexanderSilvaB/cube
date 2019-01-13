@@ -25,6 +25,7 @@ class Interpreter
         void ReplaceString(std::string& subject, const std::string& search, const std::string& replace);
         std::string GetFolder(const std::string& path);
         std::string GetName(const std::string& path);
+        std::string MakePath(const std::string& fileName);
 
         Var* CreateClass(Node node, Env *env);
 
@@ -42,6 +43,7 @@ class Interpreter
         bool NeedBreak();
 
         std::string OpenFile(const std::string& fileName);
+        void AddToPath(const std::string& fileName, bool extract = true);
 
         bool Evaluate(const std::string& src, bool interactive);
         std::vector<char> Compile(const std::string& src);
