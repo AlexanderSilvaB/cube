@@ -24,6 +24,12 @@ Var::~Var()
 
 }
 
+void Var::Destroy()
+{
+    if(_env != NULL)
+        delete _env;
+}
+
 void Var::Store()
 {
     stored = true;
