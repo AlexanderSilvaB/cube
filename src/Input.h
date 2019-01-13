@@ -7,7 +7,7 @@ class Input
 {
     private:
         bool started;
-        size_t pos;
+        int pos;
         size_t row, col;
         std::string src;
     public:

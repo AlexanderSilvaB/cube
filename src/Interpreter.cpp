@@ -37,10 +37,9 @@ Interpreter::Interpreter()
 
 
     char cCurrentPath[FILENAME_MAX];
-
     if (GetCurrentDir(cCurrentPath, sizeof(cCurrentPath)))
     {
-        cCurrentPath[sizeof(cCurrentPath) - 1] = '\0'; /* not really required */
+        cCurrentPath[sizeof(cCurrentPath) - 1] = '\0';
         string currentDir(cCurrentPath);
         AddToPath(currentDir, false);
     }
@@ -48,6 +47,7 @@ Interpreter::Interpreter()
 
 Interpreter::~Interpreter()
 {
+    delete loader;
     delete env;
 }
 

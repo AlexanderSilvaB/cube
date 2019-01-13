@@ -45,9 +45,7 @@ char Input::Peek()
 char Input::Back()
 {
     if(pos > 0)
-    {
         pos--;
-    }
     if(pos < 0)
         pos = 0;
     return src[pos];

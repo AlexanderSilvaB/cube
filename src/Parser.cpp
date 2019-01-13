@@ -126,6 +126,7 @@ Node Parser::MaybeBinary(Node left, int prec)
                     node->right = MaybeBinary(right, nprec);
                     if(!node->middle && !node->left->middle && node->type == NodeType::BINARY && node->_string == ":" && node->left->type == NodeType::BINARY && node->left->_string == ":")
                     {
+                        // Create 3 parameters node
                         Node l = node->left->left;
                         Node m = node->left->right;
                         Node r = node->right;
