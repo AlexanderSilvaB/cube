@@ -1,5 +1,4 @@
-import native
-env()
+import native as mp
 
-i = vpf.open('text.txt')
+i = mp.open('text.txt')
 print(i)

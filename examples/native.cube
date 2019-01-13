@@ -1,6 +1,4 @@
-import "libwalkplanner.so" as vpf native
+import "libwalkplanner.so" native
 
 func open(string) : int
 func close(int) : none
-
-env()
