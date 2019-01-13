@@ -7,6 +7,14 @@
 #include <streambuf>
 #include <iostream> 
 #include <fstream>
+#include <stdio.h>  /* defines FILENAME_MAX */
+#ifdef WINDOWS
+    #include <direct.h>
+    #define GetCurrentDir _getcwd
+#else
+    #include <unistd.h>
+    #define GetCurrentDir getcwd
+ #endif
 
 using namespace std;
 
@@ -26,6 +34,16 @@ Interpreter::Interpreter()
     colors["magenta"] = 35;
     colors["cyan"] = 36;
     colors["white"] = 37;
+
+
+    char cCurrentPath[FILENAME_MAX];
+
+    if (GetCurrentDir(cCurrentPath, sizeof(cCurrentPath)))
+    {
+        cCurrentPath[sizeof(cCurrentPath) - 1] = '\0'; /* not really required */
+        string currentDir(cCurrentPath);
+        AddToPath(currentDir, false);
+    }
 }
 
 Interpreter::~Interpreter()
@@ -78,8 +96,8 @@ bool Interpreter::Evaluate(const string& src, bool interactive)
     }
     else
         root = parser.Parse(src);
-    cout << root->ToString() << endl;
-    return true;
+    //cout << root->ToString() << endl;
+    //return true;
     if(root->type == NodeType::ERROR)
     {
         cout << root->ToString() << endl;
@@ -1003,9 +1021,10 @@ Var* Interpreter::Evaluate(Node node, Env* env, bool isClass, Var *caller)
                     if(native)
                     {
                         void *handler;
-                        if(!loader->Load(node->nodes[i]->_string, &handler))
+                        string path = MakePath(node->nodes[i]->_string);
+                        if(!loader->Load(path, &handler))
                         {
-                            MakeError(var, "Could not load the native library");
+                            MakeError(var, "Could not load the native library [ "+node->nodes[i]->_string+" ]");
                         }
                         else
                         {
@@ -1059,6 +1078,25 @@ Var* Interpreter::Evaluate(Node node, Env* env, bool isClass, Var *caller)
     return var;
 }
 
+std::string Interpreter::MakePath(const string& fileName)
+{
+    string path = fileName;
+    string folder = GetFolder(path);
+    if(folder.length() > 0)
+        return path;
+    ifstream t;
+    for(set<string>::iterator it = paths.begin(); it != paths.end(); it++)
+    {
+        path = (*it) + "/" + fileName;
+        t = ifstream(path.c_str());
+        if(t.good())
+            break;
+    }
+    if(!t.good())
+        path = fileName;
+    return path;
+}
+
 std::string Interpreter::OpenFile(const std::string& fileName)
 {
     string ret = "";
@@ -1080,11 +1118,20 @@ std::string Interpreter::OpenFile(const std::string& fileName)
         ret.reserve(t.tellg());
         t.seekg(0, std::ios::beg);
         ret.assign((istreambuf_iterator<char>(t)), istreambuf_iterator<char>());
-        string folder = GetFolder(fileName);
-        if(paths.count(folder) == 0)
-            paths.insert(folder);
+        AddToPath(fileName);
     }
     return ret;
+}
+
+void Interpreter::AddToPath(const std::string& fileName, bool extract)
+{
+    string folder;
+    if(extract)
+        folder = GetFolder(fileName);
+    else
+        folder = fileName;
+    if(paths.count(folder) == 0)
+        paths.insert(folder);
 }
 
 void Interpreter::MakeError(Var* var, const string& text)
@@ -1307,7 +1354,12 @@ void Interpreter::ReplaceString(std::string& subject, const std::string& search,
 Var* Interpreter::Call(const std::string& func, std::vector<Var*>& args, Env *env, Var* caller)
 {
     Var* res = MKVAR();
-    if(func == "print" || func == "println")
+    if(caller != NULL && caller->Type() == VarType::NATIVE)
+    {
+        cout << func << endl;
+        *res = "OK";
+    }
+    else if(func == "print" || func == "println")
     {
         for(int i = 0; i < args.size(); i++)
         {
