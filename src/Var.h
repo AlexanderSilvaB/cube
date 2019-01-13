@@ -107,6 +107,7 @@ class Var
     public:
         Var();
         ~Var();
+        void Destroy();
 
         VarType::Types Type();
         std::string TypeName();
