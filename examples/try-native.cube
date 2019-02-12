@@ -1,4 +1,6 @@
-import native as mp
+import "native-lib" as mp
 
-i = mp.open('text.txt')
+env()
+
+i = mp.errno()
 print(i)

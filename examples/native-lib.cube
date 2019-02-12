@@ -1,0 +1,4 @@
+import "libc.so.6" native
+
+func errno(int) : int
+func strerror(int) : string

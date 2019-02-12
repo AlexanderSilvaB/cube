@@ -1,4 +1,0 @@
-import "libwalkplanner.so" native
-
-func open(string) : int
-func close(int) : none
