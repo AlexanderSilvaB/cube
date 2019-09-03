@@ -2,7 +2,11 @@
 #define _LOADER_H_
 
 #include <string>
+#include <memory>
 #include "Var.h"
+
+class Loader;
+typedef std::shared_ptr<Loader> LoaderPtr;
 
 class Loader
 {

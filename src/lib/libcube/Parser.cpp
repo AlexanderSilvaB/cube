@@ -6,7 +6,6 @@ using namespace std;
 Parser::Parser()
 {
     precedence["="] = 1;//ok
-    precedence["."] = 2;//ok
     precedence["in"] = 3;
     precedence["++"] = 3;//ok
     precedence["--"] = 3;//ok
@@ -17,7 +16,7 @@ Parser::Parser()
     precedence["<="] = 8;//ok
     precedence[">="] = 8;//ok
     precedence["=="] = 8;//ok
-    precedence["!="] = 8;//ok
+    precedence["<>"] = 8;//ok
     precedence["|"] = 8;//ok
     precedence["&"] = 8;//ok
     precedence["<<"] = 8;//ok
@@ -32,6 +31,7 @@ Parser::Parser()
     precedence["%"] = 20;//ok
     precedence["**"] = 25;//ok
     precedence[":"] = 30;//ok
+    precedence["."] = 35;//ok
 
     noright.insert("++");
     noright.insert("--");
@@ -310,6 +310,15 @@ string Parser::ParseVarName()
     return name._string;
 }
 
+string Parser::ParseFuncName()
+{
+    Token name = tokens.Peek();
+    tokens.Next();
+    if(name.type != TokenType::VARIABLE && name.type != TokenType::OPERATOR)
+        return "";
+    return name._string;
+}
+
 string Parser::ParseVarNameOrString()
 {
     Token name = tokens.Peek();
@@ -387,7 +396,7 @@ Node Parser::ParseFunction()
     node->type = NodeType::FUNCTION;
 
     Token name = tokens.Peek();
-    node->_string = ParseVarName();
+    node->_string = ParseFuncName();
     if(IsOperator("."))
     {
         if(node->_string.length() == 0)
@@ -678,6 +687,14 @@ Node Parser::ParseAtom()
     {
         tokens.Next();
         node->type = NodeType::NONE;
+    }
+    else if(IsKeyword("new"))
+    {
+        tokens.Next();
+        node = ParseAtom();
+        node->createNew = true;
+        if(node->type == NodeType::ERROR)
+            return node;
     }
     else if(IsOperator() && noleft.count(tokens.Peek()._string) > 0)
     {

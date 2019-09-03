@@ -2,7 +2,7 @@
 #include <fstream>
 #include <streambuf>
 #include <iostream>
-#include "Interpreter.h"
+#include <libcube/Interpreter.h>
 
 using namespace std;
 
@@ -12,6 +12,7 @@ int main(int argc, char *argv[])
 
     Interpreter interpreter;
     interpreter.AddToPath(string(argv[0]));
+    interpreter.AddToPath("examples/");
 
     string src = "";
     string output = "";

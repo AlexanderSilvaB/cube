@@ -1,7 +1,16 @@
-pi = 3.1416
+pi = 3.14159265359
 
 func deg(x) x * 57.2958
 func rad(x) x * 0.0174533
+
+func abs(x)
+{
+    if( x < 0)
+        y = -x
+    else
+        y = x
+    return y
+}
 
 func min(a, b)
 {
@@ -43,4 +52,4 @@ func cos(x)
 }
 
 if(__name__ == "__main__")
-    print(pi, "rad =", deg(pi), "º")
+    print(pi, "rad = ", deg(pi), "º")

@@ -157,6 +157,8 @@ string Node_st::ToString(int spaces)
             break;
         case NodeType::CALL:
             ss << "Call: " << endl;
+            if(createNew)
+                ss << "new ";
             ss << func->ToString(spaces + 1);
             ss << makeSpaces(spaces + 1);
             ss << "Args: " << endl;
@@ -398,6 +400,7 @@ vector<char> Node_st::Serialize()
         case NodeType::CALL:
         {
             vector<char> funcData = func->Serialize();
+            serialize(bin, data, createNew, bool);
             serializeV(data, funcData);
 
             serialize(bin, data, nodes.size(), int);
@@ -692,6 +695,8 @@ void Node_st::Deserialize(std::vector<char>& data)
             break;
         case NodeType::CALL:
         {
+            deserialize(bin, data, createNew, bool, bool);
+
             func = MKNODE();
             func->Deserialize(data);
 

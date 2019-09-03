@@ -33,6 +33,7 @@ Tokenizer::Tokenizer()
     keywords.push_back("try");
     keywords.push_back("catch");
     keywords.push_back("class");
+    keywords.push_back("new");
 
     operators.insert(".");
     operators.insert("+");
@@ -45,7 +46,7 @@ Tokenizer::Tokenizer()
     operators.insert("!");
     operators.insert("=");
     operators.insert("==");
-    operators.insert("!=");
+    operators.insert("<>");
     operators.insert(">=");
     operators.insert("<=");
     operators.insert(">");
@@ -99,6 +100,8 @@ Token& Tokenizer::Peek()
 
 Token& Tokenizer::Next()
 {
+    begin:
+
     if(Eof())
     {
         token.type = TokenType::INVALID;
@@ -203,6 +206,10 @@ char Tokenizer::SkipComment()
             c = input.Next();
         }
         c = input.Next();
+        if(c == '\r')
+        {
+            c = input.Next();
+        }
     }
     return c;
 }

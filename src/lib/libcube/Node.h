@@ -16,6 +16,7 @@ namespace NodeType
 
 struct Node_st
 {   
+    bool createNew;
     NodeType::Types type;
     std::string _string, _nick;
     double _number;   
@@ -33,6 +34,11 @@ struct Node_st
     std::string ToString(int spaces = 0);
     std::vector<char> Serialize();
     void Deserialize(std::vector<char>& data);
+
+    Node_st()
+    {
+        createNew = false;
+    }
 };
 
 typedef union

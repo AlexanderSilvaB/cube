@@ -20,8 +20,8 @@ using namespace std;
 
 Interpreter::Interpreter()
 {
-    env = new Env();
-    loader = new Loader();
+    env = make_shared<Env>();
+    loader = make_shared<Loader>();
     exitCode = 0;
     needBreak = false;
     exit = false;
@@ -47,8 +47,7 @@ Interpreter::Interpreter()
 
 Interpreter::~Interpreter()
 {
-    delete loader;
-    delete env;
+    
 }
 
 int Interpreter::ExitCode()
@@ -96,7 +95,7 @@ bool Interpreter::Evaluate(const string& src, bool interactive)
     }
     else
         root = parser.Parse(src);
-    //cout << root->ToString() << endl;
+    // cout << root->ToString() << endl;
     //return true;
     if(root->type == NodeType::ERROR)
     {
@@ -138,7 +137,7 @@ bool Interpreter::Evaluate(const string& src, bool interactive)
     return !exit;
 }
 
-Var* Interpreter::Evaluate(Node node, Env* env, bool isClass, Var *caller)
+Var* Interpreter::Evaluate(Node node, EnvPtr env, bool isClass, Var *caller)
 {
     Var* var = NULL;
     if(!node)
@@ -395,7 +394,11 @@ Var* Interpreter::Evaluate(Node node, Env* env, bool isClass, Var *caller)
                 else if(node->_string == ".")
                 {
                     Var *left = Evaluate(node->left, env);
-                    if(left->IsType(VarType::DICT) || left->IsType(VarType::LIB))
+                    if(left->IsType(VarType::ERROR))
+                    {
+                        var = left;
+                    }
+                    else if(left->IsType(VarType::DICT) || left->IsType(VarType::LIB))
                     {
                         VarDict &dict = left->Dict();
                         if(node->right->type != NodeType::VARIABLE && node->right->type != NodeType::CALL)
@@ -428,7 +431,7 @@ Var* Interpreter::Evaluate(Node node, Env* env, bool isClass, Var *caller)
                             if(node->right->func->type == NodeType::VARIABLE)
                             {
                                 Var *func = NULL;
-                                Env* callEnv = env->extend();
+                                EnvPtr callEnv = env->extend();
                                 for(VarDict::iterator it = dict.begin(); it != dict.end(); it++)
                                 {
                                     callEnv->def(it->first, &it->second);
@@ -461,7 +464,6 @@ Var* Interpreter::Evaluate(Node node, Env* env, bool isClass, Var *caller)
                                     if(valid)
                                         var = Call(node->right->func->_string, args, callEnv);
                                 }
-                                delete callEnv;
                             }
                             else
                             {
@@ -510,7 +512,7 @@ Var* Interpreter::Evaluate(Node node, Env* env, bool isClass, Var *caller)
                             }
                             else
                             {
-                                Env* callEnv = env->extend();
+                                EnvPtr callEnv = env->extend();
                                 bool valid = true;
                                 vector<Var*> args(node->right->nodes.size());
                                 for(int i = 0; i < node->right->nodes.size(); i++)
@@ -525,7 +527,6 @@ Var* Interpreter::Evaluate(Node node, Env* env, bool isClass, Var *caller)
                                 }
                                 if(valid)
                                     var = Call(name, args, callEnv, left);
-                                delete callEnv;
                                 if(!left->Stored())
                                     delete left;
                             }
@@ -658,7 +659,7 @@ Var* Interpreter::Evaluate(Node node, Env* env, bool isClass, Var *caller)
                             }
                         }
                     }
-                    var = Call(node->func->_string, args, env, caller);
+                    var = Call(node->func->_string, args, env, caller, node->createNew);
                 }
                 else
                 {
@@ -698,16 +699,14 @@ Var* Interpreter::Evaluate(Node node, Env* env, bool isClass, Var *caller)
                 MakeError(var, "id type in class", node);
             else
             {
-                Env* tryEnv = env->copy();
+                EnvPtr tryEnv = env->copy();
                 Var *body = Evaluate(node->body, tryEnv);
                 if(!body->IsType(VarType::ERROR))
                 {
                     env->paste(tryEnv);
-                    delete tryEnv;
                 }
                 else if(node->contr)
                 {
-                    delete tryEnv;
                     tryEnv = env->copy();
                     if(node->_string.size() > 0)
                         tryEnv->def(node->_string, body);
@@ -716,7 +715,6 @@ Var* Interpreter::Evaluate(Node node, Env* env, bool isClass, Var *caller)
                     {
                         *var = *contr;
                     }
-                    delete tryEnv;
                 }
             }
         }
@@ -750,7 +748,7 @@ Var* Interpreter::Evaluate(Node node, Env* env, bool isClass, Var *caller)
                         if(node->nodes.size() > 2)
                             inc = node->nodes[2];
                     }
-                    Env *forEnv = env->extend();
+                    EnvPtr forEnv = env->extend();
                     bool valid = true;
                     Var *inVar = NULL;
                     int inIndex = 0;
@@ -857,14 +855,13 @@ Var* Interpreter::Evaluate(Node node, Env* env, bool isClass, Var *caller)
                                     }
                                     else if(cd->IsFalse())
                                     {
-                                        var->SetType(VarType::IGNORE);
+                                        //var->SetType(VarType::IGNORE);
                                         valid = false;
                                     }
                                 }
                             }
                         }while(valid);
                     }
-                    delete forEnv;
                 }
             }
         }
@@ -878,7 +875,7 @@ Var* Interpreter::Evaluate(Node node, Env* env, bool isClass, Var *caller)
             }
             else
             {
-                Env *whileEnv = env->extend();
+                EnvPtr whileEnv = env->extend();
                 Var *cond = Evaluate(node->cond, whileEnv);
                 if(cond->IsFalse())
                 {
@@ -903,7 +900,6 @@ Var* Interpreter::Evaluate(Node node, Env* env, bool isClass, Var *caller)
                         break;
                     }
                 }
-                delete whileEnv;
             }
         }
             break;
@@ -916,7 +912,7 @@ Var* Interpreter::Evaluate(Node node, Env* env, bool isClass, Var *caller)
             }
             else
             {
-                Env *whileEnv = env->extend();
+                EnvPtr whileEnv = env->extend();
                 Var *cond = NULL;
                 do
                 {
@@ -936,7 +932,6 @@ Var* Interpreter::Evaluate(Node node, Env* env, bool isClass, Var *caller)
                         break;
                     }
                 }while(!cond->IsFalse());
-                delete whileEnv;
             }
         }
             break;
@@ -949,7 +944,7 @@ Var* Interpreter::Evaluate(Node node, Env* env, bool isClass, Var *caller)
             }
             else
             {
-                Env *letEnv = env->extend();
+                EnvPtr letEnv = env->extend();
                 bool valid = true;
                 for(int i = 0; i < node->nodes.size(); i++)
                 {
@@ -964,7 +959,6 @@ Var* Interpreter::Evaluate(Node node, Env* env, bool isClass, Var *caller)
                 {
                     var = Evaluate(node->body, letEnv);
                 }
-                delete letEnv;
             }
         }
             break;
@@ -1045,14 +1039,13 @@ Var* Interpreter::Evaluate(Node node, Env* env, bool isClass, Var *caller)
                         }
                         else
                         {
-                            Env *libEnv = new Env();
+                            EnvPtr libEnv = EnvPtr(new Env());
 
                             libEnv->set("__name__", var);
                             Evaluate(root, libEnv);
                             
                             *var = libEnv;
                             env->def(name, var);
-                            delete libEnv;
                         }
                     }
                 }
@@ -1152,7 +1145,7 @@ void Interpreter::MakeError(Var* var, const string& text, Node &node)
     var->Error(ss.str());
 }
 
-Var* Interpreter::ApplyOperator(const string& op, Var* left, Var* middle, Var* right, Env *env)
+Var* Interpreter::ApplyOperator(const string& op, Var* left, Var* middle, Var* right, EnvPtr env)
 {
     Var* res = MKVAR();
     if(op == "==")
@@ -1228,7 +1221,18 @@ Var* Interpreter::ApplyOperator(const string& op, Var* left, Var* middle, Var* r
         if(left->IsType(VarType::IGNORE))
             *res = *right;
         else
-            *res = *left + *right;
+        {
+            if(IsValidInternCall(op, left))
+            {
+                vector<Var*> callArgs(1);
+                callArgs[0] = right;
+                Var *v = CallInternOrReturn(op, left, callArgs);
+                *res = *v;
+                delete v;
+            }
+            else
+                *res = *left + *right;
+        }
     }
     else if(op == "-")
     {
@@ -1237,15 +1241,44 @@ Var* Interpreter::ApplyOperator(const string& op, Var* left, Var* middle, Var* r
         if(left->IsType(VarType::IGNORE))
             *res = zero * *right;
         else
-            *res = *left - *right;
+        {
+            if(IsValidInternCall(op, left))
+            {
+                vector<Var*> callArgs(1);
+                callArgs[0] = right;
+                Var *v = CallInternOrReturn(op, left, callArgs);
+                *res = *v;
+                delete v;
+            }
+            else
+                *res = *left - *right;
+        }
     }
     else if(op == "/")
     {
-        *res = *left / *right;
+        if(IsValidInternCall(op, left))
+        {
+            vector<Var*> callArgs(1);
+            callArgs[0] = right;
+            Var *v = CallInternOrReturn(op, left, callArgs);
+            *res = *v;
+            delete v;
+        }
+        else
+            *res = *left / *right;
     }
     else if(op == "*")
     {
-        *res = *left * *right;
+        if(IsValidInternCall(op, left))
+        {
+            vector<Var*> callArgs(1);
+            callArgs[0] = right;
+            Var *v = CallInternOrReturn(op, left, callArgs);
+            *res = *v;
+            delete v;
+        }
+        else
+            *res = *left * *right;
     }
     else if(op == "++")
     {
@@ -1351,7 +1384,27 @@ void Interpreter::ReplaceString(std::string& subject, const std::string& search,
     }
 }
 
-Var* Interpreter::Call(const std::string& func, std::vector<Var*>& args, Env *env, Var* caller)
+Var* Interpreter::CallInternOrReturn(const std::string& func, Var* obj, vector<Var*> argsIn)
+{
+    if(IsValidInternCall(func, obj))
+    {
+        return Call(func, argsIn, obj->Context(), obj);
+    }
+    return obj;
+}
+
+bool Interpreter::IsValidInternCall(const std::string& func, Var* obj)
+{
+    if(obj->Type() == VarType::CLASS && 
+        obj->Counter() != 0 &&
+        obj->Context()->get(func)->IsType(VarType::FUNC))
+    {
+        return true;
+    }
+    return false;
+}
+
+Var* Interpreter::Call(const std::string& func, std::vector<Var*>& args, EnvPtr env, Var* caller, bool createObj)
 {
     Var* res = MKVAR();
     if(caller != NULL && caller->Type() == VarType::NATIVE)
@@ -1364,7 +1417,9 @@ Var* Interpreter::Call(const std::string& func, std::vector<Var*>& args, Env *en
         for(int i = 0; i < args.size(); i++)
         {
             res = args[i];
-            string str = args[i]->ToString();
+            string str = "";
+            Var* v = CallInternOrReturn("toString", args[i]);
+            str = v->ToString();
             cout << str;
             if(i < args.size()-1 && str[0] != '\033')
                 cout << "";
@@ -1491,14 +1546,16 @@ Var* Interpreter::Call(const std::string& func, std::vector<Var*>& args, Env *en
         }
         else if(args.size() == 1)
         {
-            *res = args[0]->AsBool();
+            Var* v = CallInternOrReturn("toBool", args[0]);
+            *res = v->AsBool();
         }
         else
         {
             VarArray _array(args.size());
             for(int i = 0; i < args.size(); i++)
             {
-                _array[i] = args[i]->AsBool();
+                Var* v = CallInternOrReturn("toBool", args[i]);
+                _array[i] = v->AsBool();
             }
             *res = _array;
         }
@@ -1511,14 +1568,16 @@ Var* Interpreter::Call(const std::string& func, std::vector<Var*>& args, Env *en
         }
         else if(args.size() == 1)
         {
-            *res = args[0]->AsNumber();
+            Var* v = CallInternOrReturn("toNumber", args[0]);
+            *res = v->AsNumber();
         }
         else
         {
             VarArray _array(args.size());
             for(int i = 0; i < args.size(); i++)
             {
-                _array[i] = args[i]->AsNumber();
+                Var* v = CallInternOrReturn("toNumber", args[i]);
+                _array[i] = v->AsNumber();
             }
             *res = _array;
         }
@@ -1532,14 +1591,16 @@ Var* Interpreter::Call(const std::string& func, std::vector<Var*>& args, Env *en
         }
         else if(args.size() == 1)
         {
-            *res = args[0]->AsString();
+            Var* v = CallInternOrReturn("toString", args[0]);
+            *res = v->AsString();
         }
         else
         {
             VarArray _array(args.size());
             for(int i = 0; i < args.size(); i++)
             {
-                _array[i] = args[i]->AsString();
+                Var* v = CallInternOrReturn("toString", args[i]);
+                _array[i] = v->AsString();
             }
             *res = _array;
         }
@@ -1553,14 +1614,16 @@ Var* Interpreter::Call(const std::string& func, std::vector<Var*>& args, Env *en
         }
         else if(args.size() == 1)
         {
-            *res = args[0]->AsArray();
+            Var* v = CallInternOrReturn("toArray", args[0]);
+            *res = v->AsArray();
         }
         else
         {
             VarArray _array(args.size());
             for(int i = 0; i < args.size(); i++)
             {
-                _array[i] = args[i]->AsArray();
+                Var* v = CallInternOrReturn("toArray", args[i]);
+                _array[i] = v->AsArray();
             }
             *res = _array;
         }
@@ -1573,7 +1636,8 @@ Var* Interpreter::Call(const std::string& func, std::vector<Var*>& args, Env *en
         }
         else if(args.size() == 1)
         {
-            *res = args[0]->AsNumber();
+            Var* v = CallInternOrReturn("toNumber", args[0]);
+            *res = v->AsNumber();
             *res = (double)((int)res->Number());
         }
         else
@@ -1581,7 +1645,8 @@ Var* Interpreter::Call(const std::string& func, std::vector<Var*>& args, Env *en
             VarArray _array(args.size());
             for(int i = 0; i < args.size(); i++)
             {
-                _array[i] = args[i]->AsNumber();
+                Var* v = CallInternOrReturn("toNumber", args[i]);
+                _array[i] = v->AsNumber();
                 _array[i] = (double)((int)_array[i].Number());
             }
             *res = _array;
@@ -1595,14 +1660,22 @@ Var* Interpreter::Call(const std::string& func, std::vector<Var*>& args, Env *en
         }
         else if(args.size() == 1)
         {
-            *res = (double)args[0]->Size();
+            Var* v = CallInternOrReturn("len", args[0]);
+            if(v == args[0])
+                *res = (double)args[0]->Size();
+            else
+                *res = v->AsNumber();
         }
         else
         {
             VarArray _array(args.size());
             for(int i = 0; i < args.size(); i++)
             {
-                _array[i] = (double)args[i]->Size();
+                Var* v = CallInternOrReturn("len", args[i]);
+                if(v == args[i])
+                    _array[i] = (double)args[i]->Size();
+                else
+                    _array[i] = v->AsNumber();
             }
             *res = _array;
         }
@@ -1620,7 +1693,11 @@ Var* Interpreter::Call(const std::string& func, std::vector<Var*>& args, Env *en
     }
     else
     {
-        Var* var = env->get(func);
+        Var* var = NULL;
+        if(!createObj)
+            var = env->get(func);
+        else
+            var = env->get(func, VarType::CLASS);
         if(var->IsType(VarType::ERROR))
         {
             delete res;
@@ -1643,6 +1720,7 @@ Var* Interpreter::Call(const std::string& func, std::vector<Var*>& args, Env *en
             {
                 Var *obj = var->Clone();
                 var = obj;
+                var->Context()->setParent(env);
                 if(var->Context()->get(func)->IsType(VarType::FUNC))
                 {
                     Var *res = Call(func, args, var->Context(), var);
@@ -1656,7 +1734,7 @@ Var* Interpreter::Call(const std::string& func, std::vector<Var*>& args, Env *en
         }
         else
         {
-            Env *funcEnv = env->extend();
+            EnvPtr funcEnv = env->extend();
             if(caller != NULL)
             {
                 funcEnv->def("this", caller);
@@ -1685,7 +1763,6 @@ Var* Interpreter::Call(const std::string& func, std::vector<Var*>& args, Env *en
             funcEnv->def("args", _args);
             Var *_res = Evaluate(_func->body, funcEnv);
             *res = *_res;
-            delete funcEnv;
         }
     }
     return res;
@@ -1729,7 +1806,7 @@ string Interpreter::GetName(const string& path)
     return path;       
 }
 
-Var* Interpreter::CreateClass(Node node, Env* env)
+Var* Interpreter::CreateClass(Node node, EnvPtr env)
 {
     Var* var = MKVAR();
     if(env->exists(node->_string))

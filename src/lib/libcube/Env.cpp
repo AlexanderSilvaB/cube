@@ -9,7 +9,7 @@ Env::Env()
     this->parent = NULL;   
 }
 
-Env::Env(Env* parent)
+Env::Env(EnvPtr parent)
 {
     this->parent = parent;
 }
@@ -19,18 +19,35 @@ Env::~Env()
     
 }
 
-Env* Env::extend()
+void Env::setParent(EnvPtr parent)
 {
-    Env* env = new Env(this);
-    return env;
+    this->parent = parent;
 }
 
-Env* Env::lookup(const string& name)
+EnvPtr Env::extend()
 {
-    Env* scope = this;
+    Env* env = new Env( shared_from_this() );
+    return EnvPtr(env);
+}
+
+EnvPtr Env::lookup(const string& name)
+{
+    EnvPtr scope = shared_from_this();
     while(scope)
     {
         if(scope->contains(name))
+            return scope;
+        scope = scope->parent;
+    }
+    return scope;
+}
+
+EnvPtr Env::lookup(const string& name, VarType::Types type)
+{
+    EnvPtr scope = shared_from_this();
+    while(scope)
+    {
+        if(scope->contains(name, type))
             return scope;
         scope = scope->parent;
     }
@@ -43,15 +60,40 @@ bool Env::contains(const string& name)
     return it != vars.end();
 }
 
+bool Env::contains(const string& name, VarType::Types type)
+{
+    VarDict::iterator it = vars.find(name);
+    if(it != vars.end())
+    {
+        if(it->second.Type() == type)
+            return true;
+    }
+    return false;
+}
+
 bool Env::exists(const string& name)
 {
-    Env* scope = lookup(name);
+    EnvPtr scope = lookup(name);
     return scope != NULL;
 }
 
 Var* Env::get(const string& name)
 {
-    Env* scope = lookup(name);
+    EnvPtr scope = lookup(name);
+    if(!scope)
+    {
+        stringstream ss;
+        ss << "Undefined variable or function '" << name << "'";
+        Var *error = MKVAR();
+        error->Error(ss.str());
+        return error;
+    }
+    return &scope->vars[name];
+}
+
+Var* Env::get(const string& name, VarType::Types type)
+{
+    EnvPtr scope = lookup(name, type);
     if(!scope)
     {
         stringstream ss;
@@ -65,7 +107,7 @@ Var* Env::get(const string& name)
 
 Var* Env::set(const string& name, Var* value)
 {
-    Env* scope = lookup(name);
+    EnvPtr scope = lookup(name);
     /*
     if(!scope && parent)
     {
@@ -100,10 +142,12 @@ VarDict& Env::Vars()
     return vars;
 }
 
-Env* Env::copy(Env *env)
+EnvPtr Env::copy(EnvPtr env)
 {
-    if(env == NULL)
-        env = new Env();
+    if(!env)
+    {
+        env = EnvPtr(new Env());
+    }
     for(VarDict::iterator it = vars.begin(); it != vars.end(); it++)
     {
         env->def(it->first, &it->second);
@@ -113,7 +157,7 @@ Env* Env::copy(Env *env)
     return env;
 }
 
-void Env::paste(Env *env)
+void Env::paste(EnvPtr env)
 {
     for(VarDict::iterator it = env->vars.begin(); it != env->vars.end(); it++)
     {

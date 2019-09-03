@@ -23,7 +23,7 @@ func neigh(map, x, y, w, h)
             {
                 if(j >= 0 && j < w)
                 {
-                    if(i != y && j != x)
+                    if(i <> y && j <> x)
                     {
                         if(map[i*w + j] > 0)
                         {

@@ -15,8 +15,8 @@ class Interpreter
         bool needBreak;
         bool exit;
         Parser parser;
-        Env* env;
-        Loader *loader;
+        EnvPtr env;
+        LoaderPtr loader;
 
         std::set<std::string> paths;
 
@@ -27,14 +27,16 @@ class Interpreter
         std::string GetName(const std::string& path);
         std::string MakePath(const std::string& fileName);
 
-        Var* CreateClass(Node node, Env *env);
+        Var* CreateClass(Node node, EnvPtr env);
 
         void MakeError(Var* var, const std::string& text);
         void MakeError(Var* var, const std::string& text, Node& node);
-        Var* ApplyOperator(const std::string& op, Var* left, Var* middle, Var* right, Env *env);
-        Var* Call(const std::string& func, std::vector<Var*>& args, Env *env, Var* caller = NULL);
+        Var* ApplyOperator(const std::string& op, Var* left, Var* middle, Var* right, EnvPtr env);
+        Var* Call(const std::string& func, std::vector<Var*>& args, EnvPtr env, Var* caller = NULL, bool createObj = false);
+        bool IsValidInternCall(const std::string& func, Var* obj);
+        Var* CallInternOrReturn(const std::string& func, Var* obj, std::vector<Var*> args = std::vector<Var*>());
 
-        Var* Evaluate(Node node, Env* env, bool isClass = false, Var *caller = NULL);
+        Var* Evaluate(Node node, EnvPtr env, bool isClass = false, Var *caller = NULL);
     public:
         Interpreter();
         ~Interpreter();

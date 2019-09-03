@@ -1,6 +1,6 @@
 # Variables
 a = 3.5
-b = 13e2
+b = 13e3
 c = "ABC"
 d = 'ABC'
 e = 'This is a string with "double" quotes'
@@ -11,7 +11,7 @@ i = @(x) {return x+5}
 j = i(9)
 k = [1, 2, 3, 4, 5]
 l = k[0, 3:end] 
-m = 0:2:100
+m = 0:2:50
 n = 
 [
     n1 = 1,
@@ -31,4 +31,5 @@ class o
 }
 p = o()
 
+println("Env: ")
 env()

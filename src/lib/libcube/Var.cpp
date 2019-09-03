@@ -26,8 +26,7 @@ Var::~Var()
 
 void Var::Destroy()
 {
-    if(_env != NULL)
-        delete _env;
+    
 }
 
 void Var::Store()
@@ -136,7 +135,7 @@ Var& Var::SetType(VarType::Types type)
     return *this;
 }
 
-Var& Var::operator=(Env* env)
+Var& Var::operator=(EnvPtr env)
 {
     this->type = VarType::LIB;
     this->_dict = env->Vars();
@@ -212,6 +211,7 @@ Var* Var::Clone()
     *v = *this;
     v->_counter = rand();
     v->_env = _env->copy();
+    return v;
 }
 
 int Var::Counter()
@@ -225,7 +225,7 @@ void Var::ToClass(const string &name)
     this->_string = name;
     this->_counter = 0;
     if(this->_env == NULL)
-        this->_env = new Env();
+        this->_env = EnvPtr(new Env());
 }
 
 void Var::ToNative(const std::string &name, void *handler)
@@ -279,7 +279,7 @@ VarDict& Var::Dict()
     return _dict;
 }
 
-Env *Var::Context()
+EnvPtr Var::Context()
 {
     return _env;
 }

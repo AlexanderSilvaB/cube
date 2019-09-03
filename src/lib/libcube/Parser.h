@@ -22,6 +22,7 @@ class Parser
         bool DelimitedNames(std::vector<std::string> &names, const std::string &start, const std::string &stop, const std::string &separator, bool op = false);
         Node ParseCall(Node func);
         std::string ParseVarName();
+        std::string ParseFuncName();
         std::string ParseVarNameOrString();
         Node ParseIf();
         Node ParseLet();

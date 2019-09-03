@@ -31,7 +31,7 @@ class Var
         NamesArray _names;
         Node _func;
         int _counter;
-        Env* _env;
+        std::shared_ptr<Env> _env;
         void* _handler;
         Var *_ref;
 
@@ -122,7 +122,7 @@ class Var
         bool Returned();
         void ClearRef();
 
-        Var& operator=(Env* env);
+        Var& operator=(std::shared_ptr<Env> env);
         Var& operator=(const Var& value);
         Var& operator=(const bool& value);
         Var& operator=(const double& value);
@@ -145,7 +145,7 @@ class Var
         bool& Bool();
         VarArray& Array();
         VarDict& Dict();
-        Env *Context();
+        std::shared_ptr<Env> Context();
         void* Handler();
 
         Var AsBool();

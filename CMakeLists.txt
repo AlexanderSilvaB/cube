@@ -1,11 +1,4 @@
 cmake_minimum_required(VERSION 2.8)
-project(Cube)
+project(cube)
 
-include_directories(src)
-
-file(GLOB_RECURSE SRC
-    "src/*.cpp"
-    "src/*.h")
-
-add_executable(${PROJECT_NAME} ${SRC})
-target_link_libraries(${PROJECT_NAME} dl)
+add_subdirectory(src)

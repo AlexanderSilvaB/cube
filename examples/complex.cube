@@ -1,0 +1,77 @@
+import math as m
+
+class Complex
+{
+    real = 0
+    imag = -1
+
+    func Complex(r, i)
+    {
+        real = number(r)
+        imag = number(i)
+    }
+
+    func +(c)
+        return new Complex(real + c.real, imag + c.imag)
+
+    func -(c)
+        return new Complex(real - c.real, imag - c.imag)
+
+    func *(c)
+    {
+        xu = real * c.real
+        yv = imag * c.imag
+        xv = real * c.imag
+        yu = imag * c.real
+        return new Complex(xu - yv, xv + yu)
+    }
+
+    func /(c)
+    {
+        x = real
+        y = imag
+        u = c.real
+        v = c.imag
+        b = -c.imag
+
+        xu = x * u
+        xb = x * b
+        yu = y * u
+        yb = - y * b
+
+        ux = u * u
+        vb = - v * b
+
+        r = xu + yb
+        i = xb + yu
+        d = ux + vb
+
+        return new Complex(r / d, i / d)
+    }
+
+    func toString()
+    {
+        if(imag < 0)
+            return real + " - " + m.abs(imag) + "j"
+        else
+            return real + " + " + imag + "j"
+    }
+}
+
+c1 = new Complex(3, 2)
+println("C1 = ", c1)
+
+c2 = new Complex(4, -3)
+println("C2 = ", c2)
+
+c3 = c1 + c2
+println("C1 + C2 = ", c3)
+
+c4 = c1 - c2
+println("C1 - C2 = ", c4)
+
+c5 = c1 * c2
+println("C1 * C2 = ", c5)
+
+c6 = c1 / c2
+println("C1 / C2 = ", c6)
