@@ -213,7 +213,10 @@ string Node_st::ToString(int spaces)
             ss << body->ToString(spaces + 2);
             break;
         case NodeType::IMPORT:
-            ss << "Import: " << endl;
+            ss << "Import";
+            if(_bool)
+                ss << "(native)";
+            ss << ": " << endl;
             for(int i = 0; i < nodes.size(); i++)
             {
                 ss << makeSpaces(spaces + 1);
@@ -495,6 +498,7 @@ vector<char> Node_st::Serialize()
             break;
         case NodeType::IMPORT:
         {
+            serialize(bin, data, _bool, bool);
             serialize(bin, data, nodes.size(), int);
             for(int i = 0; i < nodes.size(); i++)
             {
@@ -797,6 +801,7 @@ void Node_st::Deserialize(std::vector<char>& data)
             break;
         case NodeType::IMPORT:
         {
+            deserialize(bin, data, _bool, bool, bool);
             int sz;
             deserialize(bin, data, sz, int, int);
             nodes.resize(sz);

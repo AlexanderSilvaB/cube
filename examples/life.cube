@@ -1,12 +1,33 @@
 println("Conway's Game of Life")
 w = int(input("Width: "))
 h = int(input("Height: "))
+ite = int(input("Iteractions: "))
 
 sz = w*h
 map = (1:sz)*0
-map[2*w + 3] = 1
-map[2*w + 2] = 1
-map[1*w + 2] = 1
+
+func createExploder(map, w, h)
+{
+    minX = int(w/2) - int(5 / 2)
+    minY = int(h/2) - int(5 / 2)
+    maxX = minX + 4
+    maxY = minY + 4
+    
+    for(i = minY; i <= maxY; i++)
+    {
+        for(j = minX; j <= maxX; j++)
+        {
+            if(j == minX || j == maxX)
+                map[i*w + j] = 1
+        }
+    }
+
+    map[minY*w + minX + 2] = 1
+    map[maxY*w + minX + 2] = 1
+
+    return map
+}
+
 
 func neigh(map, x, y, w, h)
 {
@@ -23,7 +44,7 @@ func neigh(map, x, y, w, h)
             {
                 if(j >= 0 && j < w)
                 {
-                    if(i <> y && j <> x)
+                    if(i <> y || j <> x)
                     {
                         if(map[i*w + j] > 0)
                         {
@@ -45,7 +66,6 @@ func update(map, w, h)
         {
             n = neigh(map, x, y, w, h)
             i = y*w + x
-            println(n)
             if(n < 2)
             {
                 map[i] = 0
@@ -75,9 +95,14 @@ func show(map, w, h)
     }
 }
 
+println('Creating exploder...')
+map = createExploder(map, w, h)
+
+println('Starting')
+
 println("P: 0")
 show(map, w, h)
-for(p in 1:1)
+for(p in 1:ite)
 {
     map = update(map, w, h)
     println("P: ", p)

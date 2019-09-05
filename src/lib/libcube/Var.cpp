@@ -214,6 +214,11 @@ Var* Var::Clone()
     return v;
 }
 
+NamesArray& Var::Names()
+{
+    return _names;
+}
+
 int Var::Counter()
 {
     return _counter;

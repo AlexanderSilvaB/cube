@@ -25,6 +25,7 @@ Interpreter::Interpreter()
     exitCode = 0;
     needBreak = false;
     exit = false;
+    printInstr = false;
 
     colors["black"] = 30;
     colors["red"] = 31;
@@ -95,8 +96,7 @@ bool Interpreter::Evaluate(const string& src, bool interactive)
     }
     else
         root = parser.Parse(src);
-    // cout << root->ToString() << endl;
-    //return true;
+
     if(root->type == NodeType::ERROR)
     {
         cout << root->ToString() << endl;
@@ -145,6 +145,13 @@ Var* Interpreter::Evaluate(Node node, EnvPtr env, bool isClass, Var *caller)
         var = MKVAR();
         return var;
     }
+
+    if(printInstr)
+    {
+        cout << node->ToString() << endl;
+        printInstr = false;
+    }
+
     switch(node->type)
     {
         case NodeType::IGNORE:
@@ -325,7 +332,7 @@ Var* Interpreter::Evaluate(Node node, EnvPtr env, bool isClass, Var *caller)
                 {
                     if(value->IsType(VarType::CLASS) && value->Counter() == 0)
                     {
-                        MakeError(var, "Cannot apply the operator '=' to an class", node->right);
+                        MakeError(var, "Cannot apply the operator '=' to a class", node->right);
                     }
                     else
                     {
@@ -345,7 +352,7 @@ Var* Interpreter::Evaluate(Node node, EnvPtr env, bool isClass, Var *caller)
                 {
                     if(value->IsType(VarType::CLASS) && value->Counter() == 0)
                     {
-                        MakeError(var, "Cannot apply the operator '=' to an class", node->right);
+                        MakeError(var, "Cannot apply the operator '=' to a class", node->right);
                     }
                     else
                     {
@@ -359,6 +366,40 @@ Var* Interpreter::Evaluate(Node node, EnvPtr env, bool isClass, Var *caller)
                 else  
                 {
                     var = value;
+                }
+            }
+            else if(node->left->type == NodeType::BINARY && node->left->_string == ".")
+            {
+                Var* attrib = Evaluate(node->left, env);
+                Var* value = Evaluate(node->right, env);
+                if(!attrib->IsType(VarType::ERROR))
+                {
+                    if(attrib->IsType(VarType::CLASS) && attrib->Counter() == 0)
+                    {
+                        MakeError(var, "Cannot apply the operator '=' to a class", node->left);
+                    }
+                    else
+                    {
+                        var = env->set(node->left->_string, attrib);
+                        var->ClearRef();
+                    }
+                }
+                else if(!value->IsType(VarType::ERROR))
+                {
+                    if(value->IsType(VarType::CLASS) && value->Counter() == 0)
+                    {
+                        MakeError(var, "Cannot apply the operator '=' to a class", node->right);
+                    }
+                    else
+                    {
+                        var = env->set(node->left->_string, value);
+                        var->ClearRef();
+                    }
+                }
+                else  
+                {
+                    *attrib = *value;
+                    *var = *value;
                 }
             }
             else
@@ -431,6 +472,7 @@ Var* Interpreter::Evaluate(Node node, EnvPtr env, bool isClass, Var *caller)
                             if(node->right->func->type == NodeType::VARIABLE)
                             {
                                 Var *func = NULL;
+                                Var *nativeEnv = NULL;
                                 EnvPtr callEnv = env->extend();
                                 for(VarDict::iterator it = dict.begin(); it != dict.end(); it++)
                                 {
@@ -441,6 +483,21 @@ Var* Interpreter::Evaluate(Node node, EnvPtr env, bool isClass, Var *caller)
                                     }
                                 }
                                 if(func == NULL)
+                                {
+                                    for(VarDict::iterator it = dict.begin(); it != dict.end(); it++)
+                                    {
+                                        if(it->second.IsType(VarType::NATIVE))
+                                        {
+                                            nativeEnv = &it->second;
+                                            break;
+                                        }
+                                    }
+                                }
+                                if(nativeEnv != NULL)
+                                {
+                                    var = Evaluate(node->right, env, false, nativeEnv);
+                                }
+                                else if(func == NULL)
                                 {
                                     var = MKVAR();
                                     stringstream ss;
@@ -1001,11 +1058,13 @@ Var* Interpreter::Evaluate(Node node, EnvPtr env, bool isClass, Var *caller)
                 MakeError(var, "id type in class", node);
             else
             {
+                bool native = node->_bool;
+
                 for(int i = 0; i < node->nodes.size(); i++)
                 {
                     string name = GetName(node->nodes[i]->_string); 
                     bool global = false;
-                    bool native = node->nodes[i]->_bool;
+                    
                     if(node->nodes[i]->_nick.length() > 0)
                     {
                         global = node->nodes[i]->_nick == "__global__";
@@ -1152,7 +1211,7 @@ Var* Interpreter::ApplyOperator(const string& op, Var* left, Var* middle, Var* r
     {
         *res = *left == *right;
     }
-    else if(op == "!=")
+    else if(op == "<>")
     {
         *res = *left != *right;
     }
@@ -1409,8 +1468,26 @@ Var* Interpreter::Call(const std::string& func, std::vector<Var*>& args, EnvPtr 
     Var* res = MKVAR();
     if(caller != NULL && caller->Type() == VarType::NATIVE)
     {
-        cout << func << endl;
-        *res = "OK";
+        Var *funcDef = NULL;
+        VarArray &array = caller->Array();
+        for(int i = 0; i < array.size(); i++)
+        {
+            if(array[i].IsType(VarType::FUNC_DEF) && array[i].String() == func)
+            {
+                funcDef = &array[i];
+                break;
+            }
+        }
+
+        if(funcDef == NULL)
+            MakeError(res, "Invalid native function [" + func + "]");
+        else
+        {
+            if(args.size() != funcDef->Names().size())
+                MakeError(res, "Invalid number of arguments for native function call [" + funcDef->ToString() + "]");
+            else
+                *res = loader->exec(func, args, funcDef, caller);
+        }
     }
     else if(func == "print" || func == "println")
     {
@@ -1690,6 +1767,10 @@ Var* Interpreter::Call(const std::string& func, std::vector<Var*>& args, EnvPtr 
                 exitCode = (int)args[0]->Number();
         }
         res->Return(true);
+    }
+    else if(func == "instr")
+    {
+        printInstr = true;
     }
     else
     {

@@ -14,6 +14,7 @@ class Interpreter
         int exitCode;
         bool needBreak;
         bool exit;
+        bool printInstr;
         Parser parser;
         EnvPtr env;
         LoaderPtr loader;

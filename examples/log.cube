@@ -1,12 +1,59 @@
-func log()
-{
-    print(color('green'), date('dd/MM/YYYY HH:mm:ss: '), color())
+DEBUG = 1
+INFO = 2
+ERROR = 3
+NONE = 4
 
-    for(arg in args)
+class Log
+{
+    level = 0
+
+    func Log(l)
     {
-        print(arg, ' ')
+        level = l
+    }
+
+    func error()
+    {
+        if(level > ERROR)
+            return false
+
+        print(color('green'), date('dd/MM/YYYY HH:mm:ss: '), color('red'))
+        for(arg in args)
+            print(arg, ' ')
+        println(color())
+        return true
+    }
+
+    func info()
+    {
+        if(level > INFO)
+            return false
+
+        print(color('green'), date('dd/MM/YYYY HH:mm:ss: '), color('blue'))
+        for(arg in args)
+            print(arg, ' ')
+        println(color())
+        return true
+    }
+
+    func debug()
+    {
+        if(level > DEBUG)
+            return false
+
+        print(color('green'), date('dd/MM/YYYY HH:mm:ss: '), color())
+        for(arg in args)
+            print(arg, ' ')
+        println(color())
+
+        return true
     }
 }
 
 if(__name__ == "__main__")
-    log('This', 'is', 'a', 'log')
+{
+    log = Log()
+    log.debug('This is a log')
+    log.error('This is an error')
+    log.info('This is an info')
+}

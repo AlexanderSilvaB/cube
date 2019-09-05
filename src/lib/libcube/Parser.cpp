@@ -237,16 +237,16 @@ Node Parser::ParseImport()
             var->_nick = "__global__";
         }
 
-        var->_bool = false;
-        Token next = tokens.Peek();
-        if(next.type == TokenType::KEYWORD && next._string == "native")
-        {
-            tokens.Next();
-            var->_bool = true;
-        }
-
         node->nodes.push_back(var);
     }
+
+    Token next = tokens.Peek();
+    if(next.type == TokenType::KEYWORD && next._string == "native")
+    {
+        tokens.Next();
+        node->_bool = true;
+    }
+
     return node;
 }
 
@@ -323,7 +323,7 @@ string Parser::ParseVarNameOrString()
 {
     Token name = tokens.Peek();
     tokens.Next();
-    if(name.type != TokenType::VARIABLE && name.type != TokenType::STRING)
+    if(name.type != TokenType::VARIABLE && name.type != TokenType::STRING && name.type != TokenType::KEYWORD)
         return "";
     return name._string;
 }

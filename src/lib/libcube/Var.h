@@ -147,6 +147,7 @@ class Var
         VarDict& Dict();
         std::shared_ptr<Env> Context();
         void* Handler();
+        NamesArray& Names();
 
         Var AsBool();
         Var AsNumber();

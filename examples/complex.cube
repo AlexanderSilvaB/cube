@@ -49,6 +49,11 @@ class Complex
         return new Complex(r / d, i / d)
     }
 
+    func toNumber()
+    {
+        return real
+    }
+
     func toString()
     {
         if(imag < 0)
