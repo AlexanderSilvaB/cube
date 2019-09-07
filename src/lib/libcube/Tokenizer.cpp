@@ -34,6 +34,7 @@ Tokenizer::Tokenizer()
     keywords.push_back("catch");
     keywords.push_back("class");
     keywords.push_back("new");
+    keywords.push_back("spawn");
 
     operators.insert(".");
     operators.insert("+");

@@ -454,6 +454,20 @@ Node Parser::ParseFunction()
     return node;
 }
 
+Node Parser::ParseSpawn()
+{
+    Node node = MKNODE();
+    node->type = NodeType::SPAWN;
+
+    node->_string = ParseVarName();
+
+    Node body = ParseExpression();
+    if(body->type == NodeType::ERROR)
+        return body;
+    node->body = body;
+    return node;
+}
+
 Node Parser::ParseTry()
 {
     Node node = MKNODE();
@@ -630,6 +644,13 @@ Node Parser::ParseAtom()
     {
         tokens.Next();
         node = ParseFunction();
+        if(node->type == NodeType::ERROR)
+            return node;
+    }
+    else if(IsKeyword("spawn"))
+    {
+        tokens.Next();
+        node = ParseSpawn();
         if(node->type == NodeType::ERROR)
             return node;
     }

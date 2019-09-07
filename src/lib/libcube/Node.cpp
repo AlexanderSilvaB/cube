@@ -143,6 +143,12 @@ string Node_st::ToString(int spaces)
             ss << "Body: " << endl;
             ss << body->ToString(spaces + 2);
             break;
+        case NodeType::SPAWN:
+            ss << "Spawn: " << _string << endl;
+            ss << makeSpaces(spaces + 1);
+            ss << "Body: " << endl;
+            ss << body->ToString(spaces + 2);
+            break;
         case NodeType::LET:
             ss << "Let: " << endl;
             ss << makeSpaces(spaces + 1);
@@ -384,6 +390,13 @@ vector<char> Node_st::Serialize()
             {
                 serializeS(bin, data, vars[i]);
             }
+            vector<char> bodyData = body->Serialize();
+            serializeV(data, bodyData);
+        }
+            break;
+        case NodeType::SPAWN:
+        {
+            serializeS(bin, data, _string);
             vector<char> bodyData = body->Serialize();
             serializeV(data, bodyData);
         }
@@ -679,6 +692,13 @@ void Node_st::Deserialize(std::vector<char>& data)
             {
                 deserializeS(bin, data, vars[i]);
             }
+            body = MKNODE();
+            body->Deserialize(data);
+        }
+            break;
+        case NodeType::SPAWN:
+        {
+            deserializeS(bin, data, _string);
             body = MKNODE();
             body->Deserialize(data);
         }

@@ -1,0 +1,15 @@
+spawn count100I
+{
+    for(i in 1:100)
+    {
+        print(i)
+    }
+}
+
+spawn count100D
+{
+    for(i in 100:-1:1)
+    {
+        print(i)
+    }
+}

@@ -294,6 +294,10 @@ Var* Interpreter::Evaluate(Node node, EnvPtr env, bool isClass, Var *caller)
             else
                 *var = node;
             break;
+        case NodeType::SPAWN:
+            var = MKVAR();
+            cout << node->ToString() << endl;
+            break;
         case NodeType::VARIABLE:
             if(isClass)
             {
