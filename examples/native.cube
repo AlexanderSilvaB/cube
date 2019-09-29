@@ -1,3 +1,6 @@
-import "libwalkplanner.so" native
-func open(string) : int
-func close(int) : none
+import "libcalc.so" native
+
+func add(int, int) : int
+func sub(int, int) : int
+func mul(int, int) : int
+func div(int, int) : int

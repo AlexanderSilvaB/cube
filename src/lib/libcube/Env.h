@@ -32,6 +32,7 @@ class Env : public std::enable_shared_from_this<Env>
         Var* get(const std::string& name, VarType::Types type);
         Var* set(const std::string& name, Var* value);
         Var* def(const std::string& name, Var* value);
+        void del(const std::string& name);
         EnvPtr copy(EnvPtr env = NULL);
         void paste(EnvPtr env);
 

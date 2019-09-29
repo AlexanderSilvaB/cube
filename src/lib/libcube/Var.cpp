@@ -54,6 +54,11 @@ void Var::ClearRef()
     _ref = NULL;
 }
 
+std::string Var::ReturnType()
+{
+    return _return;
+}
+
 VarType::Types Var::Type()
 {
     return type;

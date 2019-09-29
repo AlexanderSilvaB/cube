@@ -11,13 +11,13 @@ typedef std::shared_ptr<Loader> LoaderPtr;
 class Loader
 {
     private:
-        void callVoid();
-        bool callBool();
-        int callInt();
-        char callChar();
-        float callFloat();
-        double callDouble();
-        std::string callString();
+        void callVoid(NamesArray& names, std::vector<Var*>& args, void* handler);
+        bool callBool(NamesArray& names, std::vector<Var*>& args, void* handler);
+        int callInt(NamesArray& names, std::vector<Var*>& args, void* handler);
+        char callChar(NamesArray& names, std::vector<Var*>& args, void* handler);
+        float callFloat(NamesArray& names, std::vector<Var*>& args, void* handler);
+        double callDouble(NamesArray& names, std::vector<Var*>& args, void* handler);
+        std::string callString(NamesArray& names, std::vector<Var*>& args, void* handler);
 
     public:
         Loader();

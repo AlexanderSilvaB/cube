@@ -1,4 +1,16 @@
-import native as mp
+import native as calc
 
-i = mp.open('text.txt')
-print(i)
+a = 5
+b = 7
+
+r = calc.add(a, b)
+println(a, ' + ', b, ' = ', r)
+
+r = calc.sub(a, b)
+println(a, ' - ', b, ' = ', r)
+
+r = calc.mul(a, b)
+println(a, ' * ', b, ' = ', r)
+
+r = calc.div(a, b)
+println(a, ' / ', b, ' = ', r)

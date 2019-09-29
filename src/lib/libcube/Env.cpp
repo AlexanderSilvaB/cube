@@ -137,6 +137,29 @@ Var* Env::def(const string& name, Var* value)
     return &vars[name];
 }
 
+void Env::del(const string& name)
+{
+    EnvPtr scope = lookup(name);
+    if(scope)
+    {
+        VarDict::iterator it = scope->vars.find(name);
+        scope->vars.erase(it);
+    }
+    else if(name == "local")
+    {
+        vars.clear();
+    }
+    else if(name == "all")
+    {
+        scope = shared_from_this();
+        while(scope)
+        {
+            scope->vars.clear();
+            scope = scope->parent;
+        }
+    }
+}
+
 VarDict& Env::Vars()
 {
     return vars;

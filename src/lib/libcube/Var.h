@@ -121,6 +121,7 @@ class Var
         void Return(bool ret);
         bool Returned();
         void ClearRef();
+        std::string ReturnType();
 
         Var& operator=(std::shared_ptr<Env> env);
         Var& operator=(const Var& value);

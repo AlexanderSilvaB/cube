@@ -711,6 +711,11 @@ Var* Interpreter::Evaluate(Node node, EnvPtr env, bool isClass, Var *caller)
                             args[i] = MKVAR();
                             *args[i] = node->nodes[i]->_string;
                         }
+                        else if(node->func->_string == "del")
+                        {
+                            args[i] = MKVAR();
+                            *args[i] = node->nodes[i]->_string;
+                        }
                         else
                         {
                             args[i] = Evaluate(node->nodes[i], env);
@@ -1523,6 +1528,14 @@ Var* Interpreter::Call(const std::string& func, std::vector<Var*>& args, EnvPtr 
         string str;
         getline(cin, str);
         *res = str;
+    }
+    else if(func == "del")
+    {
+        for(int i = 0; i < args.size(); i++)
+        {
+            env->del(args[i]->String());
+        }
+        res->SetType(VarType::NONE);
     }
     else if(func == "color")
     {

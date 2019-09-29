@@ -1,1 +1,1 @@
-{"libs": ["libcube"], "name": "cube", "language": "cpp", "exes": ["cube"]}
+{"libs": ["libcube", "calc"], "name": "cube", "language": "cpp", "exes": ["cube"]}
