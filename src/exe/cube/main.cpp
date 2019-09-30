@@ -8,6 +8,8 @@ using namespace std;
 
 int main(int argc, char *argv[])
 {
+    VM::Init();
+    
     bool interactive = true;
 
     Interpreter interpreter;
@@ -64,5 +66,8 @@ int main(int argc, char *argv[])
             }
         }
     }
+
+    VM::Destroy();
+
     return interpreter.ExitCode();
 }

@@ -5,6 +5,7 @@
 #include "Var.h"
 #include "Parser.h"
 #include "Loader.h"
+#include "VM.h"
 #include <map>
 #include <set>
 

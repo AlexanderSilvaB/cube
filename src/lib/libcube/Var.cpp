@@ -17,11 +17,44 @@ Var::Var()
     _env = NULL;
     _handler =  NULL;
     _ref = NULL;
+
+    // GC
+    marked = false;
+    next = NULL;
 }
 
 Var::~Var()
 {
 
+}
+
+bool Var::isMarked()
+{
+    return marked;
+}
+
+void Var::mark()
+{
+    if(marked)
+        return;
+
+    marked = true;
+    // Recursive mark everything
+}
+
+void Var::unmark()
+{
+    marked = false;
+}
+
+void Var::setNext(Var* var)
+{
+    this->next = var;
+}
+
+Var* Var::getNext()
+{
+    return next;
 }
 
 void Var::Destroy()

@@ -8,7 +8,8 @@ set(SRC
     Env.cpp
     Var.cpp
     Loader.cpp
-    Interpreter.cpp)
+    Interpreter.cpp
+    VM.cpp)
 
 add_library(libcube ${SRC})
 target_link_libraries(libcube dl)

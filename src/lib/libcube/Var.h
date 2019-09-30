@@ -6,6 +6,7 @@
 #include <map>
 #include <string>
 #include <memory>
+#include "VM.h"
 
 namespace VarType
 {
@@ -184,12 +185,24 @@ class Var
         int Size();
 
         std::string ToString();
+
+    // GC
+    private:
+        bool marked;
+        Var* next;
+    
+    public:
+        void mark();
+        void unmark();
+        bool isMarked();
+        void setNext(Var* var);
+        Var* getNext();
 };
 
 
-//#define MKVAR() SVar(new Var())
-#define MKVAR() new Var()
-
+// #define MKVAR() SVar(new Var())
+// #define MKVAR() new Var()
+ 
 std::ostream& operator<< (std::ostream& stream, Var& var);
 std::ostream& operator<< (std::ostream& stream, Var* var);
 

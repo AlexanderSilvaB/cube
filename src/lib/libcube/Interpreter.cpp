@@ -130,9 +130,11 @@ bool Interpreter::Evaluate(const string& src, bool interactive)
         {
             env->def("ans", var);
         }
-        if(var && !var->Stored())
-            delete var;
+        // if(var && !var->Stored())
+            // delete var;
     }
+
+    VM::gc();
 
     return !exit;
 }
@@ -209,8 +211,8 @@ Var* Interpreter::Evaluate(Node node, EnvPtr env, bool isClass, Var *caller)
                         error = true;
                     }
                     _array[i] = *v;
-                    if(!v->Stored())
-                        delete v;
+                    // if(!v->Stored())
+                        // delete v;
                 }
                 if(!error)
                 {
@@ -243,8 +245,8 @@ Var* Interpreter::Evaluate(Node node, EnvPtr env, bool isClass, Var *caller)
                         error = true;
                     }
                     _dict[node->nodes[i]->left->_string] = *v;
-                    if(!v->Stored())
-                        delete v;
+                    // if(!v->Stored())
+                        // delete v;
                 }
                 if(!error)
                 {
@@ -426,8 +428,8 @@ Var* Interpreter::Evaluate(Node node, EnvPtr env, bool isClass, Var *caller)
                     Var *left = Evaluate(node->left, env);
                     if(left->IsFalse())
                     {
-                        if(!left->Stored())
-                            delete left;
+                        // if(!left->Stored())
+                            // delete left;
                         var = MKVAR();
                         *var = false;
                     }
@@ -555,8 +557,8 @@ Var* Interpreter::Evaluate(Node node, EnvPtr env, bool isClass, Var *caller)
                             stringstream ss;
                             ss << "Could not apply the operator '.' to '" << node->right->ToString() << "'";
                             MakeError(var, ss.str(), node);
-                            if(!left->Stored())
-                                delete left;
+                            // if(!left->Stored())
+                                // delete left;
                         }
                         else
                         {
@@ -568,8 +570,8 @@ Var* Interpreter::Evaluate(Node node, EnvPtr env, bool isClass, Var *caller)
                                 stringstream ss;
                                 ss << "'" << left->TypeName() << "' does not have an extension called '" << node->right->func->_string << "'";
                                 MakeError(var, ss.str(), node);
-                                if(!left->Stored())
-                                    delete left;
+                                // if(!left->Stored())
+                                    // delete left;
                             }
                             else
                             {
@@ -588,8 +590,8 @@ Var* Interpreter::Evaluate(Node node, EnvPtr env, bool isClass, Var *caller)
                                 }
                                 if(valid)
                                     var = Call(name, args, callEnv, left);
-                                if(!left->Stored())
-                                    delete left;
+                                // if(!left->Stored())
+                                    // delete left;
                             }
                         }
                     }
@@ -680,14 +682,14 @@ Var* Interpreter::Evaluate(Node node, EnvPtr env, bool isClass, Var *caller)
                     }
                     else
                         index.push_back(*v);
-                    if(!v->Stored())
-                        delete v;
+                    // if(!v->Stored())
+                        // delete v;
                 }
                 Var in;
                 in = index;
                 *var = left->operator[](in);
-                if(!left->Stored())
-                    delete left;
+                // if(!left->Stored())
+                    // delete left;
             }
         }
             break;
@@ -950,15 +952,15 @@ Var* Interpreter::Evaluate(Node node, EnvPtr env, bool isClass, Var *caller)
                 }
                 while(!cond->IsFalse())
                 {
-                    if(var != NULL && !var->Stored())
-                        delete var;
+                    // if(var != NULL && !var->Stored())
+                        // delete var;
                     var = Evaluate(node->body, whileEnv);
                     if(var->IsType(VarType::ERROR))
                     {
                         break;
                     }
-                    if(cond != NULL && !cond->Stored())
-                        delete cond;
+                    // if(cond != NULL && !cond->Stored())
+                        // delete cond;
                     cond = Evaluate(node->cond, whileEnv);
                     if(cond->IsType(VarType::ERROR))
                     {
@@ -982,15 +984,15 @@ Var* Interpreter::Evaluate(Node node, EnvPtr env, bool isClass, Var *caller)
                 Var *cond = NULL;
                 do
                 {
-                    if(var != NULL && !var->Stored())
-                        delete var;
+                    // if(var != NULL && !var->Stored())
+                        // delete var;
                     var = Evaluate(node->body, whileEnv);
                     if(var->IsType(VarType::ERROR))
                     {
                         break;
                     }
-                    if(cond != NULL && !cond->Stored())
-                        delete cond;
+                    // if(cond != NULL && !cond->Stored())
+                        // delete cond;
                     cond = Evaluate(node->cond, whileEnv);
                     if(cond->IsType(VarType::ERROR))
                     {
@@ -1034,11 +1036,11 @@ Var* Interpreter::Evaluate(Node node, EnvPtr env, bool isClass, Var *caller)
             Var *vNative = NULL;
             for(int i = 0; i < node->nodes.size(); i++)
             {
-                if(var && !var->Stored())
-                {
-                    delete var;
-                    var = NULL;
-                }
+                // if(var && !var->Stored())
+                // {
+                //     delete var;
+                //     var = NULL;
+                // }
                 if(native)
                     var = Evaluate(node->nodes[i], env, isClass, vNative);
                 else
@@ -1296,7 +1298,7 @@ Var* Interpreter::ApplyOperator(const string& op, Var* left, Var* middle, Var* r
                 callArgs[0] = right;
                 Var *v = CallInternOrReturn(op, left, callArgs);
                 *res = *v;
-                delete v;
+                // delete v;
             }
             else
                 *res = *left + *right;
@@ -1316,7 +1318,7 @@ Var* Interpreter::ApplyOperator(const string& op, Var* left, Var* middle, Var* r
                 callArgs[0] = right;
                 Var *v = CallInternOrReturn(op, left, callArgs);
                 *res = *v;
-                delete v;
+                // delete v;
             }
             else
                 *res = *left - *right;
@@ -1330,7 +1332,7 @@ Var* Interpreter::ApplyOperator(const string& op, Var* left, Var* middle, Var* r
             callArgs[0] = right;
             Var *v = CallInternOrReturn(op, left, callArgs);
             *res = *v;
-            delete v;
+            // delete v;
         }
         else
             *res = *left / *right;
@@ -1343,7 +1345,7 @@ Var* Interpreter::ApplyOperator(const string& op, Var* left, Var* middle, Var* r
             callArgs[0] = right;
             Var *v = CallInternOrReturn(op, left, callArgs);
             *res = *v;
-            delete v;
+            // delete v;
         }
         else
             *res = *left * *right;
@@ -1432,12 +1434,12 @@ Var* Interpreter::ApplyOperator(const string& op, Var* left, Var* middle, Var* r
         MakeError(res, ss.str());
     }
 
-    if(!left->Stored())
-        delete left;
-    if(!middle->Stored())
-        delete middle;
-    if(!right->Stored())
-        delete right;
+    // if(!left->Stored())
+    //     delete left;
+    // if(!middle->Stored())
+    //     delete middle;
+    // if(!right->Stored())
+    //     delete right;
 
     return res;
 }
@@ -1798,12 +1800,12 @@ Var* Interpreter::Call(const std::string& func, std::vector<Var*>& args, EnvPtr 
             var = env->get(func, VarType::CLASS);
         if(var->IsType(VarType::ERROR))
         {
-            delete res;
+            // delete res;
             return var;
         }
         if(!var->IsType(VarType::FUNC) && !var->IsType(VarType::CLASS))
         {
-            delete var;
+            // delete var;
             stringstream ss;
             ss << "'" << func << "' is not callable";
             MakeError(res, ss.str());
@@ -1853,7 +1855,7 @@ Var* Interpreter::Call(const std::string& func, std::vector<Var*>& args, EnvPtr 
                     Var *none = MKVAR();
                     none->SetType(VarType::NONE);
                     funcEnv->def(_func->vars[i], none);
-                    delete none;
+                    // delete none;
                 }
             }
             Var *_args = MKVAR();
@@ -1937,7 +1939,7 @@ Var* Interpreter::CreateClass(Node node, EnvPtr env)
     Var *res = Evaluate(node->body, var->Context(), true);
     if(res->IsType(VarType::ERROR))
     {
-        delete var;
+        // delete var;
         return res;
     }
 
