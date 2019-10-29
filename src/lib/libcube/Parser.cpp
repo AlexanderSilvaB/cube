@@ -68,7 +68,8 @@ Node Parser::Parse(const string& src)
         {
             SkipSymbol(";");
         }
-        root->nodes.push_back(node);
+        if(node->type != NodeType::IGNORE)
+            root->nodes.push_back(node);
     }
 
     return root;
@@ -454,12 +455,26 @@ Node Parser::ParseFunction()
     return node;
 }
 
-Node Parser::ParseSpawn()
+Node Parser::ParseAsync()
 {
     Node node = MKNODE();
-    node->type = NodeType::SPAWN;
+    node->type = NodeType::ASYNC;
 
-    node->_string = ParseVarName();
+    // node->_string = ParseVarName();
+
+    Node body = ParseExpression();
+    if(body->type == NodeType::ERROR)
+        return body;
+    node->body = body;
+    return node;
+}
+
+Node Parser::ParseAwait()
+{
+    Node node = MKNODE();
+    node->type = NodeType::AWAIT;
+
+    // node->_string = ParseVarName();
 
     Node body = ParseExpression();
     if(body->type == NodeType::ERROR)
@@ -647,10 +662,17 @@ Node Parser::ParseAtom()
         if(node->type == NodeType::ERROR)
             return node;
     }
-    else if(IsKeyword("spawn"))
+    else if(IsKeyword("async"))
     {
         tokens.Next();
-        node = ParseSpawn();
+        node = ParseAsync();
+        if(node->type == NodeType::ERROR)
+            return node;
+    }
+    else if(IsKeyword("await"))
+    {
+        tokens.Next();
+        node = ParseAwait();
         if(node->type == NodeType::ERROR)
             return node;
     }
@@ -709,6 +731,11 @@ Node Parser::ParseAtom()
         tokens.Next();
         node->type = NodeType::NONE;
     }
+    else if(IsKeyword("object"))
+    {
+        tokens.Next();
+        node->type = NodeType::OBJECT;
+    }
     else if(IsKeyword("new"))
     {
         tokens.Next();
@@ -747,6 +774,10 @@ Node Parser::ParseAtom()
         {
             node->type = NodeType::STRING;
             node->_string = tok._string;
+        }
+        else if(tok.type == TokenType::INVALID)
+        {
+            node->type = NodeType::IGNORE;
         }
         else
         {

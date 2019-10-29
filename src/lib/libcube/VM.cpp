@@ -1,68 +1,72 @@
 #include "VM.h"
-#include "Var.h"
+#include "Object.h"
 #include <iostream>
 #include <cassert>
+#include <algorithm>
 
 using namespace std;
 
 #define vm_assert(expr, message) assert(expr && message);
 
-Var* VM::first = NULL;
-int VM::stackSize = 0;
-Var* VM::stack[STACK_MAX];
-int VM::numVars = 0;
-int VM::maxVars = GC_THRESHOLD;
+Object* VM::first = NULL;
+vector<Object*> VM::stack;
+int VM::numObjs = 0;
+int VM::maxObjs = GC_THRESHOLD;
 
 void VM::Init()
 {
-    stackSize = 0;
+    stack.clear();
     first = NULL;
-    numVars = 0;
-    maxVars = GC_THRESHOLD;
+    numObjs = 0;
+    maxObjs = GC_THRESHOLD;
 }
 
 void VM::Destroy()
 {
-    stackSize = 0;
+    stack.clear();
     gc();
 }
 
-Var* VM::create()
+Object* VM::create()
 {
-    //if(numVars == maxVars)
+    // if(numObjs == maxObjs)
     //    gc();
 
-    Var* var = new Var();
-    var->setNext(first);
-    first = var;
+    Object* obj = new Object();
+    obj->setNext(first);
+    first = obj;
 
-    numVars++;
-    
-    return var;
+    numObjs++;
+
+    return obj;
 }
 
-Var* VM::createAndPush()
+void VM::push(Object* obj)
 {
-    Var* var = create();
-    push(var);
-    return var;
+    vm_assert(stack.size() < STACK_MAX, "Stack overflow!");
+    stack.push_back(obj);
 }
 
-void VM::push(Var* var)
+Object* VM::pop()
 {
-    vm_assert(stackSize < STACK_MAX, "Stack overflow!");
-    stack[stackSize++] = var;
+    vm_assert(stack.size() > 0, "Stack underflow!");
+    Object* obj = stack.back();
+    stack.pop_back();
+    return obj;
 }
 
-Var* VM::pop()
+void VM::release(Object* obj)
 {
-    vm_assert(stackSize > 0, "Stack underflow!");
-    return stack[--stackSize];
+    if(obj->isSaved())
+        return;
+    vector<Object*>::iterator it = std::find(stack.begin(), stack.end(), obj);
+    if(it != stack.end())
+        stack.erase(it);
 }
 
 void VM::markAll()
 {
-    for(int i = 0; i < stackSize; i++)
+    for(int i = 0; i < stack.size(); i++)
     {
         stack[i]->mark();
     }
@@ -70,34 +74,50 @@ void VM::markAll()
 
 void VM::sweep()
 {
-    Var** object = &first;
-    while(*object)
+    Object* parent = NULL;
+    Object* object = first;
+    while(object)
     {
-        if(!(*object)->isMarked())
+        if(!(object)->isMarked())
         {
-            Var* unreached = *object;
-            *object = unreached->getNext();
+            // cout << "Not marked" << endl;
+            Object* unreached = object;
+            object = unreached->getNext();
+            if(parent != NULL)
+                parent->setNext(object);
+
+            if(unreached == first)
+            {
+                first = object;
+            }
+
+            // cout << unreached->printable() << endl;
+            // cout << unreached << endl;
             delete unreached;
-            numVars--;
+            numObjs--;
+            // cout << "deleted" << endl;
         }
         else
         {
-            (*object)->unmark();
-            Var* reached = (*object)->getNext();
-            object = &reached;
+            // cout << "unmark" << endl;
+            (object)->unmark();
+            Object* reached = (object)->getNext();
+            parent = object;
+            object = reached;
+            // cout << "skiped" << endl;
         }
     }
 }
 
 void VM::gc()
 {
-    int oldNumVars = numVars;
+    int oldNumObjects = numObjs;
 
     markAll();
     sweep();
 
-    maxVars = numVars * 2;
-    if(maxVars == 0)
-        maxVars = GC_THRESHOLD;
-    cout << "Collected " << (oldNumVars - numVars) << " vars, " << numVars << " remaining." << endl;
+    maxObjs = numObjs * 2;
+    if(maxObjs == 0)
+        maxObjs = GC_THRESHOLD;
+    cout << "Collected " << (oldNumObjects - numObjs) << " objs, " << numObjs << " remaining." << endl;
 }

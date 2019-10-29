@@ -26,6 +26,9 @@ string Node_st::ToString(int spaces)
         case NodeType::NONE:
             ss << "None";
             break;
+        case NodeType::OBJECT:
+            ss << "Object";
+            break;
         case NodeType::VARIABLE:
             ss << "Variable: " << _string;
             break;
@@ -143,8 +146,14 @@ string Node_st::ToString(int spaces)
             ss << "Body: " << endl;
             ss << body->ToString(spaces + 2);
             break;
-        case NodeType::SPAWN:
-            ss << "Spawn: " << _string << endl;
+        case NodeType::ASYNC:
+            ss << "Async: " << _string << endl;
+            ss << makeSpaces(spaces + 1);
+            ss << "Body: " << endl;
+            ss << body->ToString(spaces + 2);
+            break;
+        case NodeType::AWAIT:
+            ss << "Await: " << _string << endl;
             ss << makeSpaces(spaces + 1);
             ss << "Body: " << endl;
             ss << body->ToString(spaces + 2);
@@ -282,6 +291,8 @@ vector<char> Node_st::Serialize()
             break;
         case NodeType::NONE:
             break;
+        case NodeType::OBJECT:
+            break;
         case NodeType::VARIABLE:
             serializeS(bin, data, _string);
             break;
@@ -394,7 +405,14 @@ vector<char> Node_st::Serialize()
             serializeV(data, bodyData);
         }
             break;
-        case NodeType::SPAWN:
+        case NodeType::ASYNC:
+        {
+            serializeS(bin, data, _string);
+            vector<char> bodyData = body->Serialize();
+            serializeV(data, bodyData);
+        }
+            break;
+        case NodeType::AWAIT:
         {
             serializeS(bin, data, _string);
             vector<char> bodyData = body->Serialize();
@@ -567,6 +585,8 @@ void Node_st::Deserialize(std::vector<char>& data)
             break;
         case NodeType::NONE:
             break;
+        case NodeType::OBJECT:
+            break;
         case NodeType::VARIABLE:
             deserializeS(bin, data, _string);
             break;
@@ -696,7 +716,14 @@ void Node_st::Deserialize(std::vector<char>& data)
             body->Deserialize(data);
         }
             break;
-        case NodeType::SPAWN:
+        case NodeType::ASYNC:
+        {
+            deserializeS(bin, data, _string);
+            body = MKNODE();
+            body->Deserialize(data);
+        }
+            break;
+        case NodeType::AWAIT:
         {
             deserializeS(bin, data, _string);
             body = MKNODE();

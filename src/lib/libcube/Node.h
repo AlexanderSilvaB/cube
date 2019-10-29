@@ -10,7 +10,7 @@ namespace NodeType
 {
     enum Types
     {
-        IGNORE = 1, ERROR, NONE, VARIABLE, BOOL, NUMBER, STRING, ARRAY, DICT, INDEX, ASSIGN, BINARY, RETURN, LET, LAMBDA, FUNCTION, FUNCTION_DEF, EXTENSION, IF, FOR, WHILE, DOWHILE, CONTEXT, CALL, IMPORT, TRY, CLASS, SPAWN
+        IGNORE = 1, ERROR, OBJECT, NONE, VARIABLE, BOOL, NUMBER, STRING, ARRAY, DICT, INDEX, ASSIGN, BINARY, RETURN, LET, LAMBDA, FUNCTION, FUNCTION_DEF, EXTENSION, IF, FOR, WHILE, DOWHILE, CONTEXT, CALL, IMPORT, TRY, CLASS, ASYNC, AWAIT
     };
 }
 
@@ -29,6 +29,9 @@ struct Node_st
     std::shared_ptr<struct Node_st> then;
     std::shared_ptr<struct Node_st> contr;
     std::shared_ptr<struct Node_st> left, middle, right;
+
+    std::shared_ptr<struct Node_st> parent;
+    int parentIndex;
 
 
     std::string ToString(int spaces = 0);

@@ -20,6 +20,7 @@ Tokenizer::Tokenizer()
     keywords.push_back("true");
     keywords.push_back("false");
     keywords.push_back("none");
+    keywords.push_back("object");
     keywords.push_back("return");
     keywords.push_back("for");
     keywords.push_back("while");
@@ -34,7 +35,8 @@ Tokenizer::Tokenizer()
     keywords.push_back("catch");
     keywords.push_back("class");
     keywords.push_back("new");
-    keywords.push_back("spawn");
+    keywords.push_back("async");
+    keywords.push_back("await");
 
     operators.insert(".");
     operators.insert("+");
@@ -111,6 +113,11 @@ Token& Tokenizer::Next()
 
     char c = SkipWhite();
     c = SkipComment();
+    if(input.Eof())
+    {
+        token.type = TokenType::INVALID;
+        return token;
+    }
     token.col = input.Col();
     token.row = input.Row();
     if(c == 0)
@@ -199,15 +206,10 @@ char Tokenizer::SkipWhite()
 char Tokenizer::SkipComment()
 {
     char c = input.Peek();
-    while(c == '#')
+    while(c == '#' && !input.Eof())
     {
         c = input.Next();
-        while(c != '\n')
-        {
-            c = input.Next();
-        }
-        c = input.Next();
-        if(c == '\r')
+        while(c != '\n' && c != '\r' && !input.Eof())
         {
             c = input.Next();
         }

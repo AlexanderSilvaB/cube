@@ -1,37 +1,33 @@
 #ifndef _VM_H_
 #define _VM_H_
 
-class Var;
+#include <vector>
+
+class Object;
 
 #define STACK_MAX 4096
-#define GC_THRESHOLD 256
+#define GC_THRESHOLD 16
 
 class VM
 {
     private:
-        static Var* first;
-        static int stackSize;
-        static Var* stack[STACK_MAX];
-        static int numVars;
-        static int maxVars;
+        static Object* first;
+        static std::vector<Object*> stack;
+        static int numObjs;
+        static int maxObjs;
     public:
         static void Init();
         static void Destroy();
 
-        static Var* create();
-        static Var* createAndPush();
-        static void push(Var* var);
-        static Var* pop();
+        static Object* create();
+        static void push(Object* obj);
+        static Object* pop();
+        static void release(Object* obj);
         static void gc();
 
     private:
         static void markAll();
         static void sweep();
 };
-
-// #define MKVAR() VM::createAndPush()
-#define MKVAR() VM::create()
-#define PUSH(var) VM::push(var)
-#define POP() VM::pop()
 
 #endif

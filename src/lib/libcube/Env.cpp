@@ -1,27 +1,26 @@
 #include "Env.h"
-#include <sstream>
+#include "VM.h"
 #include <iostream>
 
 using namespace std;
 
 Env::Env()
 {
-    this->parent = NULL;   
+
 }
 
-Env::Env(EnvPtr parent)
+Env::Env(EnvPtr env)
 {
-    this->parent = parent;
+    parent = env;
 }
 
 Env::~Env()
 {
-    
-}
-
-void Env::setParent(EnvPtr parent)
-{
-    this->parent = parent;
+    for(Map::iterator it = map.begin(); it != map.end(); it++)
+    {
+        it->second->release();
+        VM::release(it->second);
+    }
 }
 
 EnvPtr Env::extend()
@@ -42,30 +41,18 @@ EnvPtr Env::lookup(const string& name)
     return scope;
 }
 
-EnvPtr Env::lookup(const string& name, VarType::Types type)
-{
-    EnvPtr scope = shared_from_this();
-    while(scope)
-    {
-        if(scope->contains(name, type))
-            return scope;
-        scope = scope->parent;
-    }
-    return scope;
-}
-
 bool Env::contains(const string& name)
 {
-    VarDict::iterator it = vars.find(name);
-    return it != vars.end();
+    Map::iterator it = map.find(name);
+    return it != map.end();
 }
 
-bool Env::contains(const string& name, VarType::Types type)
+bool Env::contains(const string& name, ObjectTypes type)
 {
-    VarDict::iterator it = vars.find(name);
-    if(it != vars.end())
+    Map::iterator it = map.find(name);
+    if(it != map.end())
     {
-        if(it->second.Type() == type)
+        if(it->second->getType() == type)
             return true;
     }
     return false;
@@ -77,92 +64,89 @@ bool Env::exists(const string& name)
     return scope != NULL;
 }
 
-Var* Env::get(const string& name)
+void Env::set(const string& name, Object* obj, bool local)
+{
+    if(local)
+    {
+        if(map.find(name) != map.end())
+        {
+            map[name]->release();
+            VM::release(map[name]);
+        }
+        map[name] = obj;
+    }
+    else
+    {
+        EnvPtr scope = lookup(name);
+        if(!scope)
+        {
+            if(map.find(name) != map.end())
+            {
+                map[name]->release();
+                VM::release(map[name]);
+            }
+            map[name] = obj;
+        }
+        else
+        {
+            if(scope->map.find(name) != scope->map.end())
+            {
+                scope->map[name]->release();
+                VM::release(scope->map[name]);
+            }
+            scope->map[name] = obj;
+        }
+    }
+    obj->save();
+}
+
+Object* Env::get(const string& name)
 {
     EnvPtr scope = lookup(name);
     if(!scope)
     {
-        stringstream ss;
-        ss << "Undefined variable or function '" << name << "'";
-        Var *error = MKVAR();
-        error->Error(ss.str());
-        return error;
+        return NULL;
     }
-    return &scope->vars[name];
+    return scope->map[name];
 }
 
-Var* Env::get(const string& name, VarType::Types type)
-{
-    EnvPtr scope = lookup(name, type);
-    if(!scope)
-    {
-        stringstream ss;
-        ss << "Undefined variable or function '" << name << "'";
-        Var *error = MKVAR();
-        error->Error(ss.str());
-        return error;
-    }
-    return &scope->vars[name];
-}
-
-Var* Env::set(const string& name, Var* value)
-{
-    EnvPtr scope = lookup(name);
-    /*
-    if(!scope && parent)
-    {
-        stringstream ss;
-        ss << "Undefined variable or function '" << name << "'";
-        Var* error = MKVAR();
-        error->Error(ss.str());
-        return error;
-    }
-    */
-    if(!scope)
-    {
-        this->vars[name] = *value;
-        this->vars[name].Store();
-        return &this->vars[name];
-    }
-    scope->vars[name] = *value;
-    scope->vars[name].Store();
-    return &scope->vars[name];
-    
-}
-
-Var* Env::def(const string& name, Var* value)
-{
-    vars[name] = *value;
-    vars[name].Store();
-    return &vars[name];
-}
-
-void Env::del(const string& name)
+bool Env::del(const std::string& name)
 {
     EnvPtr scope = lookup(name);
     if(scope)
     {
-        VarDict::iterator it = scope->vars.find(name);
-        scope->vars.erase(it);
+        Map::iterator it = scope->map.find(name);
+        it->second->release();
+        VM::release(it->second);
+        scope->map.erase(it);
+        return true;
     }
     else if(name == "local")
     {
-        vars.clear();
+        for(Map::iterator it = map.begin(); it != map.end(); it++)
+        {
+            it->second->release();
+            VM::release(it->second);
+        }
+        map.clear();
+        return true;
     }
     else if(name == "all")
     {
         scope = shared_from_this();
         while(scope)
         {
-            scope->vars.clear();
+            for(Map::iterator it = scope->map.begin(); it != scope->map.end(); it++)
+            {
+                it->second->release();
+                VM::release(it->second);
+            }
+            scope->map.clear();
             scope = scope->parent;
         }
+        return true;
     }
-}
-
-VarDict& Env::Vars()
-{
-    return vars;
+    return false;
 }
 
 EnvPtr Env::copy(EnvPtr env)
@@ -171,9 +155,12 @@ EnvPtr Env::copy(EnvPtr env)
     {
         env = EnvPtr(new Env());
     }
-    for(VarDict::iterator it = vars.begin(); it != vars.end(); it++)
+    for(Map::iterator it = map.begin(); it != map.end(); it++)
     {
-        env->def(it->first, &it->second);
+        Object* obj = VM::create();
+        VM::push(obj);
+        obj->from(it->second);
+        env->set(it->first, obj, true);
     }
     if(parent != NULL)
         parent->copy(env);
@@ -182,23 +169,13 @@ EnvPtr Env::copy(EnvPtr env)
 
 void Env::paste(EnvPtr env)
 {
-    for(VarDict::iterator it = env->vars.begin(); it != env->vars.end(); it++)
+    for(Map::iterator it = env->map.begin(); it != env->map.end(); it++)
     {
-        set(it->first, &it->second);
+        set(it->first, it->second, false);
     }
 }
 
-string Env::toString()
+void Env::toDict(Object *obj)
 {
-    stringstream ss;
-    for(VarDict::iterator it = vars.begin(); it != vars.end(); it++)
-    {
-        ss << it->first << " : " << it->second << endl;
-    }
-    if(parent != NULL)
-    {
-        ss << "-----------" << endl;
-        ss << parent->toString();
-    }
-    return ss.str();
+    obj->toDict(map);
 }

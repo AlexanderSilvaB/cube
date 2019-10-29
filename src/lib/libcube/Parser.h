@@ -28,7 +28,8 @@ class Parser
         Node ParseLet();
         Node ParseLambda();
         Node ParseFunction();
-        Node ParseSpawn();
+        Node ParseAsync();
+        Node ParseAwait();
         Node ParseFor();
         Node ParseWhile();
         Node ParseDoWhile();
