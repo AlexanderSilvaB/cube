@@ -1,35 +1,36 @@
-# Variables
-a = 3.5
-b = 13e3
-c = "ABC"
-d = 'ABC'
-e = 'This is a string with "double" quotes'
-f = "This is a string with 'single' quotes"
-g = true
-h = none
-i = @(x) {return x+5}
-j = i(9)
-k = [1, 2, 3, 4, 5]
-l = k[0, 3:end] 
-m = 0:2:50
+// Variables
+a = 3.5;
+b = 13e3;
+c = "ABC";
+d = 'ABC';
+e = 'This is a string with "double" quotes';
+f = "This is a string with 'single' quotes";
+g = true;
+h = none;
+i = @(x) {return x+5};
+j = i(9);
+k = [1, 2, 3, 4, 5];
+l = k[0, 3:end];
+m = 0:2:50;
 n = 
-[
-    n1 = 1,
-    n2 = 3.5,
-    n3 = "This is a dict",
-    n4 = @(x)
+{
+    'n1' : 1,
+    'n2' : 3.5,
+    'n3' : "This is a dict",
+    'n4' : @(x)
     {
         return 5 + x!
     }
-]
+}
+
 class o
 {
-    func o()
+    o()
     {
-        println(this)
+        println(this);
     }
 }
-p = o()
+var p = o();
 
-println("Env: ")
-env()
+println("Env: ");
+env();

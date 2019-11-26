@@ -167,7 +167,16 @@ static TokenType identifierType()
         case 'o': return checkKeyword(1, 1, "r", TOKEN_OR);        
         //case 'p': return checkKeyword(1, 4, "rint", TOKEN_PRINT);  
         case 'r': return checkKeyword(1, 5, "eturn", TOKEN_RETURN);
-        case 's': return checkKeyword(1, 4, "uper", TOKEN_SUPER);
+        case 's':
+			if (scanner.current - scanner.start > 1)
+				switch (scanner.start[1]) 
+                {
+					case 'u':
+						return checkKeyword(2, 3, "per", TOKEN_SUPER);
+					case 't':
+						return checkKeyword(2, 4, "atic", TOKEN_STATIC);
+				}
+			break;
         case 't':
             if (scanner.current - scanner.start > 1)
             {
@@ -257,12 +266,38 @@ Token scanToken()
         case ',': return makeToken(TOKEN_COMMA);
         case '.': return makeToken(TOKEN_DOT);
         case '%': return makeToken(TOKEN_PERCENT);
-        case '-':
-            return makeToken(match('-') ? TOKEN_DEC : TOKEN_MINUS);
-        case '+':
-            return makeToken(match('+') ? TOKEN_INC : TOKEN_PLUS);
-        case '/': return makeToken(TOKEN_SLASH);
-        case '*': return makeToken(TOKEN_STAR);
+        case '-': 
+        {
+			if (match('-'))
+				return makeToken(TOKEN_DEC);
+			else if (match('='))
+				return makeToken(TOKEN_MINUS_EQUALS);
+			else
+				return makeToken(TOKEN_MINUS);
+		}
+		case '+': 
+        {
+			if (match('+'))
+				return makeToken(TOKEN_INC);
+			else if (match('='))
+				return makeToken(TOKEN_PLUS_EQUALS);
+			else
+				return makeToken(TOKEN_PLUS);
+		}
+        case '/': 
+        {
+			if (match('='))
+				return makeToken(TOKEN_DIVIDE_EQUALS);
+			else
+				return makeToken(TOKEN_SLASH);
+		}
+		case '*': 
+        {
+			if (match('='))
+				return makeToken(TOKEN_MULTIPLY_EQUALS);
+			else
+				return makeToken(TOKEN_STAR);
+		}
         case '!':
             return makeToken(match('=') ? TOKEN_BANG_EQUAL : TOKEN_BANG);
         case '=':

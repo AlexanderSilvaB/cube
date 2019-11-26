@@ -31,6 +31,24 @@ static Obj* allocateObject(size_t size, ObjType type, bool isList)
     return object;
 }
 
+ObjBoundMethod *newBoundMethod(Value receiver, ObjClosure *method) 
+{
+	ObjBoundMethod *bound = ALLOCATE_OBJ(ObjBoundMethod, OBJ_BOUND_METHOD);
+
+	bound->receiver = receiver;
+	bound->method = method;
+	return bound;
+}
+
+ObjClass *newClass(ObjString *name, ObjClass *superclass)
+{
+	ObjClass *klass = ALLOCATE_OBJ(ObjClass, OBJ_CLASS);
+	klass->name = name;
+	klass->superclass = superclass;
+	initTable(&klass->methods);
+	return klass;
+}
+
 ObjClosure* newClosure(ObjFunction* function)
 {
     ObjUpvalue** upvalues = ALLOCATE(ObjUpvalue*, function->upvalueCount);
@@ -46,15 +64,24 @@ ObjClosure* newClosure(ObjFunction* function)
     return closure;
 }
 
-ObjFunction* newFunction()
+ObjFunction* newFunction(bool isStatic)
 {
     ObjFunction* function = ALLOCATE_OBJ(ObjFunction, OBJ_FUNCTION);
 
     function->arity = 0;
     function->upvalueCount = 0;
     function->name = NULL;
+	function->staticMethod = isStatic;
     initChunk(&function->chunk);
     return function;
+}
+
+ObjInstance *newInstance(ObjClass *klass) 
+{
+	ObjInstance *instance = ALLOCATE_OBJ(ObjInstance, OBJ_INSTANCE);
+	instance->klass = klass;
+	initTable(&instance->fields);
+	return instance;
 }
 
 ObjNative* newNative(NativeFn function)
@@ -150,39 +177,16 @@ static void printFunction(ObjFunction* function)
     printf("<func %s>", function->name->chars);
 }
 
-void printObject(Value value)
-{
-    switch (OBJ_TYPE(value))
-    {
-        case OBJ_CLOSURE:
-            printFunction(AS_CLOSURE(value)->function);
-            break;
-        case OBJ_FUNCTION:
-            printFunction(AS_FUNCTION(value));
-            break;
-        case OBJ_NATIVE:
-            printf("<native func>");
-            break;
-        case OBJ_STRING:
-            printf("%s", AS_CSTRING(value));
-            break;
-        case OBJ_UPVALUE:
-            printf("upvalue");
-            break;
-    }
-}
-
 char *objectToString(Value value)
 {
 	switch (OBJ_TYPE(value))
     {
-        /*
 		case OBJ_CLASS:
         {
 			ObjClass *klass = AS_CLASS(value);
 			char *classString =
-				malloc(sizeof(char) * (klass->name->length + 8));
-			snprintf(classString, klass->name->length + 7, "<cls %s>",
+				malloc(sizeof(char) * (klass->name->length + 10));
+			snprintf(classString, klass->name->length + 9, "<class %s>",
 					 klass->name->chars);
 			return classString;
 		}
@@ -199,26 +203,26 @@ char *objectToString(Value value)
 					 methodType, method->method->function->name->chars);
 			return methodString;
 		}
-        */
+        
 		case OBJ_CLOSURE:
         {
 			ObjClosure *closure = AS_CLOSURE(value);
-			char *closureString = malloc(sizeof(char) * (closure->function->name->length + 6));
-			snprintf(closureString, closure->function->name->length + 6,
-					 "<fn %s>", closure->function->name->chars);
+			char *closureString = malloc(sizeof(char) * (closure->function->name->length + 8));
+			snprintf(closureString, closure->function->name->length + 8,
+					 "<func %s>", closure->function->name->chars);
 			return closureString;
 		}
 
 		case OBJ_FUNCTION:
         {
 			ObjFunction *function = AS_FUNCTION(value);
-			char *functionString = malloc(sizeof(char) * (function->name->length + 6));
-			snprintf(functionString, function->name->length + 6, "<fn %s>",
+			char *functionString = malloc(sizeof(char) * (function->name->length + 8));
+			snprintf(functionString, function->name->length + 8, "<func %s>",
 					 function->name->chars);
 			return functionString;
 		}
 
-        /*
+        
 		case OBJ_INSTANCE:
         {
 			ObjInstance *instance = AS_INSTANCE(value);
@@ -228,12 +232,11 @@ char *objectToString(Value value)
 			return instanceString;
 		}
 
-		case OBJ_NATIVE_VOID:
-        */
+		//case OBJ_NATIVE_VOID:
 		case OBJ_NATIVE:
         {
-			char *nativeString = malloc(sizeof(char) * 12);
-			snprintf(nativeString, 12, "%s", "<native fn>");
+			char *nativeString = malloc(sizeof(char) * 15);
+			snprintf(nativeString, 14, "%s", "<native func>");
 			return nativeString;
 		}
 
@@ -383,8 +386,8 @@ char *objectToString(Value value)
 		}
 	}
 
-	char *unknown = malloc(sizeof(char) * 8);
-	snprintf(unknown, 7, "%s", "unknown");
+	char *unknown = malloc(sizeof(char) * 9);
+	snprintf(unknown, 8, "%s", "unknown");
 	return unknown;
 }
 

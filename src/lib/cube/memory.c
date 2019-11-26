@@ -19,6 +19,20 @@ static void freeObject(Obj* object)
 {
     switch (object->type)
     {
+        case OBJ_BOUND_METHOD: 
+        {
+			FREE(ObjBoundMethod, object);
+			break;
+		}
+
+		case OBJ_CLASS: 
+        {
+			ObjClass *klass = (ObjClass *)object;
+			freeTable(&klass->methods);
+			FREE(ObjClass, object);
+			break;
+		}
+
         case OBJ_CLOSURE:
         {
             ObjClosure* closure = (ObjClosure*)object;
@@ -34,6 +48,14 @@ static void freeObject(Obj* object)
             FREE(ObjFunction, object);
             break;
         }
+
+        case OBJ_INSTANCE: 
+        {
+			ObjInstance *instance = (ObjInstance *)object;
+			freeTable(&instance->fields);
+			FREE(ObjInstance, object);
+			break;
+		}
 
         case OBJ_NATIVE:
             FREE(ObjNative, object);

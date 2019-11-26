@@ -58,6 +58,9 @@ typedef struct
 typedef enum
 {
     TYPE_FUNCTION,
+    TYPE_INITIALIZER,
+	TYPE_METHOD,
+	TYPE_STATIC,
     TYPE_SCRIPT
 } FunctionType;
 
@@ -73,9 +76,18 @@ typedef struct Compiler
     int loopDepth;
 } Compiler;
 
+typedef struct ClassCompiler 
+{
+	struct ClassCompiler *enclosing;
+	Token name;
+	bool hasSuperclass;
+} ClassCompiler;
+
 Parser parser;
 
 Compiler* current = NULL;
+ClassCompiler *currentClass = NULL;
+bool staticMethod = false;
 Chunk* compilingChunk;
 
 // Used for "continue" statements
@@ -172,6 +184,13 @@ static void emitBytes(uint8_t byte1, uint8_t byte2)
     emitByte(byte2);
 }
 
+static void emitBytes3(uint8_t byte1, uint8_t byte2, uint8_t byte3)
+{
+    emitByte(byte1);
+    emitByte(byte2);
+    emitByte(byte3);
+}
+
 static void emitLoop(int loopStart)
 {
     emitByte(OP_LOOP);
@@ -240,28 +259,47 @@ static void patchJump(int offset)
     currentChunk()->code[offset + 1] = jump & 0xff;
 }
 
-static void initCompiler(Compiler* compiler, FunctionType type)
+static void initCompiler(Compiler* compiler, int scopeDepth, FunctionType type)
 {
     compiler->enclosing = current;
     compiler->function = NULL;
     compiler->type = type;
     compiler->localCount = 0;
-    compiler->scopeDepth = 0;
+    compiler->scopeDepth = scopeDepth;
     compiler->loopDepth = 0;
-    compiler->function = newFunction();
+    compiler->function = newFunction(type == TYPE_STATIC);
     current = compiler;
 
-    if (type != TYPE_SCRIPT)
+    switch (type) 
     {
-        current->function->name = copyString(parser.previous.start,
-                                         parser.previous.length);
-    }
+		case TYPE_INITIALIZER:
+		case TYPE_METHOD:
+		case TYPE_STATIC:
+		case TYPE_FUNCTION:
+			current->function->name =
+				copyString(parser.previous.start, parser.previous.length);
+			break;
+		case TYPE_SCRIPT:
+			current->function->name = NULL;
+			break;
+	}
 
     Local* local = &current->locals[current->localCount++];
-    local->depth = 0;
+    local->depth = current->scopeDepth;
     local->isCaptured = false;
-    local->name.start = "";
-    local->name.length = 0;
+    if (type != TYPE_FUNCTION && type != TYPE_STATIC) 
+    {
+		// In a method, it holds the receiver, "this".
+		local->name.start = "this";
+		local->name.length = 4;
+	} 
+    else 
+    {
+		// In a function, it holds the function, but cannot be referenced,
+		// so has no name.
+		local->name.start = "";
+		local->name.length = 0;
+	}
 }
 
 static ObjFunction* endCompiler()
@@ -521,6 +559,54 @@ static void call(bool canAssign)
     emitBytes(OP_CALL, argCount);
 }
 
+static void dot(bool canAssign) 
+{
+	consume(TOKEN_IDENTIFIER, "Expect property name after '.'.");
+	uint8_t name = identifierConstant(&parser.previous);
+
+	if (canAssign && match(TOKEN_PLUS_EQUALS)) 
+    {
+		emitBytes(OP_GET_PROPERTY_NO_POP, name);
+		expression();
+		emitByte(OP_ADD);
+		emitBytes(OP_SET_PROPERTY, name);
+	} 
+    else if (canAssign && match(TOKEN_MINUS_EQUALS)) 
+    {
+		emitBytes(OP_GET_PROPERTY_NO_POP, name);
+		expression();
+		emitByte(OP_SUBTRACT);
+		emitBytes(OP_SET_PROPERTY, name);
+	} 
+    else if (canAssign && match(TOKEN_MULTIPLY_EQUALS)) 
+    {
+		emitBytes(OP_GET_PROPERTY_NO_POP, name);
+		expression();
+		emitByte(OP_MULTIPLY);
+		emitBytes(OP_SET_PROPERTY, name);
+	} 
+    else if (canAssign && match(TOKEN_DIVIDE_EQUALS)) 
+    {
+		emitBytes(OP_GET_PROPERTY_NO_POP, name);
+		expression();
+		emitByte(OP_DIVIDE);
+		emitBytes(OP_SET_PROPERTY, name);
+	}
+    else if (canAssign && match(TOKEN_EQUAL)) 
+    {
+		expression();
+		emitBytes(OP_SET_PROPERTY, name);
+	} 
+    else if (match(TOKEN_LEFT_PAREN)) 
+    {
+		uint8_t argCount = argumentList();
+		//emitBytes(OP_INVOKE_0 + argCount, name);
+        emitBytes3(OP_INVOKE, argCount, name);
+	} 
+    else
+		emitBytes(OP_GET_PROPERTY, name);
+}
+
 static void literal(bool canAssign)
 {
     switch (parser.previous.type)
@@ -655,15 +741,45 @@ static void namedVariable(Token name, bool canAssign)
     }
 
 
-    if (canAssign && match(TOKEN_EQUAL))
+    if (canAssign && match(TOKEN_PLUS_EQUALS)) 
     {
-        expression();
-        emitBytes(setOp, (uint8_t)arg);
-    }
-    else
+		namedVariable(name, false);
+		expression();
+		emitByte(OP_ADD);
+		emitBytes(setOp, (uint8_t)arg);
+	} 
+    else if (canAssign && match(TOKEN_MINUS_EQUALS)) 
     {
-        emitBytes(getOp, (uint8_t)arg);
-    }
+		namedVariable(name, false);
+		expression();
+		emitByte(OP_SUBTRACT);
+		emitBytes(setOp, (uint8_t)arg);
+	} 
+    else if (canAssign && match(TOKEN_MULTIPLY_EQUALS)) 
+    {
+		namedVariable(name, false);
+		expression();
+		emitByte(OP_MULTIPLY);
+		emitBytes(setOp, (uint8_t)arg);
+	} 
+    else if (canAssign && match(TOKEN_DIVIDE_EQUALS)) 
+    {
+		namedVariable(name, false);
+		expression();
+		emitByte(OP_DIVIDE);
+		emitBytes(setOp, (uint8_t)arg);
+	} 
+    else if (canAssign && match(TOKEN_EQUAL)) 
+    {
+		expression();
+		emitBytes(setOp, (uint8_t)arg);
+		return;
+	} 
+    else 
+    {
+		emitBytes(getOp, (uint8_t)arg);
+		return;
+	}
 }
 
 static void variable(bool canAssign)
@@ -671,6 +787,64 @@ static void variable(bool canAssign)
     namedVariable(parser.previous, canAssign);
 }
 
+static Token syntheticToken(const char *text) 
+{
+	Token token;
+	token.start = text;
+	token.length = (int)strlen(text);
+	return token;
+}
+
+static void pushSuperclass() 
+{
+	if (currentClass == NULL)
+		return;
+	namedVariable(syntheticToken("super"), false);
+}
+
+static void super_(bool canAssign) 
+{
+	if (currentClass == NULL)
+		error("Cannot use 'super' outside of a class.");
+	else if (!currentClass->hasSuperclass)
+		error("Cannot use 'super' in a class with no superclass.");
+
+	consume(TOKEN_DOT, "Expect '.' after 'super'.");
+	consume(TOKEN_IDENTIFIER, "Expect superclass method name.");
+	uint8_t name = identifierConstant(&parser.previous);
+
+	// Push the receiver.
+	namedVariable(syntheticToken("this"), false);
+
+	if (match(TOKEN_LEFT_PAREN)) 
+    {
+		uint8_t argCount = argumentList();
+
+		pushSuperclass();
+		//emitBytes(OP_SUPER_0 + argCount, name);
+        emitBytes3(OP_SUPER, argCount, name);
+	}
+    else 
+    {
+		pushSuperclass();
+		emitBytes(OP_GET_SUPER, name);
+	}
+}
+
+static void this_(bool canAssign) 
+{
+	if (currentClass == NULL)
+		error("Cannot use 'this' outside of a class.");
+	else if (staticMethod)
+		error("Cannot use 'this' inside a static method.");
+	else
+		variable(false);
+}
+
+static void static_(bool canAssign) {
+	if (currentClass == NULL)
+		error("Cannot use 'static' outside of a class.");
+}
 
 static void unary(bool canAssign)
 {
@@ -699,7 +873,7 @@ static void prefix(bool canAssign)
 	int arg;
 	bool instance = false;
 
-    /*
+    
 	if (match(TOKEN_DOT))
     {
 		consume(TOKEN_IDENTIFIER, "Expect property name after '.'.");
@@ -707,7 +881,7 @@ static void prefix(bool canAssign)
 		emitBytes(OP_GET_PROPERTY_NO_POP, arg);
 		instance = true;
 	}
-    */
+    
 
 	switch (operatorType)
     {
@@ -721,9 +895,9 @@ static void prefix(bool canAssign)
 			return;
 	}
 
-	/*if (instance)
+	if (instance)
 		emitBytes(OP_SET_PROPERTY, arg);
-	else*/
+	else
     {
 		uint8_t setOp;
 		//int arg = resolveLocal(current, &cur, false);
@@ -751,11 +925,15 @@ ParseRule rules[] =
     { list,     subscript,PREC_CALL},	    // TOKEN_LEFT_BRACKET
 	{ NULL,     NULL,    PREC_NONE},		// TOKEN_RIGHT_BRACKET
     { NULL,     NULL,    PREC_NONE },       // TOKEN_COMMA
-    { NULL,     NULL,    PREC_NONE },       // TOKEN_DOT
+    { NULL,     dot,     PREC_CALL },       // TOKEN_DOT
     { unary,    binary,  PREC_TERM },       // TOKEN_MINUS
     { NULL,     binary,  PREC_TERM },       // TOKEN_PLUS
     { prefix,   NULL,    PREC_NONE },       // TOKEN_INC
     { prefix,   NULL,    PREC_NONE },       // TOKEN_DEC
+    { NULL,     NULL,    PREC_NONE },		// TOKEN_PLUS_EQUALS
+	{ NULL,     NULL,    PREC_NONE },	    // TOKEN_MINUS_EQUALS
+	{ NULL,     NULL,    PREC_NONE },	    // TOKEN_MULTIPLY_EQUALS
+	{ NULL,     NULL,    PREC_NONE },	    // TOKEN_DIVIDE_EQUALS
     { NULL,     NULL,    PREC_NONE },       // TOKEN_SEMICOLON
     { NULL,     NULL,    PREC_NONE },		// TOKEN_COLON
     { NULL,     binary,  PREC_FACTOR },     // TOKEN_SLASH           
@@ -774,6 +952,7 @@ ParseRule rules[] =
     { number,   NULL,    PREC_NONE },       // TOKEN_NUMBER
     { NULL,     and_,    PREC_AND  },       // TOKEN_AND
     { NULL,     NULL,    PREC_NONE },       // TOKEN_CLASS           
+    { static_,  NULL,    PREC_NONE },       // TOKEN_STATIC
     { NULL,     NULL,    PREC_NONE },       // TOKEN_ELSE            
     { literal,  NULL,    PREC_NONE },       // TOKEN_FALSE
     { NULL,     NULL,    PREC_NONE },       // TOKEN_FOR
@@ -783,8 +962,8 @@ ParseRule rules[] =
     { NULL,     or_,     PREC_OR   },       // TOKEN_OR
     { NULL,     NULL,    PREC_NONE },       // TOKEN_PRINT           
     { NULL,     NULL,    PREC_NONE },       // TOKEN_RETURN          
-    { NULL,     NULL,    PREC_NONE },       // TOKEN_SUPER
-    { NULL,     NULL,    PREC_NONE },       // TOKEN_THIS            
+    { super_,   NULL,    PREC_NONE },       // TOKEN_SUPER
+    { this_,    NULL,    PREC_NONE },       // TOKEN_THIS            
     { literal,  NULL,    PREC_NONE },       // TOKEN_TRUE
     { NULL,     NULL,    PREC_NONE },       // TOKEN_VAR             
     { NULL,     NULL,    PREC_NONE },       // TOKEN_WHILE
@@ -844,7 +1023,7 @@ static void block()
 static void function(FunctionType type)
 {
     Compiler compiler;
-    initCompiler(&compiler, type);
+    initCompiler(&compiler, 1, type);
     beginScope();
 
     // Compile the parameter list.                                
@@ -880,6 +1059,75 @@ static void function(FunctionType type)
         emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
         emitByte(compiler.upvalues[i].index);
     }
+}
+
+static void method() 
+{
+	FunctionType type;
+
+	if (check(TOKEN_STATIC)) 
+    {
+		type = TYPE_STATIC;
+		consume(TOKEN_STATIC, "Expect static.");
+		staticMethod = true;
+	} 
+    else
+		type = TYPE_METHOD;
+
+	consume(TOKEN_IDENTIFIER, "Expect method name.");
+	uint8_t constant = identifierConstant(&parser.previous);
+
+	// If the method is named "init", it's an initializer.
+	if (parser.previous.length == 4 &&
+		memcmp(parser.previous.start, "init", 4) == 0) 
+    {
+		type = TYPE_INITIALIZER;
+	}
+
+	function(type);
+
+	emitBytes(OP_METHOD, constant);
+}
+
+static void classDeclaration() 
+{
+	consume(TOKEN_IDENTIFIER, "Expect class name.");
+	uint8_t nameConstant = identifierConstant(&parser.previous);
+	declareVariable();
+
+	ClassCompiler classCompiler;
+	classCompiler.name = parser.previous;
+	classCompiler.hasSuperclass = false;
+	classCompiler.enclosing = currentClass;
+	currentClass = &classCompiler;
+
+	if (match(TOKEN_LESS)) 
+    {
+		consume(TOKEN_IDENTIFIER, "Expect superclass name.");
+		classCompiler.hasSuperclass = true;
+
+		beginScope();
+
+		// Store the superclass in a local variable named "super".
+		variable(false);
+		addLocal(syntheticToken("super"));
+
+		emitBytes(OP_SUBCLASS, nameConstant);
+	} 
+    else
+		emitBytes(OP_CLASS, nameConstant);
+
+	consume(TOKEN_LEFT_BRACE, "Expect '{' before class body.");
+	while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF))
+		method();
+
+	consume(TOKEN_RIGHT_BRACE, "Expect '}' after class body.");
+	if (classCompiler.hasSuperclass)
+		endScope();
+
+	defineVariable(nameConstant);
+
+	currentClass = currentClass->enclosing;
 }
 
 static void funDeclaration()
@@ -1095,6 +1343,7 @@ static void synchronize()
         {
             case TOKEN_CLASS:
             case TOKEN_FUNC:
+            case TOKEN_STATIC:
             case TOKEN_VAR:
             case TOKEN_FOR:
             case TOKEN_IF:
@@ -1115,18 +1364,14 @@ static void synchronize()
 
 static void declaration()
 {
-    if (match(TOKEN_FUNC))
-    {
+    if (match(TOKEN_CLASS))
+		classDeclaration();
+    else if (match(TOKEN_FUNC))
         funDeclaration();
-    }
     else if (match(TOKEN_VAR))
-    {
         varDeclaration();
-    }
     else
-    {
         statement();
-    }
 
     if (parser.panicMode)
         synchronize();
@@ -1187,7 +1432,7 @@ ObjFunction* compile(const char* source)
     initScanner(source);
 
     Compiler compiler;
-    initCompiler(&compiler, TYPE_SCRIPT);
+    initCompiler(&compiler, 0, TYPE_SCRIPT);
 
     parser.hadError = false;
     parser.panicMode = false;
@@ -1213,7 +1458,7 @@ typedef struct
 
 ObjFunction* readByteCode(const char* path, uint32_t hash)
 {
-    ObjFunction* func = newFunction();
+    ObjFunction* func = newFunction(TYPE_SCRIPT);
     return func;
 }
 

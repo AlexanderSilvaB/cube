@@ -1,14 +1,14 @@
-var i = 10
+var i = 10;
 while(i >= 0)
 {
-    print(i, '.')
-    i = i - 1
+    print(i, '.');
+    i = i - 1;
 }
-println()
+println();
 
 i = 1;
 do
 {
     print(i, '.');
-    //i++
+    i++;
 }while(i <= 10);
