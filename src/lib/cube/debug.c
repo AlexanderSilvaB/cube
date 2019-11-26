@@ -84,6 +84,22 @@ int disassembleInstruction(Chunk* chunk, int offset)
             return simpleInstruction("OP_TRUE", offset);
         case OP_FALSE:
             return simpleInstruction("OP_FALSE", offset);
+        case OP_NEW_LIST:
+            return simpleInstruction("OP_NEW_LIST", offset);
+        case OP_ADD_LIST:
+            return simpleInstruction("OP_ADD_LIST", offset);
+        case OP_NEW_DICT:
+            return simpleInstruction("OP_NEW_DICT", offset);
+        case OP_ADD_DICT:
+            return simpleInstruction("OP_ADD_DICT", offset);
+        case OP_SUBSCRIPT:
+            return simpleInstruction("OP_SUBSCRIPT", offset);
+        case OP_SUBSCRIPT_ASSIGN:
+            return simpleInstruction("OP_SUBSCRIPT_ASSIGN", offset);
+        case OP_SUBSCRIPT_DICT:
+            return simpleInstruction("OP_SUBSCRIPT_DICT", offset);
+        case OP_SUBSCRIPT_DICT_ASSIGN:
+            return simpleInstruction("OP_SUBSCRIPT_DICT_ASSIGN", offset);
         case OP_POP:
             return simpleInstruction("OP_POP", offset);
         case OP_GET_LOCAL:
@@ -108,12 +124,18 @@ int disassembleInstruction(Chunk* chunk, int offset)
             return simpleInstruction("OP_LESS", offset);
         case OP_ADD:
             return simpleInstruction("OP_ADD", offset);              
-        case OP_SUBTRACT:                                          
-            return simpleInstruction("OP_SUBTRACT", offset);         
-        case OP_MULTIPLY:                                          
+        case OP_SUBTRACT:
+            return simpleInstruction("OP_SUBTRACT", offset);
+        case OP_INC:
+            return simpleInstruction("OP_INC", offset);
+        case OP_DEC:
+            return simpleInstruction("OP_DEC", offset);
+        case OP_MULTIPLY:
             return simpleInstruction("OP_MULTIPLY", offset);         
         case OP_DIVIDE:
             return simpleInstruction("OP_DIVIDE", offset);
+        case OP_MOD:
+            return simpleInstruction("OP_MOD", offset);
         case OP_NOT:
             return simpleInstruction("OP_NOT", offset);
         case OP_NEGATE:
@@ -124,6 +146,8 @@ int disassembleInstruction(Chunk* chunk, int offset)
             return jumpInstruction("OP_JUMP_IF_FALSE", 1, chunk, offset);
         case OP_LOOP:
             return jumpInstruction("OP_LOOP", -1, chunk, offset);
+        case OP_BREAK:
+            return simpleInstruction("OP_BREAK", offset);
         case OP_CALL:
             return byteInstruction("OP_CALL", chunk, offset);
         case OP_CLOSURE:
@@ -148,7 +172,7 @@ int disassembleInstruction(Chunk* chunk, int offset)
         case OP_CLOSE_UPVALUE:
             return simpleInstruction("OP_CLOSE_UPVALUE", offset);
         case OP_RETURN:
-            return simpleInstruction("OP_RETURN", offset);  
+            return simpleInstruction("OP_RETURN", offset);
         default:
             printf("Unknown opcode %d\n", instruction);     
             return offset + 1;                              

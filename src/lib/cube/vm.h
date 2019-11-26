@@ -28,6 +28,7 @@ typedef struct
     ObjUpvalue* openUpvalues;
 
     Obj* objects;
+    Obj *listObjects;
 } VM;
 
 typedef enum
@@ -44,5 +45,6 @@ void freeVM();
 InterpretResult interpret(const char* source, const char* path, bool justCompile);
 void push(Value value);
 Value pop();
+void runtimeError(const char* format, ...);
 
 #endif

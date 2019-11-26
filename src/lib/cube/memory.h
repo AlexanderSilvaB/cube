@@ -23,4 +23,10 @@
 void* reallocate(void* previous, size_t oldSize, size_t newSize);
 void freeObjects();
 
+void freeLists();
+
+void freeList();
+
+void freeDictValue(dictItem *dictItem);
+
 #endif

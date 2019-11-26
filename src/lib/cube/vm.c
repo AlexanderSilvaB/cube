@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <math.h>
 
 #include "common.h"
 #include "object.h"
@@ -20,7 +21,7 @@ static void resetStack()
     vm.openUpvalues = NULL;
 }
 
-static void runtimeError(const char* format, ...)
+void runtimeError(const char* format, ...)
 {
     va_list args;
     va_start(args, format);
@@ -63,6 +64,7 @@ void initVM()
 {
     resetStack();
     vm.objects = NULL;
+    vm.listObjects = NULL;
     initTable(&vm.globals);
     initTable(&vm.strings);
 
@@ -74,6 +76,15 @@ void initVM()
     defineNative("print", printNative);
     defineNative("println", printlnNative);
     defineNative("random", randomNative);
+    defineNative("bool", boolNative);
+    defineNative("num", numNative);
+    defineNative("str", strNative);
+    defineNative("ceil", ceilNative);
+    defineNative("floor", floorNative);
+    defineNative("round", roundNative);
+    defineNative("pow", powNative);
+    defineNative("exp", expNative);
+    defineNative("len", lenNative);
 }
 
 void freeVM()
@@ -81,6 +92,7 @@ void freeVM()
     freeTable(&vm.globals);
     freeTable(&vm.strings);
     freeObjects();
+    freeLists();
 }
 
 void push(Value value)
@@ -354,6 +366,22 @@ static InterpretResult run()
                     double a = AS_NUMBER(pop());
                     push(NUMBER_VAL(a + b));
                 }
+                else if (IS_LIST(peek(0)) && IS_LIST(peek(1)))
+                {
+                    Value listToAddValue = pop();
+                    Value listValue = pop();
+
+                    ObjList *list = AS_LIST(listValue);
+                    ObjList *listToAdd = AS_LIST(listToAddValue);
+
+                    ObjList *result = initList();
+                    for (int i = 0; i < list->values.count; ++i)
+                        writeValueArray(&result->values, list->values.values[i]);
+                    for (int i = 0; i < listToAdd->values.count; ++i)
+                        writeValueArray(&result->values, listToAdd->values.values[i]);
+
+                    push(OBJ_VAL(result));
+			    }
                 else
                 {
                     runtimeError("Operands must be two numbers or two strings.");
@@ -362,8 +390,38 @@ static InterpretResult run()
                 break;                                                         
             }
             case OP_SUBTRACT:   BINARY_OP(NUMBER_VAL, -); break;
+            case OP_INC:
+            {
+                if (!IS_NUMBER(peek(0)))
+                {
+				    runtimeError("Operand must be a number.");
+				    return INTERPRET_RUNTIME_ERROR;
+                }
+
+                push(NUMBER_VAL(AS_NUMBER(pop()) + 1));
+                break;
+            }
+            case OP_DEC:
+            {
+                if (!IS_NUMBER(peek(0)))
+                {
+				    runtimeError("Operand must be a number.");
+				    return INTERPRET_RUNTIME_ERROR;
+                }
+
+                push(NUMBER_VAL(AS_NUMBER(pop()) - 1));
+                break;
+            }
             case OP_MULTIPLY:   BINARY_OP(NUMBER_VAL, *); break;
             case OP_DIVIDE:     BINARY_OP(NUMBER_VAL, /); break;
+            case OP_MOD:
+            {
+                double b = AS_NUMBER(pop());
+                double a = AS_NUMBER(pop());
+
+                push(NUMBER_VAL(fmod(a, b)));
+                break;
+		    }
             case OP_NOT:        push(BOOL_VAL(isFalsey(pop()))); break;
             case OP_NEGATE:
             {
@@ -396,6 +454,148 @@ static InterpretResult run()
             {
                 uint16_t offset = READ_SHORT();
                 frame->ip -= offset;
+                break;
+            }
+
+            case OP_BREAK:
+            {
+                break;
+            }
+
+            case OP_NEW_LIST:
+            {
+                ObjList *list = initList();
+                push(OBJ_VAL(list));
+                break;
+            }
+            case OP_ADD_LIST:
+            {
+                Value addValue = pop();
+                Value listValue = pop();
+
+                ObjList *list = AS_LIST(listValue);
+                writeValueArray(&list->values, addValue);
+
+                push(OBJ_VAL(list));
+                break;
+            }
+
+            case OP_NEW_DICT:
+            {
+                ObjDict *dict = initDict();
+                push(OBJ_VAL(dict));
+                break;
+            }
+            case OP_ADD_DICT:
+            {
+                Value value = pop();
+                Value key = pop();
+                Value dictValue = pop();
+
+                if (!IS_STRING(key))
+                {
+                    runtimeError("Dictionary key must be a string.");
+                    return INTERPRET_RUNTIME_ERROR;
+                }
+
+                ObjDict *dict = AS_DICT(dictValue);
+                char *keyString = AS_CSTRING(key);
+
+                insertDict(dict, keyString, value);
+
+                push(OBJ_VAL(dict));
+                break;
+            }
+            case OP_SUBSCRIPT:
+            {
+                Value indexValue = pop();
+                Value listValue = pop();
+
+                if (!IS_NUMBER(indexValue))
+                {
+                    runtimeError("Array index must be a number.");
+                    return INTERPRET_RUNTIME_ERROR;
+                }
+
+                ObjList *list = AS_LIST(listValue);
+                int index = AS_NUMBER(indexValue);
+
+                if (index < 0)
+                    index = list->values.count + index;
+                if (index >= 0 && index < list->values.count)
+                {
+                    push(list->values.values[index]);
+                    break;
+                }
+
+                runtimeError("Array index out of bounds.");
+                return INTERPRET_RUNTIME_ERROR;
+            }
+            case OP_SUBSCRIPT_ASSIGN:
+            {
+                Value assignValue = pop();
+                Value indexValue = pop();
+                Value listValue = pop();
+
+                if (!IS_NUMBER(indexValue))
+                {
+                    runtimeError("Array index must be a number.");
+                    return INTERPRET_RUNTIME_ERROR;
+                }
+
+                ObjList *list = AS_LIST(listValue);
+                int index = AS_NUMBER(indexValue);
+
+                if (index < 0)
+                    index = list->values.count + index;
+                if (index >= 0 && index < list->values.count)
+                {
+                    list->values.values[index] = assignValue;
+                    push(NONE_VAL);
+                    break;
+                }
+
+                push(NONE_VAL);
+
+                runtimeError("Array index out of bounds.");
+                return INTERPRET_RUNTIME_ERROR;
+            }
+            case OP_SUBSCRIPT_DICT:
+            {
+                Value indexValue = pop();
+                Value dictValue = pop();
+
+                if (!IS_STRING(indexValue))
+                {
+                    runtimeError("Dictionary key must be a string.");
+                    return INTERPRET_RUNTIME_ERROR;
+                }
+
+                ObjDict *dict = AS_DICT(dictValue);
+                char *key = AS_CSTRING(indexValue);
+
+                push(searchDict(dict, key));
+
+                break;
+            }
+            case OP_SUBSCRIPT_DICT_ASSIGN:
+            {
+                Value value = pop();
+                Value key = pop();
+                Value dictValue = pop();
+
+                if (!IS_STRING(key))
+                {
+                    runtimeError("Dictionary key must be a string.");
+                    return INTERPRET_RUNTIME_ERROR;
+                }
+
+                ObjDict *dict = AS_DICT(dictValue);
+                char *keyString = AS_CSTRING(key);
+
+                insertDict(dict, keyString, value);
+
+                push(NONE_VAL);
                 break;
             }
 

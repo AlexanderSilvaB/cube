@@ -5,6 +5,9 @@
 
 typedef struct sObj Obj;
 typedef struct sObjString ObjString;
+typedef struct sObjList ObjList;
+typedef struct sObjDict ObjDict;
+typedef struct dictItem dictItem;
 
 typedef enum
 {
@@ -50,8 +53,19 @@ typedef struct
 bool valuesEqual(Value a, Value b);
 void initValueArray(ValueArray* array);
 void freeValueArray(ValueArray* array);
+
+ObjDict *initDictValues(uint32_t capacity);
+void insertDict(ObjDict *dict, char *key, Value value);
+void resizeDict(ObjDict *dict, bool grow);
+Value searchDict(ObjDict *dict, char *key);
+void freeDict(ObjDict *dict);
+
 void writeValueArray(ValueArray* array, Value value);
 void printValue(Value value);
+char *valueToString(Value value);
 
+Value toBool(Value value);
+Value toNumber(Value value);
+Value toString(Value value);
 
 #endif

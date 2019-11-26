@@ -6,8 +6,11 @@ typedef enum
     // Single-character tokens.                         
     TOKEN_LEFT_PAREN, TOKEN_RIGHT_PAREN,
     TOKEN_LEFT_BRACE, TOKEN_RIGHT_BRACE,
+    TOKEN_LEFT_BRACKET, TOKEN_RIGHT_BRACKET,
     TOKEN_COMMA, TOKEN_DOT, TOKEN_MINUS, TOKEN_PLUS,
-    TOKEN_SEMICOLON, TOKEN_SLASH, TOKEN_STAR,
+    TOKEN_INC, TOKEN_DEC,
+
+    TOKEN_SEMICOLON, TOKEN_COLON, TOKEN_SLASH, TOKEN_STAR, TOKEN_PERCENT,
 
     // One or two character tokens.
     TOKEN_BANG, TOKEN_BANG_EQUAL,
@@ -22,7 +25,7 @@ typedef enum
     TOKEN_AND, TOKEN_CLASS, TOKEN_ELSE, TOKEN_FALSE,
     TOKEN_FOR, TOKEN_FUNC, TOKEN_IF, TOKEN_NONE, TOKEN_OR,
     TOKEN_PRINT, TOKEN_RETURN, TOKEN_SUPER, TOKEN_THIS,
-    TOKEN_TRUE, TOKEN_VAR, TOKEN_WHILE,
+    TOKEN_TRUE, TOKEN_VAR, TOKEN_WHILE, TOKEN_BREAK, TOKEN_CONTINUE,
 
     TOKEN_ERROR,
     TOKEN_EOF
@@ -38,6 +41,7 @@ typedef struct
 
 
 void initScanner(const char* source);
-Token scanToken(); 
+Token scanToken();
+void backTrack();
 
 #endif
