@@ -139,6 +139,24 @@ static bool containsListItem(int argCount) {
 	return true;
 }
 
+bool listContains(Value listV, Value search, Value *result) {
+
+	ObjList *list = AS_LIST(listV);
+
+	for (int i = 0; i < list->values.capacity; ++i) {
+		if (!list->values.values[i])
+			continue;
+
+		if (list->values.values[i] == search) {
+			*result = TRUE_VAL;
+			return true;
+		}
+	}
+
+	*result = FALSE_VAL;
+	return true;
+}
+
 ObjList *copyList(ObjList *oldList, bool shallow) {
 	ObjList *newList = initList();
 
@@ -298,6 +316,30 @@ static bool dictItemExists(int argCount) {
 	}
 
 	push(FALSE_VAL);
+	return true;
+}
+
+bool dictContains(Value dictV, Value keyV, Value *result) {
+
+	if (!IS_STRING(keyV)) {
+		runtimeError("Key passed to exists() must be a string");
+		return false;
+	}
+
+	char *key = AS_CSTRING(keyV);
+	ObjDict *dict = AS_DICT(dictV);
+
+	for (int i = 0; i < dict->capacity; ++i) {
+		if (!dict->items[i])
+			continue;
+
+		if (strcmp(dict->items[i]->key, key) == 0) {
+			*result = TRUE_VAL;
+			return true;
+		}
+	}
+
+	*result = FALSE_VAL;
 	return true;
 }
 

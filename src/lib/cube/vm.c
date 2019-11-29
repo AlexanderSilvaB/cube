@@ -825,6 +825,40 @@ static InterpretResult run()
       break;
     }
 
+    case OP_IN:
+    {
+      Value item = pop();
+      Value container = pop();
+      Value result;
+      if (IS_STRING(container) && IS_STRING(item))
+      {
+        if (!stringContains(container, item, &result))
+        {
+          runtimeError("Could not search on string");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+      }
+      else if (IS_LIST(container))
+      {
+        if (!listContains(container, item, &result))
+        {
+          runtimeError("Could not search on list");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+      }
+      else if (IS_DICT(container))
+      {
+        if (!dictContains(container, item, &result))
+        {
+          runtimeError("Key in dict must be a string");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+      }
+
+      push(result);
+      break;
+    }
+
     case OP_NOT:
       push(BOOL_VAL(isFalsey(pop())));
       break;

@@ -70,6 +70,24 @@ static bool containsString(int argCount) {
 	return true;
 }
 
+bool stringContains(Value strinvV, Value delimiterV, Value *result) {
+	char *delimiter = AS_CSTRING(delimiterV);
+	char *string = AS_CSTRING(strinvV);
+	char *tmp = malloc(strlen(string) + 1);
+	char *tmpFree = tmp;
+	strcpy(tmp, string);
+
+	if (!strstr(tmp, delimiter)) {
+		*result = FALSE_VAL;
+		free(tmp);
+		return true;
+	}
+
+	*result = TRUE_VAL;
+	free(tmpFree);
+	return true;
+}
+
 static bool findString(int argCount) {
 	if (argCount < 2 || argCount > 3) {
 		runtimeError("find() takes either 2 or 3 arguments (%d given)",

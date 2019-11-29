@@ -6,6 +6,10 @@
 #include <string.h>
 #include <ctype.h>
 
+#include "value.h"
+
 bool stringMethods(char* method, int argCount);
+
+bool stringContains(Value strinvV, Value delimiterV, Value *result);
 
 #endif

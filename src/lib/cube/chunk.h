@@ -42,6 +42,7 @@ typedef enum
   OP_DIVIDE,
   OP_MOD,
   OP_POW,
+  OP_IN,
   OP_NOT,
   OP_NEGATE,
   OP_JUMP,
