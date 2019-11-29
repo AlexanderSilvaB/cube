@@ -571,7 +571,7 @@ bool objectComparison(Value a, Value b)
 	}
 	else
 	{
-		return a == b;
+		return a.as.number == b.as.number;
 	}
 	return false;
 }

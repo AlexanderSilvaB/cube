@@ -827,8 +827,8 @@ static InterpretResult run()
 
     case OP_IN:
     {
-      Value item = pop();
       Value container = pop();
+      Value item = pop();
       Value result;
       if (IS_STRING(container) && IS_STRING(item))
       {
@@ -854,6 +854,11 @@ static InterpretResult run()
           return INTERPRET_RUNTIME_ERROR;
         }
       }
+      else
+      {
+        result = BOOL_VAL(valuesEqual(container, item));
+      }
+      
 
       push(result);
       break;

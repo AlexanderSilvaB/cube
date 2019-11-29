@@ -1156,7 +1156,7 @@ ParseRule rules[] = {
     {literal, NULL, PREC_NONE},      // TOKEN_TRUE
     {NULL, NULL, PREC_NONE},         // TOKEN_VAR
     {NULL, NULL, PREC_NONE},         // TOKEN_WHILE
-    {binary, NULL, PREC_NONE},         // TOKEN_IN
+    {NULL, binary, PREC_TERM},         // TOKEN_IN
     {NULL, NULL, PREC_NONE},         // TOKEN_IMPORT
     {let, NULL, PREC_NONE},          // TOKEN_LET
     {NULL, NULL, PREC_NONE},         // TOKEN_WITH

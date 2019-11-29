@@ -126,6 +126,12 @@ static bool containsListItem(int argCount) {
 	ObjList *list = AS_LIST(pop());
 
 	for (int i = 0; i < list->values.capacity; ++i) {
+		#ifndef NAN_TAGGING
+		if (valuesEqual(list->values.values[i], search)) {
+			push(TRUE_VAL);
+			return true;
+		}
+		#else
 		if (!list->values.values[i])
 			continue;
 
@@ -133,6 +139,7 @@ static bool containsListItem(int argCount) {
 			push(TRUE_VAL);
 			return true;
 		}
+		#endif
 	}
 
 	push(FALSE_VAL);
@@ -144,6 +151,12 @@ bool listContains(Value listV, Value search, Value *result) {
 	ObjList *list = AS_LIST(listV);
 
 	for (int i = 0; i < list->values.capacity; ++i) {
+		#ifndef NAN_TAGGING
+		if (valuesEqual(list->values.values[i], search)) {
+			*result = TRUE_VAL;
+			return true;
+		}
+		#else
 		if (!list->values.values[i])
 			continue;
 
@@ -151,6 +164,7 @@ bool listContains(Value listV, Value search, Value *result) {
 			*result = TRUE_VAL;
 			return true;
 		}
+		#endif
 	}
 
 	*result = FALSE_VAL;
@@ -236,7 +250,12 @@ static bool getDictItem(int argCount) {
 
 	Value ret = searchDict(dict, AS_CSTRING(key));
 
+
+	#ifndef NAN_TAGGING
+	if (valuesEqual(ret, NONE_VAL))
+	#else
 	if (ret == NONE_VAL)
+	#endif
 		push(defaultValue);
 	else
 		push(ret);

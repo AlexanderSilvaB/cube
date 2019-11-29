@@ -100,6 +100,8 @@ typedef struct
 
 #define BOOL_VAL(value) ((Value){VAL_BOOL, {.boolean = value}})
 #define NONE_VAL ((Value){VAL_NONE, {.number = 0}})
+#define FALSE_VAL ((Value){VAL_BOOL, {.boolean = false}})
+#define TRUE_VAL ((Value){VAL_BOOL, {.boolean = true}})
 #define NUMBER_VAL(value) ((Value){VAL_NUMBER, {.number = value}})
 #define OBJ_VAL(object) ((Value){VAL_OBJ, {.obj = (Obj *)object}})
 
