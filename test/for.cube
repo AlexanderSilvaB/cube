@@ -1,16 +1,18 @@
-for(i = 0; i < 10; i++)
+for(var i = 0; i < 10; ++i)
 {
-    print(i, '.')
+    print(i, '.');
 }
-println()
+println();
 
-for(i in 0:10)
+/*
+for(var i in 0:10)
 {
-    print(i, '.')
+    print(i, '.');
 }
-println()
+println();
 
-for(i in "ABCD")
+for(var i in "ABCD")
 {
-    print(i, '.')
+    print(i, '.');
 }
+*/

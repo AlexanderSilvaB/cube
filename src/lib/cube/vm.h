@@ -1,5 +1,5 @@
-#ifndef _CUBE_VM_H_
-#define _CUBE_VM_H_
+#ifndef clox_vm_h
+#define clox_vm_h
 
 #include "object.h"
 #include "table.h"
@@ -10,42 +10,60 @@
 
 typedef struct
 {
-    ObjClosure* closure;
-    uint8_t* ip;
-    Value* slots;
+  ObjClosure *closure;
+  uint8_t *ip;
+  Value *slots;
 } CallFrame;
 
 typedef struct
 {
-    CallFrame frames[FRAMES_MAX];
-    int frameCount;
+  CallFrame frames[FRAMES_MAX];
+  int frameCount;
 
-    Value stack[STACK_MAX];
-    Value* stackTop;
+  Value stack[STACK_MAX];
+  Value *stackTop;
+  Table globals;
+  Table strings;
+  ObjString *initString;
+  ObjUpvalue *openUpvalues;
+  ObjList *paths;
 
-    Table globals;
-    Table strings;
-    ObjString *initString;
-    ObjUpvalue* openUpvalues;
+  const char *extension;
+  const char *scriptName;
+  const char *currentScriptName;
+  int currentFrameCount;
 
-    Obj* objects;
-    Obj *listObjects;
+  size_t bytesAllocated;
+  size_t nextGC;
+
+  Obj *objects;
+  Obj *listObjects;
+  int grayCount;
+  int grayCapacity;
+  Obj **grayStack;
+
+  bool newLine;
 } VM;
 
 typedef enum
 {
-    INTERPRET_OK, 
-    INTERPRET_COMPILE_ERROR,
-    INTERPRET_RUNTIME_ERROR
+  INTERPRET_OK,
+  INTERPRET_COMPILE_ERROR,
+  INTERPRET_RUNTIME_ERROR
 } InterpretResult;
 
 extern VM vm;
 
-void initVM();
+void initVM(const char* path, const char *scriptName);
 void freeVM();
-InterpretResult interpret(const char* source, const char* path, bool justCompile);
+void addPath(const char* path);
+
+InterpretResult interpret(const char *source);
 void push(Value value);
 Value pop();
-void runtimeError(const char* format, ...);
+Value peek(int distance);
+
+bool isFalsey(Value value);
+void runtimeError(const char *format, ...);
 
 #endif

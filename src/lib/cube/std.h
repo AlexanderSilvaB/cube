@@ -20,5 +20,8 @@ Value roundNative(int argCount, Value* args);
 Value powNative(int argCount, Value* args);
 Value expNative(int argCount, Value* args);
 Value lenNative(int argCount, Value* args);
+Value typeNative(int argCount, Value* args);
+Value envNative(int argCount, Value* args);
+Value openNative(int argCount, Value* args);
 
 #endif

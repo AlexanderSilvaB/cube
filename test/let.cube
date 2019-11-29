@@ -1,6 +1,7 @@
-x = let(a = 10, b = a ** 3)
+var x = let(var a = 10, var b = a ^ 3)
 {
-    a + b
-}
+    println(a+b);
+    a + b;
+};
 
-print(x)
+print(x);

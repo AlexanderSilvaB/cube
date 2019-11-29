@@ -1,12 +1,10 @@
-#ifndef _CUBE_COMPILER_H_
-#define _CUBE_COMPILER_H_
+#ifndef clox_compiler_h
+#define clox_compiler_h
 
-#include "chunk.h"
 #include "object.h"
+#include "vm.h"
 
-ObjFunction* compile(const char* source);
-
-ObjFunction* readByteCode(const char* path, uint32_t hash);
-void writeByteCode(const char* path, ObjFunction* func, uint32_t hash);
+ObjFunction *compile(const char *source);
+void grayCompilerRoots();
 
 #endif

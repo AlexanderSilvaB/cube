@@ -1,36 +1,39 @@
 // Variables
-a = 3.5;
-b = 13e3;
-c = "ABC";
-d = 'ABC';
-e = 'This is a string with "double" quotes';
-f = "This is a string with 'single' quotes";
-g = true;
-h = none;
-i = @(x) {return x+5};
-j = i(9);
-k = [1, 2, 3, 4, 5];
-l = k[0, 3:end];
-m = 0:2:50;
-n = 
+var a = 3.5;
+var b = 13e8;
+var c = "ABC";
+var d = 'ABC';
+var e = 'This is a string with "double" quotes';
+var f = "This is a string with 'single' quotes";
+var g = true;
+var h = none;
+var i = @(x) {return x+5;};
+var j = i(9);
+var k = [1, 2, 3, 4, 5];
+//var l = k[0, 3:end];
+//var m = 0:2:50;
+var n = 
 {
     'n1' : 1,
     'n2' : 3.5,
     'n3' : "This is a dict",
     'n4' : @(x)
     {
-        return 5 + x!
+        return 5 + x;
     }
-}
+};
+
 
 class o
 {
-    o()
+    var name = 9;
+    func init()
     {
-        println(this);
+        println(this.name);
     }
 }
 var p = o();
+print(p.name);
 
 println("Env: ");
 env();

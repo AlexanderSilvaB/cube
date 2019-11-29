@@ -1,9 +1,9 @@
-#ifndef _CUBE_DEBUG_H_
-#define _CUBE_DEBUG_H_
+#ifndef clox_debug_h
+#define clox_debug_h
 
 #include "chunk.h"
 
-void disassembleChunk(Chunk* chunk, const char* name);
-int disassembleInstruction(Chunk* chunk, int offset);
+void disassembleChunk(Chunk *chunk, const char *name);
+int disassembleInstruction(Chunk *chunk, int offset);
 
 #endif

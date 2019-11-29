@@ -1,55 +1,62 @@
-pi = 3.14159265359
+var pi = 3.14159265359;
 
-func deg(x) x * 57.2958
-func rad(x) x * 0.0174533
+func deg(x) 
+{   
+    return x * 57.2958; 
+}
+
+func rad(x) 
+{
+    return x * 0.0174533; 
+}
 
 func abs(x)
 {
     if( x < 0)
-        y = -x
+        y = -x;
     else
-        y = x
-    return y
+        y = x;
+    return y;
 }
 
 func min(a, b)
 {
     if(a < b)
-        return a
-    return b
+        return a;
+    return b;
 }
 
 func max(a, b)
 {
     if(a > b)
-        return a
-    return b
+        return a;
+    return b;
 }
 
 func sqrt(n)
 {
-    x = n
-    y = 1
-    e = 1e-6
+    var x = n;
+    var y = 1;
+    var e = 1e-6;
     while(x - y > e)
     {
-        x = (x + y)/2
-        y = n/x
+        x = (x + y)/2;
+        y = n/x;
     }
-    return x
+    return x;
 }
 
 func sin(x)
 {
-    y = (16*x*(pi - x))/(5*pi**2 - 4*x*(pi -x))
-    return y
+    var y = (16*x*(pi - x))/(5*pi^2 - 4*x*(pi -x));
+    return y;
 }
 
 func cos(x)
 {
-    y = sqrt(1 - sin(x)**2)
-    return y
+    var y = sqrt(1 - sin(x)^2);
+    return y;
 }
 
 if(__name__ == "__main__")
-    print(pi, "rad = ", deg(pi), "º")
+    print(pi, "rad = ", deg(pi), "º");

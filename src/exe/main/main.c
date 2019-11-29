@@ -4,6 +4,11 @@
 
 int main(int argc, const char *argv[])
 {
-    int rc = cube(argc, argv);
+    startCube(argc, argv);
+
+    addPath("test/");
+    int rc = runCube(argc, argv);
+    
+    stopCube();
     return rc;
 }

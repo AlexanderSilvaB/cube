@@ -11,9 +11,11 @@
 #include "vm.h"
 
 int repl();
-int runFile(const char* path, bool justCompile);
-void start();
+int runFile(const char *path, bool justCompile);
+void start(const char* path, const char* scriptName);
 void stop();
-int cube(int argc, const char* argv[]);
+int runCube(int argc, const char *argv[]);
+void startCube(int argc, const char *argv[]);
+void stopCube();
 
 #endif
