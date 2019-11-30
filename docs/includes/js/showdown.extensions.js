@@ -2,7 +2,7 @@ showdown.setFlavor('github');
 showdown.extension('targetlink', function() {
     return [{
       type: 'lang',
-      regex: /\[((?:\[[^\]]*]|[^\[\]])*)]\([ \t]*<?(.*?(?:\(.*?\).*?)?)>?[ \t]*((['"])(.*?)\4[ \t]*)?\)\{\:target=(["'])(.*)\6}/g,
+      regex: /\[((?:\[[^\]]*]|[^\[\]])*)]\([ \t]*<?(.*?(?:\(.*?\).*?)?)>?[ \t]*((['"])(.*?)\4[ \t]*)?\)\{\:target=(["'])(.*?)\6}/g,
       replace: function(wholematch, linkText, url, a, b, title, c, target) {
   
         var result = '<a href="' + url + '"';
