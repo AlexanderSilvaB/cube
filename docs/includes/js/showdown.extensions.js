@@ -1,3 +1,4 @@
+showdown.setFlavor('github');
 showdown.extension('targetlink', function() {
     return [{
       type: 'lang',
