@@ -2,7 +2,7 @@ function loadPage(page)
 {
     $.get("pages/"+page+".md", function(data)
     {
-        var converter = new showdown.Converter();
+        var converter = new showdown.Converter({extensions: ['targetlink']});
         var html = converter.makeHtml(data);
         $( ".markdown-body" ).html( html );
     }).fail(function() 
