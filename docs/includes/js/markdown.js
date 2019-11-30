@@ -19,7 +19,8 @@ function loadPage(page)
 
 $(function()
 {
-    loadPage("getting-started");
+    var page = window.location.hash.substr(1) || "getting-started";
+    loadPage(page);
 
     $("#content > #menu > ul > li > a").click(function(e)
     {
