@@ -2,32 +2,64 @@
 #include "memory.h"
 #include "vm.h"
 
+ObjFile* openFile(char* fileName, char* mode)
+{
+	ObjFile *file = initFile();
+    file->file = fopen(fileName, mode);
+    file->path = fileName;
+    file->mode = 0;
+    if(strchr(mode, 'r') != NULL)
+        file->mode |= FILE_MODE_READ;
+    if(strchr(mode, 'w') != NULL)
+        file->mode |= FILE_MODE_WRITE;
+    if(strchr(mode, 'b') != NULL)
+        file->mode |= FILE_MODE_BINARY;
+
+    if (file->file == NULL)
+    {
+        return NULL;
+    }
+
+    file->isOpen = true;
+	return file;
+}
+
 static bool writeFile(int argCount, bool newLine) {
 	if (argCount != 2) {
 		runtimeError("write() takes 2 arguments (%d given)", argCount);
 		return false;
 	}
 
-	if (!IS_STRING(peek(0))) {
-		runtimeError("write() argument must be a string");
-		return false;
-	}
-
-	ObjString *string = AS_STRING(pop());
+	Value data = pop();
 	ObjFile *file = AS_FILE(pop());
 
-	if (strcmp(file->openType, "r") == 0) {
+	if (!FILE_CAN_WRITE(file)) {
 		runtimeError("File is not writable!");
 		return false;
 	}
 
-	int charsWrote = fprintf(file->file, "%s", string->chars);
-	if (newLine)
-		fprintf(file->file, "\n");
-
+	int wrote = 0;
+	if(!FILE_IS_BINARY(file))
+	{
+		ObjString *string = AS_STRING( toString(pop()) );
+		wrote = fprintf(file->file, "%s", string->chars);
+		if (newLine)
+			fprintf(file->file, "\n");
+	}
+	else
+	{
+		ObjBytes *bytes = AS_BYTES( toBytes(pop()) );
+		wrote = fwrite(bytes->bytes, sizeof(char), bytes->length, file->file);
+		if (newLine)
+		{
+			char c = '\n';
+			fwrite(&c, sizeof(char), 1, file->file);
+		}
+	}
+	
 	fflush(file->file);
 
-	push(NUMBER_VAL(charsWrote));
+	push(NUMBER_VAL(wrote));
 
 	return true;
 }
@@ -39,6 +71,12 @@ static bool readFile(int argCount) {
 	}
 
 	ObjFile *file = AS_FILE(pop());
+
+	if (!FILE_CAN_READ(file)) {
+		runtimeError("File is not readable!");
+		return false;
+	}
+
 
 	size_t currentPosition = ftell(file->file);
 	// Calculate file size
@@ -66,7 +104,42 @@ static bool readFile(int argCount) {
 
 	buffer[bytesRead] = '\0';
 
-	push(OBJ_VAL(copyString(buffer, strlen(buffer))));
+	if(!FILE_IS_BINARY(file))
+		push(OBJ_VAL(copyString(buffer, strlen(buffer))));
+	else
+		push(BYTES_VAL(buffer, bytesRead));
+	free(buffer);
+	return true;
+}
+
+static bool readFileBytes(int argCount) {
+	if (argCount != 2) {
+		runtimeError("read() takes 1 argument (%d given)", argCount);
+		return false;
+	}
+
+	int size = (int)AS_NUMBER(toNumber(pop()));
+	ObjFile *file = AS_FILE(pop());
+
+	if (!FILE_CAN_READ(file)) {
+		runtimeError("File is not readable!");
+		return false;
+	}
+
+	char *buffer = (char *)malloc(size + 1);
+	if (buffer == NULL) {
+		runtimeError("Not enough memory to read %d bytes from \"%s\".\n", size, file->path);
+		return false;
+	}
+
+	size_t bytesRead = fread(buffer, sizeof(char), size, file->file);
+	if (bytesRead < size) {
+		runtimeError("Could not read %d bytes from file \"%s\".\n", size, file->path);
+		return false;
+	}
+
+	push(BYTES_VAL(buffer, bytesRead));
+
 	free(buffer);
 	return true;
 }
@@ -80,6 +153,12 @@ static bool readLineFile(int argCount) {
 	char line[4096];
 
 	ObjFile *file = AS_FILE(pop());
+
+	if (!FILE_CAN_READ(file)) {
+		runtimeError("File is not readable!");
+		return false;
+	}
+
 	if (fgets(line, 4096, file->file) != NULL)
 		push(OBJ_VAL(copyString(line, strlen(line))));
 	else
@@ -160,6 +239,8 @@ bool fileMethods(char *method, int argCount) {
 		return readFile(argCount);
 	else if (strcmp(method, "readLine") == 0)
 		return readLineFile(argCount);
+	else if (strcmp(method, "readBytes") == 0)
+		return readFileBytes(argCount);
 	else if (strcmp(method, "seek") == 0)
 		return seekFile(argCount);
 	else if (strcmp(method, "close") == 0)

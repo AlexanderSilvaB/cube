@@ -131,7 +131,10 @@ void initVM(const char *path, const char *scriptName)
   defineNative("random", randomNative);
   defineNative("bool", boolNative);
   defineNative("num", numNative);
+  defineNative("int", intNative);
   defineNative("str", strNative);
+  defineNative("list", listNative);
+  defineNative("bytes", bytesNative);
   defineNative("ceil", ceilNative);
   defineNative("floor", floorNative);
   defineNative("round", roundNative);
@@ -141,6 +144,8 @@ void initVM(const char *path, const char *scriptName)
   defineNative("type", typeNative);
   defineNative("env", envNative);
   defineNative("open", openNative);
+  defineNative("make", makeNative);
+  defineNative("copy", copyNative);
 }
 
 void freeVM()
@@ -176,12 +181,16 @@ Value peek(int distance)
 
 static bool call(ObjClosure *closure, int argCount)
 {
+
+  /*
   if (argCount != closure->function->arity)
   {
     runtimeError("Expected %d arguments but got %d.",
                  closure->function->arity, argCount);
     return false;
   }
+  */
+  // TODO: Pop unused variables and comment above
 
   if (vm.frameCount == FRAMES_MAX)
   {
@@ -403,8 +412,14 @@ bool isFalsey(Value value)
 
 static void concatenate()
 {
-  ObjString *b = AS_STRING(peek(0));
+  Value second = peek(0);
   ObjString *a = AS_STRING(peek(1));
+
+  ObjString *b;
+  if (IS_STRING(second))
+    b = AS_STRING(second);
+  else
+    b = AS_STRING(toString(second));
 
   int length = a->length + b->length;
   char *chars = ALLOCATE(char, length + 1);
@@ -485,6 +500,222 @@ Value envVariable(ObjString *name)
     return STRING_VAL(vm.currentScriptName);
   }
   return NONE_VAL;
+}
+
+bool subscriptList(Value listValue, Value indexValue, Value *result)
+{
+  if (!(IS_NUMBER(indexValue) || IS_LIST(indexValue)))
+  {
+    runtimeError("Array index must be a number or a list.");
+    return false;
+  }
+
+  ObjList *list = AS_LIST(listValue);
+  if (IS_NUMBER(indexValue))
+  {
+    int index = AS_NUMBER(indexValue);
+
+    if (index < 0)
+      index = list->values.count + index;
+    if (index >= 0 && index < list->values.count)
+    {
+      *result = list->values.values[index];
+      return true;
+    }
+
+    runtimeError("Array index out of bounds.");
+    return false;
+  }
+  else
+  {
+    ObjList *indexes = AS_LIST(indexValue);
+    ObjList *res = initList();
+    for (int i = 0; i < indexes->values.count; i++)
+    {
+      Value innerIndexValue = indexes->values.values[i];
+      if (!IS_NUMBER(innerIndexValue))
+      {
+        runtimeError("Array index must be a number.");
+        return false;
+      }
+
+      int index = AS_NUMBER(innerIndexValue);
+
+      if (index < 0)
+        index = list->values.count + index;
+      if (index >= 0 && index < list->values.count)
+      {
+        writeValueArray(&res->values, list->values.values[index]);
+      }
+      else
+      {
+        runtimeError("Array index out of bounds.");
+        return false;
+      }
+    }
+
+    *result = OBJ_VAL(res);
+    return true;
+  }
+  return false;
+}
+
+bool subscriptDict(Value dictValue, Value indexValue, Value *result)
+{
+  if (!IS_STRING(indexValue))
+  {
+    runtimeError("Dictionary key must be a string.");
+    return false;
+  }
+
+  ObjDict *dict = AS_DICT(dictValue);
+  char *key = AS_CSTRING(indexValue);
+
+  *result = searchDict(dict, key);
+  return true;
+}
+
+bool subscript(Value container, Value indexValue, Value *result)
+{
+  if (IS_STRING(container))
+  {
+    runtimeError("String substring not implemented yet.");
+    return false;
+  }
+  else if (IS_LIST(container))
+  {
+    return subscriptList(container, indexValue, result);
+  }
+  else if (IS_DICT(container))
+  {
+    return subscriptDict(container, indexValue, result);
+  }
+  runtimeError("Only lists, dicts and string have indexes.");
+  return false;
+}
+
+bool subscriptListAssign(Value container, Value indexValue, Value assignValue)
+{
+  if (!(IS_NUMBER(indexValue) || IS_LIST(indexValue)))
+  {
+    runtimeError("List index must be a number or a list.");
+    return false;
+  }
+
+  ObjList *list = AS_LIST(container);
+
+  if (IS_NUMBER(indexValue))
+  {
+    int index = AS_NUMBER(indexValue);
+
+    if (index < 0)
+      index = list->values.count + index;
+    if (index >= 0 && index < list->values.count)
+    {
+      list->values.values[index] = copyValue(assignValue);
+      return true;
+    }
+
+    runtimeError("Array index out of bounds.");
+    return false;
+  }
+  else
+  {
+    ObjList *indexes = AS_LIST(indexValue);
+    if (IS_LIST(assignValue) && AS_LIST(assignValue)->values.count == indexes->values.count)
+    {
+      ObjList *assignValues = AS_LIST(assignValue);
+      for (int i = 0; i < indexes->values.count; i++)
+      {
+        Value innerIndexValue = indexes->values.values[i];
+        if (!IS_NUMBER(innerIndexValue))
+        {
+          runtimeError("Array index must be a number.");
+          return false;
+        }
+
+        int index = AS_NUMBER(innerIndexValue);
+
+        if (index < 0)
+          index = list->values.count + index;
+        if (index >= 0 && index < list->values.count)
+        {
+          list->values.values[index] = copyValue(assignValues->values.values[i]);
+        }
+        else
+        {
+          runtimeError("Array index out of bounds.");
+          return false;
+        }
+      }
+
+      return true;
+    }
+    else
+    {
+      for (int i = 0; i < indexes->values.count; i++)
+      {
+        Value innerIndexValue = indexes->values.values[i];
+        if (!IS_NUMBER(innerIndexValue))
+        {
+          runtimeError("List index must be a number.");
+          return false;
+        }
+
+        int index = AS_NUMBER(innerIndexValue);
+
+        if (index < 0)
+          index = list->values.count + index;
+        if (index >= 0 && index < list->values.count)
+        {
+          list->values.values[index] = copyValue(assignValue);
+        }
+        else
+        {
+          runtimeError("List index out of bounds.");
+          return false;
+        }
+      }
+
+      return true;
+    }
+  }
+  return true;
+}
+
+bool subscriptDictAssign(Value dictValue, Value key, Value value)
+{
+  if (!IS_STRING(key))
+  {
+    runtimeError("Dictionary key must be a string.");
+    return false;
+  }
+
+  ObjDict *dict = AS_DICT(dictValue);
+  char *keyString = AS_CSTRING(key);
+
+  insertDict(dict, keyString, value);
+
+  return true;
+}
+
+bool subscriptAssign(Value container, Value indexValue, Value assignValue)
+{
+  if (IS_STRING(container))
+  {
+    runtimeError("String substring not implemented yet.");
+    return false;
+  }
+  else if (IS_LIST(container))
+  {
+    return subscriptListAssign(container, indexValue, assignValue);
+  }
+  else if (IS_DICT(container))
+  {
+    return subscriptDictAssign(container, indexValue, assignValue);
+  }
+  runtimeError("Only lists, dicts and string have indexes.");
+  return false;
 }
 
 static InterpretResult run()
@@ -741,15 +972,9 @@ static InterpretResult run()
       break;
     case OP_ADD:
     {
-      if (IS_STRING(peek(0)) && IS_STRING(peek(1)))
+      if (IS_STRING(peek(1)))
       {
         concatenate();
-      }
-      else if (IS_NUMBER(peek(0)) && IS_NUMBER(peek(1)))
-      {
-        double b = AS_NUMBER(pop());
-        double a = AS_NUMBER(pop());
-        push(NUMBER_VAL(a + b));
       }
       else if (IS_LIST(peek(0)) && IS_LIST(peek(1)))
       {
@@ -766,6 +991,12 @@ static InterpretResult run()
           writeValueArray(&result->values, listToAdd->values.values[i]);
 
         push(OBJ_VAL(result));
+      }
+      else if (IS_NUMBER(peek(0)) && IS_NUMBER(peek(1)))
+      {
+        double b = AS_NUMBER(pop());
+        double a = AS_NUMBER(pop());
+        push(NUMBER_VAL(a + b));
       }
       else
       {
@@ -858,7 +1089,6 @@ static InterpretResult run()
       {
         result = BOOL_VAL(valuesEqual(container, item));
       }
-      
 
       push(result);
       break;
@@ -899,6 +1129,12 @@ static InterpretResult run()
       frame->ip -= offset;
       break;
     }
+
+    case OP_BREAK:
+    {
+      printf("break");
+    }
+    break;
 
     case OP_IMPORT:
     {
@@ -990,26 +1226,15 @@ static InterpretResult run()
     {
       Value indexValue = pop();
       Value listValue = pop();
+      Value result;
 
-      if (!IS_NUMBER(indexValue))
+      if (!subscript(listValue, indexValue, &result))
       {
-        runtimeError("Array index must be a number.");
         return INTERPRET_RUNTIME_ERROR;
       }
 
-      ObjList *list = AS_LIST(listValue);
-      int index = AS_NUMBER(indexValue);
-
-      if (index < 0)
-        index = list->values.count + index;
-      if (index >= 0 && index < list->values.count)
-      {
-        push(list->values.values[index]);
-        break;
-      }
-
-      runtimeError("Array index out of bounds.");
-      return INTERPRET_RUNTIME_ERROR;
+      push(result);
+      break;
     }
     case OP_SUBSCRIPT_ASSIGN:
     {
@@ -1017,63 +1242,11 @@ static InterpretResult run()
       Value indexValue = pop();
       Value listValue = pop();
 
-      if (!IS_NUMBER(indexValue))
+      if (!subscriptAssign(listValue, indexValue, assignValue))
       {
-        runtimeError("Array index must be a number.");
-        return INTERPRET_RUNTIME_ERROR;
-      }
-
-      ObjList *list = AS_LIST(listValue);
-      int index = AS_NUMBER(indexValue);
-
-      if (index < 0)
-        index = list->values.count + index;
-      if (index >= 0 && index < list->values.count)
-      {
-        list->values.values[index] = assignValue;
         push(NONE_VAL);
-        break;
-      }
-
-      push(NONE_VAL);
-
-      runtimeError("Array index out of bounds.");
-      return INTERPRET_RUNTIME_ERROR;
-    }
-    case OP_SUBSCRIPT_DICT:
-    {
-      Value indexValue = pop();
-      Value dictValue = pop();
-
-      if (!IS_STRING(indexValue))
-      {
-        runtimeError("Dictionary key must be a string.");
         return INTERPRET_RUNTIME_ERROR;
       }
-
-      ObjDict *dict = AS_DICT(dictValue);
-      char *key = AS_CSTRING(indexValue);
-
-      push(searchDict(dict, key));
-
-      break;
-    }
-    case OP_SUBSCRIPT_DICT_ASSIGN:
-    {
-      Value value = pop();
-      Value key = pop();
-      Value dictValue = pop();
-
-      if (!IS_STRING(key))
-      {
-        runtimeError("Dictionary key must be a string.");
-        return INTERPRET_RUNTIME_ERROR;
-      }
-
-      ObjDict *dict = AS_DICT(dictValue);
-      char *keyString = AS_CSTRING(key);
-
-      insertDict(dict, keyString, value);
 
       push(NONE_VAL);
       break;
@@ -1145,6 +1318,7 @@ static InterpretResult run()
     case OP_RETURN:
     {
       Value result = pop();
+
       closeUpvalues(frame->slots);
       vm.frameCount--;
 
@@ -1217,19 +1391,13 @@ static InterpretResult run()
       ObjString *openTypeString = AS_STRING(openType);
       ObjString *fileNameString = AS_STRING(fileName);
 
-      ObjFile *file = initFile();
-      file->file = fopen(fileNameString->chars, openTypeString->chars);
-      file->path = fileNameString->chars;
-      file->openType = openTypeString->chars;
+      ObjFile *file = openFile(fileNameString->chars, openTypeString->chars);
 
-      if (file->file == NULL)
+      if (file == NULL)
       {
         runtimeError("Unable to open file");
         return INTERPRET_RUNTIME_ERROR;
       }
-
-      file->isOpen = true;
-
       push(OBJ_VAL(file));
       break;
     }

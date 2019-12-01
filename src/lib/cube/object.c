@@ -7,6 +7,7 @@
 #include "table.h"
 #include "value.h"
 #include "vm.h"
+#include "collections.h"
 
 #define ALLOCATE_OBJ_LIST(type, objectType) \
 	(type *)allocateObject(sizeof(type), objectType, true)
@@ -120,6 +121,14 @@ ObjList *initList()
 	return list;
 }
 
+ObjBytes *initBytes()
+{
+	ObjBytes *bytes = ALLOCATE_OBJ(ObjBytes, OBJ_BYTES);
+	bytes->length = 0;
+	bytes->bytes = NULL;
+	return bytes;
+}
+
 ObjDict *initDict()
 {
 	ObjDict *dict = initDictValues(8);
@@ -130,6 +139,7 @@ ObjFile *initFile()
 {
 	ObjFile *file = ALLOCATE_OBJ(ObjFile, OBJ_FILE);
 	file->isOpen = false;
+	file->mode = 0;
 	return file;
 }
 
@@ -172,6 +182,15 @@ ObjString *copyString(const char *chars, int length)
 	heapChars[length] = '\0';
 
 	return allocateString(heapChars, length, hash);
+}
+
+ObjBytes *copyBytes(const void *bytes, int length)
+{
+	ObjBytes *obj = initBytes();
+	obj->bytes = ALLOCATE(unsigned char, length);
+	obj->length = length;
+	memcpy(obj->bytes, bytes, length);
+	return obj;
 }
 
 ObjUpvalue *newUpvalue(Value *slot)
@@ -272,6 +291,18 @@ char *objectToString(Value value)
 		snprintf(fileString, strlen(file->path) + 9, "<file %s%s>",
 				 file->path, file->isOpen ? "*" : "");
 		return fileString;
+	}
+
+	case OBJ_BYTES:
+	{
+		ObjBytes *bytes = AS_BYTES(value);
+		char *bytesString = malloc(sizeof(unsigned char) * 7 * bytes->length);
+		bytesString[0] = '\0';
+		for (int i = 0; i < bytes->length; i++)
+		{
+			snprintf(bytesString + strlen(bytesString), 6, "0x%X ", (unsigned char)bytes->bytes[i]);
+		}
+		return bytesString;
 	}
 
 	case OBJ_LIST:
@@ -465,11 +496,17 @@ char *objectType(Value value)
 		return str;
 	}
 
-		
 	case OBJ_FILE:
 	{
 		char *str = malloc(sizeof(char) * 6);
 		snprintf(str, 5, "file");
+		return str;
+	}
+
+	case OBJ_BYTES:
+	{
+		char *str = malloc(sizeof(char) * 7);
+		snprintf(str, 6, "bytes");
 		return str;
 	}
 
@@ -551,6 +588,15 @@ bool listComparison(Value a, Value b)
 	return true;
 }
 
+static bool bytesComparison(Value a, Value b)
+{
+	ObjBytes *A = AS_BYTES(a);
+	ObjBytes *B = AS_BYTES(b);
+	if (A->length != B->length)
+		return false;
+	return memcmp(A->bytes, B->bytes, A->length) == 0;
+}
+
 bool objectComparison(Value a, Value b)
 {
 	if (!IS_OBJ(a) || !IS_OBJ(b))
@@ -569,9 +615,72 @@ bool objectComparison(Value a, Value b)
 	{
 		return listComparison(a, b);
 	}
+	else if (IS_BYTES(a) && IS_BYTES(b))
+	{
+		return bytesComparison(a, b);
+	}
 	else
 	{
 		return a.as.number == b.as.number;
 	}
 	return false;
+}
+
+Value copyObject(Value value)
+{
+	if (IS_LIST(value))
+	{
+		ObjList *newList = copyList(AS_LIST(value), true);
+		return OBJ_VAL(newList);
+	}
+	else if (IS_DICT(value))
+	{
+		ObjDict *newDict = copyDict(AS_DICT(value), true);
+		return OBJ_VAL(newDict);
+	}
+	else if (IS_DICT(value))
+	{
+		ObjDict *newDict = copyDict(AS_DICT(value), true);
+		return OBJ_VAL(newDict);
+	}
+	else if (IS_BYTES(value))
+	{
+		ObjBytes *oldBytes = AS_BYTES(value);
+		ObjBytes *newBytes = copyBytes(oldBytes->bytes, oldBytes->length);
+		return OBJ_VAL(newBytes);
+	}
+	return value;
+}
+
+ObjBytes *objectToBytes(Value value)
+{
+	ObjBytes *bytes = NULL;
+	if (IS_STRING(value))
+	{
+		ObjString *str = AS_STRING(value);
+		bytes = copyBytes(str->chars, str->length);
+	}
+	else if(IS_BYTES(value))
+	{
+		ObjBytes *old = AS_BYTES(value);
+		bytes = copyBytes(old->bytes, old->length);
+	}
+	else if(IS_LIST(value))
+	{
+		bytes = initBytes();
+		ObjList* list = AS_LIST(value);
+		for(int i = 0; i < list->values.count; i++)
+		{
+			ObjBytes *partial = AS_BYTES(toBytes(list->values.values[i]));
+			appendBytes(bytes, partial);
+		}
+	}
+	return bytes;
+}
+
+void appendBytes(ObjBytes *dest, ObjBytes *src)
+{
+	dest->bytes = GROW_ARRAY(dest->bytes, unsigned char, dest->length, dest->length + src->length);
+	memcpy(dest->bytes + dest->length, src->bytes, src->length);
+	dest->length += src->length;
 }

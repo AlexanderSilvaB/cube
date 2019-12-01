@@ -1,59 +1,59 @@
-DEBUG = 1
-INFO = 2
-ERROR = 3
-NONE = 4
+var DEBUG = 1;
+var INFO = 2;
+var ERROR = 3;
+var NONE = 4;
 
 class Log
 {
-    level = 0
+    var level = 0;
 
     func Log(l)
     {
-        level = l
+        this.level = l;
     }
 
     func error()
     {
         if(level > ERROR)
-            return false
+            return false;
 
-        print(color('green'), date('dd/MM/YYYY HH:mm:ss: '), color('red'))
-        for(arg in args)
-            print(arg, ' ')
-        println(color())
-        return true
+        print(color('green'), date('dd/MM/YYYY HH:mm:ss: '), color('red'));
+        for(var arg in args)
+            print(arg, ' ');
+        println(color());
+        return true;
     }
 
     func info()
     {
         if(level > INFO)
-            return false
+            return false;
 
-        print(color('green'), date('dd/MM/YYYY HH:mm:ss: '), color('blue'))
-        for(arg in args)
-            print(arg, ' ')
-        println(color())
-        return true
+        print(color('green'), date('dd/MM/YYYY HH:mm:ss: '), color('blue'));
+        for(var arg in args)
+            print(arg, ' ');
+        println(color());
+        return true;
     }
 
     func debug()
     {
         if(level > DEBUG)
-            return false
+            return false;
 
-        print(color('green'), date('dd/MM/YYYY HH:mm:ss: '), color())
-        for(arg in args)
-            print(arg, ' ')
-        println(color())
+        print(color('green'), date('dd/MM/YYYY HH:mm:ss: '), color());
+        for(var arg in args)
+            print(arg, ' ');
+        println(color());
 
-        return true
+        return true;
     }
 }
 
 if(__name__ == "__main__")
 {
-    log = Log()
-    log.debug('This is a log')
-    log.error('This is an error')
-    log.info('This is an info')
+    var log = Log();
+    log.debug('This is a log');
+    log.error('This is an error');
+    log.info('This is an info');
 }

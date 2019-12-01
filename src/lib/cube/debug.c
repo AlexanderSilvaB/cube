@@ -94,10 +94,6 @@ int disassembleInstruction(Chunk *chunk, int offset)
     return simpleInstruction("OP_SUBSCRIPT", offset);
   case OP_SUBSCRIPT_ASSIGN:
     return simpleInstruction("OP_SUBSCRIPT_ASSIGN", offset);
-  case OP_SUBSCRIPT_DICT:
-    return simpleInstruction("OP_SUBSCRIPT_DICT", offset);
-  case OP_SUBSCRIPT_DICT_ASSIGN:
-    return simpleInstruction("OP_SUBSCRIPT_DICT_ASSIGN", offset);
   case OP_POP:
     return simpleInstruction("OP_POP", offset);
   case OP_GET_LOCAL:

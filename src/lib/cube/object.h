@@ -21,6 +21,7 @@
 #define IS_LIST(value) isObjType(value, OBJ_LIST)
 #define IS_DICT(value) isObjType(value, OBJ_DICT)
 #define IS_FILE(value)          isObjType(value, OBJ_FILE)
+#define IS_BYTES(value)          isObjType(value, OBJ_BYTES)
 
 #define AS_BOUND_METHOD(value) ((ObjBoundMethod *)AS_OBJ(value))
 #define AS_CLASS(value) ((ObjClass *)AS_OBJ(value))
@@ -33,8 +34,11 @@
 #define AS_LIST(value) ((ObjList *)AS_OBJ(value))
 #define AS_DICT(value) ((ObjDict *)AS_OBJ(value))
 #define AS_FILE(value)          ((ObjFile*)AS_OBJ(value))
+#define AS_BYTES(value)          ((ObjBytes*)AS_OBJ(value))
+#define AS_CBYTES(value) (((ObjBytes *)AS_OBJ(value))->bytes)
 
 #define STRING_VAL(str) (OBJ_VAL(copyString(str, strlen(str))))
+#define BYTES_VAL(data, len) (OBJ_VAL(copyBytes(data, len)))
 
 #define IS_INCREMENTAL(value) (IS_NUMBER(value) || (IS_STRING(value) && AS_STRING(value)->length == 1))
 
@@ -50,6 +54,7 @@ typedef enum
   OBJ_LIST,
   OBJ_DICT,
   OBJ_FILE,
+  OBJ_BYTES,
   OBJ_UPVALUE
 } ObjType;
 
@@ -108,12 +113,27 @@ struct sObjDict
   dictItem **items;
 };
 
+#define FILE_MODE_READ 0x1
+#define FILE_MODE_WRITE 0x2
+#define FILE_MODE_BINARY 0x4
+
+#define FILE_CAN_READ(file) ((file->mode & FILE_MODE_READ) != 0)
+#define FILE_CAN_WRITE(file) ((file->mode & FILE_MODE_WRITE) != 0)
+#define FILE_IS_BINARY(file) ((file->mode & FILE_MODE_BINARY) != 0)
+
 struct sObjFile {
     Obj obj;
     FILE *file;
     char *path;
-    char *openType;
     bool isOpen;
+    int mode;
+};
+
+struct sObjBytes
+{
+  Obj obj;
+  int length;
+  unsigned char *bytes;
 };
 
 typedef struct sUpvalue
@@ -165,14 +185,21 @@ ObjString *copyString(const char *chars, int length);
 ObjList *initList();
 ObjDict *initDict();
 ObjFile *initFile();
+ObjBytes *initBytes();
 ObjUpvalue *newUpvalue(Value *slot);
+
+ObjBytes *copyBytes(const void *bytes, int length);
+void appendBytes(ObjBytes *dest, ObjBytes *src);
 
 char *objectToString(Value value);
 char *objectType(Value value);
+ObjBytes* objectToBytes(Value value);
 
 bool dictComparison(Value a, Value b);
 bool listComparison(Value a, Value b);
 bool objectComparison(Value a, Value b);
+
+Value copyObject(Value value);
 
 static inline bool isObjType(Value value, ObjType type)
 {

@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 
 #include "object.h"
 #include "memory.h"
@@ -231,6 +232,26 @@ char *valueToString(Value value)
   return unknown;
 }
 
+Value toBytes(Value value)
+{
+	ObjBytes *bytes = NULL;
+	char c = 0xFF;
+	if(IS_NONE(value))
+		bytes = copyBytes(&c, 1);
+	else if(IS_BOOL(value))
+		bytes = copyBytes(&value.as.boolean, sizeof(value.as.boolean));
+	else if(IS_NUMBER(value))
+		bytes = copyBytes(&value.as.number, sizeof(value.as.number));
+	else if(IS_OBJ(value))
+  {
+    bytes = objectToBytes(value);
+  }
+
+	if(bytes == NULL)
+		bytes = initBytes();
+	return OBJ_VAL(bytes);
+}
+
 char *valueType(Value value)
 {
   if (IS_BOOL(value))
@@ -312,6 +333,13 @@ Value toBool(Value value)
     else
       return BOOL_VAL(false);
   }
+  else if(IS_BYTES(value))
+  {
+    ObjBytes *bytes = AS_BYTES(value);
+    if(bytes->length == 0)
+      return FALSE_VAL;
+    return bytes->bytes[0] == 0x0 ? FALSE_VAL : TRUE_VAL;
+  }
   return BOOL_VAL(true);
 }
 
@@ -331,6 +359,15 @@ Value toNumber(Value value)
     double value = strtod(str, NULL);
     return NUMBER_VAL(value);
   }
+  else if(IS_BYTES(value))
+  {
+    ObjBytes *bytes = AS_BYTES(value);
+    char b[sizeof(double)];
+    int len = bytes->length > sizeof(double) ? sizeof(double) : bytes->length;
+    memcpy(b, bytes->bytes, len);
+    double value = *((double*)b);
+    return NUMBER_VAL(value);
+  }
   return NUMBER_VAL(1);
 }
 
@@ -340,4 +377,22 @@ Value toString(Value value)
   Value v = STRING_VAL(str);
   free(str);
   return v;
+}
+
+Value copyValue(Value value)
+{
+  if(IS_STRING(value))
+  {
+    ObjString* oldStr = AS_STRING(value);
+    char *str = ALLOCATE(char, oldStr->length);
+    strcpy(str, oldStr->chars);
+    Value ret = STRING_VAL(str);
+    FREE(char, str);
+    return ret;
+  }
+  else if(IS_OBJ(value))
+  {
+    return copyObject(value);
+  }
+  return value;
 }

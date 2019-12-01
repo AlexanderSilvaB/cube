@@ -11,4 +11,4 @@ Cube is a dynamic typed programing language running on its own VM
 
 ## TODO
 * 'in' keyword in loops
-* Break and continue statements
+* Break statement

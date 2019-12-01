@@ -7,6 +7,7 @@ int main(int argc, const char *argv[])
     startCube(argc, argv);
 
     addPath("test/");
+    addPath("libs/");
     int rc = runCube(argc, argv);
     
     stopCube();

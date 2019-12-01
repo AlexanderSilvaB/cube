@@ -1,0 +1,20 @@
+var l1 = [1, 2, 3, 4, 5];
+println(l1);
+
+var l2 = ['zero', 1, 'two', 3, 'four', 5];
+println(l2);
+
+var l3 = l1;
+println(l3);
+
+var v1 = l3[3];
+println(v1);
+
+l3[3] = 9;
+println(l3);
+
+l3[1:2] = 4;
+println(l3);
+
+l3[3:4] = 0:1;
+println(l3);

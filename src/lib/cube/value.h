@@ -9,6 +9,7 @@ typedef struct sObjList ObjList;
 typedef struct sObjDict ObjDict;
 typedef struct dictItem dictItem;
 typedef struct sObjFile ObjFile;
+typedef struct sObjBytes ObjBytes;
 
 #ifdef NAN_TAGGING
 
@@ -129,8 +130,11 @@ void printValue(Value value);
 char *valueToString(Value value);
 char *valueType();
 
+Value copyValue(Value value);
+
 Value toBool(Value value);
 Value toNumber(Value value);
 Value toString(Value value);
+Value toBytes(Value value);
 
 #endif

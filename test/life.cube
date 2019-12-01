@@ -1,110 +1,116 @@
-println("Conway's Game of Life")
-w = int(input("Width: "))
-h = int(input("Height: "))
-ite = int(input("Iteractions: "))
+println("Conway's Game of Life");
+var w = int(input("Width: "));
+var h = int(input("Height: "));
+var ite = int(input("Iteractions: "));
 
-sz = w*h
-map = (1:sz)*0
+var sz = w*h;
+var map = make('list', sz, 0);
+
 
 func createExploder(map, w, h)
 {
-    minX = int(w/2) - int(5 / 2)
-    minY = int(h/2) - int(5 / 2)
-    maxX = minX + 4
-    maxY = minY + 4
+    var minX = int(w/2) - int(5 / 2);
+    var minY = int(h/2) - int(5 / 2);
+    var maxX = minX + 4;
+    var maxY = minY + 4;
     
-    for(i = minY; i <= maxY; i++)
+    for(var i = minY; i <= maxY; ++i)
     {
-        for(j = minX; j <= maxX; j++)
+        for(var j = minX; j <= maxX; ++j)
         {
-            if(j == minX || j == maxX)
-                map[i*w + j] = 1
+            if(j == minX or j == maxX)
+            {
+                var index = i * w + j;
+                map[index] = 1;
+            }
         }
     }
 
-    map[minY*w + minX + 2] = 1
-    map[maxY*w + minX + 2] = 1
-
-    return map
+    map[minY*w + minX + 2] = 1;
+    map[maxY*w + minX + 2] = 1;
 }
-
 
 func neigh(map, x, y, w, h)
 {
-    n = 0
-    mx = x-1
-    Mx = x+1
-    my = y-1
-    My = y+1
-    for(i = my; i <= My; i++)
+    var n = 0;
+    var mx = x-1;
+    var Mx = x+1;
+    var my = y-1;
+    var My = y+1;
+
+    for(var i = my; i <= My; ++i)
     {
-        if(i >= 0 && i < h)
+        if(i >= 0 and i < h)
         {
-            for(j = mx; j <= Mx; j++)
+            for(var j = mx; j <= Mx; ++j)
             {
-                if(j >= 0 && j < w)
+                if(j >= 0 and j < w)
                 {
-                    if(i <> y || j <> x)
+                    if(i != y or j != x)
                     {
                         if(map[i*w + j] > 0)
                         {
-                            n = n + 1
+                            n = n + 1;
                         }
                     }
                 }
             }
         }
     }
-    return n
+
+    return n;
 }
+
 
 func update(map, w, h)
 {
-    for (y = 0; y < h; y++)
+    for (var y = 0; y < h; ++y)
     {
-        for(x = 0; x < w; x++)
+        for(var x = 0; x < w; ++x)
         {
-            n = neigh(map, x, y, w, h)
-            i = y*w + x
+            var n = neigh(map, x, y, w, h);
+            var i = y*w + x;
             if(n < 2)
             {
-                map[i] = 0
+                map[i] = 0;
             }
             if(n > 3)
             {
-                map[i] = 0
+                map[i] = 0;
             }            
             if(n == 3)
             {
-                map[i] = 1
+                map[i] = 1;
             }
         }
     }
-    return map
 }
+
 
 func show(map, w, h)
 {
-    for (y = 0; y < h; y++)
+    for (var y = 0; y < h; ++y)
     {
-        for(x = 0; x < w; x++)
+        for(var x = 0; x < w; ++x)
         {
-            print(map[y*w + x])
+            print(map[y*w + x]);
         }
-        println()
+        println();
     }
 }
 
-println('Creating exploder...')
-map = createExploder(map, w, h)
+println('Creating exploder...');
+createExploder(map, w, h);
 
-println('Starting')
+println('Starting');
 
-println("P: 0")
-show(map, w, h)
-for(p in 1:ite)
+println("P: 0");
+show(map, w, h);
+//for(p in 1:ite)
+
+for(var p = 1; p < ite; ++p)
 {
-    map = update(map, w, h)
-    println("P: ", p)
-    show(map, w, h)
+    update(map, w, h);
+    println("P: ", p);
+    show(map, w, h);
 }

@@ -74,6 +74,7 @@ typedef struct Compiler
   int localCount;
   Upvalue upvalues[UINT8_COUNT];
   int scopeDepth;
+  int loopDepth;
 } Compiler;
 
 typedef struct ClassCompiler
@@ -89,6 +90,10 @@ Parser parser;
 Compiler *current = NULL;
 
 ClassCompiler *currentClass = NULL;
+
+// Used for "continue" statements
+int innermostLoopStart = -1;
+int innermostLoopScopeDepth = 0;
 
 static Chunk *currentChunk()
 {
@@ -250,6 +255,7 @@ static void initCompiler(Compiler *compiler, FunctionType type)
   compiler->type = type;
   compiler->localCount = 0;
   compiler->scopeDepth = 0;
+  compiler->loopDepth = 0;
   compiler->function = newFunction();
   current = compiler;
 
@@ -656,6 +662,12 @@ static void number(bool canAssign)
   emitConstant(NUMBER_VAL(value));
 }
 
+static void byte(bool canAssign)
+{
+  int value = strtol(parser.previous.start, NULL, 0);
+  emitConstant(NUMBER_VAL(value));
+}
+
 static void or_(bool canAssign)
 {
   int elseJump = emitJump(OP_JUMP_IF_FALSE);
@@ -712,36 +724,16 @@ static void subscript(bool canAssign)
 {
   expression();
 
-  TokenType type;
-  if (parser.previous.type == TOKEN_NUMBER)
-    type = TOKEN_NUMBER;
-  else
-    type = TOKEN_STRING;
-
   consume(TOKEN_RIGHT_BRACKET, "Expected closing ']'");
 
-  // Number means its a list subscript
-  if (type == TOKEN_NUMBER)
+
+  if (match(TOKEN_EQUAL))
   {
-    if (match(TOKEN_EQUAL))
-    {
-      expression();
-      emitByte(OP_SUBSCRIPT_ASSIGN);
-    }
-    else
-      emitByte(OP_SUBSCRIPT);
+    expression();
+    emitByte(OP_SUBSCRIPT_ASSIGN);
   }
   else
-  {
-    // Dict subscript
-    if (match(TOKEN_EQUAL))
-    {
-      expression();
-      emitByte(OP_SUBSCRIPT_DICT_ASSIGN);
-    }
-    else
-      emitByte(OP_SUBSCRIPT_DICT);
-  }
+    emitByte(OP_SUBSCRIPT);
 }
 
 static uint8_t setVariable(Token name, Value value)
@@ -984,6 +976,15 @@ static void function(FunctionType type)
       }
 
       uint8_t paramConstant = parseVariable("Expect parameter name.");
+      if(match(TOKEN_EQUAL))
+      {
+        expression();
+      }
+      else
+      {
+        emitConstant(NUMBER_VAL(current->function->arity));
+      }
+      
       defineVariable(paramConstant);
     } while (match(TOKEN_COMMA));
   }
@@ -1140,6 +1141,7 @@ ParseRule rules[] = {
     {variable, NULL, PREC_NONE},     // TOKEN_IDENTIFIER
     {string, NULL, PREC_NONE},       // TOKEN_STRING
     {number, NULL, PREC_NONE},       // TOKEN_NUMBER
+    {byte, NULL, PREC_NONE},       // TOKEN_BYTE
     {NULL, and_, PREC_AND},          // TOKEN_AND
     {NULL, NULL, PREC_NONE},         // TOKEN_CLASS
     {NULL, NULL, PREC_NONE},         // TOKEN_ELSE
@@ -1156,7 +1158,9 @@ ParseRule rules[] = {
     {literal, NULL, PREC_NONE},      // TOKEN_TRUE
     {NULL, NULL, PREC_NONE},         // TOKEN_VAR
     {NULL, NULL, PREC_NONE},         // TOKEN_WHILE
-    {NULL, binary, PREC_TERM},         // TOKEN_IN
+    {NULL, binary, PREC_TERM},       // TOKEN_IN
+    {NULL, NULL, PREC_NONE},         // TOKEN_CONTINUE
+    {NULL, NULL, PREC_NONE},         // TOKEN_BREAK
     {NULL, NULL, PREC_NONE},         // TOKEN_IMPORT
     {let, NULL, PREC_NONE},          // TOKEN_LET
     {NULL, NULL, PREC_NONE},         // TOKEN_WITH
@@ -1349,6 +1353,7 @@ static void expressionStatement()
 static void forStatement()
 {
   beginScope();
+  current->loopDepth++;
 
   consume(TOKEN_LEFT_PAREN, "Expect '(' after 'for'.");
 
@@ -1406,7 +1411,10 @@ static void forStatement()
     expressionStatement();
   }
 
-  int loopStart = currentChunk()->count;
+  int surroundingLoopStart = innermostLoopStart;
+  int surroundingLoopScopeDepth = innermostLoopScopeDepth;
+  innermostLoopStart = currentChunk()->count;
+  innermostLoopScopeDepth = current->scopeDepth;
 
   int exitJump = -1;
   if (!in && !match(TOKEN_SEMICOLON))
@@ -1435,8 +1443,8 @@ static void forStatement()
     emitByte(OP_POP);
     consume(TOKEN_RIGHT_PAREN, "Expect ')' after for clauses.");
 
-    emitLoop(loopStart);
-    loopStart = incrementStart;
+    emitLoop(innermostLoopStart);
+    innermostLoopStart = incrementStart;
     patchJump(bodyJump);
   }
   else if (in)
@@ -1451,14 +1459,15 @@ static void forStatement()
     emitByte(OP_POP);
     consume(TOKEN_RIGHT_PAREN, "Expect ')' after for clauses.");
 
-    emitLoop(loopStart);
-    loopStart = incrementStart;
+    emitLoop(innermostLoopStart);
+    innermostLoopStart = incrementStart;
     patchJump(bodyJump);
   }
 
   statement();
 
-  emitLoop(loopStart);
+  // Jump back to the beginning (or the increment).
+  emitLoop(innermostLoopStart);
 
   if (exitJump != -1)
   {
@@ -1466,7 +1475,11 @@ static void forStatement()
     emitByte(OP_POP); // Condition.
   }
 
+  innermostLoopStart = surroundingLoopStart;
+  innermostLoopScopeDepth = surroundingLoopScopeDepth;
+
   endScope();
+  current->loopDepth--;
 }
 
 static void ifStatement()
@@ -1493,8 +1506,15 @@ static void withStatement()
 {
   consume(TOKEN_LEFT_PAREN, "Expect '(' after 'with'.");
   expression();
-  consume(TOKEN_COMMA, "Expect comma");
-  expression();
+  if(match(TOKEN_COMMA))
+  {
+    expression();
+  }
+  else
+  {
+    emitConstant(STRING_VAL("r"));
+  }
+  
   consume(TOKEN_RIGHT_PAREN, "Expect ')' after 'with'.");
 
   beginScope();
@@ -1508,7 +1528,6 @@ static void withStatement()
   emitByte(OP_FILE);
 
   statement();
-
 
   getVariable(file);
   emitBytes(OP_INVOKE, 0);
@@ -1569,7 +1588,12 @@ static void importStatement()
 
 static void whileStatement()
 {
-  int loopStart = currentChunk()->count;
+  current->loopDepth++;
+
+  int surroundingLoopStart = innermostLoopStart;
+  int surroundingLoopScopeDepth = innermostLoopScopeDepth;
+  innermostLoopStart = currentChunk()->count;
+  innermostLoopScopeDepth = current->scopeDepth;
 
   consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
   expression();
@@ -1580,10 +1604,77 @@ static void whileStatement()
   emitByte(OP_POP);
   statement();
 
-  emitLoop(loopStart);
+  // Loop back to the start.
+  emitLoop(innermostLoopStart);
 
   patchJump(exitJump);
   emitByte(OP_POP);
+
+  innermostLoopStart = surroundingLoopStart;
+  innermostLoopScopeDepth = surroundingLoopScopeDepth;
+
+  current->loopDepth--;
+}
+
+static void doWhileStatement()
+{
+  current->loopDepth++;
+
+  int surroundingLoopStart = innermostLoopStart;
+  int surroundingLoopScopeDepth = innermostLoopScopeDepth;
+  innermostLoopStart = currentChunk()->count;
+  innermostLoopScopeDepth = current->scopeDepth;
+
+  statement();
+
+  consume(TOKEN_WHILE, "Expected 'while' after 'do' body.");
+  consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
+  expression();
+  consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
+  consume(TOKEN_SEMICOLON, "Expected semicolon after 'do while'");
+
+  int exitJump = emitJump(OP_JUMP_IF_FALSE);
+
+  emitByte(OP_POP);
+
+  // Loop back to the start.
+  emitLoop(innermostLoopStart);
+
+  patchJump(exitJump);
+  emitByte(OP_POP);
+
+  innermostLoopStart = surroundingLoopStart;
+  innermostLoopScopeDepth = surroundingLoopScopeDepth;
+
+  current->loopDepth--;
+}
+
+static void continueStatement()
+{
+  if (innermostLoopStart == -1)
+    error("Cannot use 'continue' outside of a loop.");
+
+  consume(TOKEN_SEMICOLON, "Expect ';' after 'continue'.");
+
+  // Discard any locals created inside the loop.
+  for (int i = current->localCount - 1;
+       i >= 0 && current->locals[i].depth > innermostLoopScopeDepth; i--)
+    emitByte(OP_POP);
+
+  // Jump to top of current innermost loop.
+  emitLoop(innermostLoopStart);
+}
+
+static void breakStatement()
+{
+  if (current->loopDepth == 0)
+  {
+    error("Cannot use 'break' outside of a loop.");
+    return;
+  }
+
+  consume(TOKEN_SEMICOLON, "Expected semicolon after break");
+  emitByte(OP_BREAK);
 }
 
 static void synchronize()
@@ -1605,6 +1696,7 @@ static void synchronize()
     case TOKEN_WHILE:
     case TOKEN_RETURN:
     case TOKEN_IMPORT:
+    case TOKEN_BREAK:
     case TOKEN_WITH:
       return;
 
@@ -1662,12 +1754,50 @@ static void statement()
   {
     importStatement();
   }
+  else if (match(TOKEN_BREAK))
+  {
+    breakStatement();
+  }
+  else if (match(TOKEN_CONTINUE))
+  {
+    continueStatement();
+  }
   else if (match(TOKEN_WHILE))
   {
     whileStatement();
   }
+  else if (match(TOKEN_DO))
+  {
+    doWhileStatement();
+  }
   else if (match(TOKEN_LEFT_BRACE))
   {
+    Token previous = parser.previous;
+    Token current = parser.current;
+    if (check(TOKEN_STRING))
+    {
+      for (int i = 0;
+           i < parser.current.length - parser.previous.length + 1; ++i)
+        backTrack();
+
+      parser.current = previous;
+      expressionStatement();
+      return;
+    }
+    else if (check(TOKEN_RIGHT_BRACE))
+    {
+      advance();
+      if (check(TOKEN_SEMICOLON))
+      {
+        backTrack();
+        backTrack();
+        parser.current = previous;
+        expressionStatement();
+        return;
+      }
+    }
+    parser.current = current;
+
     beginScope();
     block();
     endScope();

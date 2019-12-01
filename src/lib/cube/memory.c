@@ -140,6 +140,7 @@ static void blackenObject(Obj *object)
   case OBJ_NATIVE:
   case OBJ_STRING:
   case OBJ_FILE:
+  case OBJ_BYTES:
     break;
   }
 }
@@ -218,12 +219,21 @@ static void freeObject(Obj *object)
     break;
   }
 
-  case OBJ_FILE: {
-      ObjFile *file = (ObjFile *)object;
-      freeFile(file);
-			FREE(ObjFile, object);
-			break;
-		}
+  case OBJ_FILE:
+  {
+    ObjFile *file = (ObjFile *)object;
+    freeFile(file);
+    FREE(ObjFile, object);
+    break;
+  }
+
+  case OBJ_BYTES:
+  {
+    ObjBytes *bytes = (ObjBytes *)object;
+    FREE_ARRAY(char, bytes->bytes, bytes->length);
+    FREE(ObjBytes, object);
+    break;
+  }
 
   case OBJ_UPVALUE:
     FREE(ObjUpvalue, object);
@@ -314,53 +324,53 @@ void freeObjects()
 
 void freeList(Obj *object)
 {
-	if (object->type == OBJ_LIST)
-    {
-		ObjList *list = (ObjList *)object;
-		freeValueArray(&list->values);
-		FREE(ObjList, list);
-	}
-    else
-    {
-		ObjDict *dict = (ObjDict *)object;
-		freeDict(dict);
-	}
+  if (object->type == OBJ_LIST)
+  {
+    ObjList *list = (ObjList *)object;
+    freeValueArray(&list->values);
+    FREE(ObjList, list);
+  }
+  else
+  {
+    ObjDict *dict = (ObjDict *)object;
+    freeDict(dict);
+  }
 }
 
 void freeLists()
 {
-	Obj *object = vm.listObjects;
-	while (object != NULL)
-    {
-		Obj *next = object->next;
-		freeList(object);
-		object = next;
-	}
+  Obj *object = vm.listObjects;
+  while (object != NULL)
+  {
+    Obj *next = object->next;
+    freeList(object);
+    object = next;
+  }
 }
 
 void freeDictValue(dictItem *dictItem)
 {
-	free(dictItem->key);
-	free(dictItem);
+  free(dictItem->key);
+  free(dictItem);
 }
 
 void freeDict(ObjDict *dict)
 {
-	for (int i = 0; i < dict->capacity; i++)
+  for (int i = 0; i < dict->capacity; i++)
+  {
+    dictItem *item = dict->items[i];
+    if (item != NULL)
     {
-		dictItem *item = dict->items[i];
-		if (item != NULL)
-        {
-			freeDictValue(item);
-		}
-	}
-	free(dict->items);
-	free(dict);
+      freeDictValue(item);
+    }
+  }
+  free(dict->items);
+  free(dict);
 }
 
-void freeFile(ObjFile* file)
+void freeFile(ObjFile *file)
 {
-  if(file->isOpen)
+  if (file->isOpen)
   {
     fclose(file->file);
     file->isOpen = false;

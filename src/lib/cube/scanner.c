@@ -31,6 +31,12 @@ static bool isDigit(char c)
   return c >= '0' && c <= '9';
 }
 
+static bool isHex(char c)
+{
+  return (c >= '0' && c <= '9') ||
+         (c >= 'A' && c <= 'F');
+}
+
 static bool isAtEnd()
 {
   return *scanner.current == '\0';
@@ -167,8 +173,20 @@ static TokenType identifierType()
   {
   case 'a':
     return checkKeyword(1, 2, "nd", TOKEN_AND);
+  case 'b':
+    return checkKeyword(1, 4, "reak", TOKEN_BREAK);
   case 'c':
-    return checkKeyword(1, 4, "lass", TOKEN_CLASS);
+    if (scanner.current - scanner.start > 1)
+      switch (scanner.start[1])
+      {
+      case 'l':
+        return checkKeyword(2, 3, "ass", TOKEN_CLASS);
+      case 'o':
+        return checkKeyword(2, 6, "ntinue", TOKEN_CONTINUE);
+      }
+    break;
+  case 'd':
+    return checkKeyword(1, 1, "o", TOKEN_DO);
   case 'e':
     return checkKeyword(1, 3, "lse", TOKEN_ELSE);
   case 'f':
@@ -276,6 +294,16 @@ static Token number()
     while (isDigit(peek()))
       advance();
   }
+  else if(peek() == 'x' && isHex(peekNext()))
+  {
+      // consum the 'x'
+      advance();
+
+      while (isHex(peek()))
+        advance();
+
+      return makeToken(TOKEN_BYTE);
+  }
 
   return makeToken(TOKEN_NUMBER);
 }
@@ -295,6 +323,8 @@ static Token string(char c)
   advance();
   return makeToken(TOKEN_STRING);
 }
+
+void backTrack() { scanner.current--; }
 
 Token scanToken()
 {
