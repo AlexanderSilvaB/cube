@@ -1,5 +1,5 @@
-#ifndef caboose_files_h
-#define caboose_files_h
+#ifndef CUBE_files_h
+#define CUBE_files_h
 
 #include <stdio.h>
 #include <stdbool.h>

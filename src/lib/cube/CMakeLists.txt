@@ -14,7 +14,8 @@ set(SRC cube.c
         util.c 
         strings.c
         collections.c
-        files.c)
+        files.c
+        linkedList.c)
 
 add_library(cube ${SRC})
 target_link_libraries(cube m)

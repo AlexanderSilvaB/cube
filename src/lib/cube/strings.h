@@ -1,5 +1,5 @@
-#ifndef caboose_strings_h
-#define caboose_strings_h
+#ifndef CUBE_strings_h
+#define CUBE_strings_h
 
 #include <stdbool.h>
 #include <stdlib.h>

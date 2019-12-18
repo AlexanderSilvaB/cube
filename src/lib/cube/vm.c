@@ -122,30 +122,14 @@ void initVM(const char *path, const char *scriptName)
   vm.newLine = false;
 
   // STD
-  defineNative("clock", clockNative);
-  defineNative("time", timeNative);
-  defineNative("exit", exitNative);
-  defineNative("input", inputNative);
-  defineNative("print", printNative);
-  defineNative("println", printlnNative);
-  defineNative("random", randomNative);
-  defineNative("bool", boolNative);
-  defineNative("num", numNative);
-  defineNative("int", intNative);
-  defineNative("str", strNative);
-  defineNative("list", listNative);
-  defineNative("bytes", bytesNative);
-  defineNative("ceil", ceilNative);
-  defineNative("floor", floorNative);
-  defineNative("round", roundNative);
-  defineNative("pow", powNative);
-  defineNative("exp", expNative);
-  defineNative("len", lenNative);
-  defineNative("type", typeNative);
-  defineNative("env", envNative);
-  defineNative("open", openNative);
-  defineNative("make", makeNative);
-  defineNative("copy", copyNative);
+  initStd();
+  do
+  {
+    std_fn *stdFn = linked_list_get(stdFnList);
+    if(stdFn != NULL)
+      defineNative(stdFn->name, stdFn->fn);
+  } while (linked_list_next(&stdFnList));
+  destroyStd();
 }
 
 void freeVM()
@@ -324,7 +308,7 @@ static bool invoke(ObjString *name, int argCount)
   Value value;
   if (tableGet(&instance->fields, name, &value))
   {
-    vm.stackTop[-argCount] = value;
+    vm.stackTop[-argCount-1] = value; 
     return callValue(value, argCount);
   }
 
@@ -502,6 +486,72 @@ Value envVariable(ObjString *name)
   return NONE_VAL;
 }
 
+bool subscriptString(Value stringValue, Value indexValue, Value *result)
+{
+  if (!(IS_NUMBER(indexValue) || IS_LIST(indexValue)))
+  {
+    runtimeError("String index must be a number or a list.");
+    return false;
+  }
+
+  ObjString *string = AS_STRING(stringValue);
+  if (IS_NUMBER(indexValue))
+  {
+    int index = AS_NUMBER(indexValue);
+
+    if (index < 0)
+      index = string->length + index;
+    if (index >= 0 && index < string->length)
+    {
+      char str[2];
+      str[0] = string->chars[index];
+      str[1] = '\0';
+      *result = STRING_VAL(str);
+      return true;
+    }
+
+    runtimeError("String index out of bounds.");
+    return false;
+  }
+  else
+  {
+    ObjList *indexes = AS_LIST(indexValue);
+    char *str = ALLOCATE(char, indexes->values.count + 1);
+    int strI = 0;
+    for (int i = 0; i < indexes->values.count; i++)
+    {
+      Value innerIndexValue = indexes->values.values[i];
+      if (!IS_NUMBER(innerIndexValue))
+      {
+        FREE_ARRAY(char, str, indexes->values.count + 1);
+        runtimeError("String index must be a number.");
+        return false;
+      }
+
+      int index = AS_NUMBER(innerIndexValue);
+
+      if (index < 0)
+        index = string->length + index;
+      if (index >= 0 && index < string->length)
+      {
+        str[strI] = string->chars[index];
+        strI++;
+      }
+      else
+      {
+        FREE_ARRAY(char, str, indexes->values.count + 1);
+        runtimeError("String index out of bounds.");
+        return false;
+      }
+    }
+    str[strI] = '\0';
+
+    *result = STRING_VAL(str);
+    return true;
+  }
+  return false;
+}
+
 bool subscriptList(Value listValue, Value indexValue, Value *result)
 {
   if (!(IS_NUMBER(indexValue) || IS_LIST(indexValue)))
@@ -579,8 +629,7 @@ bool subscript(Value container, Value indexValue, Value *result)
 {
   if (IS_STRING(container))
   {
-    runtimeError("String substring not implemented yet.");
-    return false;
+    return subscriptString(container, indexValue, result);
   }
   else if (IS_LIST(container))
   {
@@ -968,8 +1017,10 @@ static InterpretResult run()
       BINARY_OP(BOOL_VAL, >);
       break;
     case OP_LESS:
+    {
       BINARY_OP(BOOL_VAL, <);
       break;
+    }
     case OP_ADD:
     {
       if (IS_STRING(peek(1)))
@@ -1138,6 +1189,13 @@ static InterpretResult run()
 
     case OP_IMPORT:
     {
+      Value asValue = pop();
+      ObjString *as = NULL;
+      if(IS_STRING(asValue))
+      {
+        as = AS_STRING(asValue);
+      }
+
       ObjString *fileName = AS_STRING(pop());
       char *s = readFile(fileName->chars, false);
       int index = 0;
@@ -1157,6 +1215,16 @@ static InterpretResult run()
         return INTERPRET_RUNTIME_ERROR;
       }
       vm.currentScriptName = fileName->chars;
+
+      if(as == NULL)
+      {
+        printf("Import globally\n");
+      }
+      else
+      {
+        printf("Import as '%s'\n", as->chars);
+      }
+      
 
       ObjFunction *function = compile(s);
       if (function == NULL)

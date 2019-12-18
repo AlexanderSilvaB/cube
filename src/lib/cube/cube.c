@@ -7,6 +7,8 @@
 
 void start(const char* path, const char* scriptName)
 {
+    //signal(SIGQUIT, handle_sigint);
+
     char *folder = getFolder(path);
     initVM(folder, scriptName);
 }
@@ -51,6 +53,24 @@ void stopCube()
     stop();
 }
 
+/*
+char *readLine(const char* str)
+{
+    printf("%s", str);
+
+    int buffSz = 1024;
+    char *line = (char*)malloc(buffSz);
+    if (!fgets(line, sizeof(line), stdin))
+    {
+        printf("\n");
+        free(line);
+        return NULL;
+    }
+
+    return line;
+}
+*/
+
 int repl()
 {
     char line[1024];
@@ -62,8 +82,7 @@ int repl()
             printf("\n");
             break;
         }
-
-        //interpret(line, NULL, false);
+        
         interpret(line);
         if(vm.newLine)
         {

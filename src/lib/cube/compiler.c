@@ -6,6 +6,7 @@
 #include "compiler.h"
 #include "memory.h"
 #include "scanner.h"
+#include "util.h"
 
 #ifdef DEBUG_PRINT_CODE
 #include "debug.h"
@@ -665,7 +666,8 @@ static void number(bool canAssign)
 static void byte(bool canAssign)
 {
   int value = strtol(parser.previous.start, NULL, 0);
-  emitConstant(NUMBER_VAL(value));
+  int sz = countBytes(&value, sizeof(int));
+  emitConstant(BYTES_VAL(&value, sz));
 }
 
 static void or_(bool canAssign)
@@ -726,7 +728,6 @@ static void subscript(bool canAssign)
 
   consume(TOKEN_RIGHT_BRACKET, "Expected closing ']'");
 
-
   if (match(TOKEN_EQUAL))
   {
     expression();
@@ -734,6 +735,31 @@ static void subscript(bool canAssign)
   }
   else
     emitByte(OP_SUBSCRIPT);
+}
+
+static uint8_t setVariablePop(Token name)
+{
+  uint8_t getOp, setOp;
+  int arg = resolveLocal(current, &name);
+  if (arg != -1)
+  {
+    getOp = OP_GET_LOCAL;
+    setOp = OP_SET_LOCAL;
+  }
+  else if ((arg = resolveUpvalue(current, &name)) != -1)
+  {
+    getOp = OP_GET_UPVALUE;
+    setOp = OP_SET_UPVALUE;
+  }
+  else
+  {
+    arg = identifierConstant(&name);
+    getOp = OP_GET_GLOBAL;
+    setOp = OP_SET_GLOBAL;
+  }
+
+  emitBytes(setOp, (uint8_t)arg);
+  return (uint8_t)arg;
 }
 
 static uint8_t setVariable(Token name, Value value)
@@ -976,7 +1002,7 @@ static void function(FunctionType type)
       }
 
       uint8_t paramConstant = parseVariable("Expect parameter name.");
-      if(match(TOKEN_EQUAL))
+      if (match(TOKEN_EQUAL))
       {
         expression();
       }
@@ -984,7 +1010,7 @@ static void function(FunctionType type)
       {
         emitConstant(NUMBER_VAL(current->function->arity));
       }
-      
+
       defineVariable(paramConstant);
     } while (match(TOKEN_COMMA));
   }
@@ -1096,7 +1122,7 @@ static void let(bool canAssign)
 
   consume(TOKEN_RIGHT_PAREN, "Expect ')' after 'let' expressions.");
 
-  consume(TOKEN_LEFT_BRACE, "Expect '{' before 'slet' body.");
+  consume(TOKEN_LEFT_BRACE, "Expect '{' before 'let' body.");
   while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF))
   {
     declaration(true);
@@ -1141,7 +1167,7 @@ ParseRule rules[] = {
     {variable, NULL, PREC_NONE},     // TOKEN_IDENTIFIER
     {string, NULL, PREC_NONE},       // TOKEN_STRING
     {number, NULL, PREC_NONE},       // TOKEN_NUMBER
-    {byte, NULL, PREC_NONE},       // TOKEN_BYTE
+    {byte, NULL, PREC_NONE},         // TOKEN_BYTE
     {NULL, and_, PREC_AND},          // TOKEN_AND
     {NULL, NULL, PREC_NONE},         // TOKEN_CLASS
     {NULL, NULL, PREC_NONE},         // TOKEN_ELSE
@@ -1162,6 +1188,7 @@ ParseRule rules[] = {
     {NULL, NULL, PREC_NONE},         // TOKEN_CONTINUE
     {NULL, NULL, PREC_NONE},         // TOKEN_BREAK
     {NULL, NULL, PREC_NONE},         // TOKEN_IMPORT
+    {NULL, NULL, PREC_NONE},         // TOKEN_AS
     {let, NULL, PREC_NONE},          // TOKEN_LET
     {NULL, NULL, PREC_NONE},         // TOKEN_WITH
     {NULL, NULL, PREC_NONE},         // TOKEN_ERROR
@@ -1350,6 +1377,18 @@ static void expressionStatement()
   emitByte(OP_POP);
 }
 
+static uint8_t createSyntheticVariable(const char *name, Token *token)
+{
+  *token = syntheticToken(name);
+  declareNamedVariable(token);
+  uint8_t it;
+  if (current->scopeDepth > 0)
+    it = 0;
+  else
+    it = identifierConstant(token);
+  return it;
+}
+
 static void forStatement()
 {
   beginScope();
@@ -1359,8 +1398,11 @@ static void forStatement()
 
   bool in = false;
   uint8_t name;
-  uint8_t it;
-  Token loopVar;
+  uint8_t it, var, cond;
+  Token nameVar, loopVar, valVar, condVar;
+  int exitJump = -1;
+  int surroundingLoopStart;
+  int surroundingLoopScopeDepth;
 
   if (match(TOKEN_SEMICOLON))
   {
@@ -1368,8 +1410,8 @@ static void forStatement()
   }
   else if (match(TOKEN_VAR))
   {
-    /*
     name = parseVariable("Expect variable name.");
+    nameVar = parser.previous;
     if (match(TOKEN_EQUAL))
     {
       expression();
@@ -1378,9 +1420,27 @@ static void forStatement()
     {
       if (match(TOKEN_IN))
       {
+        emitByte(OP_NONE);
+        defineVariable(name);
+
+        var = createSyntheticVariable("__value", &valVar);
         expression();
+        defineVariable(var);
+
+        it = createSyntheticVariable("__index", &loopVar);
         emitConstant(NUMBER_VAL(0));
+        defineVariable(it);
+
+        cond = createSyntheticVariable("__cond", &condVar);
+        emitConstant(NUMBER_VAL(0));
+        defineVariable(cond);
+
+        /*
+        getVariable(valVar);
+        getVariable(loopVar);
         emitByte(OP_SUBSCRIPT);
+        setVariablePop(nameVar);
+        */
 
         in = true;
       }
@@ -1389,34 +1449,21 @@ static void forStatement()
     }
 
     if (!in)
-      consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
-
-    defineVariable(name);
-    if (in)
     {
-      loopVar = syntheticToken("loop_variable_i");
-      declareNamedVariable(&loopVar);
-      if (current->scopeDepth > 0)
-        it = 0;
-      else
-        it = identifierConstant(&loopVar);
-      emitConstant(NUMBER_VAL(0));
-      defineVariable(it);
+      consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
+      defineVariable(name);
     }
-    */
-    varDeclaration(true);
   }
   else
   {
     expressionStatement();
   }
 
-  int surroundingLoopStart = innermostLoopStart;
-  int surroundingLoopScopeDepth = innermostLoopScopeDepth;
+  surroundingLoopStart = innermostLoopStart;
+  surroundingLoopScopeDepth = innermostLoopScopeDepth;
   innermostLoopStart = currentChunk()->count;
   innermostLoopScopeDepth = current->scopeDepth;
 
-  int exitJump = -1;
   if (!in && !match(TOKEN_SEMICOLON))
   {
     expression();
@@ -1427,8 +1474,14 @@ static void forStatement()
   }
   else if (in)
   {
+    beginSyntheticCall("len");
+    getVariable(valVar);
+    endSyntheticCall(1);
+    setVariablePop(condVar);
+
     getVariable(loopVar);
-    emitConstant(NUMBER_VAL(2));
+    getVariable(condVar);
+    //emitConstant(NUMBER_VAL(5));
     emitByte(OP_LESS);
     exitJump = emitJump(OP_JUMP_IF_FALSE);
     emitByte(OP_POP); // Condition.
@@ -1452,16 +1505,24 @@ static void forStatement()
     int bodyJump = emitJump(OP_JUMP);
     int incrementStart = currentChunk()->count;
 
+    // Increment counter
     getVariable(loopVar);
     emitConstant(NUMBER_VAL(1));
     emitByte(OP_ADD);
-
+    setVariablePop(loopVar);
     emitByte(OP_POP);
+
     consume(TOKEN_RIGHT_PAREN, "Expect ')' after for clauses.");
 
     emitLoop(innermostLoopStart);
     innermostLoopStart = incrementStart;
     patchJump(bodyJump);
+
+    // Set variable
+    getVariable(valVar);
+    getVariable(loopVar);
+    emitByte(OP_SUBSCRIPT);
+    setVariablePop(nameVar);
   }
 
   statement();
@@ -1474,6 +1535,10 @@ static void forStatement()
     patchJump(exitJump);
     emitByte(OP_POP); // Condition.
   }
+
+  setVariable(loopVar, NUMBER_VAL(0));
+  setVariable(condVar, NUMBER_VAL(0));
+  setVariable(valVar, NUMBER_VAL(0));
 
   innermostLoopStart = surroundingLoopStart;
   innermostLoopScopeDepth = surroundingLoopScopeDepth;
@@ -1506,7 +1571,7 @@ static void withStatement()
 {
   consume(TOKEN_LEFT_PAREN, "Expect '(' after 'with'.");
   expression();
-  if(match(TOKEN_COMMA))
+  if (match(TOKEN_COMMA))
   {
     expression();
   }
@@ -1514,7 +1579,7 @@ static void withStatement()
   {
     emitConstant(STRING_VAL("r"));
   }
-  
+
   consume(TOKEN_RIGHT_PAREN, "Expect ')' after 'with'.");
 
   beginScope();
@@ -1570,6 +1635,7 @@ static void importStatement()
     int len = parser.previous.length + strlen(vm.extension) + 1;
     char *str = malloc(sizeof(char) * len);
     strncpy(str, parser.previous.start, parser.previous.length);
+    str[parser.previous.length] = '\0';
     strcat(str, vm.extension);
     emitConstant(OBJ_VAL(copyString(str, strlen(str))));
     free(str);
@@ -1577,10 +1643,35 @@ static void importStatement()
   else
   {
     consume(TOKEN_STRING, "Expect string after import.");
-
     emitConstant(OBJ_VAL(
         copyString(parser.previous.start + 1, parser.previous.length - 2)));
   }
+
+  if(match(TOKEN_AS))
+  {
+    if (match(TOKEN_IDENTIFIER))
+    {
+      int len = parser.previous.length + 1;
+      char *str = malloc(sizeof(char) * len);
+      strncpy(str, parser.previous.start, parser.previous.length);
+      str[parser.previous.length] = '\0';
+      emitConstant(OBJ_VAL(copyString(str, strlen(str))));
+      free(str);
+    }
+    else
+    {
+      consume(TOKEN_STRING, "Expect string after as.");
+
+      emitConstant(OBJ_VAL(
+          copyString(parser.previous.start + 1, parser.previous.length - 2)));
+    }
+  }
+  else
+  {
+    emitByte(OP_NONE);
+  }
+  
+
   consume(TOKEN_SEMICOLON, "Expect ';' after import.");
 
   emitByte(OP_IMPORT);

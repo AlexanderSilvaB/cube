@@ -9,6 +9,8 @@
 #include "object.h"
 #include "vm.h"
 #include "files.h"
+#include "memory.h"
+#include "util.h"
 
 Value clockNative(int argCount, Value *args)
 {
@@ -32,20 +34,6 @@ Value exitNative(int argCount, Value *args)
     }
     exit(code);
     return NONE_VAL;
-}
-
-Value inputNative(int argCount, Value *args)
-{
-    printNative(argCount, args);
-
-    char str[MAX_STRING_INPUT];
-    fgets(str, MAX_STRING_INPUT, stdin);
-    char *pos;
-    if ((pos = strchr(str, '\n')) != NULL)
-        *pos = '\0';
-
-    vm.newLine = false;
-    return OBJ_VAL(copyString(str, strlen(str)));
 }
 
 Value printNative(int argCount, Value *args)
@@ -75,6 +63,20 @@ Value printlnNative(int argCount, Value *args)
     printf("\n");
     vm.newLine = false;
     return NONE_VAL;
+}
+
+Value inputNative(int argCount, Value *args)
+{
+    printNative(argCount, args);
+
+    char str[MAX_STRING_INPUT];
+    fgets(str, MAX_STRING_INPUT, stdin);
+    char *pos;
+    if ((pos = strchr(str, '\n')) != NULL)
+        *pos = '\0';
+
+    vm.newLine = false;
+    return OBJ_VAL(copyString(str, strlen(str)));
 }
 
 Value randomNative(int argCount, Value *args)
@@ -290,6 +292,51 @@ Value makeNative(int argCount, Value *args)
     return NONE_VAL;
 }
 
+Value colorNative(int argCount, Value *args)
+{
+    char *format = "\033[0;m";
+    return STRING_VAL(format);
+}
+
+Value dateNative(int argCount, Value *args)
+{
+    char *format;
+    int len;
+    if (argCount == 0)
+    {
+        len = 4;
+        format = ALLOCATE(char, len);
+        strcpy(format, "%c");
+    }
+    else
+    {
+        ObjString* str = AS_STRING(toString(args[0]));
+        len = str->length * 2;
+        format = ALLOCATE(char, len);
+        strcpy(format, str->chars);
+    }
+    
+    replaceString(format, "YYYY", "%Y");
+    replaceString(format, "YY", "%y");
+    replaceString(format, "MM", "%m");
+    replaceString(format, "mm", "%M");
+    replaceString(format, "ss", "%S");
+    replaceString(format, "hh", "%I");  
+    replaceString(format, "HH", "%H");
+    replaceString(format, "dd", "%d");
+    replaceString(format, "D", "%e");
+
+    time_t rawtime;
+    struct tm * timeinfo;
+    char buffer [256];
+    time (&rawtime);
+    timeinfo = localtime (&rawtime);
+    strftime (buffer, 256, format,timeinfo);
+    Value ret = STRING_VAL(buffer);
+    FREE_ARRAY(char, format, len);
+    return ret;
+}
+
 Value ceilNative(int argCount, Value *args)
 {
     if (argCount == 0)
@@ -441,4 +488,54 @@ Value copyNative(int argCount, Value *args)
     if (argCount == 0)
         return NONE_VAL;
     return copyValue(args[0]);
+}
+
+
+// Register
+linked_list *stdFnList;
+#define ADD_STD(name, fn) linked_list_add(stdFnList, createStdFn(name, fn))
+
+std_fn* createStdFn(const char* name, NativeFn fn)
+{
+    std_fn *stdFn = (std_fn*)malloc(sizeof(std_fn));
+    stdFn->name = name;
+    stdFn->fn = fn;
+    return stdFn;
+}
+
+void initStd()
+{
+    stdFnList = linked_list_create();
+    
+    ADD_STD("clock", clockNative);
+    ADD_STD("time", timeNative);
+    ADD_STD("exit", exitNative);
+    ADD_STD("input", inputNative);
+    ADD_STD("print", printNative);
+    ADD_STD("println", printlnNative);
+    ADD_STD("random", randomNative);
+    ADD_STD("bool", boolNative);
+    ADD_STD("num", numNative);
+    ADD_STD("int", intNative);
+    ADD_STD("str", strNative);
+    ADD_STD("list", listNative);
+    ADD_STD("bytes", bytesNative);
+    ADD_STD("color", colorNative);
+    ADD_STD("date", dateNative);
+    ADD_STD("ceil", ceilNative);
+    ADD_STD("floor", floorNative);
+    ADD_STD("round", roundNative);
+    ADD_STD("pow", powNative);
+    ADD_STD("exp", expNative);
+    ADD_STD("len", lenNative);
+    ADD_STD("type", typeNative);
+    ADD_STD("env", envNative);
+    ADD_STD("open", openNative);
+    ADD_STD("make", makeNative);
+    ADD_STD("copy", copyNative);
+}
+
+void destroyStd()
+{
+    linked_list_destroy(stdFnList, true);
 }

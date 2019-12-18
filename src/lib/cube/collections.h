@@ -1,5 +1,5 @@
-#ifndef caboose_collections_h
-#define caboose_collections_h
+#ifndef CUBE_collections_h
+#define CUBE_collections_h
 
 #include <stdbool.h>
 #include <string.h>
