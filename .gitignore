@@ -23,6 +23,8 @@ build*/
 
 ### Compiled cube files
 *.ccube
+*.so
+*.dll
 
 # End of https://www.gitignore.io/api/cmake
 

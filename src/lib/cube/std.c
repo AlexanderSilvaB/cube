@@ -4,6 +4,7 @@
 #include <string.h>
 #include <time.h>
 #include <math.h>
+#include <ctype.h>
 
 #include "std.h"
 #include "object.h"
@@ -256,6 +257,21 @@ Value strNative(int argCount, Value *args)
 {
     if (argCount == 0)
         return STRING_VAL("");
+    if(IS_BYTES(args[0]))
+    {
+        ObjBytes *bytes = AS_BYTES(args[0]);
+        char *str = malloc(bytes->length + 1);
+        int j = 0;
+        for(int i = 0; i < bytes->length; i++)
+        {
+            if( isprint(bytes->bytes[i]) != 0 || iscntrl(bytes->bytes[i]) != 0)
+                str[j++] = bytes->bytes[i];
+        }
+        str[j] = '\0';
+        Value ret = STRING_VAL(str);
+        free(str);
+        return ret;
+    }
     return toString(args[0]);
 }
 

@@ -1,0 +1,76 @@
+import net;
+
+var s = Socket();
+s.isServer = true;
+s.port = 8080;
+
+println('Starting server');
+if(s.open())
+    println('Server running on {}:{}'.format(s.address, s.port));
+else
+{
+    println('Could not start the server');
+    exit(1);
+}
+
+while(true)
+{
+    println("Waiting a connection");
+    if(s.wait() == false)
+    {
+        println("Could not wait for a connection");
+        exit(1);
+    }
+
+    println("Connection: ", s.client());
+
+    var received = str(s.receive());
+    var page = none;
+
+    var pos = received.find('/');
+    if(pos >= 0)
+    {
+        received = received.from(pos + 1);
+        pos = received.find(' ');
+        if(pos >= 0)
+        {
+            page = received.substr(0, pos);
+        }
+    }
+
+    println('Requested: ', page);
+    
+    var response;
+    if(page == none or len(page) == 0)
+    {
+        var rand = int(random() * 10000000);
+        println("Sending number: ", rand);
+
+        response = 'HTTP/1.1 201 Success\n\n<html><body><center><h3>Random number: {}</h3><h4>No page requested</h4><p>Cube HTTP Server</p></center></body></html>'.format(rand);
+    }
+    else
+    {
+        var f = open(page);
+        if(f == none)
+        {
+            println("Sending error");
+            response = 'HTTP/1.1 404 Not Found\n\n<html><body><center><h3>Page not found: {}</h3><p>Cube HTTP Server</p></center></body></html>'.format(page);
+        }
+        else
+        {
+            println("Sending page: ", page);
+            var contents = f.read();
+            f.close();
+
+            response = 'HTTP/1.1 201 Success\n\n{}'.format(contents);
+        }
+    }
+
+    s.send(response);
+
+    println("Disconnecting");
+    s.disconnect();
+}
+
+println("Stoping server");
+s.close();

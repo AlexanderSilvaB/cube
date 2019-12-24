@@ -700,8 +700,46 @@ static void or_(bool canAssign)
 
 static void string(bool canAssign)
 {
-  emitConstant(OBJ_VAL(copyString(parser.previous.start + 1,
-                                  parser.previous.length - 2)));
+  char *str = malloc(sizeof(char) * parser.previous.length);
+  int j = 0;
+  for(int i = 1; i < parser.previous.length - 1; i++)
+  {
+    if(parser.previous.start[i] == '\\' && i < parser.previous.length - 2)
+    {
+      if(parser.previous.start[i + 1] == 'n')
+      {
+        i++;
+        str[j++] = '\n';
+      }
+      else if(parser.previous.start[i + 1] == 't')
+      {
+        i++;
+        str[j++] = '\t';
+      }
+      else if(parser.previous.start[i + 1] == 'b')
+      {
+        i++;
+        str[j++] = '\b';
+      }
+      else if(parser.previous.start[i + 1] == 'v')
+      {
+        i++;
+        str[j++] = '\v';
+      }
+      else
+      {
+        str[j++] == '\\';
+      }
+      
+    }
+    else
+      str[j++] = parser.previous.start[i];
+  }
+
+  str[j] = '\0';
+
+  emitConstant(STRING_VAL(str));
+  free(str);
 }
 
 static void list(bool canAssign)

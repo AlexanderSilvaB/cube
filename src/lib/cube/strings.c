@@ -206,6 +206,64 @@ static bool replaceString(int argCount) {
 	return true;
 }
 
+static bool substrString(int argCount) {
+	if (argCount != 3) {
+		runtimeError("substr() takes 3 argument (%d  given)", argCount);
+		return false;
+	}
+
+	int length = AS_NUMBER(pop());
+	int start = AS_NUMBER(pop());
+
+	ObjString *string = AS_STRING(pop());
+
+	if(start >= string->length)
+	{
+		runtimeError("start index out of bounds", start);
+		return false;
+	}
+
+	if(start + length > string->length)
+	{
+		length = string->length - start;
+	}
+
+	char *temp = malloc(sizeof(char) * (length + 1));
+	strncpy(temp, string->chars + start, length);
+	temp[length] = '\0';
+
+	push(STRING_VAL(temp));
+	free(temp);
+	return true;
+}
+
+static bool fromString(int argCount) {
+	if (argCount != 2) {
+		runtimeError("from() takes 2 argument (%d  given)", argCount);
+		return false;
+	}
+
+	int start = AS_NUMBER(pop());
+
+	ObjString *string = AS_STRING(pop());
+
+	if(start >= string->length)
+	{
+		runtimeError("start index out of bounds", start);
+		return false;
+	}
+
+	int length = string->length - start;
+
+	char *temp = malloc(sizeof(char) * (length + 1));
+	strncpy(temp, string->chars + start, length);
+	temp[length] = '\0';
+
+	push(STRING_VAL(temp));
+	free(temp);
+	return true;
+}
+
 static bool lowerString(int argCount) {
 	if (argCount != 1) {
 		runtimeError("lower() takes 1 argument (%d  given)", argCount);
@@ -456,6 +514,10 @@ bool stringMethods(char *method, int argCount) {
 		return stripString(argCount);
 	else if (strcmp(method, "format") == 0)
 		return formatString(argCount);
+	else if (strcmp(method, "from") == 0)
+		return fromString(argCount);
+	else if (strcmp(method, "substr") == 0)
+		return substrString(argCount);
 
 	runtimeError("String has no method %s()", method);
 	return false;

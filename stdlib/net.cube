@@ -1,0 +1,81 @@
+native stdlib/libs/libnet
+{
+    num tcp_udp_socket_create(num, str, bool, bool, bool, bool, num);
+    bool tcp_udp_socket_close(num);
+    num tcp_udp_socket_send(num, bytes);
+    num tcp_udp_socket_send_to(num, str, bytes);
+    bytes tcp_udp_socket_receive(num);
+    bool tcp_udp_socket_wait(num);
+    void tcp_udp_socket_disconnect(num);
+    str tcp_udp_socket_client(num);
+}
+
+class Socket
+{
+    var address = "127.0.0.1";
+    var port = 9999;
+    var udp = false;
+    var broadcast = false;
+    var reuseSocket = true;
+    var isServer = false;
+    var timeout = 1000;
+
+    var pointer = none;
+
+    func init()
+    {
+        
+    }
+
+    func open()
+    {
+        this.pointer = tcp_udp_socket_create(   this.port,
+                                                this.address,
+                                                this.udp,
+                                                this.broadcast,
+                                                this.reuseSocket,
+                                                this.isServer,
+                                                this.timeout);
+
+        return this.pointer != none;
+    }
+
+    func close()
+    {
+        return tcp_udp_socket_close(this.pointer);
+    }
+
+    func send(data)
+    {
+        if(type(data) != 'bytes')
+            data = bytes(data);
+        return tcp_udp_socket_send(this.pointer, data);
+    }
+
+    func sendTo(data)
+    {
+        if(type(data) != 'bytes')
+            data = bytes(data);
+        return tcp_udp_socket_send_to(this.pointer, data);
+    }
+
+    func receive()
+    {
+        return tcp_udp_socket_receive(this.pointer);
+    }
+
+    func wait()
+    {
+        return tcp_udp_socket_wait(this.pointer);
+    }
+
+    func disconnect()
+    {
+        return tcp_udp_socket_disconnect(this.pointer);
+    }
+
+    func client()
+    {
+        return tcp_udp_socket_client(this.pointer);
+    }
+}

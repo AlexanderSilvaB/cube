@@ -1714,9 +1714,14 @@ static InterpretResult run()
       ObjNativeFunc *func = initNativeFunc();
 
       int arity = AS_NUMBER(pop());
+      for(int i = arity - 1; i >= 0; i--)
+      {
+        writeValueArray(&func->params, peek(i));
+      }
+
       while (arity > 0)
       {
-        writeValueArray(&func->params, pop());
+        pop();
         arity--;
       }
 

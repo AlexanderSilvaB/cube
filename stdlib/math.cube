@@ -21,16 +21,30 @@ func abs(x)
     return y;
 }
 
-func min(a, b)
+func min()
 {
-    if(a < b)
-        return a;
-    return b;
+    if(len(args) == 0)
+        return none;
+
+    var m = args[0];
+    for(var a in args)
+    {
+        if(a < m)
+            m = a;
+    }
+    return m;
 }
 
 func max(a, b)
 {
-    if(a > b)
-        return a;
-    return b;
+    if(len(args) == 0)
+        return none;
+
+    var m = args[0];
+    for(var a in args)
+    {
+        if(a > m)
+            m = a;
+    }
+    return m;
 }
