@@ -13,6 +13,7 @@
 
 #define IS_BOUND_METHOD(value) isObjType(value, OBJ_BOUND_METHOD)
 #define IS_CLASS(value) isObjType(value, OBJ_CLASS)
+#define IS_NAMESPACE(value) isObjType(value, OBJ_NAMESPACE)
 #define IS_CLOSURE(value) isObjType(value, OBJ_CLOSURE)
 #define IS_FUNCTION(value) isObjType(value, OBJ_FUNCTION)
 #define IS_INSTANCE(value) isObjType(value, OBJ_INSTANCE)
@@ -20,11 +21,14 @@
 #define IS_STRING(value) isObjType(value, OBJ_STRING)
 #define IS_LIST(value) isObjType(value, OBJ_LIST)
 #define IS_DICT(value) isObjType(value, OBJ_DICT)
-#define IS_FILE(value)          isObjType(value, OBJ_FILE)
-#define IS_BYTES(value)          isObjType(value, OBJ_BYTES)
+#define IS_FILE(value) isObjType(value, OBJ_FILE)
+#define IS_BYTES(value) isObjType(value, OBJ_BYTES)
+#define IS_NATIVE_FUNC(value) isObjType(value, OBJ_NATIVE_FUNC)
+#define IS_NATIVE_LIB(value) isObjType(value, OBJ_NATIVE_LIB)
 
 #define AS_BOUND_METHOD(value) ((ObjBoundMethod *)AS_OBJ(value))
 #define AS_CLASS(value) ((ObjClass *)AS_OBJ(value))
+#define AS_NAMESPACE(value) ((ObjNamespace *)AS_OBJ(value))
 #define AS_CLOSURE(value) ((ObjClosure *)AS_OBJ(value))
 #define AS_FUNCTION(value) ((ObjFunction *)AS_OBJ(value))
 #define AS_INSTANCE(value) ((ObjInstance *)AS_OBJ(value))
@@ -36,6 +40,8 @@
 #define AS_FILE(value)          ((ObjFile*)AS_OBJ(value))
 #define AS_BYTES(value)          ((ObjBytes*)AS_OBJ(value))
 #define AS_CBYTES(value) (((ObjBytes *)AS_OBJ(value))->bytes)
+#define AS_NATIVE_FUNC(value)          ((ObjNativeFunc*)AS_OBJ(value))
+#define AS_NATIVE_LIB(value)          ((ObjNativeLib*)AS_OBJ(value))
 
 #define STRING_VAL(str) (OBJ_VAL(copyString(str, strlen(str))))
 #define BYTES_VAL(data, len) (OBJ_VAL(copyBytes(data, len)))
@@ -46,6 +52,7 @@ typedef enum
 {
   OBJ_BOUND_METHOD,
   OBJ_CLASS,
+  OBJ_NAMESPACE,
   OBJ_CLOSURE,
   OBJ_FUNCTION,
   OBJ_INSTANCE,
@@ -55,6 +62,8 @@ typedef enum
   OBJ_DICT,
   OBJ_FILE,
   OBJ_BYTES,
+  OBJ_NATIVE_FUNC,
+  OBJ_NATIVE_LIB,
   OBJ_UPVALUE
 } ObjType;
 
@@ -160,6 +169,16 @@ typedef struct sObjClass
   Table fields;
 } ObjClass;
 
+typedef struct sObjNamespace
+{
+  Obj obj;
+  ObjString *name;
+  Table methods;
+  Table fields;
+  struct sObjNamespace* enclosing;
+  int frameCount;
+} ObjNamespace;
+
 typedef struct
 {
   Obj obj;
@@ -174,12 +193,32 @@ typedef struct
   ObjClosure *method;
 } ObjBoundMethod;
 
+typedef struct
+{
+  Obj obj;
+  ObjString *name;
+  int functions;
+  void *handle;
+} ObjNativeLib;
+
+typedef struct
+{
+  Obj obj;
+  ObjString *name;
+  ObjString *returnType;
+  ObjNativeLib *lib;
+  ValueArray params;
+} ObjNativeFunc;
+
 ObjBoundMethod *newBoundMethod(Value receiver, ObjClosure *method);
 ObjClass *newClass(ObjString *name);
+ObjNamespace *newNamespace(ObjString *name);
 ObjClosure *newClosure(ObjFunction *function);
 ObjFunction *newFunction();
 ObjInstance *newInstance(ObjClass *klass);
 ObjNative *newNative(NativeFn function);
+ObjNativeFunc *initNativeFunc();
+ObjNativeLib *initNativeLib();
 ObjString *takeString(char *chars, int length);
 ObjString *copyString(const char *chars, int length);
 ObjList *initList();
@@ -191,7 +230,7 @@ ObjUpvalue *newUpvalue(Value *slot);
 ObjBytes *copyBytes(const void *bytes, int length);
 void appendBytes(ObjBytes *dest, ObjBytes *src);
 
-char *objectToString(Value value);
+char *objectToString(Value value, bool literal);
 char *objectType(Value value);
 ObjBytes* objectToBytes(Value value);
 

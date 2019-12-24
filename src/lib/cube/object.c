@@ -58,6 +58,15 @@ ObjClass *newClass(ObjString *name)
 	return klass;
 }
 
+ObjNamespace *newNamespace(ObjString *name)
+{
+	ObjNamespace *namespace = ALLOCATE_OBJ(ObjNamespace, OBJ_NAMESPACE);
+	namespace->name = name;
+	initTable(&namespace->methods);
+	initTable(&namespace->fields);
+	return namespace;
+}
+
 ObjClosure *newClosure(ObjFunction *function)
 {
 	ObjUpvalue **upvalues = ALLOCATE(ObjUpvalue *, function->upvalueCount);
@@ -133,6 +142,25 @@ ObjDict *initDict()
 {
 	ObjDict *dict = initDictValues(8);
 	return dict;
+}
+
+ObjNativeFunc *initNativeFunc()
+{
+	ObjNativeFunc *nativeFunc = ALLOCATE_OBJ(ObjNativeFunc, OBJ_NATIVE_FUNC);
+	initValueArray(&nativeFunc->params);
+	nativeFunc->name = NULL;
+	nativeFunc->returnType = NULL;
+	nativeFunc->lib = NULL;
+	return nativeFunc;
+}
+
+ObjNativeLib *initNativeLib()
+{
+	ObjNativeLib *nativeLib = ALLOCATE_OBJ(ObjNativeLib, OBJ_NATIVE_LIB);
+	nativeLib->name = NULL;
+	nativeLib->functions = 0;
+	nativeLib->handle = NULL;
+	return nativeLib;
 }
 
 ObjFile *initFile()
@@ -212,7 +240,7 @@ static void printFunction(ObjFunction *function)
 	printf("<fn %s>", function->name->chars);
 }
 
-char *objectToString(Value value)
+char *objectToString(Value value, bool literal)
 {
 	Obj *obj = AS_OBJ(value);
 	ObjType tp = obj->type;
@@ -226,6 +254,16 @@ char *objectToString(Value value)
 		snprintf(classString, klass->name->length + 9, "<class %s>",
 				 klass->name->chars);
 		return classString;
+	}
+
+	case OBJ_NAMESPACE:
+	{
+		ObjNamespace *namespace = AS_NAMESPACE(value);
+		char *namespaceString =
+			malloc(sizeof(char) * (namespace->name->length + 14));
+		snprintf(namespaceString, namespace->name->length + 13, "<namespace %s>",
+				 namespace->name->chars);
+		return namespaceString;
 	}
 
 	case OBJ_BOUND_METHOD:
@@ -253,9 +291,22 @@ char *objectToString(Value value)
 	case OBJ_FUNCTION:
 	{
 		ObjFunction *function = AS_FUNCTION(value);
-		char *functionString = malloc(sizeof(char) * (function->name->length + 8));
-		snprintf(functionString, function->name->length + 8, "<func %s>",
-				 function->name->chars);
+		char *nameStr = NULL;
+		int nameLen = 0;
+		if (function->name != NULL)
+		{
+			nameStr = function->name->chars;
+			nameLen = function->name->length;
+		}
+		else
+		{
+			nameStr = (char *)vm.scriptName;
+			nameLen = strlen(nameStr);
+		}
+
+		char *functionString = malloc(sizeof(char) * (nameLen + 8));
+		snprintf(functionString, nameLen + 8, "<func %s>",
+				 nameStr);
 		return functionString;
 	}
 
@@ -280,7 +331,10 @@ char *objectToString(Value value)
 	{
 		ObjString *stringObj = AS_STRING(value);
 		char *string = malloc(sizeof(char) * stringObj->length + 3);
-		snprintf(string, stringObj->length + 3, "'%s'", stringObj->chars);
+		if(literal)
+			snprintf(string, stringObj->length + 3, "'%s'", stringObj->chars);
+		else
+			snprintf(string, stringObj->length + 3, "%s", stringObj->chars);
 		return string;
 	}
 
@@ -291,6 +345,48 @@ char *objectToString(Value value)
 		snprintf(fileString, strlen(file->path) + 9, "<file %s%s>",
 				 file->path, file->isOpen ? "*" : "");
 		return fileString;
+	}
+
+	case OBJ_NATIVE_FUNC:
+	{
+		ObjNativeFunc *func = AS_NATIVE_FUNC(value);
+
+		int len = 4 + func->name->length + func->returnType->length;
+		for (int i = 0; i < func->params.count; i++)
+			len += AS_STRING(func->params.values[i])->length + 2;
+		len += 3;
+		if(func->lib != NULL)
+		{
+			len += func->lib->name->length;
+		}
+
+		char *str = malloc(sizeof(char) * len);
+		sprintf(str, "%s %s(", func->returnType->chars, func->name->chars);
+		for (int i = 0; i < func->params.count; i++)
+		{
+			if (i < func->params.count - 1)
+				sprintf(str + strlen(str), "%s, ", AS_STRING(func->params.values[i])->chars);
+			else
+				sprintf(str + strlen(str), "%s", AS_STRING(func->params.values[i])->chars);
+		}
+		sprintf(str + strlen(str), ") [");
+		if(func->lib != NULL)
+		{
+			sprintf(str + strlen(str), "%s", func->lib->name->chars);
+		}
+		sprintf(str + strlen(str), "]");
+		return str;
+	}
+
+	case OBJ_NATIVE_LIB:
+	{
+		ObjNativeLib *lib = AS_NATIVE_LIB(value);
+
+		int len = 18 + lib->name->length;
+
+		char *str = malloc(sizeof(char) * len);
+		sprintf(str, "<native lib '%s'>", lib->name->chars);
+		return str;
 	}
 
 	case OBJ_BYTES:
@@ -314,7 +410,7 @@ char *objectToString(Value value)
 
 		for (int i = 0; i < list->values.count; ++i)
 		{
-			char *element = valueToString(list->values.values[i]);
+			char *element = valueToString(list->values.values[i], true);
 
 			int elementSize = strlen(element);
 			int listStringSize = strlen(listString);
@@ -394,7 +490,7 @@ char *objectToString(Value value)
 			strncat(dictString, dictKeyString, size - dictStringSize - 1);
 			free(dictKeyString);
 
-			char *element = valueToString(item->item);
+			char *element = valueToString(item->item, true);
 			int elementSize = strlen(element);
 
 			if (elementSize > (size - dictStringSize - 1))
@@ -450,6 +546,13 @@ char *objectType(Value value)
 	{
 		char *str = malloc(sizeof(char) * 7);
 		snprintf(str, 6, "class");
+		return str;
+	}
+
+	case OBJ_NAMESPACE:
+	{
+		char *str = malloc(sizeof(char) * 11);
+		snprintf(str, 10, "namespace");
 		return str;
 	}
 
@@ -528,6 +631,20 @@ char *objectType(Value value)
 	{
 		char *str = malloc(sizeof(char) * 9);
 		snprintf(str, 8, "upvalue");
+		return str;
+	}
+
+	case OBJ_NATIVE_FUNC:
+	{
+		char *str = malloc(sizeof(char) * 12);
+		sprintf(str, "nativefunc");
+		return str;
+	}
+
+	case OBJ_NATIVE_LIB:
+	{
+		char *str = malloc(sizeof(char) * 12);
+		sprintf(str, "nativelib");
 		return str;
 	}
 	}
@@ -660,16 +777,16 @@ ObjBytes *objectToBytes(Value value)
 		ObjString *str = AS_STRING(value);
 		bytes = copyBytes(str->chars, str->length);
 	}
-	else if(IS_BYTES(value))
+	else if (IS_BYTES(value))
 	{
 		ObjBytes *old = AS_BYTES(value);
 		bytes = copyBytes(old->bytes, old->length);
 	}
-	else if(IS_LIST(value))
+	else if (IS_LIST(value))
 	{
 		bytes = initBytes();
-		ObjList* list = AS_LIST(value);
-		for(int i = 0; i < list->values.count; i++)
+		ObjList *list = AS_LIST(value);
+		for (int i = 0; i < list->values.count; i++)
 		{
 			ObjBytes *partial = AS_BYTES(toBytes(list->values.values[i]));
 			appendBytes(bytes, partial);

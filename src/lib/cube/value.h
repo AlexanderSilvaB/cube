@@ -80,12 +80,15 @@ typedef enum
   VAL_OBJ
 } ValueType;
 
+#define BOOL_TYPE bool
+#define NUMBER_TYPE double
+
 typedef struct
 {
   ValueType type;
   union {
-    bool boolean;
-    double number;
+    BOOL_TYPE boolean;
+    NUMBER_TYPE number;
     Obj *obj;
   } as; // [as]
 } Value;
@@ -127,8 +130,8 @@ void freeDict(ObjDict *dict);
 
 void freeValueArray(ValueArray *array);
 void printValue(Value value);
-char *valueToString(Value value);
-char *valueType();
+char *valueToString(Value value, bool literal);
+char *valueType(Value value);
 
 Value copyValue(Value value);
 

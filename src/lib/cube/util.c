@@ -3,6 +3,7 @@
 #include <string.h>
 #include "util.h"
 #include "memory.h"
+#include "vm.h"
 
 char *readFile(const char *path, bool verbose)
 {
@@ -49,7 +50,7 @@ char *getFolder(const char *path)
 	int len = strlen(path) - strlen(lastSlash) + 3;
 	parent = malloc(sizeof(char) * len);
 	strncpy(parent, path, len - 2);
-	parent[len-2] = '\0';
+	parent[len - 2] = '\0';
 	len = strlen(parent);
 	if (parent[len - 1] != c)
 	{
@@ -59,27 +60,27 @@ char *getFolder(const char *path)
 	return parent;
 }
 
-int countBytes(const void* raw, int maxSize)
+int countBytes(const void *raw, int maxSize)
 {
-	const unsigned char* bytes = (unsigned char*)raw;
+	const unsigned char *bytes = (unsigned char *)raw;
 	int sz = 0;
 	int i = 0;
-	for(i = 0; i < maxSize; i++)
+	for (i = 0; i < maxSize; i++)
 	{
-		if(bytes[i] != 0)
+		if (bytes[i] != 0)
 			sz = i + 1;
 	}
 	return sz;
 }
 
-void replaceString(char *str, const char* find, const char* replace)
+void replaceString(char *str, const char *find, const char *replace)
 {
 	char *pt = strstr(str, find);
 	int lenF = strlen(find);
 	int lenR = strlen(replace);
 	int lenS = strlen(str);
 	char *tmp = ALLOCATE(char, strlen(str));
-	while(pt != NULL)
+	while (pt != NULL)
 	{
 		strcpy(tmp, pt + lenF);
 		memcpy(pt, replace, lenR);
@@ -87,4 +88,42 @@ void replaceString(char *str, const char* find, const char* replace)
 		pt = strstr(str, find);
 	}
 	FREE_ARRAY(char, tmp, lenS);
+}
+
+char *findFile(const char *name)
+{
+	char *strPath = malloc(sizeof(char) * (strlen(name) + 2));
+	strcpy(strPath, name);
+
+	FILE *file = fopen(strPath, "r");
+	int index = 0;
+	while (file == NULL && index < vm.paths->values.count)
+	{
+		char *folder = AS_CSTRING(vm.paths->values.values[index]);
+		free(strPath);
+		strPath = malloc(sizeof(char) * (strlen(folder) + strlen(name) + 2));
+		strcpy(strPath, folder);
+		strcat(strPath, name);
+		file = fopen(strPath, "r");
+		index++;
+	}
+	if (file == NULL)
+	{
+		free(strPath);
+		strPath = NULL;
+	}
+	else
+		fclose(file);
+	return strPath;
+}
+
+bool existsFile(const char *name)
+{
+	FILE *file = fopen(name, "r");
+	if (file == NULL)
+	{
+		return false;
+	}
+	fclose(file);
+	return true;
 }

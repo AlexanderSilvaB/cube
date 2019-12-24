@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include "common.h"
 #include "compiler.h"
@@ -86,11 +87,20 @@ typedef struct ClassCompiler
   bool hasSuperclass;
 } ClassCompiler;
 
+typedef struct NamespaceCompiler
+{
+  struct NamespaceCompiler *enclosing;
+
+  Token name;
+} NamespaceCompiler;
+
 Parser parser;
 
 Compiler *current = NULL;
 
 ClassCompiler *currentClass = NULL;
+NamespaceCompiler *currentNamespace = NULL;
+static char *initString = "<CUBE>";
 
 // Used for "continue" statements
 int innermostLoopStart = -1;
@@ -341,14 +351,14 @@ static bool identifiersEqual(Token *a, Token *b)
   return memcmp(a->start, b->start, a->length) == 0;
 }
 
-static int resolveLocal(Compiler *compiler, Token *name)
+static int resolveLocal(Compiler *compiler, Token *name, bool inFunction)
 {
   for (int i = compiler->localCount - 1; i >= 0; i--)
   {
     Local *local = &compiler->locals[i];
     if (identifiersEqual(name, &local->name))
     {
-      if (local->depth == -1)
+      if (!inFunction && local->depth == -1)
       {
         error("Cannot read local variable in its own initializer.");
       }
@@ -388,7 +398,7 @@ static int resolveUpvalue(Compiler *compiler, Token *name)
   if (compiler->enclosing == NULL)
     return -1;
 
-  int local = resolveLocal(compiler->enclosing, name);
+  int local = resolveLocal(compiler->enclosing, name, true);
   if (local != -1)
   {
     compiler->enclosing->locals[local].isCaptured = true;
@@ -659,7 +669,13 @@ static void grouping(bool canAssign)
 
 static void number(bool canAssign)
 {
-  double value = strtod(parser.previous.start, NULL);
+  double value;
+  if (parser.previous.type == TOKEN_NAN)
+    value = NAN;
+  else if (parser.previous.type == TOKEN_INF)
+    value = INFINITY;
+  else
+    value = strtod(parser.previous.start, NULL);
   emitConstant(NUMBER_VAL(value));
 }
 
@@ -740,7 +756,7 @@ static void subscript(bool canAssign)
 static uint8_t setVariablePop(Token name)
 {
   uint8_t getOp, setOp;
-  int arg = resolveLocal(current, &name);
+  int arg = resolveLocal(current, &name, false);
   if (arg != -1)
   {
     getOp = OP_GET_LOCAL;
@@ -765,7 +781,7 @@ static uint8_t setVariablePop(Token name)
 static uint8_t setVariable(Token name, Value value)
 {
   uint8_t getOp, setOp;
-  int arg = resolveLocal(current, &name);
+  int arg = resolveLocal(current, &name, false);
   if (arg != -1)
   {
     getOp = OP_GET_LOCAL;
@@ -791,7 +807,7 @@ static uint8_t setVariable(Token name, Value value)
 static uint8_t getVariable(Token name)
 {
   uint8_t getOp, setOp;
-  int arg = resolveLocal(current, &name);
+  int arg = resolveLocal(current, &name, false);
   if (arg != -1)
   {
     getOp = OP_GET_LOCAL;
@@ -816,7 +832,7 @@ static uint8_t getVariable(Token name)
 static void namedVariable(Token name, bool canAssign)
 {
   uint8_t getOp, setOp;
-  int arg = resolveLocal(current, &name);
+  int arg = resolveLocal(current, &name, false);
   if (arg != -1)
   {
     getOp = OP_GET_LOCAL;
@@ -983,6 +999,18 @@ static void block()
   consume(TOKEN_RIGHT_BRACE, "Expect '}' after block.");
 }
 
+static uint8_t createSyntheticVariable(const char *name, Token *token)
+{
+  *token = syntheticToken(name);
+  declareNamedVariable(token);
+  uint8_t it;
+  if (current->scopeDepth > 0)
+    it = 0;
+  else
+    it = identifierConstant(token);
+  return it;
+}
+
 static void function(FunctionType type)
 {
   Compiler compiler;
@@ -1002,20 +1030,29 @@ static void function(FunctionType type)
       }
 
       uint8_t paramConstant = parseVariable("Expect parameter name.");
-      if (match(TOKEN_EQUAL))
-      {
-        expression();
-      }
-      else
-      {
-        emitConstant(NUMBER_VAL(current->function->arity));
-      }
+      // if (match(TOKEN_EQUAL))
+      // {
+      //   expression();
+      // }
+      // else
+      // {
+      //   emitConstant(NUMBER_VAL(current->function->arity));
+      // }
 
       defineVariable(paramConstant);
     } while (match(TOKEN_COMMA));
   }
 
   consume(TOKEN_RIGHT_PAREN, "Expect ')' after parameters.");
+
+  // Create args
+  Token argsToken;
+  uint8_t args = createSyntheticVariable("args", &argsToken);
+  emitByte(OP_NONE);
+  defineVariable(args);
+  Token argsInternToken = syntheticToken("__args");
+  getVariable(argsInternToken);
+  setVariablePop(argsToken);
 
   // The body.
   consume(TOKEN_LEFT_BRACE, "Expect '{' before function body.");
@@ -1091,7 +1128,7 @@ static void prefix(bool canAssign)
   {
     uint8_t setOp;
     //int arg = resolveLocal(current, &cur, false);
-    int arg = resolveLocal(current, &cur);
+    int arg = resolveLocal(current, &cur, false);
 
     if (arg != -1)
       setOp = OP_SET_LOCAL;
@@ -1184,11 +1221,16 @@ ParseRule rules[] = {
     {literal, NULL, PREC_NONE},      // TOKEN_TRUE
     {NULL, NULL, PREC_NONE},         // TOKEN_VAR
     {NULL, NULL, PREC_NONE},         // TOKEN_WHILE
+    {NULL, NULL, PREC_NONE},         // TOKEN_DO
     {NULL, binary, PREC_TERM},       // TOKEN_IN
     {NULL, NULL, PREC_NONE},         // TOKEN_CONTINUE
     {NULL, NULL, PREC_NONE},         // TOKEN_BREAK
+    {number, NULL, PREC_NONE},       // TOKEN_NAN
+    {number, NULL, PREC_NONE},       // TOKEN_INF
     {NULL, NULL, PREC_NONE},         // TOKEN_IMPORT
     {NULL, NULL, PREC_NONE},         // TOKEN_AS
+    {NULL, NULL, PREC_NONE},         // TOKEN_NAMESPACE
+    {NULL, NULL, PREC_NONE},         // TOKEN_NATIVE
     {let, NULL, PREC_NONE},          // TOKEN_LET
     {NULL, NULL, PREC_NONE},         // TOKEN_WITH
     {NULL, NULL, PREC_NONE},         // TOKEN_ERROR
@@ -1234,7 +1276,12 @@ static void expression()
 static void method()
 {
   consume(TOKEN_FUNC, "Expect a function declaration.");
-  consume(TOKEN_IDENTIFIER, "Expect method name.");
+  if (!check(TOKEN_IDENTIFIER) && !isOperator(parser.current.type))
+  {
+    errorAtCurrent("Expect method name.");
+  }
+  advance();
+
   uint8_t constant = identifierConstant(&parser.previous);
 
   // If the method is named "init", it's an initializer.
@@ -1287,6 +1334,118 @@ static void methodOrProperty()
   {
     errorAtCurrent("Only variables and functions allowed inside a class.");
   }
+}
+
+static void funcOrField()
+{
+  if (check(TOKEN_FUNC))
+  {
+    method();
+  }
+  else if (check(TOKEN_VAR))
+  {
+    consume(TOKEN_VAR, "Expected a variable declaration.");
+    property();
+  }
+  else
+  {
+    errorAtCurrent("Only variables and functions allowed inside a class.");
+  }
+}
+
+static void nativeFunc()
+{
+  consume(TOKEN_IDENTIFIER, "Expect type name.");
+  int len = parser.previous.length + 1;
+  char *str = malloc(sizeof(char) * len);
+  strncpy(str, parser.previous.start, parser.previous.length);
+  str[parser.previous.length] = '\0';
+  emitConstant(OBJ_VAL(copyString(str, strlen(str))));
+  free(str);
+
+  consume(TOKEN_IDENTIFIER, "Expect function name.");
+  Token name = parser.previous;
+  uint8_t nameConstant = identifierConstant(&parser.previous);
+  declareVariable();
+
+  //uint8_t name = parseVariable("Expect funcion name.");
+  //Token tokName = parser.previous;
+
+  // consume(TOKEN_IDENTIFIER, "Expect function name.");
+  len = parser.previous.length + 1;
+  str = malloc(sizeof(char) * len);
+  strncpy(str, parser.previous.start, parser.previous.length);
+  str[parser.previous.length] = '\0';
+  emitConstant(OBJ_VAL(copyString(str, strlen(str))));
+  free(str);
+
+  // Compile the parameter list.
+  consume(TOKEN_LEFT_PAREN, "Expect '(' after function name.");
+  int arity = 0;
+
+  if (!check(TOKEN_RIGHT_PAREN))
+  {
+    do
+    {
+      arity++;
+      if (arity > 10)
+      {
+        errorAtCurrent("Cannot have more than 10 parameters.");
+      }
+
+      consume(TOKEN_IDENTIFIER, "Expect parameter type.");
+      len = parser.previous.length + 1;
+      str = malloc(sizeof(char) * len);
+      strncpy(str, parser.previous.start, parser.previous.length);
+      str[parser.previous.length] = '\0';
+      emitConstant(OBJ_VAL(copyString(str, strlen(str))));
+      free(str);
+
+    } while (match(TOKEN_COMMA));
+  }
+
+  consume(TOKEN_RIGHT_PAREN, "Expect ')' after parameters.");
+  consume(TOKEN_SEMICOLON, "Expect ';' after native func declaration.");
+
+  emitConstant(NUMBER_VAL(arity));
+
+  emitByte(OP_NONE);
+  defineVariable(nameConstant);
+
+  emitByte(OP_NATIVE_FUNC);
+
+  setVariablePop(name);
+}
+
+static void namespaceDeclaration()
+{
+  consume(TOKEN_IDENTIFIER, "Expect namespace.");
+  Token namespace = parser.previous;
+  uint8_t nameConstant = identifierConstant(&parser.previous);
+  declareVariable();
+
+  emitBytes(OP_NAMESPACE, nameConstant);
+  defineVariable(nameConstant);
+
+  NamespaceCompiler namespaceCompiler;
+  namespaceCompiler.name = parser.previous;
+  namespaceCompiler.enclosing = currentNamespace;
+  currentNamespace = &namespaceCompiler;
+
+  //beginScope();
+
+  consume(TOKEN_LEFT_BRACE, "Expect '{' before namespace body.");
+  while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF))
+  {
+    namedVariable(namespace, false);
+    funcOrField();
+  }
+
+  consume(TOKEN_RIGHT_BRACE, "Expect '}' after namespace body.");
+
+  //endScope();
+
+  currentNamespace = currentNamespace->enclosing;
 }
 
 static void classDeclaration()
@@ -1344,6 +1503,73 @@ static void classDeclaration()
   currentClass = currentClass->enclosing;
 }
 
+static void pathOrString(const char *extension, const char *errorIdentifier, const char *errorString)
+{
+  if (match(TOKEN_IDENTIFIER))
+  {
+    int len = parser.previous.length;
+    int totalLen = len;
+    char *str = ALLOCATE(char, len + 1);
+    strncpy(str, parser.previous.start, parser.previous.length);
+    str[len] = '\0';
+
+    while (true)
+    {
+      if (match(TOKEN_SLASH))
+      {
+        if (match(TOKEN_IDENTIFIER))
+        {
+          totalLen += parser.previous.length + 1;
+          str = GROW_ARRAY(str, char, len, totalLen);
+          str[len] = '/';
+          strncpy(str + (len + 1), parser.previous.start, parser.previous.length);
+          len = totalLen;
+          str[len] = '\0';
+        }
+        else
+        {
+          errorAtCurrent(errorIdentifier);
+        }
+      }
+      else
+      {
+        break;
+      }
+    }
+
+    totalLen = len + strlen(extension);
+    str = GROW_ARRAY(str, char, len, totalLen);
+    len = totalLen;
+    strcat(str, extension);
+
+    emitConstant(OBJ_VAL(copyString(str, strlen(str))));
+    FREE_ARRAY(char, str, totalLen);
+  }
+  else
+  {
+    consume(TOKEN_STRING, errorString);
+    emitConstant(OBJ_VAL(
+        copyString(parser.previous.start + 1, parser.previous.length - 2)));
+  }
+}
+
+static void nativeDeclaration()
+{
+  pathOrString(vm.nativeExtension, "Expect an identifier after slash in native.", "Expect string after native.");
+
+  int count = 0;
+  consume(TOKEN_LEFT_BRACE, "Expect '{' before native body.");
+  while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF))
+  {
+    nativeFunc();
+    count++;
+  }
+  consume(TOKEN_RIGHT_BRACE, "Expect '}' after native body.");
+
+  emitConstant(NUMBER_VAL(count));
+  emitByte(OP_NATIVE);
+}
+
 static void funDeclaration()
 {
   uint8_t global = parseVariable("Expect function name.");
@@ -1375,18 +1601,6 @@ static void expressionStatement()
   expression();
   consume(TOKEN_SEMICOLON, "Expect ';' after expression.");
   emitByte(OP_POP);
-}
-
-static uint8_t createSyntheticVariable(const char *name, Token *token)
-{
-  *token = syntheticToken(name);
-  declareNamedVariable(token);
-  uint8_t it;
-  if (current->scopeDepth > 0)
-    it = 0;
-  else
-    it = identifierConstant(token);
-  return it;
 }
 
 static void forStatement()
@@ -1424,16 +1638,25 @@ static void forStatement()
         defineVariable(name);
 
         var = createSyntheticVariable("__value", &valVar);
-        expression();
+        emitByte(OP_NONE);
         defineVariable(var);
 
+        expression();
+        setVariablePop(valVar);
+
         it = createSyntheticVariable("__index", &loopVar);
-        emitConstant(NUMBER_VAL(0));
+        emitByte(OP_NONE);
         defineVariable(it);
 
-        cond = createSyntheticVariable("__cond", &condVar);
         emitConstant(NUMBER_VAL(0));
+        setVariablePop(loopVar);
+
+        cond = createSyntheticVariable("__cond", &condVar);
+        emitByte(OP_NONE);
         defineVariable(cond);
+
+        emitConstant(NUMBER_VAL(0));
+        setVariablePop(condVar);
 
         /*
         getVariable(valVar);
@@ -1536,9 +1759,12 @@ static void forStatement()
     emitByte(OP_POP); // Condition.
   }
 
-  setVariable(loopVar, NUMBER_VAL(0));
-  setVariable(condVar, NUMBER_VAL(0));
-  setVariable(valVar, NUMBER_VAL(0));
+  if (in)
+  {
+    setVariable(loopVar, NUMBER_VAL(0));
+    setVariable(condVar, NUMBER_VAL(0));
+    setVariable(valVar, NUMBER_VAL(0));
+  }
 
   innermostLoopStart = surroundingLoopStart;
   innermostLoopScopeDepth = surroundingLoopScopeDepth;
@@ -1630,24 +1856,9 @@ static void returnStatement()
 
 static void importStatement()
 {
-  if (match(TOKEN_IDENTIFIER))
-  {
-    int len = parser.previous.length + strlen(vm.extension) + 1;
-    char *str = malloc(sizeof(char) * len);
-    strncpy(str, parser.previous.start, parser.previous.length);
-    str[parser.previous.length] = '\0';
-    strcat(str, vm.extension);
-    emitConstant(OBJ_VAL(copyString(str, strlen(str))));
-    free(str);
-  }
-  else
-  {
-    consume(TOKEN_STRING, "Expect string after import.");
-    emitConstant(OBJ_VAL(
-        copyString(parser.previous.start + 1, parser.previous.length - 2)));
-  }
+  pathOrString(vm.extension, "Expect an identifier after slash in import.", "Expect string after import.");
 
-  if(match(TOKEN_AS))
+  if (match(TOKEN_AS))
   {
     if (match(TOKEN_IDENTIFIER))
     {
@@ -1670,7 +1881,6 @@ static void importStatement()
   {
     emitByte(OP_NONE);
   }
-  
 
   consume(TOKEN_SEMICOLON, "Expect ';' after import.");
 
@@ -1780,6 +1990,8 @@ static void synchronize()
     switch (parser.current.type)
     {
     case TOKEN_CLASS:
+    case TOKEN_NAMESPACE:
+    case TOKEN_NATIVE:
     case TOKEN_FUNC:
     case TOKEN_VAR:
     case TOKEN_FOR:
@@ -1805,6 +2017,14 @@ static void declaration(bool checkEnd)
   if (match(TOKEN_CLASS))
   {
     classDeclaration();
+  }
+  else if (match(TOKEN_NAMESPACE))
+  {
+    namespaceDeclaration();
+  }
+  else if (match(TOKEN_NATIVE))
+  {
+    nativeDeclaration();
   }
   else if (match(TOKEN_FUNC))
   {
@@ -1901,23 +2121,48 @@ static void statement()
 
 ObjFunction *compile(const char *source)
 {
-  initScanner(source);
-  Compiler compiler;
-
-  initCompiler(&compiler, TYPE_SCRIPT);
-
-  parser.hadError = false;
-  parser.panicMode = false;
-
-  advance();
-
-  while (!match(TOKEN_EOF))
+  ObjFunction *function = NULL;
+  if (memcmp(initString, source, strlen(initString)) == 0)
   {
-    declaration(true);
-  }
+    char *src = (char *)source + strlen(initString);
 
-  ObjFunction *function = endCompiler();
-  return parser.hadError ? NULL : function;
+    uint32_t len = ((uint32_t *)src)[0];
+    src += sizeof(uint32_t);
+
+    uint32_t pos = 0;
+    Value value = loadByteCode(src, &pos, len);
+    if (IS_FUNCTION(value))
+      function = AS_FUNCTION(value);
+  }
+  else
+  {
+    initScanner(source);
+    Compiler compiler;
+
+    initCompiler(&compiler, TYPE_SCRIPT);
+
+    parser.hadError = false;
+    parser.panicMode = false;
+
+    // Create args
+    Token argsToken = syntheticToken("args");
+    uint8_t args = identifierConstant(&argsToken);
+    getVariable(syntheticToken("__args"));
+    defineVariable(args);
+
+    // Parse the code
+    advance();
+
+    while (!match(TOKEN_EOF))
+    {
+      declaration(true);
+    }
+
+    function = endCompiler();
+    if (parser.hadError)
+      function = NULL;
+  }
+  return function;
 }
 
 void grayCompilerRoots()
@@ -1927,5 +2172,534 @@ void grayCompilerRoots()
   {
     grayObject((Obj *)compiler->function);
     compiler = compiler->enclosing;
+  }
+}
+
+bool writeByteCodeChunk(FILE *file, Chunk *chunk);
+
+bool initByteCode(FILE *file)
+{
+  uint32_t sz = 0;
+  if (fwrite(initString, sizeof(char), strlen(initString), file) != strlen(initString))
+    return false;
+  if (fwrite(&sz, sizeof(sz), 1, file) != 1)
+    return false;
+  return true;
+}
+
+bool writeByteCode(FILE *file, Value value)
+{
+  uint32_t type = value.type;
+  uint32_t objType = 0;
+
+  if (IS_OBJ(value))
+    objType = OBJ_TYPE(value);
+
+  // char *typeName = valueType(value);
+  // printf("Write: <%s> ", typeName);
+  // printValue(value);
+  // printf("\n");
+  // free(typeName);
+
+  int i = 0;
+  if (fwrite(&type, sizeof(type), 1, file) != 1)
+    return false;
+  if (fwrite(&objType, sizeof(objType), 1, file) != 1)
+    return false;
+
+  if (IS_BOOL(value))
+  {
+    if (fwrite(&value.as.boolean, sizeof(value.as.boolean), 1, file) != 1)
+      return false;
+  }
+  else if (IS_NUMBER(value))
+  {
+    if (fwrite(&value.as.number, sizeof(value.as.number), 1, file) != 1)
+      return false;
+  }
+  else if (IS_STRING(value))
+  {
+    ObjString *str = AS_STRING(value);
+    if (fwrite(&str->length, sizeof(str->length), 1, file) != 1)
+      return false;
+    if (fwrite(str->chars, sizeof(char), str->length, file) != str->length)
+      return false;
+  }
+  else if (IS_BYTES(value))
+  {
+    ObjBytes *bytes = AS_BYTES(value);
+    if (fwrite(&bytes->length, sizeof(bytes->length), 1, file) != 1)
+      return false;
+    if (fwrite(bytes->bytes, sizeof(unsigned char), bytes->length, file) != bytes->length)
+      return false;
+  }
+  else if (IS_LIST(value))
+  {
+    ObjList *list = AS_LIST(value);
+    if (fwrite(&list->values.count, sizeof(list->values.count), 1, file) != 1)
+      return false;
+    for (i = 0; i < list->values.count; i++)
+    {
+      if (!writeByteCode(file, list->values.values[i]))
+        return false;
+    }
+  }
+  else if (IS_DICT(value))
+  {
+    ObjDict *dict = AS_DICT(value);
+    if (fwrite(&dict->count, sizeof(dict->count), 1, file) != 1)
+      return false;
+    for (i = 0; i < dict->capacity; i++)
+    {
+      if (!dict->items[i])
+        continue;
+
+      Value key = STRING_VAL(dict->items[i]->key);
+
+      if (!writeByteCode(file, key))
+        return false;
+      if (!writeByteCode(file, dict->items[i]->item))
+        return false;
+    }
+  }
+  else if (IS_NATIVE_FUNC(value))
+  {
+    printf("Invalid bytecode: NativeFunc (Valid only on runtime)\n");
+    return false;
+  }
+  else if (IS_NATIVE_LIB(value))
+  {
+    printf("Invalid bytecode: NativeLib (Valid only on runtime)\n");
+    return false;
+  }
+  else if (IS_NATIVE(value))
+  {
+    printf("Invalid bytecode: Native (Valid only on runtime)\n");
+    return false;
+  }
+  else if (IS_INSTANCE(value))
+  {
+    printf("Invalid bytecode: Instance (Valid only on runtime)\n");
+    return false;
+  }
+  else if (IS_FUNCTION(value))
+  {
+    ObjFunction *func = AS_FUNCTION(value);
+    if (func->name == NULL)
+    {
+      Value name = STRING_VAL(vm.scriptName);
+      if (!writeByteCode(file, name))
+        return false;
+    }
+    else
+    {
+      if (!writeByteCode(file, OBJ_VAL(func->name)))
+        return false;
+    }
+    if (fwrite(&func->arity, sizeof(func->arity), 1, file) != 1)
+      return false;
+    if (fwrite(&func->staticMethod, sizeof(func->staticMethod), 1, file) != 1)
+      return false;
+    if (fwrite(&func->upvalueCount, sizeof(func->upvalueCount), 1, file) != 1)
+      return false;
+    if (!writeByteCodeChunk(file, &func->chunk))
+      return false;
+  }
+  else if (IS_CLOSURE(value))
+  {
+    ObjClosure *closure = AS_CLOSURE(value);
+    if (!writeByteCode(file, OBJ_VAL(closure->function)))
+      return false;
+    if (fwrite(&closure->upvalueCount, sizeof(closure->upvalueCount), 1, file) != 1)
+      return false;
+    for (i = 0; i < closure->upvalueCount; i++)
+    {
+      if (!writeByteCode(file, OBJ_VAL(closure->upvalues[i])))
+        return false;
+    }
+  }
+  else if (IS_BOUND_METHOD(value))
+  {
+    printf("Invalid bytecode: Bound Method (Valid only on runtime)\n");
+    return false;
+  }
+  else if (IS_CLASS(value))
+  {
+    ObjClass *klass = AS_CLASS(value);
+    if (!writeByteCode(file, OBJ_VAL(klass->name)))
+      return false;
+
+    if (fwrite(&klass->fields.count, sizeof(klass->fields.count), 1, file) != 1)
+      return false;
+    i = 0;
+    Entry entry;
+    while (iterateTable(&klass->fields, &entry, &i))
+    {
+      if (entry.key == NULL)
+        continue;
+
+      if (!writeByteCode(file, OBJ_VAL(entry.key)))
+        return false;
+
+      if (!writeByteCode(file, entry.value))
+        return false;
+    }
+
+    if (fwrite(&klass->methods.count, sizeof(klass->methods.count), 1, file) != 1)
+      return false;
+    i = 0;
+    while (iterateTable(&klass->methods, &entry, &i))
+    {
+      if (entry.key == NULL)
+        continue;
+
+      if (!writeByteCode(file, OBJ_VAL(entry.key)))
+        return false;
+
+      if (!writeByteCode(file, entry.value))
+        return false;
+    }
+  }
+  else if (IS_NAMESPACE(value))
+  {
+    ObjNamespace *namespace = AS_NAMESPACE(value);
+    if (!writeByteCode(file, OBJ_VAL(namespace->name)))
+      return false;
+
+    if (fwrite(&namespace->fields.count, sizeof(namespace->fields.count), 1, file) != 1)
+      return false;
+    i = 0;
+    Entry entry;
+    while (iterateTable(&namespace->fields, &entry, &i))
+    {
+      if (entry.key == NULL)
+        continue;
+
+      if (!writeByteCode(file, OBJ_VAL(entry.key)))
+        return false;
+
+      if (!writeByteCode(file, entry.value))
+        return false;
+    }
+
+    if (fwrite(&namespace->methods.count, sizeof(namespace->methods.count), 1, file) != 1)
+      return false;
+    i = 0;
+    while (iterateTable(&namespace->methods, &entry, &i))
+    {
+      if (entry.key == NULL)
+        continue;
+
+      if (!writeByteCode(file, OBJ_VAL(entry.key)))
+        return false;
+
+      if (!writeByteCode(file, entry.value))
+        return false;
+    }
+  }
+  else if (value.type == OBJ_UPVALUE)
+  {
+    /*
+    ObjUpvalue *upvalue = (ObjUpvalue *)AS_OBJ(value);
+    char valid;
+    if (upvalue->location)
+    {
+      valid = 255;
+      if (fwrite(&valid, sizeof(valid), 1, file) != 1)
+        return false;
+      if (!writeByteCode(file, *upvalue->location))
+        return false;
+    }
+    else
+    {
+      valid = 250;
+      if (fwrite(&valid, sizeof(valid), 1, file) != 1)
+        return false;
+    }
+
+    if (!writeByteCode(file, upvalue->closed))
+      return false;
+
+    if (upvalue->next)
+    {
+      valid = 255;
+      if (fwrite(&valid, sizeof(valid), 1, file) != 1)
+        return false;
+      if (!writeByteCode(file, OBJ_VAL(upvalue->next)))
+        return false;
+    }
+    else
+    {
+      valid = 250;
+      if (fwrite(&valid, sizeof(valid), 1, file) != 1)
+        return false;
+    }
+    */
+    printf("Invalid bytecode: UpValue (Valid only on runtime)\n");
+    return false;
+  }
+  return true;
+}
+
+bool writeByteCodeChunk(FILE *file, Chunk *chunk)
+{
+  int i = 0;
+  if (fwrite(&chunk->count, sizeof(chunk->count), 1, file) != 1)
+    return false;
+  if (fwrite(chunk->code, sizeof(uint8_t), chunk->count, file) != chunk->count)
+    return false;
+  if (fwrite(chunk->lines, sizeof(int), chunk->count, file) != chunk->count)
+    return false;
+  if (fwrite(&chunk->constants.count, sizeof(chunk->constants.count), 1, file) != 1)
+    return false;
+  for (i = 0; i < chunk->constants.count; i++)
+  {
+    if (!writeByteCode(file, chunk->constants.values[i]))
+      return false;
+  }
+  return true;
+}
+
+bool finishByteCode(FILE *file)
+{
+  fseek(file, 0L, SEEK_END);
+  uint32_t fileSize = ftell(file);
+  rewind(file);
+
+  uint32_t pos = strlen(initString);
+
+  fseek(file, pos, SEEK_SET);
+  if (fwrite(&fileSize, sizeof(fileSize), 1, file) != 1)
+    return false;
+  return true;
+}
+
+#define READ(type)              \
+  ((type *)(source + *pos))[0]; \
+  *pos += sizeof(type)
+#define READ_ARRAY(type, dest, len)                \
+  memcpy(dest, source + *pos, len * sizeof(type)); \
+  *pos += sizeof(type) * len
+
+void loadChunk(Chunk *chunk, const char *source, uint32_t *pos, uint32_t total);
+
+Value loadByteCode(const char *source, uint32_t *pos, uint32_t total)
+{
+  uint32_t type = READ(uint32_t);
+  uint32_t objType = READ(uint32_t);
+  // printf("Load: %d, %d\n", type, objType);
+
+  Value value = NONE_VAL;
+
+  int i = 0;
+
+  if (type == VAL_NONE)
+  {
+    // None
+  }
+  else if (type == VAL_BOOL)
+  {
+    BOOL_TYPE v = READ(BOOL_TYPE);
+    value = BOOL_VAL(v);
+  }
+  else if (type == VAL_NUMBER)
+  {
+    NUMBER_TYPE v = READ(NUMBER_TYPE);
+    value = NUMBER_VAL(v);
+  }
+  else if (type == VAL_OBJ)
+  {
+    if (objType == OBJ_STRING)
+    {
+      int len = READ(int);
+      char *str = ALLOCATE(char, len + 1);
+      str[len] = '\0';
+      READ_ARRAY(char, str, len);
+      value = STRING_VAL(str);
+      FREE_ARRAY(char, str, len + 1);
+    }
+    else if (objType == OBJ_BYTES)
+    {
+      int len = READ(int);
+      unsigned char *bytes = ALLOCATE(unsigned char, len);
+      READ_ARRAY(unsigned char, bytes, len);
+      value = BYTES_VAL(bytes, len);
+      FREE_ARRAY(unsigned char, bytes, len);
+    }
+    else if (objType == OBJ_LIST)
+    {
+      ObjList *list = initList();
+      int len = READ(int);
+      for (i = 0; i < len; i++)
+      {
+        Value obj = loadByteCode(source, pos, total);
+        writeValueArray(&list->values, obj);
+      }
+      value = OBJ_VAL(list);
+    }
+    else if (objType == OBJ_DICT)
+    {
+      ObjDict *dict = initDict();
+      int len = READ(int);
+      for (i = 0; i < len; i++)
+      {
+        if (!dict->items[i])
+          continue;
+
+        Value key = loadByteCode(source, pos, total);
+        Value val = loadByteCode(source, pos, total);
+        insertDict(dict, AS_CSTRING(key), val);
+      }
+      value = OBJ_VAL(list);
+    }
+    else if (objType == OBJ_NATIVE_FUNC)
+    {
+      printf("Invalid bytecode: Native (Valid only on runtime)\n");
+    }
+    else if (objType == OBJ_NATIVE_LIB)
+    {
+      printf("Invalid bytecode: Native (Valid only on runtime)\n");
+    }
+    else if (objType == OBJ_NATIVE)
+    {
+      printf("Invalid bytecode: Native (Valid only on runtime)\n");
+    }
+    else if (objType == OBJ_INSTANCE)
+    {
+      printf("Invalid bytecode: Instance (Valid only on runtime)\n");
+    }
+    else if (objType == OBJ_FUNCTION)
+    {
+      ObjFunction *func = newFunction();
+      Value name = loadByteCode(source, pos, total);
+      func->name = AS_STRING(name);
+      func->arity = READ(int);
+      func->staticMethod = READ(bool);
+      func->upvalueCount = READ(int);
+      loadChunk(&func->chunk, source, pos, total);
+      value = OBJ_VAL(func);
+    }
+    else if (objType == OBJ_CLOSURE)
+    {
+      Value func = loadByteCode(source, pos, total);
+      ObjClosure *closure = newClosure(AS_FUNCTION(func));
+      closure->upvalueCount = READ(int);
+      for (i = 0; i < closure->upvalueCount; i++)
+      {
+        Value val = loadByteCode(source, pos, total);
+        closure->upvalues[i] = (ObjUpvalue *)AS_OBJ(val);
+      }
+    }
+    else if (objType == OBJ_BOUND_METHOD)
+    {
+      printf("Invalid bytecode: Bound Method (Valid only on runtime)\n");
+    }
+    else if (objType == OBJ_CLASS)
+    {
+      Value name = loadByteCode(source, pos, total);
+      ObjClass *klass = newClass(AS_STRING(name));
+
+      int len = READ(int);
+      for (i = 0; i < len; i++)
+      {
+        Value key = loadByteCode(source, pos, total);
+        Value val = loadByteCode(source, pos, total);
+        tableSet(&klass->fields, AS_STRING(key), val);
+      }
+
+      len = READ(int);
+      for (i = 0; i < len; i++)
+      {
+        Value key = loadByteCode(source, pos, total);
+        Value val = loadByteCode(source, pos, total);
+        tableSet(&klass->methods, AS_STRING(key), val);
+      }
+    }
+    else if (objType == OBJ_NAMESPACE)
+    {
+      Value name = loadByteCode(source, pos, total);
+      ObjNamespace *namespace = newNamespace(AS_STRING(name));
+
+      int len = READ(int);
+      for (i = 0; i < len; i++)
+      {
+        Value key = loadByteCode(source, pos, total);
+        Value val = loadByteCode(source, pos, total);
+        tableSet(&namespace->fields, AS_STRING(key), val);
+      }
+
+      len = READ(int);
+      for (i = 0; i < len; i++)
+      {
+        Value key = loadByteCode(source, pos, total);
+        Value val = loadByteCode(source, pos, total);
+        tableSet(&namespace->methods, AS_STRING(key), val);
+      }
+    }
+    else if (objType == OBJ_UPVALUE)
+    {
+      /*
+      ObjUpvalue *upvalue = newUpvalue();
+      char valid;
+      if (upvalue->location)
+      {
+        valid = 255;
+        if (fwrite(&valid, sizeof(valid), 1, file) != 1)
+          return false;
+        if (!writeByteCode(file, *upvalue->location))
+          return false;
+      }
+      else
+      {
+        valid = 250;
+        if (fwrite(&valid, sizeof(valid), 1, file) != 1)
+          return false;
+      }
+
+      if (!writeByteCode(file, upvalue->closed))
+        return false;
+
+      if (upvalue->next)
+      {
+        valid = 255;
+        if (fwrite(&valid, sizeof(valid), 1, file) != 1)
+          return false;
+        if (!writeByteCode(file, OBJ_VAL(upvalue->next)))
+          return false;
+      }
+      else
+      {
+        valid = 250;
+        if (fwrite(&valid, sizeof(valid), 1, file) != 1)
+          return false;
+      }
+      */
+      printf("Invalid bytecode: UpValue (Valid only on runtime)\n");
+    }
+  }
+  // printf("Value: ");
+  // printValue(value);
+  // printf("\n");
+  return value;
+}
+
+void loadChunk(Chunk *chunk, const char *source, uint32_t *pos, uint32_t total)
+{
+  chunk->count = READ(int);
+  chunk->capacity = chunk->count;
+  chunk->code = GROW_ARRAY(chunk->code, uint8_t,
+                           0, chunk->capacity);
+  chunk->lines = GROW_ARRAY(chunk->lines, int,
+                            0, chunk->capacity);
+
+  READ_ARRAY(uint8_t, chunk->code, chunk->count);
+  READ_ARRAY(int, chunk->lines, chunk->count);
+
+  int i = 0;
+  int len = READ(int);
+  for (i = 0; i < len; i++)
+  {
+    Value value = loadByteCode(source, pos, total);
+    writeValueArray(&chunk->constants, value);
   }
 }

@@ -4,6 +4,10 @@
 
 #include "cube.h"
 #include "util.h"
+#include "common.h"
+#include "chunk.h"
+#include "debug.h"
+#include "vm.h"
 
 void start(const char* path, const char* scriptName)
 {
@@ -26,23 +30,32 @@ void startCube(int argc, const char *argv[])
 int runCube(int argc, const char *argv[])
 {
     int rc = 0;
-    if (argc == 1)
+    const char* fileName = NULL;
+    bool execute = true;
+    int argStart = 1;
+    if(argc >= 2)
+    {
+        if(existsFile(argv[1]))
+        {
+            fileName = argv[1];
+            argStart = 2;
+        }
+        if (argc > 2 && strcmp(argv[2], "-c") == 0)
+        {
+            execute = false;
+            argStart = 3;
+        }
+    }
+
+    loadArgs(argc, argv, argStart);
+
+    if (fileName == NULL)
     {
         rc = repl();
     }
-    else if (argc >= 2)
-    {
-        bool justCompile = false;
-        const char *path = argv[1];
-        if (argc > 2 && strcmp(argv[2], "-c") == 0)
-            justCompile = true;
-
-        rc = runFile(path, justCompile);
-    }
     else
     {
-        fprintf(stderr, "Usage: cube [path]\n");
-        rc = 64;
+        rc = runFile(fileName, execute);
     }
 
     return rc;
@@ -93,15 +106,19 @@ int repl()
     return 0;
 }
 
-int runFile(const char *path, bool justCompile)
+int runFile(const char *path, bool execute)
 {
     char *source = readFile(path, true);
     if (source == NULL)
     {
         return 74;
     }
-    //InterpretResult result = interpret(source, path, justCompile);
-    InterpretResult result = interpret(source);
+
+    InterpretResult result;
+    if(execute)
+        result = interpret(source);
+    else
+        result = compileCode(source, path);
     free(source);
 
     if (result == INTERPRET_COMPILE_ERROR)

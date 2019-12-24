@@ -1,0 +1,16 @@
+namespace Test
+{
+    var a = 5;
+
+    func b()
+    {
+        return a + c();
+    }
+
+    func c()
+    {
+        return a + 5;
+    }
+}
+
+print(Test.b());

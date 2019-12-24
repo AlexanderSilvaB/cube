@@ -16,6 +16,8 @@
 #include "strings.h"
 #include "collections.h"
 #include "files.h"
+#include "scanner.h"
+#include "native.h"
 
 VM vm; // [one]
 
@@ -106,6 +108,8 @@ void initVM(const char *path, const char *scriptName)
   vm.bytesAllocated = 0;
   vm.nextGC = 1024 * 1024;
 
+  vm.currentNamespace = NULL;
+
   vm.grayCount = 0;
   vm.grayCapacity = 0;
   vm.grayStack = NULL;
@@ -116,6 +120,7 @@ void initVM(const char *path, const char *scriptName)
   addPath(path);
 
   vm.extension = ".cube";
+  vm.nativeExtension = ".so";
   vm.scriptName = scriptName;
   vm.currentScriptName = scriptName;
   vm.initString = copyString("init", 4);
@@ -126,7 +131,7 @@ void initVM(const char *path, const char *scriptName)
   do
   {
     std_fn *stdFn = linked_list_get(stdFnList);
-    if(stdFn != NULL)
+    if (stdFn != NULL)
       defineNative(stdFn->name, stdFn->fn);
   } while (linked_list_next(&stdFnList));
   destroyStd();
@@ -144,6 +149,17 @@ void freeVM()
 void addPath(const char *path)
 {
   writeValueArray(&vm.paths->values, STRING_VAL(path));
+}
+
+static int initArgC = 0;
+static int initArgStart = 0;
+static const char** initArgV;
+
+void loadArgs(int argc, const char *argv[], int argStart)
+{
+  initArgC = argc;
+  initArgStart = argStart;
+  initArgV = argv;
 }
 
 void push(Value value)
@@ -166,14 +182,13 @@ Value peek(int distance)
 static bool call(ObjClosure *closure, int argCount)
 {
 
-  /*
-  if (argCount != closure->function->arity)
+  /*if (argCount != closure->function->arity)
   {
     runtimeError("Expected %d arguments but got %d.",
                  closure->function->arity, argCount);
     return false;
-  }
-  */
+  }*/
+
   // TODO: Pop unused variables and comment above
 
   if (vm.frameCount == FRAMES_MAX)
@@ -187,6 +202,18 @@ static bool call(ObjClosure *closure, int argCount)
   frame->ip = closure->function->chunk.code;
 
   frame->slots = vm.stackTop - argCount - 1;
+
+  ObjList *args = initList();
+  for (int i = argCount - 1; i >= 0; i--)
+  {
+    writeValueArray(&args->values, peek(i));
+  }
+  push(OBJ_VAL(args));
+
+  ObjString *name = AS_STRING(STRING_VAL("__args"));
+  tableSet(&vm.globals, name, peek(0));
+  pop();
+
   return true;
 }
 
@@ -238,6 +265,15 @@ static bool callValue(Value callee, int argCount)
       return true;
     }
 
+    case OBJ_NATIVE_FUNC:
+    {
+      ObjNativeFunc *func = AS_NATIVE_FUNC(callee);
+      Value result = callNative(func, argCount, vm.stackTop - argCount);
+      vm.stackTop -= argCount + 1;
+      push(result);
+      return true;
+    }
+
     default:
       // Non-callable object type.
       break;
@@ -260,6 +296,7 @@ static bool invokeFromClass(ObjClass *klass, ObjString *name,
   }
 
   return call(AS_CLOSURE(method), argCount);
+  ;
 }
 
 static bool invoke(ObjString *name, int argCount)
@@ -287,6 +324,35 @@ static bool invoke(ObjString *name, int argCount)
     return callValue(method, argCount);
   }
 
+  else if (IS_NAMESPACE(receiver))
+  {
+    ObjNamespace *namespace = AS_NAMESPACE(receiver);
+    Value value;
+    bool ret;
+    if (tableGet(&namespace->fields, name, &value))
+    {
+      vm.stackTop[-argCount - 1] = value;
+
+      namespace->enclosing = vm.currentNamespace;
+      namespace->frameCount = vm.frameCount;
+      vm.currentNamespace = namespace;
+
+      return callValue(value, argCount);
+    }
+
+    Value method;
+    if (!tableGet(&namespace->methods, name, &method))
+    {
+      runtimeError("Undefined property '%s'.", name->chars);
+      return false;
+    }
+
+    namespace->enclosing = vm.currentNamespace;
+    namespace->frameCount = vm.frameCount;
+    vm.currentNamespace = namespace;
+    return call(AS_CLOSURE(method), argCount);
+  }
+
   else if (IS_LIST(receiver))
     return listMethods(name->chars, argCount + 1);
   else if (IS_DICT(receiver))
@@ -308,7 +374,7 @@ static bool invoke(ObjString *name, int argCount)
   Value value;
   if (tableGet(&instance->fields, name, &value))
   {
-    vm.stackTop[-argCount-1] = value; 
+    vm.stackTop[-argCount - 1] = value;
     return callValue(value, argCount);
   }
 
@@ -319,6 +385,21 @@ static bool bindMethod(ObjClass *klass, ObjString *name)
 {
   Value method;
   if (!tableGet(&klass->methods, name, &method))
+  {
+    runtimeError("Undefined property '%s'.", name->chars);
+    return false;
+  }
+
+  ObjBoundMethod *bound = newBoundMethod(peek(0), AS_CLOSURE(method));
+  pop(); // Instance.
+  push(OBJ_VAL(bound));
+  return true;
+}
+
+static bool bindFuncInNamespace(ObjNamespace *namespace, ObjString *name)
+{
+  Value method;
+  if (!tableGet(&namespace->methods, name, &method))
   {
     runtimeError("Undefined property '%s'.", name->chars);
     return false;
@@ -374,8 +455,16 @@ static void closeUpvalues(Value *last)
 static void defineMethod(ObjString *name)
 {
   Value method = peek(0);
-  ObjClass *klass = AS_CLASS(peek(1));
-  tableSet(&klass->methods, name, method);
+  if (IS_CLASS(peek(1)))
+  {
+    ObjClass *klass = AS_CLASS(peek(1));
+    tableSet(&klass->methods, name, method);
+  }
+  else if (IS_NAMESPACE(peek(1)))
+  {
+    ObjNamespace *namespace = AS_NAMESPACE(peek(1));
+    tableSet(&namespace->methods, name, method);
+  }
   pop();
   pop();
 }
@@ -383,8 +472,16 @@ static void defineMethod(ObjString *name)
 static void defineProperty(ObjString *name)
 {
   Value value = peek(0);
-  ObjClass *klass = AS_CLASS(peek(1));
-  tableSet(&klass->fields, name, value);
+  if (IS_CLASS(peek(1)))
+  {
+    ObjClass *klass = AS_CLASS(peek(1));
+    tableSet(&klass->fields, name, value);
+  }
+  else if (IS_NAMESPACE(peek(1)))
+  {
+    ObjNamespace *namespace = AS_NAMESPACE(peek(1));
+    tableSet(&namespace->fields, name, value);
+  }
   pop();
   pop();
 }
@@ -397,7 +494,13 @@ bool isFalsey(Value value)
 static void concatenate()
 {
   Value second = peek(0);
-  ObjString *a = AS_STRING(peek(1));
+  Value first = peek(1);
+
+  ObjString *a;
+  if (IS_STRING(first))
+    a = AS_STRING(first);
+  else
+    a = AS_STRING(toString(first));
 
   ObjString *b;
   if (IS_STRING(second))
@@ -767,6 +870,26 @@ bool subscriptAssign(Value container, Value indexValue, Value assignValue)
   return false;
 }
 
+bool instanceOperation(const char *op)
+{
+  if (!IS_INSTANCE(peek(0)) || !IS_INSTANCE(peek(1)))
+  {
+    return false;
+  }
+
+  ObjString *name = AS_STRING(STRING_VAL(op));
+
+  ObjInstance *instance = AS_INSTANCE(peek(1));
+
+  Value method;
+  if (!tableGet(&instance->klass->methods, name, &method))
+  {
+    return false;
+  }
+
+  return invokeFromClass(instance->klass, name, 1);
+}
+
 static InterpretResult run()
 {
   CallFrame *frame = &vm.frames[vm.frameCount - 1];
@@ -883,7 +1006,15 @@ static InterpretResult run()
     {
       ObjString *name = READ_STRING();
       Value value;
-      if (!tableGet(&vm.globals, name, &value))
+      if (vm.currentNamespace != NULL && tableGet(&vm.currentNamespace->fields, name, &value))
+      {
+        // continue;
+      }
+      else if (vm.currentNamespace != NULL && tableGet(&vm.currentNamespace->methods, name, &value))
+      {
+        // continue;
+      }
+      else if (!tableGet(&vm.globals, name, &value))
       {
         value = envVariable(name);
         if (IS_NONE(value))
@@ -932,65 +1063,113 @@ static InterpretResult run()
 
     case OP_GET_PROPERTY:
     {
-      if (!IS_INSTANCE(peek(0)))
+      if (!IS_INSTANCE(peek(0)) && !IS_NAMESPACE(peek(0)))
       {
-        runtimeError("Only instances have properties.");
+        runtimeError("Only instances and namespaces have properties.");
         return INTERPRET_RUNTIME_ERROR;
       }
 
-      ObjInstance *instance = AS_INSTANCE(peek(0));
-      ObjString *name = READ_STRING();
-      Value value;
-      if (tableGet(&instance->fields, name, &value))
+      if (IS_INSTANCE(peek(0)))
       {
-        pop(); // Instance.
-        push(value);
-        break;
+        ObjInstance *instance = AS_INSTANCE(peek(0));
+        ObjString *name = READ_STRING();
+        Value value;
+        if (tableGet(&instance->fields, name, &value))
+        {
+          pop(); // Instance.
+          push(value);
+          break;
+        }
+
+        if (!bindMethod(instance->klass, name))
+        {
+          return INTERPRET_RUNTIME_ERROR;
+        }
+      }
+      else
+      {
+        ObjNamespace *namespace = AS_NAMESPACE(peek(0));
+        ObjString *name = READ_STRING();
+        Value value;
+        if (tableGet(&namespace->fields, name, &value))
+        {
+          pop(); // Instance.
+          push(value);
+          break;
+        }
+
+        if (!bindFuncInNamespace(namespace, name))
+        {
+          return INTERPRET_RUNTIME_ERROR;
+        }
       }
 
-      if (!bindMethod(instance->klass, name))
-      {
-        return INTERPRET_RUNTIME_ERROR;
-      }
       break;
     }
 
     OP_GET_PROPERTY_NO_POP:
     {
-      if (!IS_INSTANCE(peek(0)))
+      if (!IS_INSTANCE(peek(0)) && !IS_NAMESPACE(peek(0)))
       {
-        runtimeError("Only instances have properties.");
+        runtimeError("Only instances and namespaces have properties.");
         return INTERPRET_RUNTIME_ERROR;
       }
 
-      ObjInstance *instance = AS_INSTANCE(peek(0));
-      ObjString *name = READ_STRING();
-      Value value;
-      if (tableGet(&instance->fields, name, &value))
+      if (IS_INSTANCE(peek(0)))
       {
-        push(value);
-        break;
-      }
+        ObjInstance *instance = AS_INSTANCE(peek(0));
+        ObjString *name = READ_STRING();
+        Value value;
+        if (tableGet(&instance->fields, name, &value))
+        {
+          push(value);
+          break;
+        }
 
-      if (!bindMethod(instance->klass, name))
-        return INTERPRET_RUNTIME_ERROR;
+        if (!bindMethod(instance->klass, name))
+          return INTERPRET_RUNTIME_ERROR;
+      }
+      else
+      {
+        ObjNamespace *namespace = AS_NAMESPACE(peek(0));
+        ObjString *name = READ_STRING();
+        Value value;
+        if (tableGet(&namespace->fields, name, &value))
+        {
+          push(value);
+          break;
+        }
+
+        if (!bindFuncInNamespace(namespace, name))
+          return INTERPRET_RUNTIME_ERROR;
+      }
 
       break;
     }
 
     case OP_SET_PROPERTY:
     {
-      if (!IS_INSTANCE(peek(1)))
+      if (!IS_INSTANCE(peek(1)) && !IS_NAMESPACE(peek(1)))
       {
-        runtimeError("Only instances have fields.");
+        runtimeError("Only instances and namespaces have properties.");
         return INTERPRET_RUNTIME_ERROR;
       }
 
-      ObjInstance *instance = AS_INSTANCE(peek(1));
-      tableSet(&instance->fields, READ_STRING(), peek(0));
+      if (IS_INSTANCE(peek(1)))
+      {
+        ObjInstance *instance = AS_INSTANCE(peek(1));
+        tableSet(&instance->fields, READ_STRING(), peek(0));
+      }
+      else
+      {
+        ObjNamespace *namespace = AS_NAMESPACE(peek(1));
+        tableSet(&namespace->fields, READ_STRING(), peek(0));
+      }
+
       Value value = pop();
       pop();
       push(value);
+
       break;
     }
 
@@ -1023,7 +1202,7 @@ static InterpretResult run()
     }
     case OP_ADD:
     {
-      if (IS_STRING(peek(1)))
+      if (IS_STRING(peek(1)) || IS_STRING(peek(0)))
       {
         concatenate();
       }
@@ -1051,14 +1230,28 @@ static InterpretResult run()
       }
       else
       {
-        runtimeError("Operands must be two numbers or two strings.");
-        return INTERPRET_RUNTIME_ERROR;
+        if (instanceOperation("+"))
+        {
+          frame = &vm.frames[vm.frameCount - 1];
+        }
+        else
+        {
+          runtimeError("Operands must be two numbers or two strings.");
+          return INTERPRET_RUNTIME_ERROR;
+        }
       }
       break;
     }
 
     case OP_SUBTRACT:
-      BINARY_OP(NUMBER_VAL, -);
+      if (instanceOperation("-"))
+      {
+        frame = &vm.frames[vm.frameCount - 1];
+      }
+      else
+      {
+        BINARY_OP(NUMBER_VAL, -);
+      }
       break;
     case OP_INC:
     {
@@ -1083,27 +1276,55 @@ static InterpretResult run()
       break;
     }
     case OP_MULTIPLY:
-      BINARY_OP(NUMBER_VAL, *);
+      if (instanceOperation("*"))
+      {
+        frame = &vm.frames[vm.frameCount - 1];
+      }
+      else
+      {
+        BINARY_OP(NUMBER_VAL, *);
+      }
       break;
     case OP_DIVIDE:
-      BINARY_OP(NUMBER_VAL, /);
+      if (instanceOperation("/"))
+      {
+        frame = &vm.frames[vm.frameCount - 1];
+      }
+      else
+      {
+        BINARY_OP(NUMBER_VAL, /);
+      }
       break;
 
     case OP_MOD:
     {
-      double b = AS_NUMBER(pop());
-      double a = AS_NUMBER(pop());
+      if (instanceOperation("%"))
+      {
+        frame = &vm.frames[vm.frameCount - 1];
+      }
+      else
+      {
+        double b = AS_NUMBER(pop());
+        double a = AS_NUMBER(pop());
 
-      push(NUMBER_VAL(fmod(a, b)));
+        push(NUMBER_VAL(fmod(a, b)));
+      }
       break;
     }
 
     case OP_POW:
     {
-      double b = AS_NUMBER(pop());
-      double a = AS_NUMBER(pop());
+      if (instanceOperation("^"))
+      {
+        frame = &vm.frames[vm.frameCount - 1];
+      }
+      else
+      {
+        double b = AS_NUMBER(pop());
+        double a = AS_NUMBER(pop());
 
-      push(NUMBER_VAL(pow(a, b)));
+        push(NUMBER_VAL(pow(a, b)));
+      }
       break;
     }
 
@@ -1191,7 +1412,7 @@ static InterpretResult run()
     {
       Value asValue = pop();
       ObjString *as = NULL;
-      if(IS_STRING(asValue))
+      if (IS_STRING(asValue))
       {
         as = AS_STRING(asValue);
       }
@@ -1216,15 +1437,24 @@ static InterpretResult run()
       }
       vm.currentScriptName = fileName->chars;
 
-      if(as == NULL)
+      if (as != NULL)
       {
-        printf("Import globally\n");
+        initScanner(s);
+        Token token = scanToken();
+        if (token.type != TOKEN_NAMESPACE)
+        {
+          int len = strlen(s) + as->length + strlen("namespace") + 5;
+          char *ns = malloc(sizeof(char) * len);
+          ns[0] = '\0';
+          strcat(ns, "namespace ");
+          strcat(ns, as->chars);
+          strcat(ns, "{");
+          strcat(ns, s);
+          strcat(ns, "}");
+          free(s);
+          s = ns;
+        }
       }
-      else
-      {
-        printf("Import as '%s'\n", as->chars);
-      }
-      
 
       ObjFunction *function = compile(s);
       if (function == NULL)
@@ -1390,6 +1620,11 @@ static InterpretResult run()
       closeUpvalues(frame->slots);
       vm.frameCount--;
 
+      if (vm.currentNamespace != NULL && vm.currentNamespace->frameCount == vm.frameCount)
+      {
+        vm.currentNamespace = vm.currentNamespace->enclosing;
+      }
+
       if (vm.frameCount == vm.currentFrameCount)
       {
         vm.currentScriptName = vm.scriptName;
@@ -1439,6 +1674,11 @@ static InterpretResult run()
     case OP_PROPERTY:
       defineProperty(READ_STRING());
       break;
+
+    case OP_NAMESPACE:
+      push(OBJ_VAL(newNamespace(READ_STRING())));
+      break;
+
     case OP_FILE:
     {
       Value openType = pop();
@@ -1469,6 +1709,42 @@ static InterpretResult run()
       push(OBJ_VAL(file));
       break;
     }
+    case OP_NATIVE_FUNC:
+    {
+      ObjNativeFunc *func = initNativeFunc();
+
+      int arity = AS_NUMBER(pop());
+      while (arity > 0)
+      {
+        writeValueArray(&func->params, pop());
+        arity--;
+      }
+
+      func->name = AS_STRING(pop());
+      func->returnType = AS_STRING(pop());
+
+      push(OBJ_VAL(func));
+      break;
+    }
+    case OP_NATIVE:
+    {
+      ObjNativeLib *lib = initNativeLib();
+
+      int count = AS_NUMBER(pop());
+      lib->functions = count;
+
+      while (count > 0)
+      {
+        ObjNativeFunc *func = AS_NATIVE_FUNC(pop());
+        func->lib = lib;
+        count--;
+      }
+
+      lib->name = AS_STRING(pop());
+
+      push(OBJ_VAL(lib));
+      break;
+    }
     }
   }
 
@@ -1497,6 +1773,63 @@ InterpretResult interpret(const char *source)
   ObjClosure *closure = newClosure(function);
   pop();
   push(OBJ_VAL(closure));
-  callValue(OBJ_VAL(closure), 0);
+
+  if(initArgC > 0)
+  {
+    for (int i = initArgStart; i < initArgC; i++)
+    {
+      push(STRING_VAL(initArgV[i]));
+    }
+    callValue(OBJ_VAL(closure), initArgC - initArgStart);
+    initArgC = 0;
+    initArgStart = 0;
+    initArgV = NULL;
+  }
+  else
+    callValue(OBJ_VAL(closure), 0);
+  
   return run();
+}
+
+InterpretResult compileCode(const char *source, const char *path)
+{
+  ObjFunction *function = compile(source);
+  if (function == NULL)
+    return INTERPRET_COMPILE_ERROR;
+
+  char *bcPath = ALLOCATE(char, strlen(path) * 2);
+  strcpy(bcPath, path);
+  replaceString(bcPath, ".cube", ".ccube");
+
+  FILE *file = fopen(bcPath, "w");
+  if (file == NULL)
+  {
+    printf("Could not write the byte code");
+    return INTERPRET_COMPILE_ERROR;
+  }
+
+  if (!initByteCode(file))
+  {
+    fclose(file);
+    printf("Could not write the byte code");
+    return INTERPRET_COMPILE_ERROR;
+  }
+
+  if (!writeByteCode(file, OBJ_VAL(function)))
+  {
+    fclose(file);
+    printf("Could not write the byte code");
+    return INTERPRET_COMPILE_ERROR;
+  }
+
+  if (!finishByteCode(file))
+  {
+    fclose(file);
+    printf("Could not write the byte code");
+    return INTERPRET_COMPILE_ERROR;
+  }
+
+  fclose(file);
+
+  return INTERPRET_OK;
 }

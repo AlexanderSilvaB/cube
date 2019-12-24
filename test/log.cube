@@ -14,7 +14,7 @@ class Log
 
     func error()
     {
-        if(level > ERROR)
+        if(this.level > ERROR)
             return false;
 
         print(color('green'), date('dd/MM/YYYY HH:mm:ss: '), color('red'));
@@ -26,7 +26,7 @@ class Log
 
     func info()
     {
-        if(level > INFO)
+        if(this.level > INFO)
             return false;
 
         print(color('green'), date('dd/MM/YYYY HH:mm:ss: '), color('blue'));
@@ -38,7 +38,7 @@ class Log
 
     func debug()
     {
-        if(level > DEBUG)
+        if(this.level > DEBUG)
             return false;
 
         print(color('green'), date('dd/MM/YYYY HH:mm:ss: '), color());

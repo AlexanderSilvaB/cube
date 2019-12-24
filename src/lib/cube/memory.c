@@ -4,6 +4,7 @@
 #include "compiler.h"
 #include "memory.h"
 #include "vm.h"
+#include "native.h"
 
 #ifdef DEBUG_TRACE_GC
 #include <stdio.h>
@@ -106,6 +107,15 @@ static void blackenObject(Obj *object)
     break;
   }
 
+  case OBJ_NAMESPACE:
+  {
+    ObjNamespace *namespace = (ObjNamespace *)object;
+    grayObject((Obj *)namespace->name);
+    grayTable(&namespace->methods);
+    grayTable(&namespace->fields);
+    break;
+  }
+
   case OBJ_CLOSURE:
   {
     ObjClosure *closure = (ObjClosure *)object;
@@ -137,6 +147,23 @@ static void blackenObject(Obj *object)
     grayValue(((ObjUpvalue *)object)->closed);
     break;
 
+  case OBJ_NATIVE_FUNC:
+  {
+    ObjNativeFunc *func = (ObjNativeFunc *)object;
+    grayObject((Obj *)func->name);
+    grayObject((Obj *)func->returnType);
+    grayObject((Obj *)func->lib);
+    grayArray(&func->params);
+    break;
+  }
+
+  case OBJ_NATIVE_LIB:
+  {
+    ObjNativeLib *lib = (ObjNativeLib *)object;
+    grayObject((Obj *)lib->name);
+    break;
+  }
+
   case OBJ_NATIVE:
   case OBJ_STRING:
   case OBJ_FILE:
@@ -165,6 +192,15 @@ static void freeObject(Obj *object)
     freeTable(&klass->methods);
     freeTable(&klass->fields);
     FREE(ObjClass, object);
+    break;
+  }
+
+  case OBJ_NAMESPACE:
+  {
+    ObjNamespace *namespace = (ObjNamespace *)object;
+    freeTable(&namespace->methods);
+    freeTable(&namespace->fields);
+    FREE(ObjNamespace, object);
     break;
   }
 
@@ -209,6 +245,23 @@ static void freeObject(Obj *object)
     ObjList *list = (ObjList *)object;
     freeValueArray(&list->values);
     FREE(ObjList, list);
+    break;
+  }
+
+  case OBJ_NATIVE_FUNC:
+  {
+    ObjNativeFunc *func = (ObjNativeFunc *)object;
+    freeValueArray(&func->params);
+    freeNativeFunc(func);
+    FREE(ObjNativeFunc, func);
+    break;
+  }
+
+  case OBJ_NATIVE_LIB:
+  {
+    ObjNativeLib *lib = (ObjNativeLib *)object;
+    freeNativeLib(lib);
+    FREE(ObjNativeLib, lib);
     break;
   }
 
@@ -375,4 +428,14 @@ void freeFile(ObjFile *file)
     fclose(file->file);
     file->isOpen = false;
   }
+}
+
+void freeNativeFunc(ObjNativeFunc *func)
+{
+  func->lib->functions--;
+}
+
+void freeNativeLib(ObjNativeLib *lib)
+{
+  closeNativeLib(lib);
 }

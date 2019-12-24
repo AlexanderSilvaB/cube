@@ -26,8 +26,9 @@ typedef enum {
   TOKEN_RETURN, TOKEN_SUPER, TOKEN_THIS,
   TOKEN_TRUE, TOKEN_VAR, TOKEN_WHILE, TOKEN_DO, TOKEN_IN,
   TOKEN_CONTINUE, TOKEN_BREAK,
+  TOKEN_NAN, TOKEN_INF,
 
-  TOKEN_IMPORT, TOKEN_AS, TOKEN_LET, TOKEN_WITH,
+  TOKEN_IMPORT, TOKEN_AS, TOKEN_NAMESPACE, TOKEN_NATIVE, TOKEN_LET, TOKEN_WITH,
 
   TOKEN_ERROR,
   TOKEN_EOF
@@ -43,5 +44,6 @@ typedef struct {
 void initScanner(const char* source);
 void backTrack();
 Token scanToken();
+bool isOperator(TokenType type);
 
 #endif

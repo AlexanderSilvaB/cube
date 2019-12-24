@@ -1,6 +1,10 @@
-import "libcalc.so" native
+native "build/libcalc.so"
+{
+    num add(num, num);
+    num sub(num, num);
+    num mul(num, num);
+    num div(num, num);
+}
 
-func add(int, int) : int
-func sub(int, int) : int
-func mul(int, int) : int
-func div(int, int) : int
+var a = add(4, 6);
+print(a);

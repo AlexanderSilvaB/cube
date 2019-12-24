@@ -1,62 +1,21 @@
-var pi = 3.14159265359;
+import math;
 
-func deg(x) 
-{   
-    return x * 57.2958; 
-}
+var dpi = deg(pi);
+var rpi = rad(dpi);
 
-func rad(x) 
-{
-    return x * 0.0174533; 
-}
+println('deg({}) = {}, rad({}) = {}'.format(pi, dpi, dpi, rpi));
 
-func abs(x)
-{
-    if( x < 0)
-        y = -x;
-    else
-        y = x;
-    return y;
-}
+var x = -7;
+var y = abs(x);
+println('abs({}) = {}'.format(x, y));
 
-func min(a, b)
-{
-    if(a < b)
-        return a;
-    return b;
-}
+seed();
+x = int(random() * 1000);
+y = int(random() * 1000);
+println('min({}, {}) = {}, max({}, {}) = {}'.format(x, y, min(x, y), x, y, max(x, y)));
 
-func max(a, b)
-{
-    if(a > b)
-        return a;
-    return b;
-}
+x = 57;
+println('sqrt({}) = {}'.format(x, sqrt(x)));
 
-func sqrt(n)
-{
-    var x = n;
-    var y = 1;
-    var e = 1e-6;
-    while(x - y > e)
-    {
-        x = (x + y)/2;
-        y = n/x;
-    }
-    return x;
-}
-
-func sin(x)
-{
-    var y = (16*x*(pi - x))/(5*pi^2 - 4*x*(pi -x));
-    return y;
-}
-
-func cos(x)
-{
-    var y = sqrt(1 - sin(x)^2);
-    return y;
-}
-
-if(__name__ == "__main__")
-    print(pi, "rad = ", deg(pi), "º");
+println('sin({}) = {}'.format(pi, sin(pi)));
+println('cos({}) = {}'.format(pi, cos(pi)));

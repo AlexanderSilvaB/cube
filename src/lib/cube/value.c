@@ -199,7 +199,7 @@ Value searchDict(ObjDict *dict, char *key)
 }
 
 // Calling function needs to free memory
-char *valueToString(Value value)
+char *valueToString(Value value, bool literal)
 {
   if (IS_BOOL(value))
   {
@@ -224,7 +224,7 @@ char *valueToString(Value value)
   }
   else if (IS_OBJ(value))
   {
-    return objectToString(value);
+    return objectToString(value, literal);
   }
 
   char *unknown = malloc(sizeof(char) * 8);
@@ -284,7 +284,7 @@ char *valueType(Value value)
 
 void printValue(Value value)
 {
-  char *output = valueToString(value);
+  char *output = valueToString(value, true);
   printf("%s", output);
   free(output);
 }
@@ -373,7 +373,7 @@ Value toNumber(Value value)
 
 Value toString(Value value)
 {
-  char *str = valueToString(value);
+  char *str = valueToString(value, false);
   Value v = STRING_VAL(str);
   free(str);
   return v;
