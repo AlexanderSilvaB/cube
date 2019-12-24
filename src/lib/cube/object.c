@@ -595,7 +595,7 @@ char *objectType(Value value)
 	case OBJ_STRING:
 	{
 		char *str = malloc(sizeof(char) * 8);
-		snprintf(str, 7, "string");
+		snprintf(str, 7, "str");
 		return str;
 	}
 

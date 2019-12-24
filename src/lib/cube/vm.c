@@ -203,16 +203,16 @@ static bool call(ObjClosure *closure, int argCount)
 
   frame->slots = vm.stackTop - argCount - 1;
 
-  ObjList *args = initList();
-  for (int i = argCount - 1; i >= 0; i--)
-  {
-    writeValueArray(&args->values, peek(i));
-  }
-  push(OBJ_VAL(args));
+  // ObjList *args = initList();
+  // for (int i = argCount - 1; i >= 0; i--)
+  // {
+  //   writeValueArray(&args->values, peek(i));
+  // }
+  // push(OBJ_VAL(args));
 
-  ObjString *name = AS_STRING(STRING_VAL("__args"));
-  tableSet(&vm.globals, name, peek(0));
-  pop();
+  // ObjString *name = AS_STRING(STRING_VAL("__args"));
+  // tableSet(&vm.globals, name, peek(0));
+  // pop();
 
   return true;
 }
@@ -1363,6 +1363,19 @@ static InterpretResult run()
       }
 
       push(result);
+      break;
+    }
+
+    case OP_IS:
+    {
+      ObjString *type = AS_STRING(pop());
+      bool not = AS_BOOL(pop());
+      char *objType = valueType(pop());
+      if(strcmp(objType, type->chars) == 0)
+        push(not ? FALSE_VAL : TRUE_VAL);
+      else
+        push(not ? TRUE_VAL : FALSE_VAL);
+      
       break;
     }
 

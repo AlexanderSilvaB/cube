@@ -41,6 +41,7 @@ typedef enum
   OP_MOD,
   OP_POW,
   OP_IN,
+  OP_IS,
   OP_NOT,
   OP_NEGATE,
   OP_JUMP,

@@ -6,6 +6,20 @@
 #include <math.h>
 #include <ctype.h>
 
+#ifdef WINDOWS
+    #include <direct.h>
+    #define GetCurrentDir _getcwd
+    #define MakeDir(path, mode) _mkdir(path)
+    #define RmDir _rmdir
+#else
+    #include <unistd.h>
+    #include <sys/stat.h>
+    #include <dirent.h> 
+    #define GetCurrentDir getcwd
+    #define MakeDir(path, mode) mkdir(path, mode)
+    #define RmDir rmdir
+ #endif
+
 #include "std.h"
 #include "object.h"
 #include "vm.h"
@@ -232,6 +246,35 @@ Value isinfNative(int argCount, Value *args)
     return TRUE_VAL;
 }
 
+Value isemptyNative(int argCount, Value *args)
+{
+    if (argCount == 0)
+        return BOOL_VAL(false);
+    Value arg = args[0];
+    if(IS_NONE(arg))
+    {
+        return TRUE_VAL;
+    }
+    else if(IS_STRING(arg))
+    {
+        return BOOL_VAL( AS_STRING(arg)->length == 0 );
+    }
+    else if(IS_BYTES(arg))
+    {
+        return BOOL_VAL( AS_BYTES(arg)->length == 0 );
+    }
+    else if(IS_LIST(arg))
+    {
+        return BOOL_VAL( AS_LIST(arg)->values.count == 0 );
+    }
+    else if(IS_DICT(arg))
+    {
+        return BOOL_VAL( AS_DICT(arg)->count == 0 );
+    }
+
+    return BOOL_VAL( AS_STRING(toString(arg))->length == 0 );
+}
+
 Value boolNative(int argCount, Value *args)
 {
     if (argCount == 0)
@@ -360,7 +403,7 @@ Value makeNative(int argCount, Value *args)
             vType = VAL_BOOL;
         else if(strcmp(name, "num") == 0)
             vType = VAL_NUMBER;
-        else if(strcmp(name, "string") == 0)
+        else if(strcmp(name, "string") == 0 || strcmp(name, "str") == 0)
         {
             vType = VAL_OBJ;
             oType = OBJ_STRING;
@@ -695,6 +738,64 @@ Value openNative(int argCount, Value *args)
     return OBJ_VAL(file);
 }
 
+Value pwdNative(int argCount, Value *args)
+{
+    char cCurrentPath[FILENAME_MAX];
+    Value ret = NONE_VAL;
+    if (GetCurrentDir(cCurrentPath, sizeof(cCurrentPath)))
+    {
+        cCurrentPath[sizeof(cCurrentPath) - 1] = '\0';
+        ret = STRING_VAL(cCurrentPath);
+    }
+    return ret;
+}
+
+Value lsNative(int argCount, Value *args)
+{
+    char *path = ".";
+    if (argCount > 0 && IS_STRING(args[0]))
+        path = AS_CSTRING(args[0]);
+    
+    ObjList *list = initList();
+    #ifdef WINDOWS
+    
+    #else
+        DIR *d;
+        struct dirent *dir;
+        d = opendir(path);
+        if (d) 
+        {
+            while ((dir = readdir(d)) != NULL) 
+            {
+                writeValueArray(&list->values, STRING_VAL(dir->d_name));
+            }
+            closedir(d);
+        }
+    #endif
+    return OBJ_VAL(list);
+}
+
+Value cdNative(int argCount, Value *args)
+{
+    if (argCount == 0)
+        return NONE_VAL;
+    if(!IS_STRING(args[0]))
+        return NONE_VAL;
+    char *str = AS_CSTRING(args[0]);
+    int rc = chdir(str);
+    return BOOL_VAL(rc == 0);
+}
+
+Value existsNative(int argCount, Value *args)
+{
+    if (argCount == 0)
+        return NONE_VAL;
+    if(!IS_STRING(args[0]))
+        return NONE_VAL;
+    char *str = AS_CSTRING(args[0]);
+    return BOOL_VAL(existsFile(str));
+}
+
 Value copyNative(int argCount, Value *args)
 {
     if (argCount == 0)
@@ -739,6 +840,7 @@ void initStd()
     ADD_STD("ln", lnNative);
     ADD_STD("isnan", isnanNative);
     ADD_STD("isinf", isinfNative);
+    ADD_STD("isempty", isemptyNative);
     ADD_STD("bool", boolNative);
     ADD_STD("num", numNative);
     ADD_STD("int", intNative);
@@ -756,6 +858,10 @@ void initStd()
     ADD_STD("type", typeNative);
     ADD_STD("env", envNative);
     ADD_STD("open", openNative);
+    ADD_STD("cd", cdNative);
+    ADD_STD("pwd", pwdNative);
+    ADD_STD("ls", lsNative);
+    ADD_STD("exists", existsNative);
     ADD_STD("make", makeNative);
     ADD_STD("copy", copyNative);
 }

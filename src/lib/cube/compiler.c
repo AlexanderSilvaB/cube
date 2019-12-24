@@ -29,7 +29,7 @@ typedef enum
   PREC_AND,        // and
   PREC_EQUALITY,   // == !=
   PREC_COMPARISON, // < > <= >=
-  PREC_TERM,       // + -
+  PREC_TERM,       // + - in is
   PREC_FACTOR,     // * /
   PREC_UNARY,      // ! -
   PREC_CALL,       // . ()
@@ -532,6 +532,35 @@ static void and_(bool canAssign)
   parsePrecedence(PREC_AND);
 
   patchJump(endJump);
+}
+
+static void is(bool canAssign)
+{
+  if(match(TOKEN_BANG))
+  {
+    emitByte(OP_TRUE);
+  }
+  else
+  {
+    emitByte(OP_FALSE);
+  }
+  
+  if(match(TOKEN_IDENTIFIER) || match(TOKEN_NONE) || match(TOKEN_FUNC) || match(TOKEN_CLASS))
+  {
+    ObjString *str = copyString(parser.previous.start, parser.previous.length);
+    
+    if(!isValidType(str->chars))
+    {
+      errorAtCurrent("Invalid type on 'is' operator.");
+    }
+    else
+    {
+      emitConstant(OBJ_VAL(str));
+      emitByte(OP_IS);
+    }
+  }
+  else
+    errorAtCurrent("Expected type name after 'is'.");
 }
 
 static void binary(bool canAssign)
@@ -1084,13 +1113,13 @@ static void function(FunctionType type)
   consume(TOKEN_RIGHT_PAREN, "Expect ')' after parameters.");
 
   // Create args
-  Token argsToken;
-  uint8_t args = createSyntheticVariable("args", &argsToken);
-  emitByte(OP_NONE);
-  defineVariable(args);
-  Token argsInternToken = syntheticToken("__args");
-  getVariable(argsInternToken);
-  setVariablePop(argsToken);
+  // Token argsToken;
+  // uint8_t args = createSyntheticVariable("args", &argsToken);
+  // emitByte(OP_NONE);
+  // defineVariable(args);
+  // Token argsInternToken = syntheticToken("__args");
+  // getVariable(argsInternToken);
+  // setVariablePop(argsToken);
 
   // The body.
   consume(TOKEN_LEFT_BRACE, "Expect '{' before function body.");
@@ -1261,6 +1290,7 @@ ParseRule rules[] = {
     {NULL, NULL, PREC_NONE},         // TOKEN_WHILE
     {NULL, NULL, PREC_NONE},         // TOKEN_DO
     {NULL, binary, PREC_TERM},       // TOKEN_IN
+    {NULL, is, PREC_TERM},       // TOKEN_IS
     {NULL, NULL, PREC_NONE},         // TOKEN_CONTINUE
     {NULL, NULL, PREC_NONE},         // TOKEN_BREAK
     {number, NULL, PREC_NONE},       // TOKEN_NAN
@@ -2183,10 +2213,10 @@ ObjFunction *compile(const char *source)
     parser.panicMode = false;
 
     // Create args
-    Token argsToken = syntheticToken("args");
-    uint8_t args = identifierConstant(&argsToken);
-    getVariable(syntheticToken("__args"));
-    defineVariable(args);
+    // Token argsToken = syntheticToken("args");
+    // uint8_t args = identifierConstant(&argsToken);
+    // getVariable(syntheticToken("__args"));
+    // defineVariable(args);
 
     // Parse the code
     advance();

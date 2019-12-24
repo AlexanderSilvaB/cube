@@ -114,7 +114,7 @@ static bool readFile(int argCount) {
 
 static bool readFileBytes(int argCount) {
 	if (argCount != 2) {
-		runtimeError("read() takes 1 argument (%d given)", argCount);
+		runtimeError("readBytes() takes 1 argument (%d given)", argCount);
 		return false;
 	}
 

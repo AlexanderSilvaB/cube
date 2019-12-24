@@ -1,0 +1,42 @@
+import net;
+
+func get(server, client, request)
+{
+    println("GET: ", request);
+
+    var response;
+    if(isempty(request))
+    {
+        var rand = int(random() * 10000000);
+        println("Sending randomic number: ", rand);
+        response = '<html><body><center><h3>Random number: {}</h3><h4>Nothing requested</h4><h5>Client: {}</h5><p>Cube HTTP Server</p></center></body></html>'.format(rand, client);
+    }
+    else
+    {
+        var f = open(request, "rb");
+        if(f is none)
+        {
+            println("Sending error: Not found");
+            server.setCode(server.NOT_FOUND);
+            response = '<html><body><center><h3>Requested file not found: {}</h3><h4>Client: {}</h4><p>Cube HTTP Server</p></center></body></html>'.format(request, client);
+        }
+        else
+        {
+            println("Sending: ", request);
+            var contents = f.read();
+            f.close();
+            response = contents;
+        }
+    }
+
+    return response;
+}
+
+var server = HTTPServer(8080);
+server.get(get);
+
+println("Running server at http://localhost:{}".format(server.port));
+if(!server.run())
+{
+    println("Failed on running the server");
+}

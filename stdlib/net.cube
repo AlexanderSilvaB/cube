@@ -10,6 +10,8 @@ native stdlib/libs/libnet
     str tcp_udp_socket_client(num);
 }
 
+import files;
+
 class Socket
 {
     var address = "127.0.0.1";
@@ -21,11 +23,6 @@ class Socket
     var timeout = 1000;
 
     var pointer = none;
-
-    func init()
-    {
-        
-    }
 
     func open()
     {
@@ -47,14 +44,14 @@ class Socket
 
     func send(data)
     {
-        if(type(data) != 'bytes')
+        if(data is not bytes)
             data = bytes(data);
         return tcp_udp_socket_send(this.pointer, data);
     }
 
     func sendTo(data)
     {
-        if(type(data) != 'bytes')
+        if(data is not bytes)
             data = bytes(data);
         return tcp_udp_socket_send_to(this.pointer, data);
     }
@@ -77,5 +74,181 @@ class Socket
     func client()
     {
         return tcp_udp_socket_client(this.pointer);
+    }
+}
+
+class HTTPServer
+{
+    var SUCCESS = 201;
+    var NOT_FOUND = 404;
+
+    var running = false;
+    var code = 201;
+    var port = 8080;
+
+    var onGet = @(server, client, request)
+    {
+        var response = '';
+        var f = open(request, "rb");
+        if(f is none)
+            server.setCode(server.NOT_FOUND);
+        else
+        {
+            response = f.read();
+            f.close();
+        }
+        return response;
+    };
+    var onPost = @(server, client, request)
+    {
+        var response = '';
+        var f = open(request, "rb");
+        if(f is none)
+            server.setCode(server.NOT_FOUND);
+        else
+        {
+            response = f.read();
+            f.close();
+        }
+        return response;
+    };
+
+    func init(port)
+    {
+        this.port = port;
+    }
+
+    func run()
+    {
+        var socket = Socket();
+        socket.port = this.port;
+        socket.isServer = true;
+
+        if(this.running)
+            return true;
+
+        if(socket.open() == false)
+            return false;
+        
+        this.running = true;
+        while(this.running)
+        {
+            if(socket.wait() == false)
+            {
+                this.kill();
+                return false;
+            }
+
+            var client = socket.client();
+            var received = str(socket.receive());
+            var request = none;
+            var page = none;
+            var response = none;
+
+            var pos = received.find(' ');
+            if(pos >= 0)
+            {
+                request = received.substr(0, pos);
+
+                pos = received.find('/');
+                if(pos >= 0)
+                {
+                    received = received.from(pos + 1);
+                    pos = received.find(' ');
+                    if(pos >= 0)
+                    {
+                        page = received.substr(0, pos);
+                    }
+                }
+            }
+
+            if(request == 'GET' and page is not none and this.onGet is func)
+            {
+                response = this.onGet(this, client, page);
+            }
+
+            if(request == 'POST' and page is not none and this.onPost is func)
+            {
+                response = this.onPost(this, client, page);
+            }
+
+            if(response != none)
+            {
+                var codeStr = str(this.code);
+                if(this.code == this.SUCCESS)
+                    codeStr += ' Success';
+                else if(this.code == this.NOT_FOUND)
+                    codeStr += ' Not Found';
+
+                var fmtStr = this.getMime(page);
+
+                this.code = this.SUCCESS;
+                var ret = 'HTTP/1.1 {}\nContent-Type: {}; charset=utf-8\n\n'.format(codeStr, fmtStr);
+                socket.send(ret);
+                socket.send(response);
+            }
+
+            socket.disconnect();
+        }
+        
+        this.kill();
+        socket.close();
+        return true;
+    }
+
+    func getMime(page)
+    {
+        var mime = "text/html";
+        if(isempty(page))
+            return mime;
+
+        var ext = extension(page);
+        if(ext == "aac")
+            mime = "audio/aac";
+        else if(ext == "avi")
+            mime = "video/x-msvideo";
+        else if(ext == "bin")
+            mime = "application/octet-stream";
+        else if(ext == "bz")
+            mime = "application/x-bzip";
+        else if(ext == "css")
+            mime = "text/css";
+        else if(ext == "html" or ext == "htm")
+            mime = "text/html";
+        else if(ext == "gif")
+            mime = "image/gif";
+        else if(ext == "ico")
+            mime = "image/x-icon";
+        else if(ext == "jpg" or ext == "jpeg")
+            mime = "image/jpeg";
+        else if(ext == "js")
+            mime = "application/javascript";
+        else if(ext == "json")
+            mime = "application/json";
+        else if(ext == "png")
+            mime = "image/png";
+
+        return mime;
+    }
+
+    func kill()
+    {
+        this.running = false;
+        
+    }
+
+    func get(onGet)
+    {
+        this.onGet = onGet;
+    }
+
+    func post(onPost)
+    {
+        this.onPost = onPost;
+    }
+
+    func setCode(code)
+    {
+        this.code = code;
     }
 }

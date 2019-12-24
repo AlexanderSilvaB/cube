@@ -219,6 +219,8 @@ static TokenType identifierType()
       {
       case 'f':
         return checkKeyword(2, 0, "", TOKEN_IF);
+      case 's':
+        return checkKeyword(2, 0, "", TOKEN_IS);
       case 'n':
       {
         if (scanner.current - scanner.start > 2)
@@ -245,23 +247,36 @@ static TokenType identifierType()
     {
       switch (scanner.start[1])
       {
-      case 'o':
-        return checkKeyword(2, 2, "ne", TOKEN_NONE);
-      case 'a':
-      {
-        if (scanner.current - scanner.start > 2)
+        case 'o':
         {
-          switch (scanner.start[2])
+          if (scanner.current - scanner.start > 2)
           {
-          case 'n':
-            return checkKeyword(3, 0, "", TOKEN_NAN);
-          case 'm':
-            return checkKeyword(3, 6, "espace", TOKEN_NAMESPACE);
-          case 't':
-            return checkKeyword(3, 3, "ive", TOKEN_NATIVE);
+            switch (scanner.start[2])
+            {
+            case 'n':
+              return checkKeyword(3, 1, "e", TOKEN_NONE);
+            case 't':
+              return checkKeyword(3, 0, "", TOKEN_BANG);
+            }
           }
+          break;
         }
-      }
+        case 'a':
+        {
+          if (scanner.current - scanner.start > 2)
+          {
+            switch (scanner.start[2])
+            {
+            case 'n':
+              return checkKeyword(3, 0, "", TOKEN_NAN);
+            case 'm':
+              return checkKeyword(3, 6, "espace", TOKEN_NAMESPACE);
+            case 't':
+              return checkKeyword(3, 3, "ive", TOKEN_NATIVE);
+            }
+          }
+          break;
+        }
       }
     }
     break;

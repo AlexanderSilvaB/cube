@@ -164,10 +164,19 @@ extern "C"
             return ret;
 
         const char *address = socket->getAddress(NULL);
-        char *str = (char*)malloc(sizeof(char) * 30);
-        strcpy(str, address);
+        if(address != NULL)
+        {
+            char *str = (char*)malloc(sizeof(char) * 30);
+            strcpy(str, address);
 
-        ret._string = str;
+            ret._string = str;
+        }
+        else
+        {
+            ret._string = (char*)malloc(sizeof(char) * 1);
+            ret._string[0] = '\0';
+        }
+        
         return ret;
     }
 }

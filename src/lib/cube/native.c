@@ -149,11 +149,13 @@ Value callNativeFn(lib_func func, NativeTypes ret, int count, cube_native_value 
         case TYPE_STRING:
         {
             result = STRING_VAL(res._string);
+            free(res._string);
         }
         break;
         case TYPE_BYTES:
         {
             result = BYTES_VAL(res._bytes.bytes, res._bytes.length);
+            free(res._bytes.bytes);
         }
         break;
         default:

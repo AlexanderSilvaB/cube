@@ -1,0 +1,4 @@
+import net;
+
+var server = HTTPServer(8080);
+server.run();

@@ -1,0 +1,6 @@
+func extension(path)
+{
+    var parts = path.split('.');
+    var ext = parts[-1];
+    return ext;
+}
