@@ -27,8 +27,10 @@ typedef struct
   ObjString *initString;
   ObjUpvalue *openUpvalues;
   ObjList *paths;
+  ObjNamespace *currentNamespace;
 
   const char *extension;
+  const char *nativeExtension;
   const char *scriptName;
   const char *currentScriptName;
   int currentFrameCount;
@@ -57,8 +59,10 @@ extern VM vm;
 void initVM(const char* path, const char *scriptName);
 void freeVM();
 void addPath(const char* path);
+void loadArgs(int argc, const char *argv[], int argStart);
 
 InterpretResult interpret(const char *source);
+InterpretResult compileCode(const char *source, const char* path);
 void push(Value value);
 Value pop();
 Value peek(int distance);

@@ -37,7 +37,7 @@ Value exitNative(int argCount, Value *args)
 }
 
 Value printNative(int argCount, Value *args)
-{
+{   
     for (int i = 0; i < argCount; i++)
     {
         Value value = args[i];
@@ -52,14 +52,7 @@ Value printNative(int argCount, Value *args)
 
 Value printlnNative(int argCount, Value *args)
 {
-    for (int i = 0; i < argCount; i++)
-    {
-        Value value = args[i];
-        if (IS_STRING(value))
-            printf("%s", AS_CSTRING(value));
-        else
-            printValue(value);
-    }
+    printNative(argCount, args);
     printf("\n");
     vm.newLine = false;
     return NONE_VAL;
@@ -81,10 +74,161 @@ Value inputNative(int argCount, Value *args)
 
 Value randomNative(int argCount, Value *args)
 {
-    srand(time(NULL));
     int dv = 100000001;
     double r = rand() % dv;
     return NUMBER_VAL(r / dv);
+}
+
+Value seedNative(int argCount, Value *args)
+{
+    Value seed;
+    if (argCount == 0)
+        seed = NUMBER_VAL(time(NULL));
+    else 
+        seed = toNumber(args[0]);
+
+    srand(AS_NUMBER(seed));
+    return seed;
+}
+
+Value sinNative(int argCount, Value *args)
+{
+    Value val;
+    if (argCount == 0)
+        val = NUMBER_VAL(0);
+    else
+        val = toNumber(args[0]); 
+    return NUMBER_VAL(sin(AS_NUMBER(val)));
+}
+
+Value cosNative(int argCount, Value *args)
+{
+    Value val;
+    if (argCount == 0)
+        val = NUMBER_VAL(0);
+    else
+        val = toNumber(args[0]); 
+    return NUMBER_VAL(cos(AS_NUMBER(val)));
+}
+
+Value tanNative(int argCount, Value *args)
+{
+    Value val;
+    if (argCount == 0)
+        val = NUMBER_VAL(0);
+    else
+        val = toNumber(args[0]); 
+    return NUMBER_VAL(tan(AS_NUMBER(val)));
+}
+
+Value asinNative(int argCount, Value *args)
+{
+    Value val;
+    if (argCount == 0)
+        val = NUMBER_VAL(0);
+    else
+        val = toNumber(args[0]); 
+    return NUMBER_VAL(asin(AS_NUMBER(val)));
+}
+
+Value acosNative(int argCount, Value *args)
+{
+    Value val;
+    if (argCount == 0)
+        val = NUMBER_VAL(0);
+    else
+        val = toNumber(args[0]); 
+    return NUMBER_VAL(acos(AS_NUMBER(val)));
+}
+
+Value atanNative(int argCount, Value *args)
+{
+    Value val;
+    if (argCount == 0)
+        val = NUMBER_VAL(0);
+    else
+        val = toNumber(args[0]); 
+    return NUMBER_VAL(atan(AS_NUMBER(val)));
+}
+
+Value atan2Native(int argCount, Value *args)
+{
+    Value y;
+    if (argCount == 0)
+        y = NUMBER_VAL(0);
+    else
+        y = toNumber(args[0]); 
+
+    Value x;
+    if (argCount <= 1)
+        x = NUMBER_VAL(0);
+    else
+        x = toNumber(args[1]); 
+    return NUMBER_VAL(atan2(AS_NUMBER(y), AS_NUMBER(x)));
+}
+
+Value sqrtNative(int argCount, Value *args)
+{
+    Value val;
+    if (argCount == 0)
+        val = NUMBER_VAL(0);
+    else
+        val = toNumber(args[0]); 
+    return NUMBER_VAL(sqrt(AS_NUMBER(val)));
+}
+
+Value lnNative(int argCount, Value *args)
+{
+    Value val;
+    if (argCount == 0)
+        val = NUMBER_VAL(0);
+    else
+        val = toNumber(args[0]); 
+    return NUMBER_VAL(log(AS_NUMBER(val)));
+}
+
+Value logNative(int argCount, Value *args)
+{
+    Value x;
+    if (argCount == 0)
+        x = NUMBER_VAL(0);
+    else
+        x = toNumber(args[0]); 
+
+    Value b;
+    if (argCount <= 1)
+        b = NUMBER_VAL(10);
+    else
+        b = toNumber(args[1]); 
+    return NUMBER_VAL( log(AS_NUMBER(x))/log(AS_NUMBER(b)) );
+}
+
+Value isnanNative(int argCount, Value *args)
+{
+    if(argCount == 0)
+        return FALSE_VAL;
+
+    for (int i = 0; i < argCount; i++)
+    {
+        Value value = toNumber(args[i]);
+        if(!isnan(AS_NUMBER(value)))
+            return FALSE_VAL;
+    }
+    return TRUE_VAL;
+}
+
+Value isinfNative(int argCount, Value *args)
+{
+    if(argCount == 0)
+        return FALSE_VAL;
+
+    for (int i = 0; i < argCount; i++)
+    {
+        Value value = toNumber(args[i]);
+        if(!isinf(AS_NUMBER(value)))
+            return FALSE_VAL;
+    }
+    return TRUE_VAL;
 }
 
 Value boolNative(int argCount, Value *args)
@@ -292,10 +436,60 @@ Value makeNative(int argCount, Value *args)
     return NONE_VAL;
 }
 
+static int colorCode(char *color)
+{
+    if(strcmp(color, "black") == 0)
+        return 30;
+    else if(strcmp(color, "red") == 0)
+        return 31;
+    else if(strcmp(color, "green") == 0)
+        return 32;
+    else if(strcmp(color, "yellow") == 0)
+        return 33;
+    else if(strcmp(color, "blue") == 0)
+        return 34;
+    else if(strcmp(color, "magenta") == 0)
+        return 35;
+    else if(strcmp(color, "cyan") == 0)
+        return 36;
+    else if(strcmp(color, "white") == 0)
+        return 37;
+    return 30;
+}
+
 Value colorNative(int argCount, Value *args)
 {
-    char *format = "\033[0;m";
-    return STRING_VAL(format);
+    char *format = malloc(sizeof(char) * 30);
+    strcpy(format, "\033[0;");
+
+    int code = 30;
+
+    if(argCount > 0)
+    {
+        code = 37;
+        if(IS_STRING(args[0]))
+            code = colorCode(AS_CSTRING(args[0]));
+        else if(IS_NUMBER(args[0]))
+            code = AS_NUMBER(args[0]);
+        sprintf(format + strlen(format), "%d", code);
+    }
+
+    if(argCount > 1)
+    {
+        code = 40;
+        if(IS_STRING(args[1]))
+            code = colorCode(AS_CSTRING(args[1])) + 10;
+        else if(IS_NUMBER(args[1]))
+            code = AS_NUMBER(args[1]);
+        sprintf(format + strlen(format), ";%d", code);
+    }
+
+    sprintf(format + strlen(format), "m");
+    
+    Value res = STRING_VAL(format);
+    free(format);
+
+    return res;
 }
 
 Value dateNative(int argCount, Value *args)
@@ -399,7 +593,9 @@ Value lenNative(int argCount, Value *args)
         return NUMBER_VAL(AS_DICT(args[0])->count);
 
     //runtimeError("Unsupported type passed to len()", argCount);
-    printf("Unsupported type passed to len()\n");
+    printf("Unsupported type passed to len(): ");
+    printValue(args[0]);
+    printf("\n");
     return NONE_VAL;
 }
 
@@ -514,6 +710,19 @@ void initStd()
     ADD_STD("print", printNative);
     ADD_STD("println", printlnNative);
     ADD_STD("random", randomNative);
+    ADD_STD("seed", seedNative);
+    ADD_STD("sin", sinNative);
+    ADD_STD("cos", cosNative);
+    ADD_STD("tan", tanNative);
+    ADD_STD("asin", asinNative);
+    ADD_STD("acos", acosNative);
+    ADD_STD("atan", atanNative);
+    ADD_STD("atan2", atan2Native);
+    ADD_STD("sqrt", sqrtNative);
+    ADD_STD("log", logNative);
+    ADD_STD("ln", lnNative);
+    ADD_STD("isnan", isnanNative);
+    ADD_STD("isinf", isinfNative);
     ADD_STD("bool", boolNative);
     ADD_STD("num", numNative);
     ADD_STD("int", intNative);

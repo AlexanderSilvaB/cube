@@ -1,0 +1,36 @@
+var pi = 3.14159265359;
+var e = 2.71828;
+
+func deg(x) 
+{   
+    return x * 57.2958; 
+}
+
+func rad(x) 
+{
+    return x * 0.0174533; 
+}
+
+func abs(x)
+{
+    var y;
+    if( x < 0)
+        y = -x;
+    else
+        y = x;
+    return y;
+}
+
+func min(a, b)
+{
+    if(a < b)
+        return a;
+    return b;
+}
+
+func max(a, b)
+{
+    if(a > b)
+        return a;
+    return b;
+}

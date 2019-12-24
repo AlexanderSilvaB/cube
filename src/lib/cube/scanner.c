@@ -220,7 +220,20 @@ static TokenType identifierType()
       case 'f':
         return checkKeyword(2, 0, "", TOKEN_IF);
       case 'n':
-        return checkKeyword(2, 0, "", TOKEN_IN);
+      {
+        if (scanner.current - scanner.start > 2)
+        {
+          switch (scanner.start[2])
+          {
+          case 'f':
+            return checkKeyword(3, 0, "", TOKEN_INF);
+          }
+        }
+        else
+        {
+          return checkKeyword(2, 0, "", TOKEN_IN);
+        }
+      }
       case 'm':
         return checkKeyword(2, 4, "port", TOKEN_IMPORT);
       }
@@ -228,7 +241,30 @@ static TokenType identifierType()
   case 'l':
     return checkKeyword(1, 2, "et", TOKEN_LET);
   case 'n':
-    return checkKeyword(1, 3, "one", TOKEN_NONE);
+    if (scanner.current - scanner.start > 1)
+    {
+      switch (scanner.start[1])
+      {
+      case 'o':
+        return checkKeyword(2, 2, "ne", TOKEN_NONE);
+      case 'a':
+      {
+        if (scanner.current - scanner.start > 2)
+        {
+          switch (scanner.start[2])
+          {
+          case 'n':
+            return checkKeyword(3, 0, "", TOKEN_NAN);
+          case 'm':
+            return checkKeyword(3, 6, "espace", TOKEN_NAMESPACE);
+          case 't':
+            return checkKeyword(3, 3, "ive", TOKEN_NATIVE);
+          }
+        }
+      }
+      }
+    }
+    break;
   case 'o':
     return checkKeyword(1, 1, "r", TOKEN_OR);
     break;
@@ -304,15 +340,15 @@ static Token number()
     while (isDigit(peek()))
       advance();
   }
-  else if(peek() == 'x' && isHex(peekNext()))
+  else if (peek() == 'x' && isHex(peekNext()))
   {
-      // consum the 'x'
+    // consum the 'x'
+    advance();
+
+    while (isHex(peek()))
       advance();
 
-      while (isHex(peek()))
-        advance();
-
-      return makeToken(TOKEN_BYTE);
+    return makeToken(TOKEN_BYTE);
   }
 
   return makeToken(TOKEN_NUMBER);
@@ -428,4 +464,20 @@ Token scanToken()
   }
 
   return errorToken("Unexpected character.");
+}
+
+bool isOperator(TokenType type)
+{
+  return type == TOKEN_MINUS ||
+         type == TOKEN_PLUS ||
+         type == TOKEN_SLASH ||
+         type == TOKEN_STAR ||
+         type == TOKEN_POW ||
+         type == TOKEN_BANG ||
+         type == TOKEN_BANG_EQUAL ||
+         type == TOKEN_EQUAL_EQUAL ||
+         type == TOKEN_LESS ||
+         type == TOKEN_GREATER ||
+         type == TOKEN_LESS_EQUAL ||
+         type == TOKEN_GREATER_EQUAL;
 }

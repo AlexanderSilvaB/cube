@@ -1,82 +1,86 @@
-import math as m
+import math as m;
 
 class Complex
 {
-    real = 0
-    imag = -1
+    var real = 0;
+    var imag = -1;
 
-    func Complex(r, i)
+    func init(r, i)
     {
-        real = number(r)
-        imag = number(i)
+        this.real = num(r);
+        this.imag = num(i);
     }
 
     func +(c)
-        return new Complex(real + c.real, imag + c.imag)
+    {
+        return Complex(this.real + c.real, this.imag + c.imag);
+    }
 
     func -(c)
-        return new Complex(real - c.real, imag - c.imag)
+    {
+        return Complex(this.real - c.real, this.imag - c.imag);
+    }
 
     func *(c)
     {
-        xu = real * c.real
-        yv = imag * c.imag
-        xv = real * c.imag
-        yu = imag * c.real
-        return new Complex(xu - yv, xv + yu)
+        var xu = this.real * c.real;
+        var yv = this.imag * c.imag;
+        var xv = this.real * c.imag;
+        var yu = this.imag * c.real;
+        return Complex(xu - yv, xv + yu);
     }
 
     func /(c)
     {
-        x = real
-        y = imag
-        u = c.real
-        v = c.imag
-        b = -c.imag
+        var x = this.real;
+        var y = this.imag;
+        var u = c.real;
+        var v = c.imag;
+        var b = -c.imag;
 
-        xu = x * u
-        xb = x * b
-        yu = y * u
-        yb = - y * b
+        var xu = x * u;
+        var xb = x * b;
+        var yu = y * u;
+        var yb = - y * b;
 
-        ux = u * u
-        vb = - v * b
+        var ux = u * u;
+        var vb = - v * b;
 
-        r = xu + yb
-        i = xb + yu
-        d = ux + vb
+        var r = xu + yb;
+        var i = xb + yu;
+        var d = ux + vb;
 
-        return new Complex(r / d, i / d)
+        return Complex(r / d, i / d);
     }
 
-    func toNumber()
+    func num()
     {
-        return real
+        return this.real;
     }
 
-    func toString()
+    func str()
     {
-        if(imag < 0)
-            return real + " - " + m.abs(imag) + "j"
+        if(this.imag < 0)
+            return this.real + " - " + m.abs(this.imag) + "j";
         else
-            return real + " + " + imag + "j"
+            return this.real + " + " + this.imag + "j";
     }
 }
 
-c1 = new Complex(3, 2)
-println("C1 = ", c1)
+var c1 = Complex(3, 2);
+println("C1 = ", c1.str());
 
-c2 = new Complex(4, -3)
-println("C2 = ", c2)
+var c2 = Complex(4, -3);
+println("C2 = ", c2.str());
 
-c3 = c1 + c2
-println("C1 + C2 = ", c3)
+var c3 = c1 + c2;
+println("C1 + C2 = ", c3.str());
 
-c4 = c1 - c2
-println("C1 - C2 = ", c4)
+var c4 = c1 - c2;
+println("C1 - C2 = ", c4.str());
 
-c5 = c1 * c2
-println("C1 * C2 = ", c5)
+var c5 = c1 * c2;
+println("C1 * C2 = ", c5.str());
 
-c6 = c1 / c2
-println("C1 / C2 = ", c6)
+var c6 = c1 / c2;
+println("C1 / C2 = ", c6.str());

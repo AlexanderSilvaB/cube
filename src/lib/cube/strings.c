@@ -360,7 +360,7 @@ static bool formatString(int argCount) {
 	for (int j = argCount - 2; j >= 0; --j) {
 		Value value = pop();
 		if (!IS_STRING(value))
-			replace_strings[j] = valueToString(value);
+			replace_strings[j] = valueToString(value, false);
 		else {
 			ObjString *strObj = AS_STRING(value);
 			char *str = malloc(strObj->length + 1);

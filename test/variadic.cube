@@ -1,0 +1,6 @@
+func variadic()
+{
+    println(args);
+}
+
+variadic(0, 1, 2, 3);

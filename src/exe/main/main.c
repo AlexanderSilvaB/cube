@@ -6,8 +6,8 @@ int main(int argc, const char *argv[])
 {
     startCube(argc, argv);
 
-    addPath("test/");
     addPath("libs/");
+    addPath("stdlib/");
     int rc = runCube(argc, argv);
     
     stopCube();

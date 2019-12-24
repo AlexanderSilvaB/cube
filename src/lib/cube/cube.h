@@ -5,10 +5,7 @@
 #ifndef _CUBE_CUBE_H_
 #define _CUBE_CUBE_H_
 
-#include "common.h"
-#include "chunk.h"
-#include "debug.h"
-#include "vm.h"
+#include <stdbool.h>
 
 int repl();
 int runFile(const char *path, bool justCompile);
@@ -17,5 +14,6 @@ void stop();
 int runCube(int argc, const char *argv[]);
 void startCube(int argc, const char *argv[]);
 void stopCube();
+extern void addPath(const char* path);
 
 #endif

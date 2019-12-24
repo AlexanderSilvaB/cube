@@ -58,7 +58,10 @@ typedef enum
   OP_INHERIT,
   OP_METHOD,
   OP_PROPERTY,
-  OP_FILE
+  OP_NAMESPACE,
+  OP_FILE,
+  OP_NATIVE_FUNC,
+  OP_NATIVE
 } OpCode;
 
 typedef struct
