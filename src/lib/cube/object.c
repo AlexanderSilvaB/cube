@@ -55,6 +55,7 @@ ObjClass *newClass(ObjString *name)
 	klass->name = name;
 	initTable(&klass->methods);
 	initTable(&klass->fields);
+	initTable(&klass->staticFields);
 	return klass;
 }
 
@@ -82,14 +83,14 @@ ObjClosure *newClosure(ObjFunction *function)
 	return closure;
 }
 
-ObjFunction *newFunction()
+ObjFunction *newFunction(bool isStatic)
 {
 	ObjFunction *function = ALLOCATE_OBJ(ObjFunction, OBJ_FUNCTION);
 
 	function->arity = 0;
 	function->upvalueCount = 0;
 	function->name = NULL;
-	function->staticMethod = false;
+	function->staticMethod = isStatic;
 	initChunk(&function->chunk);
 	return function;
 }

@@ -77,11 +77,14 @@ class Socket
     }
 }
 
+class HTTP
+{
+    static var SUCCESS = 201;
+    static var NOT_FOUND = 404;
+}
+
 class HTTPServer
 {
-    var SUCCESS = 201;
-    var NOT_FOUND = 404;
-
     var running = false;
     var code = 201;
     var port = 8080;
@@ -91,7 +94,7 @@ class HTTPServer
         var response = '';
         var f = open(request, "rb");
         if(f is none)
-            server.setCode(server.NOT_FOUND);
+            server.setCode(HTTP.NOT_FOUND);
         else
         {
             response = f.read();
@@ -104,7 +107,7 @@ class HTTPServer
         var response = '';
         var f = open(request, "rb");
         if(f is none)
-            server.setCode(server.NOT_FOUND);
+            server.setCode(HTTP.NOT_FOUND);
         else
         {
             response = f.read();
@@ -175,14 +178,14 @@ class HTTPServer
             if(response != none)
             {
                 var codeStr = str(this.code);
-                if(this.code == this.SUCCESS)
+                if(this.code == HTTP.SUCCESS)
                     codeStr += ' Success';
-                else if(this.code == this.NOT_FOUND)
+                else if(this.code == HTTP.NOT_FOUND)
                     codeStr += ' Not Found';
 
                 var fmtStr = this.getMime(page);
 
-                this.code = this.SUCCESS;
+                this.code = HTTP.SUCCESS;
                 var ret = 'HTTP/1.1 {}\nContent-Type: {}; charset=utf-8\n\n'.format(codeStr, fmtStr);
                 socket.send(ret);
                 socket.send(response);
@@ -250,5 +253,79 @@ class HTTPServer
     func setCode(code)
     {
         this.code = code;
+    }
+}
+
+class HTTPClient
+{
+    var address = "127.0.0.1";
+    var port = 8080;
+    var socket = none;
+    var waitTime = 10;
+
+    func init(address, port)
+    {
+        this.address = address;
+        this.port = port;
+    }
+
+    func connect()
+    {
+        if(this.socket is not none)
+            return true;
+
+        this.socket = Socket();
+        this.socket.port = this.port;
+        this.socket.address = this.address;
+        return this.socket.open();
+    }
+
+    func disconnect()
+    {
+        if(this.socket is none)
+            return true;
+        
+        var ret = this.socket.disconnect();
+        if(ret)
+            this.socket = none;
+        return ret;
+    }
+
+    func get(request)
+    {
+        if(this.socket is none)
+            return none;
+
+        var data = 'GET /{} HTTP/1.1'.format(request);
+        var ret =  this.socket.send(data);
+        wait(this.waitTime);
+        return ret;
+    }
+
+    func post(request)
+    {
+        if(this.socket is none)
+            return none;
+
+        var data = 'POST {} HTTP/1.1'.format(request);
+        var ret =  this.socket.send(data);
+        wait(this.waitTime);
+        return ret;
+    }
+
+    func receive()
+    {
+        if(this.socket is none)
+            return none;
+
+        var contents = none;
+        var data = str(this.socket.receive());
+        var pos = data.find('\n\n');
+        if(pos >= 0)
+        {
+            contents = data.from(pos + 2);
+        }
+
+        return contents;
     }
 }

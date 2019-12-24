@@ -247,36 +247,36 @@ static TokenType identifierType()
     {
       switch (scanner.start[1])
       {
-        case 'o':
+      case 'o':
+      {
+        if (scanner.current - scanner.start > 2)
         {
-          if (scanner.current - scanner.start > 2)
+          switch (scanner.start[2])
           {
-            switch (scanner.start[2])
-            {
-            case 'n':
-              return checkKeyword(3, 1, "e", TOKEN_NONE);
-            case 't':
-              return checkKeyword(3, 0, "", TOKEN_BANG);
-            }
+          case 'n':
+            return checkKeyword(3, 1, "e", TOKEN_NONE);
+          case 't':
+            return checkKeyword(3, 0, "", TOKEN_BANG);
           }
-          break;
         }
-        case 'a':
+        break;
+      }
+      case 'a':
+      {
+        if (scanner.current - scanner.start > 2)
         {
-          if (scanner.current - scanner.start > 2)
+          switch (scanner.start[2])
           {
-            switch (scanner.start[2])
-            {
-            case 'n':
-              return checkKeyword(3, 0, "", TOKEN_NAN);
-            case 'm':
-              return checkKeyword(3, 6, "espace", TOKEN_NAMESPACE);
-            case 't':
-              return checkKeyword(3, 3, "ive", TOKEN_NATIVE);
-            }
+          case 'n':
+            return checkKeyword(3, 0, "", TOKEN_NAN);
+          case 'm':
+            return checkKeyword(3, 6, "espace", TOKEN_NAMESPACE);
+          case 't':
+            return checkKeyword(3, 3, "ive", TOKEN_NATIVE);
           }
-          break;
         }
+        break;
+      }
       }
     }
     break;
@@ -286,7 +286,17 @@ static TokenType identifierType()
   case 'r':
     return checkKeyword(1, 5, "eturn", TOKEN_RETURN);
   case 's':
-    return checkKeyword(1, 4, "uper", TOKEN_SUPER);
+    if (scanner.current - scanner.start > 1)
+    {
+      switch (scanner.start[1])
+      {
+      case 'u':
+        return checkKeyword(2, 3, "per", TOKEN_SUPER);
+      case 't':
+        return checkKeyword(2, 4, "atic", TOKEN_STATIC);
+      }
+    }
+    break;
   case 't':
     if (scanner.current - scanner.start > 1)
     {

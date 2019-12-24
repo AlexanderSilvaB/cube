@@ -63,6 +63,7 @@ typedef enum
   TYPE_FUNCTION,
   TYPE_INITIALIZER,
   TYPE_METHOD,
+  TYPE_STATIC,
   TYPE_SCRIPT
 } FunctionType;
 
@@ -99,7 +100,9 @@ Parser parser;
 Compiler *current = NULL;
 
 ClassCompiler *currentClass = NULL;
+bool staticMethod = false;
 NamespaceCompiler *currentNamespace = NULL;
+
 static char *initString = "<CUBE>";
 
 // Used for "continue" statements
@@ -267,7 +270,7 @@ static void initCompiler(Compiler *compiler, FunctionType type)
   compiler->localCount = 0;
   compiler->scopeDepth = 0;
   compiler->loopDepth = 0;
-  compiler->function = newFunction();
+  compiler->function = newFunction(type == TYPE_STATIC);
   current = compiler;
 
   if (type != TYPE_SCRIPT)
@@ -279,7 +282,7 @@ static void initCompiler(Compiler *compiler, FunctionType type)
   Local *local = &current->locals[current->localCount++];
   local->depth = 0;
   local->isCaptured = false;
-  if (type != TYPE_FUNCTION)
+  if (type != TYPE_FUNCTION && type != TYPE_STATIC)
   {
     local->name.start = "this";
     local->name.length = 4;
@@ -536,7 +539,7 @@ static void and_(bool canAssign)
 
 static void is(bool canAssign)
 {
-  if(match(TOKEN_BANG))
+  if (match(TOKEN_BANG))
   {
     emitByte(OP_TRUE);
   }
@@ -544,12 +547,12 @@ static void is(bool canAssign)
   {
     emitByte(OP_FALSE);
   }
-  
-  if(match(TOKEN_IDENTIFIER) || match(TOKEN_NONE) || match(TOKEN_FUNC) || match(TOKEN_CLASS))
+
+  if (match(TOKEN_IDENTIFIER) || match(TOKEN_NONE) || match(TOKEN_FUNC) || match(TOKEN_CLASS))
   {
     ObjString *str = copyString(parser.previous.start, parser.previous.length);
-    
-    if(!isValidType(str->chars))
+
+    if (!isValidType(str->chars))
     {
       errorAtCurrent("Invalid type on 'is' operator.");
     }
@@ -731,26 +734,26 @@ static void string(bool canAssign)
 {
   char *str = malloc(sizeof(char) * parser.previous.length);
   int j = 0;
-  for(int i = 1; i < parser.previous.length - 1; i++)
+  for (int i = 1; i < parser.previous.length - 1; i++)
   {
-    if(parser.previous.start[i] == '\\' && i < parser.previous.length - 2)
+    if (parser.previous.start[i] == '\\' && i < parser.previous.length - 2)
     {
-      if(parser.previous.start[i + 1] == 'n')
+      if (parser.previous.start[i + 1] == 'n')
       {
         i++;
         str[j++] = '\n';
       }
-      else if(parser.previous.start[i + 1] == 't')
+      else if (parser.previous.start[i + 1] == 't')
       {
         i++;
         str[j++] = '\t';
       }
-      else if(parser.previous.start[i + 1] == 'b')
+      else if (parser.previous.start[i + 1] == 'b')
       {
         i++;
         str[j++] = '\b';
       }
-      else if(parser.previous.start[i + 1] == 'v')
+      else if (parser.previous.start[i + 1] == 'v')
       {
         i++;
         str[j++] = '\v';
@@ -759,7 +762,6 @@ static void string(bool canAssign)
       {
         str[j++] == '\\';
       }
-      
     }
     else
       str[j++] = parser.previous.start[i];
@@ -1032,6 +1034,8 @@ static void this_(bool canAssign)
   {
     error("Cannot use 'this' outside of a class.");
   }
+  else if (staticMethod)
+    error("Cannot use 'this' inside a static method.");
   else
   {
     variable(false);
@@ -1124,6 +1128,12 @@ static void function(FunctionType type)
   // The body.
   consume(TOKEN_LEFT_BRACE, "Expect '{' before function body.");
   block();
+
+  // Check this out
+  endScope();
+
+  if (type == TYPE_STATIC)
+    staticMethod = false;
 
   // Create the function object.
   ObjFunction *function = endCompiler();
@@ -1237,6 +1247,11 @@ static void let(bool canAssign)
   emitByte(OP_NONE);
 }
 
+static void static_(bool canAssign) {
+	if (currentClass == NULL)
+		error("Cannot use 'static' outside of a class.");
+}
+
 ParseRule rules[] = {
     {grouping, call, PREC_CALL},     // TOKEN_LEFT_PAREN
     {NULL, NULL, PREC_NONE},         // TOKEN_RIGHT_PAREN
@@ -1274,6 +1289,7 @@ ParseRule rules[] = {
     {byte, NULL, PREC_NONE},         // TOKEN_BYTE
     {NULL, and_, PREC_AND},          // TOKEN_AND
     {NULL, NULL, PREC_NONE},         // TOKEN_CLASS
+    {static_, NULL, PREC_NONE},         // TOKEN_STATIC
     {NULL, NULL, PREC_NONE},         // TOKEN_ELSE
     {literal, NULL, PREC_NONE},      // TOKEN_FALSE
     {NULL, NULL, PREC_NONE},         // TOKEN_FOR
@@ -1290,7 +1306,7 @@ ParseRule rules[] = {
     {NULL, NULL, PREC_NONE},         // TOKEN_WHILE
     {NULL, NULL, PREC_NONE},         // TOKEN_DO
     {NULL, binary, PREC_TERM},       // TOKEN_IN
-    {NULL, is, PREC_TERM},       // TOKEN_IS
+    {NULL, is, PREC_TERM},           // TOKEN_IS
     {NULL, NULL, PREC_NONE},         // TOKEN_CONTINUE
     {NULL, NULL, PREC_NONE},         // TOKEN_BREAK
     {number, NULL, PREC_NONE},       // TOKEN_NAN
@@ -1341,8 +1357,18 @@ static void expression()
   parsePrecedence(PREC_ASSIGNMENT);
 }
 
-static void method()
+static void method(bool isStatic)
 {
+  FunctionType type;
+
+  if (isStatic)
+  {
+    type = TYPE_STATIC;
+    staticMethod = true;
+  }
+  else
+    type = TYPE_METHOD;
+
   consume(TOKEN_FUNC, "Expect a function declaration.");
   if (!check(TOKEN_IDENTIFIER) && !isOperator(parser.current.type))
   {
@@ -1353,7 +1379,6 @@ static void method()
   uint8_t constant = identifierConstant(&parser.previous);
 
   // If the method is named "init", it's an initializer.
-  FunctionType type = TYPE_METHOD;
   if (parser.previous.length == 4 &&
       memcmp(parser.previous.start, "init", 4) == 0)
   {
@@ -1365,7 +1390,7 @@ static void method()
   emitBytes(OP_METHOD, constant);
 }
 
-static void property()
+static void property(bool isStatic)
 {
   uint8_t name = parseVariable("Expect variable name.");
 
@@ -1378,25 +1403,27 @@ static void property()
     emitByte(OP_NONE);
   }
   consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
-
+  
+  emitByte(isStatic ? OP_TRUE : OP_FALSE);
   emitBytes(OP_PROPERTY, name);
 }
 
 static void methodOrProperty()
 {
-  /*if (check(TOKEN_STATIC))
-    {
-        method();   
-    } 
-    else*/
+  bool isStatic = false;
+  if (match(TOKEN_STATIC))
+  {
+    isStatic = true;
+  }
+
   if (check(TOKEN_FUNC))
   {
-    method();
+    method(isStatic);
   }
   else if (check(TOKEN_VAR))
   {
     consume(TOKEN_VAR, "Expected a variable declaration.");
-    property();
+    property(isStatic);
   }
   else
   {
@@ -1408,12 +1435,12 @@ static void funcOrField()
 {
   if (check(TOKEN_FUNC))
   {
-    method();
+    method(false);
   }
   else if (check(TOKEN_VAR))
   {
     consume(TOKEN_VAR, "Expected a variable declaration.");
-    property();
+    property(false);
   }
   else
   {
@@ -2061,6 +2088,7 @@ static void synchronize()
     case TOKEN_NAMESPACE:
     case TOKEN_NATIVE:
     case TOKEN_FUNC:
+    case TOKEN_STATIC:
     case TOKEN_VAR:
     case TOKEN_FOR:
     case TOKEN_IF:
@@ -2427,6 +2455,21 @@ bool writeByteCode(FILE *file, Value value)
       if (!writeByteCode(file, entry.value))
         return false;
     }
+
+    if (fwrite(&klass->staticFields.count, sizeof(klass->staticFields.count), 1, file) != 1)
+      return false;
+    i = 0;
+    while (iterateTable(&klass->staticFields, &entry, &i))
+    {
+      if (entry.key == NULL)
+        continue;
+
+      if (!writeByteCode(file, OBJ_VAL(entry.key)))
+        return false;
+
+      if (!writeByteCode(file, entry.value))
+        return false;
+    }
   }
   else if (IS_NAMESPACE(value))
   {
@@ -2638,7 +2681,7 @@ Value loadByteCode(const char *source, uint32_t *pos, uint32_t total)
     }
     else if (objType == OBJ_FUNCTION)
     {
-      ObjFunction *func = newFunction();
+      ObjFunction *func = newFunction(false);
       Value name = loadByteCode(source, pos, total);
       func->name = AS_STRING(name);
       func->arity = READ(int);
@@ -2681,6 +2724,14 @@ Value loadByteCode(const char *source, uint32_t *pos, uint32_t total)
         Value key = loadByteCode(source, pos, total);
         Value val = loadByteCode(source, pos, total);
         tableSet(&klass->methods, AS_STRING(key), val);
+      }
+
+      len = READ(int);
+      for (i = 0; i < len; i++)
+      {
+        Value key = loadByteCode(source, pos, total);
+        Value val = loadByteCode(source, pos, total);
+        tableSet(&klass->staticFields, AS_STRING(key), val);
       }
     }
     else if (objType == OBJ_NAMESPACE)

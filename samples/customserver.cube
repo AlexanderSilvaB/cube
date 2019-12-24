@@ -17,7 +17,7 @@ func get(server, client, request)
         if(f is none)
         {
             println("Sending error: Not found");
-            server.setCode(server.NOT_FOUND);
+            server.setCode(HTTP.NOT_FOUND);
             response = '<html><body><center><h3>Requested file not found: {}</h3><h4>Client: {}</h4><p>Cube HTTP Server</p></center></body></html>'.format(request, client);
         }
         else

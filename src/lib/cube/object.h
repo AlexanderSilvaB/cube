@@ -167,6 +167,7 @@ typedef struct sObjClass
   ObjString *name;
   Table methods;
   Table fields;
+  Table staticFields;
 } ObjClass;
 
 typedef struct sObjNamespace
@@ -214,7 +215,7 @@ ObjBoundMethod *newBoundMethod(Value receiver, ObjClosure *method);
 ObjClass *newClass(ObjString *name);
 ObjNamespace *newNamespace(ObjString *name);
 ObjClosure *newClosure(ObjFunction *function);
-ObjFunction *newFunction();
+ObjFunction *newFunction(bool isStatic);
 ObjInstance *newInstance(ObjClass *klass);
 ObjNative *newNative(NativeFn function);
 ObjNativeFunc *initNativeFunc();

@@ -104,6 +104,7 @@ static void blackenObject(Obj *object)
     grayObject((Obj *)klass->name);
     grayTable(&klass->methods);
     grayTable(&klass->fields);
+    grayTable(&klass->staticFields);
     break;
   }
 
@@ -191,6 +192,7 @@ static void freeObject(Obj *object)
     ObjClass *klass = (ObjClass *)object;
     freeTable(&klass->methods);
     freeTable(&klass->fields);
+    freeTable(&klass->staticFields);
     FREE(ObjClass, object);
     break;
   }

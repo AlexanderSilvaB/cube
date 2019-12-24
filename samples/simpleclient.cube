@@ -1,0 +1,10 @@
+import net;
+
+var client = HTTPClient("127.0.0.1", 8080);
+client.connect();
+
+client.get('README.md');
+var contents = client.receive();
+println(contents);
+
+client.disconnect();

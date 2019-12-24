@@ -153,7 +153,7 @@ void addPath(const char *path)
 
 static int initArgC = 0;
 static int initArgStart = 0;
-static const char** initArgV;
+static const char **initArgV;
 
 void loadArgs(int argc, const char *argv[], int argStart)
 {
@@ -291,8 +291,11 @@ static bool invokeFromClass(ObjClass *klass, ObjString *name,
   Value method;
   if (!tableGet(&klass->methods, name, &method))
   {
-    runtimeError("Undefined property '%s'.", name->chars);
-    return false;
+    if (!tableGet(&klass->staticFields, name, &method))
+    {
+      runtimeError("Undefined property '%s'.", name->chars);
+      return false;
+    }
   }
 
   return call(AS_CLOSURE(method), argCount);
@@ -471,11 +474,16 @@ static void defineMethod(ObjString *name)
 
 static void defineProperty(ObjString *name)
 {
+  bool isStatic = AS_BOOL(pop());
+
   Value value = peek(0);
   if (IS_CLASS(peek(1)))
   {
     ObjClass *klass = AS_CLASS(peek(1));
-    tableSet(&klass->fields, name, value);
+    if (isStatic)
+      tableSet(&klass->staticFields, name, value);
+    else
+      tableSet(&klass->fields, name, value);
   }
   else if (IS_NAMESPACE(peek(1)))
   {
@@ -1063,13 +1071,30 @@ static InterpretResult run()
 
     case OP_GET_PROPERTY:
     {
-      if (!IS_INSTANCE(peek(0)) && !IS_NAMESPACE(peek(0)))
+      if (!IS_INSTANCE(peek(0)) && !IS_NAMESPACE(peek(0)) && !IS_CLASS(peek(0)))
       {
-        runtimeError("Only instances and namespaces have properties.");
+        runtimeError("Only instances, classes and namespaces have properties.");
         return INTERPRET_RUNTIME_ERROR;
       }
 
-      if (IS_INSTANCE(peek(0)))
+      if (IS_CLASS(peek(0)))
+      {
+        ObjClass *klass = AS_CLASS(peek(0));
+        ObjString *name = READ_STRING();
+        Value value;
+        if (tableGet(&klass->staticFields, name, &value))
+        {
+          pop(); // Instance.
+          push(value);
+          break;
+        }
+        else
+        {
+          runtimeError("Only static properties can be called without an instance.");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+      }
+      else if (IS_INSTANCE(peek(0)))
       {
         ObjInstance *instance = AS_INSTANCE(peek(0));
         ObjString *name = READ_STRING();
@@ -1109,13 +1134,29 @@ static InterpretResult run()
 
     OP_GET_PROPERTY_NO_POP:
     {
-      if (!IS_INSTANCE(peek(0)) && !IS_NAMESPACE(peek(0)))
+      if (!IS_INSTANCE(peek(0)) && !IS_NAMESPACE(peek(0)) && !IS_CLASS(peek(0)))
       {
-        runtimeError("Only instances and namespaces have properties.");
+        runtimeError("Only instances, classes and namespaces have properties.");
         return INTERPRET_RUNTIME_ERROR;
       }
 
-      if (IS_INSTANCE(peek(0)))
+      if (IS_CLASS(peek(0)))
+      {
+        ObjClass *klass = AS_CLASS(peek(0));
+        ObjString *name = READ_STRING();
+        Value value;
+        if (tableGet(&klass->staticFields, name, &value))
+        {
+          push(value);
+          break;
+        }
+        else
+        {
+          runtimeError("Only static properties can be called without an instance.");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+      }
+      else if (IS_INSTANCE(peek(0)))
       {
         ObjInstance *instance = AS_INSTANCE(peek(0));
         ObjString *name = READ_STRING();
@@ -1149,13 +1190,27 @@ static InterpretResult run()
 
     case OP_SET_PROPERTY:
     {
-      if (!IS_INSTANCE(peek(1)) && !IS_NAMESPACE(peek(1)))
+      if (!IS_INSTANCE(peek(1)) && !IS_NAMESPACE(peek(1)) && !IS_CLASS(peek(1)))
       {
-        runtimeError("Only instances and namespaces have properties.");
+        runtimeError("Only instances, classes and namespaces have properties.");
         return INTERPRET_RUNTIME_ERROR;
       }
 
-      if (IS_INSTANCE(peek(1)))
+      if (IS_CLASS(peek(1)))
+      {
+        ObjClass *klass = AS_CLASS(peek(1));
+        ObjString *name = READ_STRING();
+        Value value = peek(0);
+        Value holder;
+        if (!tableGet(&klass->staticFields, name, &holder))
+        {
+          runtimeError("Only static properties can be set without an instance.");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+        else
+          tableSet(&klass->staticFields, name, value);
+      }
+      else if (IS_INSTANCE(peek(1)))
       {
         ObjInstance *instance = AS_INSTANCE(peek(1));
         tableSet(&instance->fields, READ_STRING(), peek(0));
@@ -1371,11 +1426,11 @@ static InterpretResult run()
       ObjString *type = AS_STRING(pop());
       bool not = AS_BOOL(pop());
       char *objType = valueType(pop());
-      if(strcmp(objType, type->chars) == 0)
-        push(not ? FALSE_VAL : TRUE_VAL);
+      if (strcmp(objType, type->chars) == 0)
+        push(not? FALSE_VAL : TRUE_VAL);
       else
-        push(not ? TRUE_VAL : FALSE_VAL);
-      
+        push(not? TRUE_VAL : FALSE_VAL);
+
       break;
     }
 
@@ -1727,7 +1782,7 @@ static InterpretResult run()
       ObjNativeFunc *func = initNativeFunc();
 
       int arity = AS_NUMBER(pop());
-      for(int i = arity - 1; i >= 0; i--)
+      for (int i = arity - 1; i >= 0; i--)
       {
         writeValueArray(&func->params, peek(i));
       }
@@ -1792,7 +1847,7 @@ InterpretResult interpret(const char *source)
   pop();
   push(OBJ_VAL(closure));
 
-  if(initArgC > 0)
+  if (initArgC > 0)
   {
     for (int i = initArgStart; i < initArgC; i++)
     {
@@ -1805,7 +1860,7 @@ InterpretResult interpret(const char *source)
   }
   else
     callValue(OBJ_VAL(closure), 0);
-  
+
   return run();
 }
 

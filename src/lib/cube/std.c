@@ -106,6 +106,18 @@ Value seedNative(int argCount, Value *args)
     return seed;
 }
 
+Value waitNative(int argCount, Value *args)
+{
+    Value wait;
+    if (argCount == 0)
+        wait = NUMBER_VAL(1);
+    else 
+        wait = toNumber(args[0]);
+
+    usleep(1000 * AS_NUMBER(wait));
+    return wait;
+}
+
 Value sinNative(int argCount, Value *args)
 {
     Value val;
@@ -828,6 +840,7 @@ void initStd()
     ADD_STD("println", printlnNative);
     ADD_STD("random", randomNative);
     ADD_STD("seed", seedNative);
+    ADD_STD("wait", waitNative);
     ADD_STD("sin", sinNative);
     ADD_STD("cos", cosNative);
     ADD_STD("tan", tanNative);
