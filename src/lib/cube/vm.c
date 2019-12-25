@@ -120,7 +120,11 @@ void initVM(const char *path, const char *scriptName)
   addPath(path);
 
   vm.extension = ".cube";
+  #ifdef WINDOWS
+  vm.nativeExtension = ".dll";
+  #else
   vm.nativeExtension = ".so";
+  #endif
   vm.scriptName = scriptName;
   vm.currentScriptName = scriptName;
   vm.initString = copyString("init", 4);
