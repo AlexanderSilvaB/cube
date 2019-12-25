@@ -207,16 +207,16 @@ static bool call(ObjClosure *closure, int argCount)
 
   frame->slots = vm.stackTop - argCount - 1;
 
-  // ObjList *args = initList();
-  // for (int i = argCount - 1; i >= 0; i--)
-  // {
-  //   writeValueArray(&args->values, peek(i));
-  // }
-  // push(OBJ_VAL(args));
+  ObjList *args = initList();
+  for (int i = argCount - 1; i >= 0; i--)
+  {
+    writeValueArray(&args->values, peek(i));
+  }
+  push(OBJ_VAL(args));
 
-  // ObjString *name = AS_STRING(STRING_VAL("__args"));
-  // tableSet(&vm.globals, name, peek(0));
-  // pop();
+  ObjString *name = AS_STRING(STRING_VAL("__args"));
+  tableSet(&vm.globals, name, peek(0));
+  pop();
 
   return true;
 }

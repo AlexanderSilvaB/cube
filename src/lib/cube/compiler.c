@@ -1117,13 +1117,12 @@ static void function(FunctionType type)
   consume(TOKEN_RIGHT_PAREN, "Expect ')' after parameters.");
 
   // Create args
-  // Token argsToken;
-  // uint8_t args = createSyntheticVariable("args", &argsToken);
-  // emitByte(OP_NONE);
-  // defineVariable(args);
-  // Token argsInternToken = syntheticToken("__args");
-  // getVariable(argsInternToken);
-  // setVariablePop(argsToken);
+  Token argsToken;
+  uint8_t args = createSyntheticVariable("args", &argsToken);
+  defineVariable(args);
+  Token argsInternToken = syntheticToken("__args");
+  getVariable(argsInternToken);
+  setVariablePop(argsToken);
 
   // The body.
   consume(TOKEN_LEFT_BRACE, "Expect '{' before function body.");
@@ -2241,10 +2240,10 @@ ObjFunction *compile(const char *source)
     parser.panicMode = false;
 
     // Create args
-    // Token argsToken = syntheticToken("args");
-    // uint8_t args = identifierConstant(&argsToken);
-    // getVariable(syntheticToken("__args"));
-    // defineVariable(args);
+    Token argsToken = syntheticToken("args");
+    uint8_t args = identifierConstant(&argsToken);
+    getVariable(syntheticToken("__args"));
+    defineVariable(args);
 
     // Parse the code
     advance();

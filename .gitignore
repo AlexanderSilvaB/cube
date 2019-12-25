@@ -25,6 +25,7 @@ build*/
 *.ccube
 *.so
 *.dll
+temp/
 
 # End of https://www.gitignore.io/api/cmake
 
