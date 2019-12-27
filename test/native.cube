@@ -3,7 +3,7 @@ native build/libcalc
     num add(num, num);
     num sub(num, num);
     num mul(num, num);
-    num div(num, num);
+    num divi(num, num);
 }
 
 var a = add(4, 6);

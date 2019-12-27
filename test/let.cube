@@ -5,3 +5,4 @@ var x = let(var a = 10, var b = a ^ 3)
 };
 
 print(x);
+

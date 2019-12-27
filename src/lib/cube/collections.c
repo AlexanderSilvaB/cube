@@ -116,6 +116,49 @@ static bool popListItem(int argCount) {
 	return true;
 }
 
+static bool removeListItem(int argCount)
+{
+	if (argCount != 2) {
+		runtimeError("remove() takes 2 arguments (%d  given)", argCount);
+		return false;
+	}
+
+	Value search = pop();
+	ObjList *list = AS_LIST(pop());
+
+	int skip = 0;
+
+	for (int i = 0; i < list->values.capacity; ++i) {
+		#ifndef NAN_TAGGING
+		if (valuesEqual(list->values.values[i], search)) 
+		{
+			skip++;
+		}
+		#else
+		if (!list->values.values[i])
+			continue;
+
+		if (list->values.values[i] == search) {
+			skip++;
+		}
+		#endif
+		if(skip > 0)
+		{
+			if(i + skip >= list->values.capacity)
+				break;
+
+			list->values.values[i] = list->values.values[i + skip];
+		}
+	}
+
+	list->values.count -= skip;
+	if(list->values.count < 0)
+		list->values.count = 0;
+	
+	push((skip > 0 ? TRUE_VAL : FALSE_VAL));
+	return true;
+}
+
 static bool containsListItem(int argCount) {
 	if (argCount != 2) {
 		runtimeError("contains() takes 2 arguments (%d  given)", argCount);
@@ -215,8 +258,10 @@ static bool copyListDeep(int argCount) {
 }
 
 bool listMethods(char *method, int argCount) {
-	if (strcmp(method, "push") == 0)
+	if (strcmp(method, "push") == 0 || strcmp(method, "add") == 0)
 		return pushListItem(argCount);
+	else if (strcmp(method, "remove") == 0)
+		return removeListItem(argCount);
 	else if (strcmp(method, "insert") == 0)
 		return insertListItem(argCount);
 	else if (strcmp(method, "pop") == 0)

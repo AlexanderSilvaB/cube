@@ -1,30 +1,30 @@
 #include <stdio.h>
 #include <cube/cubeext.h>
 
-EXPORTED cube_native_value add(cube_native_value a, cube_native_value b)
+EXPORTED cube_native_var* add(cube_native_var* a, cube_native_var* b)
 {
-    cube_native_value ret;
-    ret._number = a._number + b._number;
+    double v = AS_NATIVE_NUMBER(a) + AS_NATIVE_NUMBER(b);
+    cube_native_var* ret = NATIVE_NUMBER( v );
     return ret;
 }
 
-EXPORTED cube_native_value sub(cube_native_value a, cube_native_value b)
+EXPORTED cube_native_var* sub(cube_native_var* a, cube_native_var* b)
 {
-    cube_native_value ret;
-    ret._number = a._number - b._number;
+    double v = AS_NATIVE_NUMBER(a) - AS_NATIVE_NUMBER(b);
+    cube_native_var* ret = NATIVE_NUMBER( v );
     return ret;
 }
 
-EXPORTED cube_native_value mul(cube_native_value a, cube_native_value b)
+EXPORTED cube_native_var* mul(cube_native_var* a, cube_native_var* b)
 {
-    cube_native_value ret;
-    ret._number = a._number * b._number;
+    double v = AS_NATIVE_NUMBER(a) * AS_NATIVE_NUMBER(b);
+    cube_native_var* ret = NATIVE_NUMBER( v );
     return ret;
 }
 
-EXPORTED cube_native_value div(cube_native_value a, cube_native_value b)
+EXPORTED cube_native_var* divi(cube_native_var* a, cube_native_var* b)
 {
-    cube_native_value ret;
-    ret._number = a._number / b._number;
+    double v = AS_NATIVE_NUMBER(a) / AS_NATIVE_NUMBER(b);
+    cube_native_var* ret = NATIVE_NUMBER( v );
     return ret;
 }

@@ -1,4 +1,4 @@
-spawn count100I
+async count100I
 {
     for(i in 1:100)
     {
@@ -6,7 +6,7 @@ spawn count100I
     }
 }
 
-spawn count100D
+async count100D
 {
     for(i in 100:-1:1)
     {

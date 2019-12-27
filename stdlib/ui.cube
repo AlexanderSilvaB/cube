@@ -1,0 +1,109 @@
+native stdlib/libs/libui
+{
+    void ui_start();
+    void ui_stop();
+    num ui_create_window(str, num, num);
+    void ui_destroy_window(num);
+    list ui_run_cycle();
+    void ui_run_forever();
+    bool ui_has_quit();
+    bool ui_load(num, str);
+    bool ui_on_event(num, str, str);
+}
+
+class UI
+{
+    static var windows = [];
+
+    static func start()
+    {
+        ui_start();
+    }
+
+    static func stop()
+    {
+        ui_stop();
+    }
+
+    static func forever()
+    {
+        var events = none;
+        while(UI.running())
+        {
+            events = UI.cycle();
+            for(var i = 0; i < len(events); ++i)
+            {
+                var ev = events[i];
+                var parts = ev.split(':');
+                var id = num(parts[0]);
+                var obj = parts[1];
+                var event = parts[2];
+                for(var j = 0; j < len(UI.windows); ++j)
+                {
+                    var window = UI.windows[j];
+                    if(window.id == id)
+                    {
+                        var onId = '{}:{}'.format(obj, event);
+                        if(window.actions.exists(onId))
+                        {
+                            var action = window.actions.get(onId, none);
+                            action();
+                        }
+                    }
+                }
+            }
+        }
+        UI.stop();
+    }
+
+    static func cycle()
+    {
+        return ui_run_cycle();
+    }
+
+    static func running()
+    {
+        return !ui_has_quit();
+    }
+
+    static func addWindow(w)
+    {
+        UI.windows.add(w);
+    }
+
+    static func removeWindow(w)
+    {
+        UI.windows.remove(w);
+    }
+}
+
+class Window
+{
+    var id = none;
+    var actions = {};
+
+    func init(name, width, height)
+    {
+        this.id = ui_create_window(name, width, height);
+        UI.addWindow(this);
+    }
+
+    func close()
+    {
+        ui_destroy_window(this.id);
+        UI.removeWindow(this);
+    }
+
+    func load(fileName)
+    {
+        return ui_load(this.id, fileName);
+    }
+
+    func on(obj, event, action)
+    {
+        var onId = '{}:{}'.format(obj, event);
+        this.actions[onId] = action;
+
+        return ui_on_event(this.id, obj, event);
+    }
+}

@@ -3,17 +3,7 @@
 
 #include "common.h"
 #include "object.h"
-
-typedef enum
-{
-    TYPE_VOID,
-    TYPE_BOOL,
-    TYPE_NUMBER,
-    TYPE_STRING,
-    TYPE_BYTES,
-    TYPE_UNKNOWN
-}NativeTypes;
-
+#include "cubeext.h"
 
 NativeTypes getNativeType(const char *name);
 void closeNativeLib(ObjNativeLib *lib);

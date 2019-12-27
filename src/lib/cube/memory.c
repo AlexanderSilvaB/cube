@@ -25,7 +25,7 @@ void *reallocate(void *previous, size_t oldSize, size_t newSize)
 
     if (vm.bytesAllocated > vm.nextGC)
     {
-      collectGarbage();
+      //collectGarbage();
     }
   }
 
@@ -147,6 +147,26 @@ static void blackenObject(Obj *object)
   case OBJ_UPVALUE:
     grayValue(((ObjUpvalue *)object)->closed);
     break;
+
+  case OBJ_LIST:
+  {
+    ObjList *list = (ObjList *)object;
+    grayArray(&list->values);
+    break;
+  }
+
+  case OBJ_DICT:
+  {
+    ObjDict *dict = (ObjDict *)object;
+    for (int i = 0; i < dict->capacity; ++i)
+    {
+      if (!dict->items[i])
+        continue;
+
+      grayValue(dict->items[i]->item);
+    }
+    break;
+  }
 
   case OBJ_NATIVE_FUNC:
   {

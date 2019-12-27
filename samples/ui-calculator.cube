@@ -1,0 +1,12 @@
+import ui;
+
+UI.start();
+
+var calculator = Window("Calculator", 190, 250);
+calculator.load("samples/ui/calculator.ui");
+calculator.on("btnPlus", "MouseButtonPress", @()
+{
+    println("Clicked!");
+});
+
+UI.forever();
