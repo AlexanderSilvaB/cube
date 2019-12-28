@@ -64,7 +64,8 @@ typedef enum
   TYPE_INITIALIZER,
   TYPE_METHOD,
   TYPE_STATIC,
-  TYPE_SCRIPT
+  TYPE_SCRIPT,
+  TYPE_EVAL
 } FunctionType;
 
 typedef struct Compiler
@@ -273,7 +274,7 @@ static void initCompiler(Compiler *compiler, FunctionType type)
   compiler->function = newFunction(type == TYPE_STATIC);
   current = compiler;
 
-  if (type != TYPE_SCRIPT)
+  if (type != TYPE_SCRIPT && type != TYPE_EVAL)
   {
     current->function->name = copyString(parser.previous.start,
                                          parser.previous.length);
@@ -742,6 +743,11 @@ static void string(bool canAssign)
       {
         i++;
         str[j++] = '\n';
+      }
+      else if (parser.previous.start[i + 1] == 'r')
+      {
+        i++;
+        str[j++] = '\r';
       }
       else if (parser.previous.start[i + 1] == 't')
       {
@@ -1246,9 +1252,10 @@ static void let(bool canAssign)
   emitByte(OP_NONE);
 }
 
-static void static_(bool canAssign) {
-	if (currentClass == NULL)
-		error("Cannot use 'static' outside of a class.");
+static void static_(bool canAssign)
+{
+  if (currentClass == NULL)
+    error("Cannot use 'static' outside of a class.");
 }
 
 ParseRule rules[] = {
@@ -1288,7 +1295,7 @@ ParseRule rules[] = {
     {byte, NULL, PREC_NONE},         // TOKEN_BYTE
     {NULL, and_, PREC_AND},          // TOKEN_AND
     {NULL, NULL, PREC_NONE},         // TOKEN_CLASS
-    {static_, NULL, PREC_NONE},         // TOKEN_STATIC
+    {static_, NULL, PREC_NONE},      // TOKEN_STATIC
     {NULL, NULL, PREC_NONE},         // TOKEN_ELSE
     {literal, NULL, PREC_NONE},      // TOKEN_FALSE
     {NULL, NULL, PREC_NONE},         // TOKEN_FOR
@@ -1402,7 +1409,7 @@ static void property(bool isStatic)
     emitByte(OP_NONE);
   }
   consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
-  
+
   emitByte(isStatic ? OP_TRUE : OP_FALSE);
   emitBytes(OP_PROPERTY, name);
 }
@@ -2260,12 +2267,48 @@ ObjFunction *compile(const char *source)
   return function;
 }
 
-void grayCompilerRoots()
+ObjFunction *eval(const char *source)
+{
+  int len = strlen(source) + 24;
+  char *code = ALLOCATE(char, len);
+  strcpy(code, "return (");
+  strcat(code, source);
+  strcat(code, ");");
+
+
+  ObjFunction *function = NULL;
+
+  initScanner(code);
+  Compiler compiler;
+
+  initCompiler(&compiler, TYPE_EVAL);
+
+  parser.hadError = false;
+  parser.panicMode = false;
+
+  // Parse the code
+  advance();
+
+  while (!match(TOKEN_EOF))
+  {
+    declaration(true);
+  }
+
+  function = endCompiler();
+  if (parser.hadError)
+    function = NULL;
+
+  FREE_ARRAY(char, code, len);
+    
+  return function;
+}
+
+void markCompilerRoots()
 {
   Compiler *compiler = current;
   while (compiler != NULL)
   {
-    grayObject((Obj *)compiler->function);
+    markObject((Obj *)compiler->function);
     compiler = compiler->enclosing;
   }
 }

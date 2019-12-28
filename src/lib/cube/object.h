@@ -70,7 +70,7 @@ typedef enum
 struct sObj
 {
   ObjType type;
-  bool isDark;
+  bool isMarked;
   struct sObj *next;
 };
 

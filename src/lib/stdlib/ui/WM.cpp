@@ -1,5 +1,6 @@
 #include "WM.hpp"
 #include <iostream>
+#include <cstring>
 #include <QString>
 #include <QUiLoader>
 #include <QQuickWidget>
@@ -9,26 +10,27 @@ using namespace std;
 
 class WindowWidget : public QWidget
 {
-    private:
-        WM *wm;
-    public:
-        WindowWidget(QWidget* parent = 0) : QWidget(parent)
-        {
-            wm = NULL;
-            installEventFilter(this);
-        }
+private:
+    WM *wm;
 
-        void setWM(WM *wm)
-        {
-            this->wm = wm;
-        }
+public:
+    WindowWidget(QWidget *parent = 0) : QWidget(parent)
+    {
+        wm = NULL;
+        installEventFilter(this);
+    }
 
-        bool eventFilter(QObject * object, QEvent * event)
-        {
-            if(this->wm == NULL)
-                return false;
-            return wm->eventFilter(object, event);
-        }
+    void setWM(WM *wm)
+    {
+        this->wm = wm;
+    }
+
+    bool eventFilter(QObject *object, QEvent *event)
+    {
+        if (this->wm == NULL)
+            return false;
+        return wm->eventFilter(object, event);
+    }
 };
 
 WM::WM(QApplication *app)
@@ -40,7 +42,6 @@ WM::WM(QApplication *app)
 
 WM::~WM()
 {
-
 }
 
 bool WM::HasQuit()
@@ -50,15 +51,13 @@ bool WM::HasQuit()
 
 void WM::Init()
 {
-    
 }
 
 void WM::Destroy()
 {
-    
 }
 
-int WM::CreateWindow(const char* title, int winWidth, int winHeight)
+int WM::CreateWindow(const char *title, int winWidth, int winHeight)
 {
     int id = windows.size();
 
@@ -75,25 +74,25 @@ int WM::CreateWindow(const char* title, int winWidth, int winHeight)
 
 void WM::DestroyWindow(int id)
 {
-    std::map<int, QWidget*>::iterator it = windows.find(id);
-    if(it == windows.end())
+    std::map<int, QWidget *>::iterator it = windows.find(id);
+    if (it == windows.end())
         return;
-    
+
     QWidget *window = it->second;
     delete window;
     windows.erase(id);
-
 }
 
-std::vector<std::string> WM::Cycle()
-{   
+List WM::Cycle()
+{
     triggeredEvents.clear();
+    triggeredEventsArgs.clear();
 
     app->processEvents();
 
     bool visible = false;
-    std::map<int, QWidget*>::iterator it;
-    for(it = windows.begin(); it != windows.end(); it++)
+    std::map<int, QWidget *>::iterator it;
+    for (it = windows.begin(); it != windows.end(); it++)
     {
         visible |= it->second->isVisible();
     }
@@ -108,10 +107,10 @@ void WM::Exec()
     app->exec();
 }
 
-QWidget* WM::getWindow(int id)
+QWidget *WM::getWindow(int id)
 {
-    std::map<int, QWidget*>::iterator it = windows.find(id);
-    if(it == windows.end())
+    std::map<int, QWidget *>::iterator it = windows.find(id);
+    if (it == windows.end())
         return NULL;
     return it->second;
 }
@@ -119,12 +118,12 @@ QWidget* WM::getWindow(int id)
 bool WM::Load(int id, const char *fileName)
 {
     QWidget *window = getWindow(id);
-    if(window == NULL)
+    if (window == NULL)
         return false;
 
     QString name(fileName);
 
-    if(name.endsWith(".ui"))
+    if (name.endsWith(".ui"))
     {
         QUiLoader loader;
         //loader.setRoot(window);
@@ -133,7 +132,7 @@ bool WM::Load(int id, const char *fileName)
         file.open(QFile::ReadOnly);
         QWidget *myWidget = loader.load(&file, window);
         file.close();
-        if(myWidget == NULL)
+        if (myWidget == NULL)
             return false;
 
         QVBoxLayout *layout = new QVBoxLayout;
@@ -142,16 +141,16 @@ bool WM::Load(int id, const char *fileName)
 
         return true;
     }
-    else if(name.endsWith(".qml"))
+    else if (name.endsWith(".qml"))
     {
         QQuickWidget *qmlView = new QQuickWidget;
         qmlView->setSource(QUrl::fromLocalFile(name));
-        while(qmlView->status() == QQuickWidget::Loading)
+        while (qmlView->status() == QQuickWidget::Loading)
         {
             QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
         }
 
-        if(qmlView->status() == QQuickWidget::Error)
+        if (qmlView->status() == QQuickWidget::Error)
             return false;
 
         QVBoxLayout *layout = new QVBoxLayout;
@@ -162,12 +161,11 @@ bool WM::Load(int id, const char *fileName)
     return false;
 }
 
-
-template<typename EnumType>
-QString ToString(const EnumType& enumValue)
+template <typename EnumType>
+QString ToString(const EnumType &enumValue)
 {
-    const char* enumName = qt_getEnumName(enumValue);
-    const QMetaObject* metaObject = qt_getEnumMetaObject(enumValue);
+    const char *enumName = qt_getEnumName(enumValue);
+    const QMetaObject *metaObject = qt_getEnumMetaObject(enumValue);
     if (metaObject)
     {
         const int enumIndex = metaObject->indexOfEnumerator(enumName);
@@ -183,16 +181,28 @@ bool WM::eventFilter(QObject *object, QEvent *event)
 {
     QString qstr = ToString(event->type());
     QVariant idQ = object->property("cube_window_id");
+    QVariant useNameQ = object->property("cube_event_name");
     string id = "";
-    if(idQ.isValid())
+    bool useName = true;
+    if (idQ.isValid())
     {
         id = QString::number(idQ.toInt()).toStdString();
     }
-    string onId = id + ":" + object->objectName().toStdString() + ":" + qstr.toStdString();
-    vector<string>::iterator it = find(registeredEvents.begin(), registeredEvents.end(), onId);
-    if(it != registeredEvents.end())
+    if (useNameQ.isValid())
     {
-        triggeredEvents.push_back(*it);
+        useName = useNameQ.toBool();
+    }
+    string onId;
+    if (useName)
+        onId = id + ":" + object->objectName().toStdString() + ":" + qstr.toStdString();
+    else
+        onId = id + ":" + object->metaObject()->className() + ":" + qstr.toStdString();
+    List::iterator it = find(registeredEvents.begin(), registeredEvents.end(), onId);
+    if (it != registeredEvents.end())
+    {
+        onId += ":" + object->objectName().toStdString();
+        triggeredEvents.push_back(onId);
+        triggeredEventsArgs[onId] = createEventDict(object, event);
     }
     return false;
 }
@@ -200,7 +210,7 @@ bool WM::eventFilter(QObject *object, QEvent *event)
 bool WM::RegisterEvent(int id, const char *objName, const char *eventName)
 {
     QWidget *window = getWindow(id);
-    if(window == NULL)
+    if (window == NULL)
         return false;
 
     string sid = QString::number(id).toStdString();
@@ -209,9 +219,280 @@ bool WM::RegisterEvent(int id, const char *objName, const char *eventName)
     registeredEvents.push_back(onId);
 
     QList<QWidget *> widgets = window->findChildren<QWidget *>(objName);
-    for( int i=0; i<widgets.count(); ++i )
+    if (widgets.count() > 0)
     {
-        widgets[i]->installEventFilter(window);
-        widgets[i]->setProperty("cube_window_id", id);
+        for (int i = 0; i < widgets.count(); ++i)
+        {
+            widgets[i]->installEventFilter(window);
+            widgets[i]->setProperty("cube_window_id", id);
+            widgets[i]->setProperty("cube_event_name", true);
+        }
     }
+    else
+    {
+        widgets = window->findChildren<QWidget *>();
+        for (int i = 0; i < widgets.count(); ++i)
+        {
+            if (widgets[i]->inherits(objName))
+            {
+                widgets[i]->installEventFilter(window);
+                widgets[i]->setProperty("cube_window_id", id);
+                widgets[i]->setProperty("cube_event_name", false);
+            }
+        }
+    }
+}
+
+Dict WM::createEventDict(QObject *obj, QEvent *event)
+{
+    Dict dict;
+    switch (event->type())
+    {
+    case QEvent::Enter:
+    {
+        QEnterEvent *ev = static_cast<QEnterEvent *>(event);
+        dict["x"] = QString::number(ev->x()).toStdString();
+        dict["y"] = QString::number(ev->y()).toStdString();
+        break;
+    }
+    case QEvent::FocusIn:
+    case QEvent::FocusOut:
+    {
+        QFocusEvent *ev = static_cast<QFocusEvent *>(event);
+        dict["got"] = ev->gotFocus() ? "true" : "false";
+        dict["lost"] = ev->lostFocus() ? "true" : "false";
+        break;
+    }
+    case QEvent::Move:
+    {
+        QMoveEvent *ev = static_cast<QMoveEvent *>(event);
+        dict["x"] = QString::number(ev->pos().x()).toStdString();
+        dict["y"] = QString::number(ev->pos().y()).toStdString();
+        dict["oldx"] = QString::number(ev->oldPos().x()).toStdString();
+        dict["oldy"] = QString::number(ev->oldPos().y()).toStdString();
+        break;
+    }
+    case QEvent::NonClientAreaMouseButtonDblClick:
+    case QEvent::NonClientAreaMouseButtonPress:
+    case QEvent::NonClientAreaMouseButtonRelease:
+    case QEvent::NonClientAreaMouseMove:
+    case QEvent::MouseButtonDblClick:
+    case QEvent::MouseButtonPress:
+    case QEvent::MouseButtonRelease:
+    case QEvent::MouseMove:
+    {
+        QMouseEvent *ev = static_cast<QMouseEvent *>(event);
+        dict["x"] = QString::number(ev->x()).toStdString();
+        dict["y"] = QString::number(ev->y()).toStdString();
+        dict["globalx"] = QString::number(ev->globalX()).toStdString();
+        dict["globaly"] = QString::number(ev->globalY()).toStdString();
+
+        Qt::MouseButtons mouse = ev->buttons();
+        dict["left"] = (mouse & Qt::LeftButton) != 0 ? "true" : "false";
+        dict["right"] = (mouse & Qt::RightButton) != 0 ? "true" : "false";
+        dict["mid"] = (mouse & Qt::MidButton) != 0 ? "true" : "false";
+        dict["back"] = (mouse & Qt::BackButton) != 0 ? "true" : "false";
+        dict["forward"] = (mouse & Qt::ForwardButton) != 0 ? "true" : "false";
+        dict["task"] = (mouse & Qt::TaskButton) != 0 ? "true" : "false";
+
+        break;
+    }
+    case QEvent::KeyPress:
+    case QEvent::KeyRelease:
+    {
+        QKeyEvent *ev = static_cast<QKeyEvent *>(event);
+        dict["count"] = QString::number(ev->count()).toStdString();
+        dict["key"] = QString::number(ev->key()).toStdString();
+        dict["modifiers"] = QString::number(ev->nativeModifiers()).toStdString();
+        break;
+    }
+    }
+
+    return dict;
+}
+
+Dict WM::GetEventArgs(const char *name)
+{
+    string strName(name);
+    if (triggeredEventsArgs.find(strName) == triggeredEventsArgs.end())
+    {
+        return Dict();
+    }
+
+    return triggeredEventsArgs[strName];
+}
+
+static void dump_props(QObject *o)
+{
+    auto mo = o->metaObject();
+    qDebug() << "## Properties of" << o << "##";
+    do
+    {
+        qDebug() << "### Class" << mo->className() << "###";
+        std::vector<std::pair<QString, QVariant>> v;
+        v.reserve(mo->propertyCount() - mo->propertyOffset());
+        for (int i = mo->propertyOffset(); i < mo->propertyCount();
+             ++i)
+            v.emplace_back(mo->property(i).name(),
+                           mo->property(i).read(o));
+        std::sort(v.begin(), v.end());
+        for (auto &i : v)
+            qDebug() << i.first << "=>" << i.second;
+    } while ((mo = mo->superClass()));
+}
+
+static QVariant get_prop(QObject *o, const char *name)
+{
+    auto mo = o->metaObject();
+    do
+    {
+        for (int i = mo->propertyOffset(); i < mo->propertyCount(); ++i)
+        {
+            if(strcmp(name, mo->property(i).name()) == 0)
+            {
+                return mo->property(i).read(o);
+            }
+        }
+    } while ((mo = mo->superClass()));
+    return QVariant();
+}
+
+static bool set_prop(QObject *o, const char *name, const char* value)
+{
+    QVariant val(value);
+    auto mo = o->metaObject();
+    do
+    {
+        for (int i = mo->propertyOffset(); i < mo->propertyCount(); ++i)
+        {
+            if(strcmp(name, mo->property(i).name()) == 0)
+            {
+                if(mo->property(i).isWritable())
+                {
+                    return mo->property(i).write(o, val);
+                }
+                else
+                    return false;
+            }
+        }
+    } while ((mo = mo->superClass()));
+    return false;
+}
+
+static void get_props(QObject *o, Dict& dict)
+{
+    auto mo = o->metaObject();
+    do
+    {
+        for (int i = mo->propertyOffset(); i < mo->propertyCount(); ++i)
+        {
+            if(mo->property(i).isReadable())
+                dict[string(mo->property(i).name())] = mo->property(i).read(o).toString().toStdString();
+        }
+    } while ((mo = mo->superClass()));
+}
+
+List WM::GetProperty(int id, const char *objName, const char *propName)
+{
+    List list;
+
+    QWidget *window = getWindow(id);
+    if (window == NULL)
+        return list;
+
+    QList<QWidget *> widgets = window->findChildren<QWidget *>(objName);
+
+    if (widgets.count() > 0)
+    {
+        for (int i = 0; i < widgets.count(); ++i)
+        {
+            QVariant val = get_prop(widgets[i], propName);
+            if(val.isValid())
+            {
+                list.push_back(val.toString().toStdString());
+            }
+        }
+    }
+    else
+    {
+        widgets = window->findChildren<QWidget *>();
+        for (int i = 0; i < widgets.count(); ++i)
+        {
+            if (widgets[i]->inherits(objName))
+            {
+                QVariant val = get_prop(widgets[i], propName);
+                if(val.isValid())
+                {
+                    list.push_back(val.toString().toStdString());
+                }
+            }
+        }
+    }
+
+    return list;
+}
+
+bool WM::SetProperty(int id, const char *objName, const char *propName, const char *value)
+{
+    bool success = false;
+
+    QWidget *window = getWindow(id);
+    if (window == NULL)
+        return success;
+
+    QList<QWidget *> widgets = window->findChildren<QWidget *>(objName);
+
+    if (widgets.count() > 0)
+    {
+        for (int i = 0; i < widgets.count(); ++i)
+        {
+            success |= set_prop(widgets[i], propName, value);
+        }
+    }
+    else
+    {
+        widgets = window->findChildren<QWidget *>();
+        for (int i = 0; i < widgets.count(); ++i)
+        {
+            if (widgets[i]->inherits(objName))
+            {
+                success |= set_prop(widgets[i], propName, value);
+            }
+        }
+    }
+
+    return success;
+}
+
+Dict WM::GetProperties(int id, const char *objName)
+{
+    Dict dict;
+
+    QWidget *window = getWindow(id);
+    if (window == NULL)
+        return dict;
+
+    QList<QWidget *> widgets = window->findChildren<QWidget *>(objName);
+
+    if (widgets.count() > 0)
+    {
+        if (widgets.count() >= 1)
+        {
+            get_props(widgets[0], dict);
+        }
+    }
+    else
+    {
+        widgets = window->findChildren<QWidget *>();
+        for (int i = 0; i < widgets.count(); ++i)
+        {
+            if (widgets[i]->inherits(objName))
+            {
+                get_props(widgets[0], dict);
+                break;
+            }
+        }
+    }
+
+    return dict;
 }

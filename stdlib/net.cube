@@ -89,7 +89,7 @@ class HTTPServer
     var code = 201;
     var port = 8080;
 
-    var onGet = @(server, client, request)
+    var onGet = @(server, client, request, data)
     {
         var response = '';
         var f = open(request, "rb");
@@ -102,7 +102,7 @@ class HTTPServer
         }
         return response;
     };
-    var onPost = @(server, client, request)
+    var onPost = @(server, client, request, data)
     {
         var response = '';
         var f = open(request, "rb");
@@ -144,35 +144,56 @@ class HTTPServer
 
             var client = socket.client();
             var received = str(socket.receive());
+            var mode = none;
             var request = none;
-            var page = none;
             var response = none;
+            var data = {};
 
-            var pos = received.find(' ');
-            if(pos >= 0)
+            var lines = received.split('\r\n');
+            for(var i = 0; i < len(lines); ++i)
             {
-                request = received.substr(0, pos);
-
-                pos = received.find('/');
-                if(pos >= 0)
+                var parts = lines[i].split(' ');
+                if(parts[0] == 'GET' or parts[0] == 'POST')
                 {
-                    received = received.from(pos + 1);
-                    pos = received.find(' ');
-                    if(pos >= 0)
+                    data['mode'] = parts[0];
+                    var reqData = parts[1].split('?');
+                    var req = reqData[0];
+                    if(req.startsWith('/'))
                     {
-                        page = received.substr(0, pos);
+                        if( len(parts[1]) == 1 )
+                            data['request'] = '';
+                        else
+                            data['request'] = req.from(1);
                     }
+                    else
+                        data['request'] = req;
+                    var reqArgs;
+                    if(len(reqData) > 1)
+                        reqArgs = reqData[1];
+                    else
+                        reqArgs = "";
+
+                    data['args'] = dict(reqArgs, '&', '=');
+                }
+                else if(len(parts) > 1)
+                {
+                    var field = parts[0].replace(':', '');
+                    var value = parts[ 1:(len(parts)-1) ].join(' ');
+                    data[field] = value;
                 }
             }
+            
+            mode = data['mode'];
+            request = data['request'];
 
-            if(request == 'GET' and page is not none and this.onGet is func)
+            if(mode == 'GET' and request is not none and this.onGet is func)
             {
-                response = this.onGet(this, client, page);
+                response = this.onGet(this, client, request, data);
             }
 
-            if(request == 'POST' and page is not none and this.onPost is func)
+            if(mode == 'POST' and request is not none and this.onPost is func)
             {
-                response = this.onPost(this, client, page);
+                response = this.onPost(this, client, request, data);
             }
 
             if(response != none)
@@ -183,7 +204,7 @@ class HTTPServer
                 else if(this.code == HTTP.NOT_FOUND)
                     codeStr += ' Not Found';
 
-                var fmtStr = this.getMime(page);
+                var fmtStr = this.getMime(request);
 
                 this.code = HTTP.SUCCESS;
                 var ret = 'HTTP/1.1 {}\nContent-Type: {}; charset=utf-8\n\n'.format(codeStr, fmtStr);

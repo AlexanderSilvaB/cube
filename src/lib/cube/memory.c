@@ -6,17 +6,31 @@
 #include "vm.h"
 #include "native.h"
 
-#ifdef DEBUG_TRACE_GC
+#ifdef DEBUG_LOG_GC
 #include <stdio.h>
 #include "debug.h"
 #endif
 
 #define GC_HEAP_GROW_FACTOR 2
 
+static void printAllocated()
+{
+  size_t all = vm.bytesAllocated;
+  if(all > 1024*1024*1024)
+    printf("Used: %d Gb\n", (int)(vm.bytesAllocated / (1024*1024*1024)));
+  else if(all > 1024*1024)
+    printf("Used: %d Mb\n", (int)(vm.bytesAllocated / (1024*1024)));
+  else if(all > 1024)
+    printf("Used: %d Kb\n", (int)(vm.bytesAllocated / (1024)));
+  else
+    printf("Used: %d b\n", (int)(vm.bytesAllocated));
+}
+
 void *reallocate(void *previous, size_t oldSize, size_t newSize)
 {
   vm.bytesAllocated += newSize - oldSize;
-
+  //printAllocated();
+  #ifndef DISABLE_GC
   if (newSize > oldSize)
   {
 #ifdef DEBUG_STRESS_GC
@@ -25,9 +39,10 @@ void *reallocate(void *previous, size_t oldSize, size_t newSize)
 
     if (vm.bytesAllocated > vm.nextGC)
     {
-      //collectGarbage();
+      collectGarbage();
     }
   }
+  #endif
 
   if (newSize == 0)
   {
@@ -38,26 +53,24 @@ void *reallocate(void *previous, size_t oldSize, size_t newSize)
   return realloc(previous, newSize);
 }
 
-void grayObject(Obj *object)
+void markObject(Obj *object)
 {
   if (object == NULL)
     return;
-
-  if (object->isDark)
+  if (object->isMarked)
     return;
 
-#ifdef DEBUG_TRACE_GC
-  printf("%p gray ", object);
+#ifdef DEBUG_LOG_GC
+  printf("%p mark ", (void *)object);
   printValue(OBJ_VAL(object));
   printf("\n");
 #endif
 
-  object->isDark = true;
+  object->isMarked = true;
 
   if (vm.grayCapacity < vm.grayCount + 1)
   {
     vm.grayCapacity = GROW_CAPACITY(vm.grayCapacity);
-
     vm.grayStack = realloc(vm.grayStack,
                            sizeof(Obj *) * vm.grayCapacity);
   }
@@ -65,24 +78,24 @@ void grayObject(Obj *object)
   vm.grayStack[vm.grayCount++] = object;
 }
 
-void grayValue(Value value)
+void markValue(Value value)
 {
   if (!IS_OBJ(value))
     return;
-  grayObject(AS_OBJ(value));
+  markObject(AS_OBJ(value));
 }
 
-static void grayArray(ValueArray *array)
+static void markArray(ValueArray *array)
 {
   for (int i = 0; i < array->count; i++)
   {
-    grayValue(array->values[i]);
+    markValue(array->values[i]);
   }
 }
 
 static void blackenObject(Obj *object)
 {
-#ifdef DEBUG_TRACE_GC
+#ifdef DEBUG_LOG_GC
   printf("%p blacken ", object);
   printValue(OBJ_VAL(object));
   printf("\n");
@@ -93,37 +106,38 @@ static void blackenObject(Obj *object)
   case OBJ_BOUND_METHOD:
   {
     ObjBoundMethod *bound = (ObjBoundMethod *)object;
-    grayValue(bound->receiver);
-    grayObject((Obj *)bound->method);
+    markValue(bound->receiver);
+    markObject((Obj *)bound->method);
     break;
   }
 
   case OBJ_CLASS:
   {
     ObjClass *klass = (ObjClass *)object;
-    grayObject((Obj *)klass->name);
-    grayTable(&klass->methods);
-    grayTable(&klass->fields);
-    grayTable(&klass->staticFields);
+    markObject((Obj *)klass->name);
+    markTable(&klass->methods);
+    markTable(&klass->fields);
+    markTable(&klass->staticFields);
+    
     break;
   }
 
   case OBJ_NAMESPACE:
   {
     ObjNamespace *namespace = (ObjNamespace *)object;
-    grayObject((Obj *)namespace->name);
-    grayTable(&namespace->methods);
-    grayTable(&namespace->fields);
+    markObject((Obj *)namespace->name);
+    markTable(&namespace->methods);
+    markTable(&namespace->fields);
     break;
   }
 
   case OBJ_CLOSURE:
   {
     ObjClosure *closure = (ObjClosure *)object;
-    grayObject((Obj *)closure->function);
+    markObject((Obj *)closure->function);
     for (int i = 0; i < closure->upvalueCount; i++)
     {
-      grayObject((Obj *)closure->upvalues[i]);
+      markObject((Obj *)closure->upvalues[i]);
     }
     break;
   }
@@ -131,27 +145,27 @@ static void blackenObject(Obj *object)
   case OBJ_FUNCTION:
   {
     ObjFunction *function = (ObjFunction *)object;
-    grayObject((Obj *)function->name);
-    grayArray(&function->chunk.constants);
+    markObject((Obj *)function->name);
+    markArray(&function->chunk.constants);
     break;
   }
 
   case OBJ_INSTANCE:
   {
     ObjInstance *instance = (ObjInstance *)object;
-    grayObject((Obj *)instance->klass);
-    grayTable(&instance->fields);
+    markObject((Obj *)instance->klass);
+    markTable(&instance->fields);
     break;
   }
 
   case OBJ_UPVALUE:
-    grayValue(((ObjUpvalue *)object)->closed);
+    markValue(((ObjUpvalue *)object)->closed);
     break;
 
   case OBJ_LIST:
   {
     ObjList *list = (ObjList *)object;
-    grayArray(&list->values);
+    markArray(&list->values);
     break;
   }
 
@@ -163,7 +177,7 @@ static void blackenObject(Obj *object)
       if (!dict->items[i])
         continue;
 
-      grayValue(dict->items[i]->item);
+      markValue(dict->items[i]->item);
     }
     break;
   }
@@ -171,17 +185,17 @@ static void blackenObject(Obj *object)
   case OBJ_NATIVE_FUNC:
   {
     ObjNativeFunc *func = (ObjNativeFunc *)object;
-    grayObject((Obj *)func->name);
-    grayObject((Obj *)func->returnType);
-    grayObject((Obj *)func->lib);
-    grayArray(&func->params);
+    markObject((Obj *)func->name);
+    markObject((Obj *)func->returnType);
+    markObject((Obj *)func->lib);
+    markArray(&func->params);
     break;
   }
 
   case OBJ_NATIVE_LIB:
   {
     ObjNativeLib *lib = (ObjNativeLib *)object;
-    grayObject((Obj *)lib->name);
+    markObject((Obj *)lib->name);
     break;
   }
 
@@ -195,9 +209,10 @@ static void blackenObject(Obj *object)
 
 static void freeObject(Obj *object)
 {
-#ifdef DEBUG_TRACE_GC
+#ifdef DEBUG_LOG_GC
   printf("%p free ", object);
   printValue(OBJ_VAL(object));
+  printf(" (%d)", object->type);
   printf("\n");
 #endif
 
@@ -316,69 +331,88 @@ static void freeObject(Obj *object)
   }
 }
 
-void collectGarbage()
+static void markRoots()
 {
-#ifdef DEBUG_TRACE_GC
-  printf("-- gc begin\n");
-  size_t before = vm.bytesAllocated;
-#endif
-
   for (Value *slot = vm.stack; slot < vm.stackTop; slot++)
   {
-    grayValue(*slot);
+    markValue(*slot);
   }
 
   for (int i = 0; i < vm.frameCount; i++)
   {
-    grayObject((Obj *)vm.frames[i].closure);
+    markObject((Obj *)vm.frames[i].closure);
   }
 
   for (ObjUpvalue *upvalue = vm.openUpvalues;
        upvalue != NULL;
        upvalue = upvalue->next)
   {
-    grayObject((Obj *)upvalue);
+    markObject((Obj *)upvalue);
   }
 
-  grayTable(&vm.globals);
-  grayCompilerRoots();
-  grayObject((Obj *)vm.initString);
+  markTable(&vm.globals);
+  markCompilerRoots();
+  markObject((Obj *)vm.initString);
+  markObject((Obj *)vm.paths);
+}
 
-  // Traverse the references.
+static void traceReferences()
+{
   while (vm.grayCount > 0)
   {
     Obj *object = vm.grayStack[--vm.grayCount];
     blackenObject(object);
   }
+}
 
-  tableRemoveWhite(&vm.strings);
-
-  // Collect the white objects.
-  Obj **object = &vm.objects;
-  while (*object != NULL)
+static void sweep()
+{
+  Obj *previous = NULL;
+  Obj *object = vm.objects;
+  while (object != NULL)
   {
-    if (!((*object)->isDark))
+    if (object->isMarked)
     {
-      // This object wasn't reached, so remove it from the list and
-      // free it.
-      Obj *unreached = *object;
-      *object = unreached->next;
-      freeObject(unreached);
+      object->isMarked = false;
+      previous = object;
+      object = object->next;
     }
     else
     {
-      // This object was reached, so unmark it (for the next GC) and
-      // move on to the next.
-      (*object)->isDark = false;
-      object = &(*object)->next;
+      Obj *unreached = object;
+
+      object = object->next;
+      if (previous != NULL)
+      {
+        previous->next = object;
+      }
+      else
+      {
+        vm.objects = object;
+      }
+
+      freeObject(unreached);
     }
   }
+}
 
-  // Adjust the heap size based on live memory.
+void collectGarbage()
+{
+#ifdef DEBUG_LOG_GC
+  printf("-- gc begin\n");
+  size_t before = vm.bytesAllocated;
+#endif
+
+  markRoots();
+  traceReferences();
+  tableRemoveWhite(&vm.strings);
+  sweep();
+
   vm.nextGC = vm.bytesAllocated * GC_HEAP_GROW_FACTOR;
 
-#ifdef DEBUG_TRACE_GC
-  printf("-- gc collected %ld bytes (from %ld to %ld) next at %ld\n",
+#ifdef DEBUG_LOG_GC
+  printf("-- gc end\n");
+  printf("   collected %ld bytes (from %ld to %ld) next at %ld\n",
          before - vm.bytesAllocated, before, vm.bytesAllocated,
          vm.nextGC);
 #endif

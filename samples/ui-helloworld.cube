@@ -1,8 +1,0 @@
-import ui;
-
-UI.start();
-
-var calculator = Window("Calculator", 190, 250);
-calculator.load("samples/ui/hello-world.qml");
-
-UI.forever();

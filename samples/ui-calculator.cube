@@ -4,9 +4,18 @@ UI.start();
 
 var calculator = Window("Calculator", 190, 250);
 calculator.load("samples/ui/calculator.ui");
-calculator.on("btnPlus", "MouseButtonPress", @()
+
+calculator.on("QPushButton", "MouseButtonPress", @(window, target, props)
 {
-    println("Clicked!");
+    var digit = window.get(target, 'text');
+    var text = window.get('editText', 'text');
+    if(digit == '=')
+    {
+        var result = eval(text);
+        window.set('editText', 'text', result);
+    }
+    else
+        window.set('editText', 'text', text + digit);
 });
 
 UI.forever();

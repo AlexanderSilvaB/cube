@@ -24,7 +24,7 @@ static Obj *allocateObject(size_t size, ObjType type, bool isList)
     vm.listObjects = object;
   }
 
-#ifdef DEBUG_TRACE_GC
+#ifdef DEBUG_LOG_GC
   printf("%p allocate %ld for %d\n", (void *)object, size, type);
 #endif
 
@@ -220,6 +220,12 @@ char *valueToString(Value value, bool literal)
     int numberStringLength = snprintf(NULL, 0, "%.15g", number) + 1;
     char *numberString = malloc(sizeof(char) * numberStringLength);
     snprintf(numberString, numberStringLength, "%.15g", number);
+    int l = strlen(numberString);
+    for(int i = 0; i < l; i++)
+    {
+      if(numberString[i] == ',')
+        numberString[i] = '.';
+    }
     return numberString;
   }
   else if (IS_OBJ(value))

@@ -9,6 +9,10 @@ native stdlib/libs/libui
     bool ui_has_quit();
     bool ui_load(num, str);
     bool ui_on_event(num, str, str);
+    dict ui_get_event_args(str);
+    list ui_get_property(num, str, str);
+    bool ui_set_property(num, str, str, str);
+    dict ui_get_obj(num, str);
 }
 
 class UI
@@ -38,6 +42,7 @@ class UI
                 var id = num(parts[0]);
                 var obj = parts[1];
                 var event = parts[2];
+                var target = parts[3];
                 for(var j = 0; j < len(UI.windows); ++j)
                 {
                     var window = UI.windows[j];
@@ -47,7 +52,8 @@ class UI
                         if(window.actions.exists(onId))
                         {
                             var action = window.actions.get(onId, none);
-                            action();
+                            var evArgs = ui_get_event_args(ev);
+                            action(window, target, evArgs);
                         }
                     }
                 }
@@ -105,5 +111,20 @@ class Window
         this.actions[onId] = action;
 
         return ui_on_event(this.id, obj, event);
+    }
+
+    func obj(name)
+    {
+        return ui_get_obj(this.id, name);
+    }
+
+    func get(obj, prop)
+    {
+        return ui_get_property(this.id, obj, prop);
+    }
+
+    func set(obj, prop, value)
+    {
+        return ui_set_property(this.id, obj, prop, value);
     }
 }

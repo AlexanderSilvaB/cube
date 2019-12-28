@@ -7,18 +7,18 @@
 #include <ctype.h>
 
 #ifdef WINDOWS
-    #include <direct.h>
-    #define GetCurrentDir _getcwd
-    #define MakeDir(path, mode) _mkdir(path)
-    #define RmDir _rmdir
+#include <direct.h>
+#define GetCurrentDir _getcwd
+#define MakeDir(path, mode) _mkdir(path)
+#define RmDir _rmdir
 #else
-    #include <unistd.h>
-    #include <sys/stat.h>
-    #include <dirent.h> 
-    #define GetCurrentDir getcwd
-    #define MakeDir(path, mode) mkdir(path, mode)
-    #define RmDir rmdir
- #endif
+#include <unistd.h>
+#include <sys/stat.h>
+#include <dirent.h>
+#define GetCurrentDir getcwd
+#define MakeDir(path, mode) mkdir(path, mode)
+#define RmDir rmdir
+#endif
 
 #include "std.h"
 #include "object.h"
@@ -26,6 +26,8 @@
 #include "files.h"
 #include "memory.h"
 #include "util.h"
+#include "compiler.h"
+#include "strings.h"
 
 Value clockNative(int argCount, Value *args)
 {
@@ -52,7 +54,7 @@ Value exitNative(int argCount, Value *args)
 }
 
 Value printNative(int argCount, Value *args)
-{   
+{
     for (int i = 0; i < argCount; i++)
     {
         Value value = args[i];
@@ -99,7 +101,7 @@ Value seedNative(int argCount, Value *args)
     Value seed;
     if (argCount == 0)
         seed = NUMBER_VAL(time(NULL));
-    else 
+    else
         seed = toNumber(args[0]);
 
     srand(AS_NUMBER(seed));
@@ -111,7 +113,7 @@ Value waitNative(int argCount, Value *args)
     Value wait;
     if (argCount == 0)
         wait = NUMBER_VAL(1);
-    else 
+    else
         wait = toNumber(args[0]);
 
     usleep(1000 * AS_NUMBER(wait));
@@ -124,7 +126,7 @@ Value sinNative(int argCount, Value *args)
     if (argCount == 0)
         val = NUMBER_VAL(0);
     else
-        val = toNumber(args[0]); 
+        val = toNumber(args[0]);
     return NUMBER_VAL(sin(AS_NUMBER(val)));
 }
 
@@ -134,7 +136,7 @@ Value cosNative(int argCount, Value *args)
     if (argCount == 0)
         val = NUMBER_VAL(0);
     else
-        val = toNumber(args[0]); 
+        val = toNumber(args[0]);
     return NUMBER_VAL(cos(AS_NUMBER(val)));
 }
 
@@ -144,7 +146,7 @@ Value tanNative(int argCount, Value *args)
     if (argCount == 0)
         val = NUMBER_VAL(0);
     else
-        val = toNumber(args[0]); 
+        val = toNumber(args[0]);
     return NUMBER_VAL(tan(AS_NUMBER(val)));
 }
 
@@ -154,7 +156,7 @@ Value asinNative(int argCount, Value *args)
     if (argCount == 0)
         val = NUMBER_VAL(0);
     else
-        val = toNumber(args[0]); 
+        val = toNumber(args[0]);
     return NUMBER_VAL(asin(AS_NUMBER(val)));
 }
 
@@ -164,7 +166,7 @@ Value acosNative(int argCount, Value *args)
     if (argCount == 0)
         val = NUMBER_VAL(0);
     else
-        val = toNumber(args[0]); 
+        val = toNumber(args[0]);
     return NUMBER_VAL(acos(AS_NUMBER(val)));
 }
 
@@ -174,7 +176,7 @@ Value atanNative(int argCount, Value *args)
     if (argCount == 0)
         val = NUMBER_VAL(0);
     else
-        val = toNumber(args[0]); 
+        val = toNumber(args[0]);
     return NUMBER_VAL(atan(AS_NUMBER(val)));
 }
 
@@ -184,13 +186,13 @@ Value atan2Native(int argCount, Value *args)
     if (argCount == 0)
         y = NUMBER_VAL(0);
     else
-        y = toNumber(args[0]); 
+        y = toNumber(args[0]);
 
     Value x;
     if (argCount <= 1)
         x = NUMBER_VAL(0);
     else
-        x = toNumber(args[1]); 
+        x = toNumber(args[1]);
     return NUMBER_VAL(atan2(AS_NUMBER(y), AS_NUMBER(x)));
 }
 
@@ -200,7 +202,7 @@ Value sqrtNative(int argCount, Value *args)
     if (argCount == 0)
         val = NUMBER_VAL(0);
     else
-        val = toNumber(args[0]); 
+        val = toNumber(args[0]);
     return NUMBER_VAL(sqrt(AS_NUMBER(val)));
 }
 
@@ -210,7 +212,7 @@ Value lnNative(int argCount, Value *args)
     if (argCount == 0)
         val = NUMBER_VAL(0);
     else
-        val = toNumber(args[0]); 
+        val = toNumber(args[0]);
     return NUMBER_VAL(log(AS_NUMBER(val)));
 }
 
@@ -220,25 +222,25 @@ Value logNative(int argCount, Value *args)
     if (argCount == 0)
         x = NUMBER_VAL(0);
     else
-        x = toNumber(args[0]); 
+        x = toNumber(args[0]);
 
     Value b;
     if (argCount <= 1)
         b = NUMBER_VAL(10);
     else
-        b = toNumber(args[1]); 
-    return NUMBER_VAL( log(AS_NUMBER(x))/log(AS_NUMBER(b)) );
+        b = toNumber(args[1]);
+    return NUMBER_VAL(log(AS_NUMBER(x)) / log(AS_NUMBER(b)));
 }
 
 Value isnanNative(int argCount, Value *args)
 {
-    if(argCount == 0)
+    if (argCount == 0)
         return FALSE_VAL;
 
     for (int i = 0; i < argCount; i++)
     {
         Value value = toNumber(args[i]);
-        if(!isnan(AS_NUMBER(value)))
+        if (!isnan(AS_NUMBER(value)))
             return FALSE_VAL;
     }
     return TRUE_VAL;
@@ -246,13 +248,13 @@ Value isnanNative(int argCount, Value *args)
 
 Value isinfNative(int argCount, Value *args)
 {
-    if(argCount == 0)
+    if (argCount == 0)
         return FALSE_VAL;
 
     for (int i = 0; i < argCount; i++)
     {
         Value value = toNumber(args[i]);
-        if(!isinf(AS_NUMBER(value)))
+        if (!isinf(AS_NUMBER(value)))
             return FALSE_VAL;
     }
     return TRUE_VAL;
@@ -263,28 +265,28 @@ Value isemptyNative(int argCount, Value *args)
     if (argCount == 0)
         return BOOL_VAL(false);
     Value arg = args[0];
-    if(IS_NONE(arg))
+    if (IS_NONE(arg))
     {
         return TRUE_VAL;
     }
-    else if(IS_STRING(arg))
+    else if (IS_STRING(arg))
     {
-        return BOOL_VAL( AS_STRING(arg)->length == 0 );
+        return BOOL_VAL(AS_STRING(arg)->length == 0);
     }
-    else if(IS_BYTES(arg))
+    else if (IS_BYTES(arg))
     {
-        return BOOL_VAL( AS_BYTES(arg)->length == 0 );
+        return BOOL_VAL(AS_BYTES(arg)->length == 0);
     }
-    else if(IS_LIST(arg))
+    else if (IS_LIST(arg))
     {
-        return BOOL_VAL( AS_LIST(arg)->values.count == 0 );
+        return BOOL_VAL(AS_LIST(arg)->values.count == 0);
     }
-    else if(IS_DICT(arg))
+    else if (IS_DICT(arg))
     {
-        return BOOL_VAL( AS_DICT(arg)->count == 0 );
+        return BOOL_VAL(AS_DICT(arg)->count == 0);
     }
 
-    return BOOL_VAL( AS_STRING(toString(arg))->length == 0 );
+    return BOOL_VAL(AS_STRING(toString(arg))->length == 0);
 }
 
 Value boolNative(int argCount, Value *args)
@@ -312,14 +314,14 @@ Value strNative(int argCount, Value *args)
 {
     if (argCount == 0)
         return STRING_VAL("");
-    if(IS_BYTES(args[0]))
+    if (IS_BYTES(args[0]))
     {
         ObjBytes *bytes = AS_BYTES(args[0]);
         char *str = malloc(bytes->length + 1);
         int j = 0;
-        for(int i = 0; i < bytes->length; i++)
+        for (int i = 0; i < bytes->length; i++)
         {
-            if( isprint(bytes->bytes[i]) != 0 || iscntrl(bytes->bytes[i]) != 0)
+            if (isprint(bytes->bytes[i]) != 0 || iscntrl(bytes->bytes[i]) != 0)
                 str[j++] = bytes->bytes[i];
         }
         str[j] = '\0';
@@ -370,7 +372,7 @@ Value listNative(int argCount, Value *args)
                     strcpy(key, item->key);
                     writeValueArray(&list->values, STRING_VAL(key));
                     free(key);
-                    
+
                     writeValueArray(&list->values, copyValue(item->item));
                 }
             }
@@ -388,6 +390,60 @@ Value listNative(int argCount, Value *args)
     return OBJ_VAL(list);
 }
 
+Value dictNative(int argCount, Value *args)
+{
+    if(argCount != 3)
+    {
+        printf("dict(str, delimiter, innerDelimiter) takes exactly 3 arguments (%d given).\n", argCount);
+        return NONE_VAL;
+    }
+
+    for(int i = 0; i < argCount; i++)
+    {
+        if(!IS_STRING(args[i]))
+        {
+            printf("'dict' argument must be a string.\n");
+            return NONE_VAL;
+        }
+    }
+
+    Value listV = stringSplit(args[0], args[1]);
+    if(!IS_LIST(listV))
+    {
+        printf("dict(): Failed to split '%s' by '%s'.\n", AS_CSTRING(args[0]), AS_CSTRING(args[1]));
+        return NONE_VAL;
+    }
+
+    ObjList *list = AS_LIST(listV);
+    
+    ObjDict *dict = initDict();
+
+    for(int i = 0; i < list->values.count; i++)
+    {
+        Value innerV = stringSplit(list->values.values[i], args[2]);
+        if(!IS_LIST(innerV))
+        {
+            printf("dict(): Failed to split '%s' by '%s'.\n", AS_CSTRING(list->values.values[i]), AS_CSTRING(args[2]));
+            return NONE_VAL;
+        }
+
+        ObjList *inner = AS_LIST(innerV);      
+        if(inner->values.count == 0)
+            continue;
+        if(AS_STRING(inner->values.values[0])->length == 0)
+            continue;
+            
+        char *key = AS_CSTRING(inner->values.values[0]);
+        Value val;
+        if(inner->values.count > 1)
+            val = inner->values.values[1];
+        else
+            val = STRING_VAL("");
+        insertDict(dict, key, val);
+    }
+
+    return OBJ_VAL(dict);    
+}
 
 Value bytesNative(int argCount, Value *args)
 {
@@ -401,31 +457,31 @@ Value bytesNative(int argCount, Value *args)
 
 Value makeNative(int argCount, Value *args)
 {
-    if(argCount == 0)
+    if (argCount == 0)
         return NONE_VAL;
-    
+
     ValueType vType = VAL_NONE;
     ObjType oType = OBJ_STRING;
-    if(IS_STRING(args[0]))
+    if (IS_STRING(args[0]))
     {
         char *name = AS_CSTRING(args[0]);
-        if(strcmp(name, "none") == 0)
+        if (strcmp(name, "none") == 0)
             vType = VAL_NONE;
-        else if(strcmp(name, "bool") == 0)
+        else if (strcmp(name, "bool") == 0)
             vType = VAL_BOOL;
-        else if(strcmp(name, "num") == 0)
+        else if (strcmp(name, "num") == 0)
             vType = VAL_NUMBER;
-        else if(strcmp(name, "string") == 0 || strcmp(name, "str") == 0)
+        else if (strcmp(name, "string") == 0 || strcmp(name, "str") == 0)
         {
             vType = VAL_OBJ;
             oType = OBJ_STRING;
         }
-        else if(strcmp(name, "list") == 0 || strcmp(name, "array") == 0)
+        else if (strcmp(name, "list") == 0 || strcmp(name, "array") == 0)
         {
             vType = VAL_OBJ;
             oType = OBJ_LIST;
         }
-        else if(strcmp(name, "byte") == 0 || strcmp(name, "bytes") == 0)
+        else if (strcmp(name, "byte") == 0 || strcmp(name, "bytes") == 0)
         {
             vType = VAL_OBJ;
             oType = OBJ_BYTES;
@@ -435,68 +491,66 @@ Value makeNative(int argCount, Value *args)
             vType = VAL_OBJ;
             oType = OBJ_STRING;
         }
-        
     }
     else
     {
         vType = args[0].type;
-        if(vType != VAL_OBJ)
+        if (vType != VAL_OBJ)
         {
-            if(IS_LIST(args[0]))
+            if (IS_LIST(args[0]))
             {
                 oType = OBJ_LIST;
             }
         }
     }
-    
 
-    if(vType == VAL_NONE)
+    if (vType == VAL_NONE)
         return NONE_VAL;
-    else if(vType == VAL_BOOL)
+    else if (vType == VAL_BOOL)
     {
-        return argCount == 1 ? FALSE_VAL :  toBool(args[1]);
+        return argCount == 1 ? FALSE_VAL : toBool(args[1]);
     }
-    else if(vType == VAL_NUMBER)
+    else if (vType == VAL_NUMBER)
     {
-        return argCount == 1 ? NUMBER_VAL(0) :  toNumber(args[1]);
+        return argCount == 1 ? NUMBER_VAL(0) : toNumber(args[1]);
     }
-    else if(vType == VAL_OBJ)
+    else if (vType == VAL_OBJ)
     {
-        if(oType == OBJ_STRING)
+        if (oType == OBJ_STRING)
         {
-            return argCount == 1 ? STRING_VAL("") :  toString(args[1]);
+            return argCount == 1 ? STRING_VAL("") : toString(args[1]);
         }
-        else if(oType == OBJ_LIST)
+        else if (oType == OBJ_LIST)
         {
-            if(argCount == 1)
+            if (argCount == 1)
                 return OBJ_VAL(initList());
-            
+
             int sz = (int)AS_NUMBER(toNumber(args[1]));
             Value def = NONE_VAL;
-            if(argCount > 2)
+            if (argCount > 2)
                 def = args[2];
-            
+
             ObjList *list = initList();
-            for(int i = 0; i < sz; i++)
+            for (int i = 0; i < sz; i++)
             {
                 writeValueArray(&list->values, copyValue(def));
             }
 
             return OBJ_VAL(list);
         }
-        else if(oType == OBJ_BYTES)
+        else if (oType == OBJ_BYTES)
         {
-            if(argCount == 1)
+            if (argCount == 1)
                 return OBJ_VAL(initBytes());
-            
+
             int sz = (int)AS_NUMBER(toNumber(args[1]));
             Value def = FALSE_VAL;
-            if(argCount > 2)
+            if (argCount > 2)
                 def = args[2];
 
             Value b = toBytes(def);
             ObjBytes *bytes = initBytes();
-            for(int i = 0; i < sz; i++)
+            for (int i = 0; i < sz; i++)
             {
                 appendBytes(bytes, AS_BYTES(b));
             }
@@ -509,21 +563,21 @@ Value makeNative(int argCount, Value *args)
 
 static int colorCode(char *color)
 {
-    if(strcmp(color, "black") == 0)
+    if (strcmp(color, "black") == 0)
         return 30;
-    else if(strcmp(color, "red") == 0)
+    else if (strcmp(color, "red") == 0)
         return 31;
-    else if(strcmp(color, "green") == 0)
+    else if (strcmp(color, "green") == 0)
         return 32;
-    else if(strcmp(color, "yellow") == 0)
+    else if (strcmp(color, "yellow") == 0)
         return 33;
-    else if(strcmp(color, "blue") == 0)
+    else if (strcmp(color, "blue") == 0)
         return 34;
-    else if(strcmp(color, "magenta") == 0)
+    else if (strcmp(color, "magenta") == 0)
         return 35;
-    else if(strcmp(color, "cyan") == 0)
+    else if (strcmp(color, "cyan") == 0)
         return 36;
-    else if(strcmp(color, "white") == 0)
+    else if (strcmp(color, "white") == 0)
         return 37;
     return 30;
 }
@@ -535,28 +589,28 @@ Value colorNative(int argCount, Value *args)
 
     int code = 30;
 
-    if(argCount > 0)
+    if (argCount > 0)
     {
         code = 37;
-        if(IS_STRING(args[0]))
+        if (IS_STRING(args[0]))
             code = colorCode(AS_CSTRING(args[0]));
-        else if(IS_NUMBER(args[0]))
+        else if (IS_NUMBER(args[0]))
             code = AS_NUMBER(args[0]);
         sprintf(format + strlen(format), "%d", code);
     }
 
-    if(argCount > 1)
+    if (argCount > 1)
     {
         code = 40;
-        if(IS_STRING(args[1]))
+        if (IS_STRING(args[1]))
             code = colorCode(AS_CSTRING(args[1])) + 10;
-        else if(IS_NUMBER(args[1]))
+        else if (IS_NUMBER(args[1]))
             code = AS_NUMBER(args[1]);
         sprintf(format + strlen(format), ";%d", code);
     }
 
     sprintf(format + strlen(format), "m");
-    
+
     Value res = STRING_VAL(format);
     free(format);
 
@@ -575,28 +629,28 @@ Value dateNative(int argCount, Value *args)
     }
     else
     {
-        ObjString* str = AS_STRING(toString(args[0]));
+        ObjString *str = AS_STRING(toString(args[0]));
         len = str->length * 2;
         format = ALLOCATE(char, len);
         strcpy(format, str->chars);
     }
-    
+
     replaceString(format, "YYYY", "%Y");
     replaceString(format, "YY", "%y");
     replaceString(format, "MM", "%m");
     replaceString(format, "mm", "%M");
     replaceString(format, "ss", "%S");
-    replaceString(format, "hh", "%I");  
+    replaceString(format, "hh", "%I");
     replaceString(format, "HH", "%H");
     replaceString(format, "dd", "%d");
     replaceString(format, "D", "%e");
 
     time_t rawtime;
-    struct tm * timeinfo;
-    char buffer [256];
-    time (&rawtime);
-    timeinfo = localtime (&rawtime);
-    strftime (buffer, 256, format,timeinfo);
+    struct tm *timeinfo;
+    char buffer[256];
+    time(&rawtime);
+    timeinfo = localtime(&rawtime);
+    strftime(buffer, 256, format, timeinfo);
     Value ret = STRING_VAL(buffer);
     FREE_ARRAY(char, format, len);
     return ret;
@@ -767,23 +821,23 @@ Value lsNative(int argCount, Value *args)
     char *path = ".";
     if (argCount > 0 && IS_STRING(args[0]))
         path = AS_CSTRING(args[0]);
-    
+
     ObjList *list = initList();
-    #ifdef WINDOWS
-    
-    #else
-        DIR *d;
-        struct dirent *dir;
-        d = opendir(path);
-        if (d) 
+#ifdef WINDOWS
+
+#else
+    DIR *d;
+    struct dirent *dir;
+    d = opendir(path);
+    if (d)
+    {
+        while ((dir = readdir(d)) != NULL)
         {
-            while ((dir = readdir(d)) != NULL) 
-            {
-                writeValueArray(&list->values, STRING_VAL(dir->d_name));
-            }
-            closedir(d);
+            writeValueArray(&list->values, STRING_VAL(dir->d_name));
         }
-    #endif
+        closedir(d);
+    }
+#endif
     return OBJ_VAL(list);
 }
 
@@ -791,7 +845,7 @@ Value cdNative(int argCount, Value *args)
 {
     if (argCount == 0)
         return NONE_VAL;
-    if(!IS_STRING(args[0]))
+    if (!IS_STRING(args[0]))
         return NONE_VAL;
     char *str = AS_CSTRING(args[0]);
     int rc = chdir(str);
@@ -802,7 +856,7 @@ Value existsNative(int argCount, Value *args)
 {
     if (argCount == 0)
         return NONE_VAL;
-    if(!IS_STRING(args[0]))
+    if (!IS_STRING(args[0]))
         return NONE_VAL;
     char *str = AS_CSTRING(args[0]);
     return BOOL_VAL(existsFile(str));
@@ -815,14 +869,86 @@ Value copyNative(int argCount, Value *args)
     return copyValue(args[0]);
 }
 
+Value evalNative(int argCount, Value *args)
+{
+    if (argCount == 0)
+        return NONE_VAL;
+
+    Value arg = args[0];
+    if (!IS_STRING(arg))
+    {
+        printf("'eval' requires a string parameter\n");
+        return NONE_VAL;
+    }
+
+    ObjString *str = AS_STRING(arg);
+    ObjFunction *function = eval(str->chars);
+
+    if (function == NULL)
+    {
+        printf("Failed to evaluate.\n");
+        return NONE_VAL;
+    }
+
+    vm.eval = true;
+    return OBJ_VAL(function);
+}
+
+Value memNative(int argCount, Value *args)
+{
+    bool human = false;
+    if (argCount > 0)
+    {
+        human = AS_BOOL(toBool(args[0]));
+    }
+
+    if(!human)
+    {
+        return NUMBER_VAL(vm.bytesAllocated);
+    }
+
+    int sz = vm.bytesAllocated;
+    char *comp = (char*)malloc(sizeof(char) * 4);
+    if (sz > 1024 * 1024 * 1024)
+    {
+        sz /= (1024 * 1024 * 1024);
+        strcpy(comp, " Gb");
+    }
+    else if (sz > 1024 * 1024)
+    {
+        sz /= (1024 * 1024);
+        strcpy(comp, " Mb");
+    }
+    else if (sz > 1024)
+    {
+        sz /= 1024;
+        strcpy(comp, " Kb");   
+    }
+    else
+        strcpy(comp, " b");
+
+
+    char *vStr = valueToString(NUMBER_VAL(sz), false);
+
+    char *str = (char*)malloc(sizeof(char) * ( strlen(comp) + strlen(vStr) + 1 ));
+    strcpy(str, vStr);
+    strcat(str, comp);
+
+    Value ret = STRING_VAL(str);
+    free(comp);
+    free(vStr);
+    free(str);
+
+    return ret;
+}
 
 // Register
 linked_list *stdFnList;
 #define ADD_STD(name, fn) linked_list_add(stdFnList, createStdFn(name, fn))
 
-std_fn* createStdFn(const char* name, NativeFn fn)
+std_fn *createStdFn(const char *name, NativeFn fn)
 {
-    std_fn *stdFn = (std_fn*)malloc(sizeof(std_fn));
+    std_fn *stdFn = (std_fn *)malloc(sizeof(std_fn));
     stdFn->name = name;
     stdFn->fn = fn;
     return stdFn;
@@ -831,7 +957,7 @@ std_fn* createStdFn(const char* name, NativeFn fn)
 void initStd()
 {
     stdFnList = linked_list_create();
-    
+
     ADD_STD("clock", clockNative);
     ADD_STD("time", timeNative);
     ADD_STD("exit", exitNative);
@@ -859,6 +985,7 @@ void initStd()
     ADD_STD("int", intNative);
     ADD_STD("str", strNative);
     ADD_STD("list", listNative);
+    ADD_STD("dict", dictNative);
     ADD_STD("bytes", bytesNative);
     ADD_STD("color", colorNative);
     ADD_STD("date", dateNative);
@@ -877,6 +1004,8 @@ void initStd()
     ADD_STD("exists", existsNative);
     ADD_STD("make", makeNative);
     ADD_STD("copy", copyNative);
+    ADD_STD("eval", evalNative);
+    ADD_STD("mem", memNative);
 }
 
 void destroyStd()

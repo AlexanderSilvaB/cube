@@ -87,7 +87,7 @@ void runtimeError(const char *format, ...)
     fputs("\n", stderr);
     va_end(args);
   }
-
+  
   resetStack();
 }
 
@@ -103,12 +103,14 @@ static void defineNative(const char *name, NativeFn function)
 void initVM(const char *path, const char *scriptName)
 {
   resetStack();
+
   vm.objects = NULL;
   vm.listObjects = NULL;
   vm.bytesAllocated = 0;
   vm.nextGC = 1024 * 1024;
 
   vm.currentNamespace = NULL;
+  vm.eval = false;
 
   vm.grayCount = 0;
   vm.grayCapacity = 0;
@@ -120,11 +122,11 @@ void initVM(const char *path, const char *scriptName)
   addPath(path);
 
   vm.extension = ".cube";
-  #ifdef WINDOWS
+#ifdef WINDOWS
   vm.nativeExtension = ".dll";
-  #else
+#else
   vm.nativeExtension = ".so";
-  #endif
+#endif
   vm.scriptName = scriptName;
   vm.currentScriptName = scriptName;
   vm.initString = copyString("init", 4);
@@ -1267,8 +1269,8 @@ static InterpretResult run()
       }
       else if (IS_LIST(peek(0)) && IS_LIST(peek(1)))
       {
-        Value listToAddValue = pop();
-        Value listValue = pop();
+        Value listToAddValue = peek(0);
+        Value listValue = peek(1);
 
         ObjList *list = AS_LIST(listValue);
         ObjList *listToAdd = AS_LIST(listToAddValue);
@@ -1278,6 +1280,9 @@ static InterpretResult run()
           writeValueArray(&result->values, list->values.values[i]);
         for (int i = 0; i < listToAdd->values.count; ++i)
           writeValueArray(&result->values, listToAdd->values.values[i]);
+
+        pop();
+        pop();
 
         push(OBJ_VAL(result));
       }
@@ -1389,8 +1394,8 @@ static InterpretResult run()
 
     case OP_IN:
     {
-      Value container = pop();
-      Value item = pop();
+      Value container = peek(0);
+      Value item = peek(1);
       Value result;
       if (IS_STRING(container) && IS_STRING(item))
       {
@@ -1421,19 +1426,31 @@ static InterpretResult run()
         result = BOOL_VAL(valuesEqual(container, item));
       }
 
+      pop();
+      pop();
       push(result);
       break;
     }
 
     case OP_IS:
     {
-      ObjString *type = AS_STRING(pop());
-      bool not = AS_BOOL(pop());
-      char *objType = valueType(pop());
+      ObjString *type = AS_STRING(peek(0));
+      bool not = AS_BOOL(peek(1));
+      char *objType = valueType(peek(2));
+      Value ret;
       if (strcmp(objType, type->chars) == 0)
-        push(not? FALSE_VAL : TRUE_VAL);
+      {
+        ret = not? FALSE_VAL : TRUE_VAL;
+      }
       else
-        push(not? TRUE_VAL : FALSE_VAL);
+      {
+        ret = not? TRUE_VAL : FALSE_VAL;
+      }
+
+      pop();
+      pop();
+      pop();
+      push(ret);
 
       break;
     }
@@ -1482,14 +1499,14 @@ static InterpretResult run()
 
     case OP_IMPORT:
     {
-      Value asValue = pop();
+      Value asValue = peek(0);
       ObjString *as = NULL;
       if (IS_STRING(asValue))
       {
         as = AS_STRING(asValue);
       }
 
-      ObjString *fileName = AS_STRING(pop());
+      ObjString *fileName = AS_STRING(peek(1));
       char *s = readFile(fileName->chars, false);
       int index = 0;
       while (s == NULL && index < vm.paths->values.count)
@@ -1534,6 +1551,10 @@ static InterpretResult run()
         free(s);
         return INTERPRET_COMPILE_ERROR;
       }
+
+      pop();
+      pop();
+
       push(OBJ_VAL(function));
       ObjClosure *closure = newClosure(function);
       pop();
@@ -1556,12 +1577,14 @@ static InterpretResult run()
     }
     case OP_ADD_LIST:
     {
-      Value addValue = pop();
-      Value listValue = pop();
+      Value addValue = peek(0);
+      Value listValue = peek(1);
 
       ObjList *list = AS_LIST(listValue);
       writeValueArray(&list->values, addValue);
 
+      pop();
+      pop();
       push(OBJ_VAL(list));
       break;
     }
@@ -1574,9 +1597,9 @@ static InterpretResult run()
     }
     case OP_ADD_DICT:
     {
-      Value value = pop();
-      Value key = pop();
-      Value dictValue = pop();
+      Value value = peek(0);
+      Value key = peek(1);
+      Value dictValue = peek(2);
 
       if (!IS_STRING(key))
       {
@@ -1589,13 +1612,16 @@ static InterpretResult run()
 
       insertDict(dict, keyString, value);
 
+      pop();
+      pop();
+      pop();
       push(OBJ_VAL(dict));
       break;
     }
     case OP_SUBSCRIPT:
     {
-      Value indexValue = pop();
-      Value listValue = pop();
+      Value indexValue = peek(0);
+      Value listValue = peek(1);
       Value result;
 
       if (!subscript(listValue, indexValue, &result))
@@ -1603,21 +1629,29 @@ static InterpretResult run()
         return INTERPRET_RUNTIME_ERROR;
       }
 
+      pop();
+      pop();
       push(result);
       break;
     }
     case OP_SUBSCRIPT_ASSIGN:
     {
-      Value assignValue = pop();
-      Value indexValue = pop();
-      Value listValue = pop();
+      Value assignValue = peek(0);
+      Value indexValue = peek(1);
+      Value listValue = peek(2);
 
       if (!subscriptAssign(listValue, indexValue, assignValue))
       {
+        pop();
+        pop();
+        pop();
         push(NONE_VAL);
         return INTERPRET_RUNTIME_ERROR;
       }
 
+      pop();
+      pop();
+      pop();
       push(NONE_VAL);
       break;
     }
@@ -1630,7 +1664,22 @@ static InterpretResult run()
         return INTERPRET_RUNTIME_ERROR;
       }
 
+      if (vm.eval && IS_FUNCTION(peek(0)))
+      {
+        argCount = 0;
+
+        ObjFunction* function = AS_FUNCTION(peek(0));
+        ObjClosure *closure = newClosure(function);
+        pop();
+        push(OBJ_VAL(closure));
+
+        if (!callValue(peek(argCount), argCount))
+        {
+          return INTERPRET_RUNTIME_ERROR;
+        }
+      }
       frame = &vm.frames[vm.frameCount - 1];
+      vm.eval = false;
       break;
     }
 
@@ -1753,8 +1802,8 @@ static InterpretResult run()
 
     case OP_FILE:
     {
-      Value openType = pop();
-      Value fileName = pop();
+      Value openType = peek(0);
+      Value fileName = peek(1);
 
       if (!IS_STRING(openType))
       {
@@ -1778,6 +1827,9 @@ static InterpretResult run()
         runtimeError("Unable to open file");
         return INTERPRET_RUNTIME_ERROR;
       }
+
+      pop();
+      pop();
       push(OBJ_VAL(file));
       break;
     }

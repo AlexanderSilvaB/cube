@@ -193,19 +193,19 @@ void tableRemoveWhite(Table *table)
   for (int i = 0; i <= table->capacityMask; i++)
   {
     Entry *entry = &table->entries[i];
-    if (entry->key != NULL && !entry->key->obj.isDark)
+    if (entry->key != NULL && !entry->key->obj.isMarked)
     {
       tableDelete(table, entry->key);
     }
   }
 }
 
-void grayTable(Table *table)
+void markTable(Table *table)
 {
   for (int i = 0; i <= table->capacityMask; i++)
   {
     Entry *entry = &table->entries[i];
-    grayObject((Obj *)entry->key);
-    grayValue(entry->value);
+    markObject((Obj *)entry->key);
+    markValue(entry->value);
   }
 }

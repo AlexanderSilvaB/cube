@@ -31,15 +31,51 @@ static bool splitString(int argCount) {
 		token = strstr(tmp, delimiter);
 		if (token)
 			*token = '\0';
-
+		
 		ObjString *str = copyString(tmp, strlen(tmp));
 		writeValueArray(&list->values, OBJ_VAL(str));
 		tmp = token + strlen(delimiter);
 	} while (token != NULL);
-
+	
 	free(tmpFree);
 	push(OBJ_VAL(list));
 	return true;
+}
+
+Value stringSplit(Value orig, Value del) {
+
+	if (!IS_STRING(orig)) {
+		printf("Argument passed to split() must be a string\n");
+		return NONE_VAL;
+	}
+
+	if (!IS_STRING(del)) {
+		printf("Argument passed to split() must be a string\n");
+		return NONE_VAL;
+	}
+
+	char *delimiter = AS_CSTRING(del);
+	char *string = AS_CSTRING(orig);
+	char *tmp = malloc(strlen(string) + 1);
+	char *tmpFree = tmp;
+	strcpy(tmp, string);
+
+	char *token;
+
+	ObjList *list = initList();
+
+	do {
+		token = strstr(tmp, delimiter);
+		if (token)
+			*token = '\0';
+		
+		ObjString *str = copyString(tmp, strlen(tmp));
+		writeValueArray(&list->values, OBJ_VAL(str));
+		tmp = token + strlen(delimiter);
+	} while (token != NULL);
+	
+	free(tmpFree);
+	return OBJ_VAL(list);
 }
 
 static bool containsString(int argCount) {

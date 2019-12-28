@@ -81,6 +81,7 @@ Value nativeToValue(cube_native_var *var, NativeTypes *nt)
         switch (NATIVE_TYPE(var))
         {
             case TYPE_VOID:
+            case TYPE_NONE:
             {
                 result = NONE_VAL;
             }
@@ -117,7 +118,11 @@ Value nativeToValue(cube_native_var *var, NativeTypes *nt)
 
 void valueToNative(cube_native_var *var, Value value)
 {
-    if(IS_BOOL(value))
+    if(IS_NONE(value))
+    {
+        var->type = TYPE_NONE;
+    }
+    else if(IS_BOOL(value))
     {
         var->type = TYPE_BOOL;
         var->value._bool = AS_BOOL(value);
@@ -337,6 +342,9 @@ Value callNative(ObjNativeFunc *func, int argCount, Value *args)
         values[i] = NATIVE_VAR();
         switch (type)
         {
+        case TYPE_NONE:
+            values[i]->type = TYPE_NONE;
+            break;
         case TYPE_BOOL:
             values[i]->type = TYPE_BOOL;
             values[i]->value._bool = AS_BOOL(toBool(args[i]));
@@ -396,6 +404,8 @@ NativeTypes getNativeType(const char *name)
 {
     if (strcmp(name, "void") == 0)
         return TYPE_VOID;
+    else if (strcmp(name, "none") == 0)
+        return TYPE_NONE;
     else if (strcmp(name, "bool") == 0)
         return TYPE_BOOL;
     else if (strcmp(name, "num") == 0 || strcmp(name, "number") == 0)
@@ -407,7 +417,7 @@ NativeTypes getNativeType(const char *name)
     else if (strcmp(name, "list") == 0)
         return TYPE_LIST;
     else if (strcmp(name, "dict") == 0)
-        return TYPE_LIST;
+        return TYPE_DICT;
 
     return TYPE_UNKNOWN;
 }

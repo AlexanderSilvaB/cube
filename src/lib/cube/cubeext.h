@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 #if defined _WIN32 || defined __CYGWIN__
 #ifdef WIN_EXPORT
@@ -34,6 +35,7 @@
 typedef enum
 {
     TYPE_VOID,
+    TYPE_NONE,
     TYPE_BOOL,
     TYPE_NUMBER,
     TYPE_STRING,
@@ -87,6 +89,13 @@ static cube_native_var* NATIVE_VAR()
     return var;
 }
 
+static cube_native_var* NATIVE_NONE()
+{
+    cube_native_var* var = NATIVE_VAR();
+    var->type = TYPE_NONE;
+    return var;
+}
+
 static cube_native_var* NATIVE_BOOL(bool v)
 {
     cube_native_var* var = NATIVE_VAR();
@@ -108,6 +117,15 @@ static cube_native_var* NATIVE_STRING(char* v)
     cube_native_var* var = NATIVE_VAR();
     var->type = TYPE_STRING;
     var->value._string = v;
+    return var;
+}
+
+static cube_native_var* NATIVE_STRING_COPY(const char* v)
+{
+    cube_native_var* var = NATIVE_VAR();
+    var->type = TYPE_STRING;
+    var->value._string = (char*)malloc(sizeof(char) * (strlen(v) + 1) );
+    strcpy(var->value._string, v);
     return var;
 }
 
@@ -134,6 +152,7 @@ static cube_native_var* NATIVE_DICT()
     cube_native_var* var = NATIVE_VAR();
     var->type = TYPE_VOID;
     var->is_dict = true;
+    var->key = NULL;
     var->next = NULL;
     return var;
 }

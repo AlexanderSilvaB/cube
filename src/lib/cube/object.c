@@ -19,7 +19,7 @@ static Obj *allocateObject(size_t size, ObjType type, bool isList)
 {
 	Obj *object = (Obj *)reallocate(NULL, 0, size);
 	object->type = type;
-	object->isDark = false;
+	object->isMarked = false;
 
 	if (!isList)
 	{
@@ -32,8 +32,8 @@ static Obj *allocateObject(size_t size, ObjType type, bool isList)
 		vm.listObjects = object;
 	}
 
-#ifdef DEBUG_TRACE_GC
-	printf("%p allocate %ld for %d\n", object, size, type);
+#ifdef DEBUG_LOG_GC
+	// printf("%p allocate %ld for %d\n", object, size, type);
 #endif
 
 	return object;
@@ -245,6 +245,7 @@ char *objectToString(Value value, bool literal)
 {
 	Obj *obj = AS_OBJ(value);
 	ObjType tp = obj->type;
+	// printf("TP: %d\n", tp);
 	switch (OBJ_TYPE(value))
 	{
 	case OBJ_CLASS:
@@ -283,10 +284,7 @@ char *objectToString(Value value, bool literal)
 	case OBJ_CLOSURE:
 	{
 		ObjClosure *closure = AS_CLOSURE(value);
-		char *closureString = malloc(sizeof(char) * (closure->function->name->length + 8));
-		snprintf(closureString, closure->function->name->length + 8,
-				 "<func %s>", closure->function->name->chars);
-		return closureString;
+		return objectToString( OBJ_VAL(closure->function), literal );
 	}
 
 	case OBJ_FUNCTION:
@@ -406,17 +404,19 @@ char *objectToString(Value value, bool literal)
 	{
 		int size = 50;
 		ObjList *list = AS_LIST(value);
-		char *listString = calloc(size, sizeof(char));
+		char *listString = malloc(sizeof(char) * size);
 		snprintf(listString, 2, "%s", "[");
+
+		int listStringSize;
 
 		for (int i = 0; i < list->values.count; ++i)
 		{
 			char *element = valueToString(list->values.values[i], true);
 
 			int elementSize = strlen(element);
-			int listStringSize = strlen(listString);
+			listStringSize = strlen(listString);
 
-			if (elementSize > (size - listStringSize - 1))
+			if ((elementSize + 6) >= (size - listStringSize - 1))
 			{
 				if (elementSize > size * 2)
 					size += elementSize * 2;
@@ -442,7 +442,8 @@ char *objectToString(Value value, bool literal)
 				strncat(listString, ", ", size - listStringSize - 1);
 		}
 
-		strncat(listString, "]", size - strlen(listString) - 1);
+		listStringSize = strlen(listString);
+		strncat(listString, "]", size - listStringSize - 1);
 		return listString;
 	}
 
@@ -465,7 +466,7 @@ char *objectToString(Value value, bool literal)
 			int keySize = strlen(item->key);
 			int dictStringSize = strlen(dictString);
 
-			if (keySize > (size - dictStringSize - 1))
+			if ((keySize + 3) >= (size - dictStringSize - 1))
 			{
 				if (keySize > size * 2)
 					size += keySize * 2;
@@ -491,10 +492,12 @@ char *objectToString(Value value, bool literal)
 			strncat(dictString, dictKeyString, size - dictStringSize - 1);
 			free(dictKeyString);
 
+			dictStringSize = strlen(dictString);
+
 			char *element = valueToString(item->item, true);
 			int elementSize = strlen(element);
 
-			if (elementSize > (size - dictStringSize - 1))
+			if (elementSize + 8 >= (size - dictStringSize - 1))
 			{
 				if (elementSize > size * 2)
 					size += elementSize * 2;

@@ -257,6 +257,65 @@ static bool copyListDeep(int argCount) {
 	return true;
 }
 
+static bool joinList(int argCount)
+{
+	if (argCount != 2) {
+		runtimeError("join(str) takes 2 arguments (%d  given)", argCount);
+		return false;
+	}
+
+	ObjString *str = AS_STRING(toString(pop()));
+	ObjList *list = AS_LIST(pop());
+
+	int size = 50;
+	char *listString = malloc(sizeof(char) * size);
+	listString[0] = '\0';
+
+	int listStringSize;
+
+	int delLen = str->length;
+
+	for (int i = 0; i < list->values.count; ++i)
+	{
+		char *element = valueToString(list->values.values[i], false);
+
+		int elementSize = strlen(element);
+		listStringSize = strlen(listString);
+
+		if ((elementSize + 2 + delLen) >= (size - listStringSize - 1))
+		{
+			if (elementSize > size * 2)
+				size += elementSize * 2;
+			else
+				size *= 2;
+
+			char *newB = realloc(listString, sizeof(char) * size);
+
+			if (newB == NULL)
+			{
+				printf("Unable to allocate memory\n");
+				exit(71);
+			}
+
+			listString = newB;
+		}
+
+		strncat(listString, element, size - listStringSize - 1);
+
+		free(element);
+
+		if (i != list->values.count - 1)
+			strncat(listString, str->chars, size - listStringSize - 1);
+	}
+
+	listStringSize = strlen(listString);
+	push(STRING_VAL(listString));
+	free(listString);
+
+
+	return true;
+}
+
 bool listMethods(char *method, int argCount) {
 	if (strcmp(method, "push") == 0 || strcmp(method, "add") == 0)
 		return pushListItem(argCount);
@@ -272,6 +331,8 @@ bool listMethods(char *method, int argCount) {
 		return copyListShallow(argCount);
 	else if (strcmp(method, "deepCopy") == 0)
 		return copyListDeep(argCount);
+	else if (strcmp(method, "join") == 0)
+		return joinList(argCount);
 
 	runtimeError("List has no method %s()", method);
 	return false;

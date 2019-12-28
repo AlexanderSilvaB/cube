@@ -1,11 +1,11 @@
 import net;
 
-func get(server, client, request)
+func get(server, client, request, data)
 {
     println("GET: ", request);
 
     var response;
-    if(isempty(request))
+    if(isempty(request) or request == '/')
     {
         var rand = int(random() * 10000000);
         println("Sending randomic number: ", rand);

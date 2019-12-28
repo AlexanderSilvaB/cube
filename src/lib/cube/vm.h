@@ -34,6 +34,7 @@ typedef struct
   const char *scriptName;
   const char *currentScriptName;
   int currentFrameCount;
+  bool eval;
 
   size_t bytesAllocated;
   size_t nextGC;

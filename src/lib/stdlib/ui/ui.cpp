@@ -13,6 +13,13 @@ extern "C"
     char *argv[0];
     QApplication app(argc, argv);
 
+    char *copyStr(const char* str)
+    {
+        char *s = (char*)malloc(sizeof(char) * (strlen(str) + 1));
+        strcpy(s, str);
+        return s;
+    }
+
     EXPORTED void ui_start()
     {
         wm = new WM(&app);
@@ -82,4 +89,78 @@ extern "C"
         cube_native_var* ret = NATIVE_BOOL(success);
         return ret;
     }
+
+    EXPORTED cube_native_var* ui_get_event_args(cube_native_var *name)
+    {   
+        Dict args = wm->GetEventArgs(AS_NATIVE_STRING(name));
+        cube_native_var* ret = NATIVE_DICT();
+        for(Dict::iterator it = args.begin(); it != args.end(); it++)
+        {
+            cube_native_var *next = NATIVE_STRING_COPY(it->second.c_str());
+            ADD_NATIVE_DICT(ret, copyStr(it->first.c_str()), next);
+        }
+
+        return ret;
+    }
+
+    EXPORTED cube_native_var* ui_get_property(cube_native_var* id, cube_native_var* objName, cube_native_var* propName)
+    {   
+        List list = wm->GetProperty(AS_NATIVE_NUMBER(id), AS_NATIVE_STRING(objName), AS_NATIVE_STRING(propName));
+
+        cube_native_var* ret;
+
+        if(!list.empty())
+        {
+            if(list.size() > 1)
+            {
+                ret = NATIVE_LIST();
+                for(int i = 0; i < list.size(); i++)
+                {
+                    cube_native_var *prop = NATIVE_STRING_COPY(list[i].c_str());
+                    ADD_NATIVE_LIST(ret, prop);
+                }
+            }
+            else
+            {
+                ret = NATIVE_STRING_COPY(list[0].c_str());
+            }   
+        }
+        else
+        {
+            ret = NATIVE_NONE();
+        }
+        
+        return ret;
+    }
+
+    EXPORTED cube_native_var* ui_set_property(cube_native_var* id, cube_native_var* objName, cube_native_var* propName, cube_native_var* value)
+    {   
+        bool success = wm->SetProperty(AS_NATIVE_NUMBER(id), AS_NATIVE_STRING(objName), AS_NATIVE_STRING(propName), AS_NATIVE_STRING(value));
+
+        cube_native_var* ret = NATIVE_BOOL(success);
+        return ret;
+    }
+
+    EXPORTED cube_native_var* ui_get_obj(cube_native_var* id, cube_native_var* objName)
+    {   
+        Dict props = wm->GetProperties(AS_NATIVE_NUMBER(id), AS_NATIVE_STRING(objName));
+        cube_native_var* ret;
+        if(props.size() == 0)
+        {
+            ret = NATIVE_NONE();
+        }
+        else
+        {
+            ret = NATIVE_DICT();
+            for(Dict::iterator it = props.begin(); it != props.end(); it++)
+            {
+                cube_native_var *next = NATIVE_STRING_COPY(it->second.c_str());
+                ADD_NATIVE_DICT(ret, copyStr(it->first.c_str()), next);
+            }
+        }
+
+        return ret;
+    }
+
+    
 }
