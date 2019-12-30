@@ -107,7 +107,8 @@ void initVM(const char *path, const char *scriptName)
   vm.objects = NULL;
   vm.listObjects = NULL;
   vm.bytesAllocated = 0;
-  vm.nextGC = 1024 * 1024;
+  //vm.nextGC = 1024 * 1024;
+  vm.nextGC = 1024;
 
   vm.currentNamespace = NULL;
   vm.eval = false;
@@ -141,6 +142,8 @@ void initVM(const char *path, const char *scriptName)
       defineNative(stdFn->name, stdFn->fn);
   } while (linked_list_next(&stdFnList));
   destroyStd();
+
+  enableGC();
 }
 
 void freeVM()
@@ -217,7 +220,10 @@ static bool call(ObjClosure *closure, int argCount)
   push(OBJ_VAL(args));
 
   ObjString *name = AS_STRING(STRING_VAL("__args"));
+  push(OBJ_VAL(name));
+
   tableSet(&vm.globals, name, peek(0));
+  pop();
   pop();
 
   return true;
