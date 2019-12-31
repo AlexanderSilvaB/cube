@@ -109,6 +109,7 @@ void initVM(const char *path, const char *scriptName)
   vm.bytesAllocated = 0;
   //vm.nextGC = 1024 * 1024;
   vm.nextGC = 1024;
+  vm.gc = false;
 
   vm.currentNamespace = NULL;
   vm.eval = false;
@@ -143,7 +144,9 @@ void initVM(const char *path, const char *scriptName)
   } while (linked_list_next(&stdFnList));
   destroyStd();
 
-  enableGC();
+  #ifndef DISABLE_GC
+  vm.gc = true;
+  #endif
 }
 
 void freeVM()
@@ -151,6 +154,7 @@ void freeVM()
   freeTable(&vm.globals);
   freeTable(&vm.strings);
   vm.initString = NULL;
+  vm.gc = false;
   freeObjects();
   freeLists();
 }
@@ -171,8 +175,13 @@ void loadArgs(int argc, const char *argv[], int argStart)
   initArgV = argv;
 }
 
+static int pops = 0;
+static int pushs = 0;
+
 void push(Value value)
 {
+  // pushs++;
+  // printf("Push/Pop: %d/%d -> %d\n", pushs, pops, (pushs-pops));
   *vm.stackTop = value;
   vm.stackTop++;
 }
@@ -180,6 +189,8 @@ void push(Value value)
 Value pop()
 {
   vm.stackTop--;
+  // pops++;
+  // printf("Push/Pop: %d/%d -> %d\n", pushs, pops, (pushs-pops));
   return *vm.stackTop;
 }
 
@@ -994,14 +1005,14 @@ static InterpretResult run()
       }
 
       ObjList *list = initList();
+      push(OBJ_VAL(list));
 
       while (!IS_NONE(start))
       {
         writeValueArray(&list->values, start);
         start = increment(start, step, stop);
       }
-
-      push(OBJ_VAL(list));
+      
       break;
     }
     case OP_POP:

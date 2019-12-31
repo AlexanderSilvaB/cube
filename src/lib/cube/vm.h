@@ -5,7 +5,7 @@
 #include "table.h"
 #include "value.h"
 
-#define FRAMES_MAX 64
+#define FRAMES_MAX 512
 #define STACK_MAX (FRAMES_MAX * UINT8_COUNT)
 
 typedef struct
@@ -35,6 +35,7 @@ typedef struct
   const char *currentScriptName;
   int currentFrameCount;
   bool eval;
+  bool gc;
 
   size_t bytesAllocated;
   size_t nextGC;

@@ -31,40 +31,42 @@ class UI
 
     static func forever()
     {
-        var events = none;
         while(UI.running())
         {
-            events = UI.cycle();
-            for(var i = 0; i < len(events); ++i)
-            {
-                var ev = events[i];
-                var parts = ev.split(':');
-                var id = num(parts[0]);
-                var obj = parts[1];
-                var event = parts[2];
-                var target = parts[3];
-                for(var j = 0; j < len(UI.windows); ++j)
-                {
-                    var window = UI.windows[j];
-                    if(window.id == id)
-                    {
-                        var onId = '{}:{}'.format(obj, event);
-                        if(window.actions.exists(onId))
-                        {
-                            var action = window.actions.get(onId, none);
-                            var evArgs = ui_get_event_args(ev);
-                            action(window, target, evArgs);
-                        }
-                    }
-                }
-            }
+            UI.cycle();
         }
         UI.stop();
     }
 
     static func cycle()
     {
-        return ui_run_cycle();
+        println("Cycle: Begin");
+        var events = ui_run_cycle();
+        for(var i = 0; i < len(events); ++i)
+        {
+            var ev = events[i];
+            var parts = ev.split(':');
+            var id = num(parts[0]);
+            var obj = parts[1];
+            var event = parts[2];
+            var target = parts[3];
+            for(var j = 0; j < len(UI.windows); ++j)
+            {
+                var window = UI.windows[j];
+                if(window.id == id)
+                {
+                    var onId = '{}:{}'.format(obj, event);
+                    if(window.actions.exists(onId))
+                    {
+                        var action = window.actions.get(onId, none);
+                        var evArgs = ui_get_event_args(ev);
+                        action(window, target, evArgs);
+                    }
+                }
+            }
+        }
+        println("Cycle: End");
+        return true;
     }
 
     static func running()

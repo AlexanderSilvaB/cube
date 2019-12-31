@@ -6,16 +6,22 @@
 #include "memory.h"
 #include "vm.h"
 
-static bool splitString(int argCount) {
-	if (argCount != 2) {
+static bool splitString(int argCount)
+{
+	if (argCount != 2)
+	{
 		runtimeError("split() takes 2 arguments (%d given)", argCount);
 		return false;
 	}
 
-	if (!IS_STRING(peek(0))) {
+	if (!IS_STRING(peek(0)))
+	{
 		runtimeError("Argument passed to split() must be a string");
 		return false;
 	}
+
+	bool gc = vm.gc;
+	vm.gc = false;
 
 	char *delimiter = AS_CSTRING(pop());
 	char *string = AS_CSTRING(pop());
@@ -27,29 +33,36 @@ static bool splitString(int argCount) {
 
 	ObjList *list = initList();
 
-	do {
+	do
+	{
 		token = strstr(tmp, delimiter);
 		if (token)
 			*token = '\0';
-		
+
 		ObjString *str = copyString(tmp, strlen(tmp));
 		writeValueArray(&list->values, OBJ_VAL(str));
 		tmp = token + strlen(delimiter);
 	} while (token != NULL);
-	
+
 	free(tmpFree);
 	push(OBJ_VAL(list));
+
+	vm.gc = gc;
+
 	return true;
 }
 
-Value stringSplit(Value orig, Value del) {
+Value stringSplit(Value orig, Value del)
+{
 
-	if (!IS_STRING(orig)) {
+	if (!IS_STRING(orig))
+	{
 		printf("Argument passed to split() must be a string\n");
 		return NONE_VAL;
 	}
 
-	if (!IS_STRING(del)) {
+	if (!IS_STRING(del))
+	{
 		printf("Argument passed to split() must be a string\n");
 		return NONE_VAL;
 	}
@@ -64,27 +77,31 @@ Value stringSplit(Value orig, Value del) {
 
 	ObjList *list = initList();
 
-	do {
+	do
+	{
 		token = strstr(tmp, delimiter);
 		if (token)
 			*token = '\0';
-		
+
 		ObjString *str = copyString(tmp, strlen(tmp));
 		writeValueArray(&list->values, OBJ_VAL(str));
 		tmp = token + strlen(delimiter);
 	} while (token != NULL);
-	
+
 	free(tmpFree);
 	return OBJ_VAL(list);
 }
 
-static bool containsString(int argCount) {
-	if (argCount != 2) {
+static bool containsString(int argCount)
+{
+	if (argCount != 2)
+	{
 		runtimeError("contains() takes 2 arguments (%d given)", argCount);
 		return false;
 	}
 
-	if (!IS_STRING(peek(0))) {
+	if (!IS_STRING(peek(0)))
+	{
 		runtimeError("Argument passed to contains() must be a string");
 		return false;
 	}
@@ -95,7 +112,8 @@ static bool containsString(int argCount) {
 	char *tmpFree = tmp;
 	strcpy(tmp, string);
 
-	if (!strstr(tmp, delimiter)) {
+	if (!strstr(tmp, delimiter))
+	{
 		push(FALSE_VAL);
 		free(tmp);
 		return true;
@@ -106,14 +124,16 @@ static bool containsString(int argCount) {
 	return true;
 }
 
-bool stringContains(Value strinvV, Value delimiterV, Value *result) {
+bool stringContains(Value strinvV, Value delimiterV, Value *result)
+{
 	char *delimiter = AS_CSTRING(delimiterV);
 	char *string = AS_CSTRING(strinvV);
 	char *tmp = malloc(strlen(string) + 1);
 	char *tmpFree = tmp;
 	strcpy(tmp, string);
 
-	if (!strstr(tmp, delimiter)) {
+	if (!strstr(tmp, delimiter))
+	{
 		*result = FALSE_VAL;
 		free(tmp);
 		return true;
@@ -124,8 +144,10 @@ bool stringContains(Value strinvV, Value delimiterV, Value *result) {
 	return true;
 }
 
-static bool findString(int argCount) {
-	if (argCount < 2 || argCount > 3) {
+static bool findString(int argCount)
+{
+	if (argCount < 2 || argCount > 3)
+	{
 		runtimeError("find() takes either 2 or 3 arguments (%d given)",
 					 argCount);
 		return false;
@@ -133,8 +155,10 @@ static bool findString(int argCount) {
 
 	int index = 1;
 
-	if (argCount == 3) {
-		if (!IS_NUMBER(peek(0))) {
+	if (argCount == 3)
+	{
+		if (!IS_NUMBER(peek(0)))
+		{
 			runtimeError("Index passed to find() must be a number");
 			return false;
 		}
@@ -142,7 +166,8 @@ static bool findString(int argCount) {
 		index = AS_NUMBER(pop());
 	}
 
-	if (!IS_STRING(peek(0))) {
+	if (!IS_STRING(peek(0)))
+	{
 		runtimeError("Substring passed to find() must be a string");
 		return false;
 	}
@@ -155,9 +180,11 @@ static bool findString(int argCount) {
 
 	int position = 0;
 
-	for (int i = 0; i < index; ++i) {
+	for (int i = 0; i < index; ++i)
+	{
 		char *result = strstr(tmp, substr);
-		if (!result) {
+		if (!result)
+		{
 			position = -1;
 			break;
 		}
@@ -171,18 +198,22 @@ static bool findString(int argCount) {
 	return true;
 }
 
-static bool replaceString(int argCount) {
-	if (argCount != 3) {
+static bool replaceString(int argCount)
+{
+	if (argCount != 3)
+	{
 		runtimeError("replace() takes 3 arguments (%d given)", argCount);
 		return false;
 	}
 
-	if (!IS_STRING(peek(0))) {
+	if (!IS_STRING(peek(0)))
+	{
 		runtimeError("Argument passed to replace() must be a string");
 		return false;
 	}
 
-	if (!IS_STRING(peek(1))) {
+	if (!IS_STRING(peek(1)))
+	{
 		runtimeError("Argument passed to replace() must be a string");
 		return false;
 	}
@@ -203,14 +234,16 @@ static bool replaceString(int argCount) {
 	strcpy(tmp, string);
 	strcpy(tmp1, string);
 
-	while ((tmp = strstr(tmp, to_replace)) != NULL) {
+	while ((tmp = strstr(tmp, to_replace)) != NULL)
+	{
 		count++;
 		tmp += len;
 	}
 
 	free(tmpFree);
 
-	if (count == 0) {
+	if (count == 0)
+	{
 		push(stringValue);
 		free(tmp1Free); // We're exiting early so remember to free
 		return true;
@@ -220,7 +253,8 @@ static bool replaceString(int argCount) {
 	char *pos;
 	char *newStr = malloc(sizeof(char) * length);
 
-	for (int i = 0; i < count; ++i) {
+	for (int i = 0; i < count; ++i)
+	{
 		pos = strstr(tmp1, to_replace);
 		if (pos != NULL)
 			*pos = '\0';
@@ -242,8 +276,10 @@ static bool replaceString(int argCount) {
 	return true;
 }
 
-static bool substrString(int argCount) {
-	if (argCount != 3) {
+static bool substrString(int argCount)
+{
+	if (argCount != 3)
+	{
 		runtimeError("substr() takes 3 argument (%d  given)", argCount);
 		return false;
 	}
@@ -253,13 +289,13 @@ static bool substrString(int argCount) {
 
 	ObjString *string = AS_STRING(pop());
 
-	if(start >= string->length)
+	if (start >= string->length)
 	{
 		runtimeError("start index out of bounds", start);
 		return false;
 	}
 
-	if(start + length > string->length)
+	if (start + length > string->length)
 	{
 		length = string->length - start;
 	}
@@ -273,8 +309,10 @@ static bool substrString(int argCount) {
 	return true;
 }
 
-static bool fromString(int argCount) {
-	if (argCount != 2) {
+static bool fromString(int argCount)
+{
+	if (argCount != 2)
+	{
 		runtimeError("from() takes 2 argument (%d  given)", argCount);
 		return false;
 	}
@@ -283,7 +321,7 @@ static bool fromString(int argCount) {
 
 	ObjString *string = AS_STRING(pop());
 
-	if(start >= string->length)
+	if (start >= string->length)
 	{
 		runtimeError("start index out of bounds", start);
 		return false;
@@ -300,8 +338,10 @@ static bool fromString(int argCount) {
 	return true;
 }
 
-static bool lowerString(int argCount) {
-	if (argCount != 1) {
+static bool lowerString(int argCount)
+{
+	if (argCount != 1)
+	{
 		runtimeError("lower() takes 1 argument (%d  given)", argCount);
 		return false;
 	}
@@ -320,8 +360,10 @@ static bool lowerString(int argCount) {
 	return true;
 }
 
-static bool upperString(int argCount) {
-	if (argCount != 1) {
+static bool upperString(int argCount)
+{
+	if (argCount != 1)
+	{
 		runtimeError("upper() takes 1 argument (%d  given)", argCount);
 		return false;
 	}
@@ -340,13 +382,16 @@ static bool upperString(int argCount) {
 	return true;
 }
 
-static bool startsWithString(int argCount) {
-	if (argCount != 2) {
+static bool startsWithString(int argCount)
+{
+	if (argCount != 2)
+	{
 		runtimeError("startsWith() takes 2 arguments (%d  given)", argCount);
 		return false;
 	}
 
-	if (!IS_STRING(peek(0))) {
+	if (!IS_STRING(peek(0)))
+	{
 		runtimeError("Argument passed to startsWith() must be a string");
 		return false;
 	}
@@ -358,13 +403,16 @@ static bool startsWithString(int argCount) {
 	return true;
 }
 
-static bool endsWithString(int argCount) {
-	if (argCount != 2) {
+static bool endsWithString(int argCount)
+{
+	if (argCount != 2)
+	{
 		runtimeError("endsWith() takes 2 arguments (%d  given)", argCount);
 		return false;
 	}
 
-	if (!IS_STRING(peek(0))) {
+	if (!IS_STRING(peek(0)))
+	{
 		runtimeError("Argument passed to endsWith() must be a string");
 		return false;
 	}
@@ -372,7 +420,8 @@ static bool endsWithString(int argCount) {
 	ObjString *suffix = AS_STRING(pop());
 	ObjString *string = AS_STRING(pop());
 
-	if (string->length < suffix->length) {
+	if (string->length < suffix->length)
+	{
 		push(FALSE_VAL);
 		return true;
 	}
@@ -382,8 +431,10 @@ static bool endsWithString(int argCount) {
 	return true;
 }
 
-static bool leftStripString(int argCount) {
-	if (argCount != 1) {
+static bool leftStripString(int argCount)
+{
+	if (argCount != 1)
+	{
 		runtimeError("leftStrip() takes 1 argument (%d  given)", argCount);
 		return false;
 	}
@@ -394,8 +445,10 @@ static bool leftStripString(int argCount) {
 
 	char *temp = malloc(sizeof(char) * (string->length + 1));
 
-	for (i = 0; i < string->length; ++i) {
-		if (!charSeen && isspace(string->chars[i])) {
+	for (i = 0; i < string->length; ++i)
+	{
+		if (!charSeen && isspace(string->chars[i]))
+		{
 			count++;
 			continue;
 		}
@@ -408,8 +461,10 @@ static bool leftStripString(int argCount) {
 	return true;
 }
 
-static bool rightStripString(int argCount) {
-	if (argCount != 1) {
+static bool rightStripString(int argCount)
+{
+	if (argCount != 1)
+	{
 		runtimeError("rightStrip() takes 1 argument (%d  given)", argCount);
 		return false;
 	}
@@ -430,8 +485,10 @@ static bool rightStripString(int argCount) {
 	return true;
 }
 
-static bool stripString(int argCount) {
-	if (argCount != 1) {
+static bool stripString(int argCount)
+{
+	if (argCount != 1)
+	{
 		runtimeError("strip() takes 1 argument (%d  given)", argCount);
 		return false;
 	}
@@ -441,8 +498,10 @@ static bool stripString(int argCount) {
 	return true;
 }
 
-static bool formatString(int argCount) {
-	if (argCount == 1) {
+static bool formatString(int argCount)
+{
+	if (argCount == 1)
+	{
 		runtimeError("format() takes at least 2 arguments (%d given)",
 					 argCount);
 		return false;
@@ -451,11 +510,13 @@ static bool formatString(int argCount) {
 	int length = 0;
 	char **replace_strings = malloc((argCount - 1) * sizeof(char *));
 
-	for (int j = argCount - 2; j >= 0; --j) {
+	for (int j = argCount - 2; j >= 0; --j)
+	{
 		Value value = pop();
 		if (!IS_STRING(value))
 			replace_strings[j] = valueToString(value, false);
-		else {
+		else
+		{
 			ObjString *strObj = AS_STRING(value);
 			char *str = malloc(strObj->length + 1);
 			snprintf(str, strObj->length + 1, "%s", strObj->chars);
@@ -472,14 +533,16 @@ static bool formatString(int argCount) {
 	strcpy(tmp, string);
 
 	int count = 0;
-	while ((tmp = strstr(tmp, "{}"))) {
+	while ((tmp = strstr(tmp, "{}")))
+	{
 		count++;
 		tmp++;
 	}
 
 	free(tmpFree);
 
-	if (count != argCount - 1) {
+	if (count != argCount - 1)
+	{
 		runtimeError("format() placeholders do not match arguments");
 
 		for (int i = 0; i < argCount - 1; ++i)
@@ -497,7 +560,8 @@ static bool formatString(int argCount) {
 	strcpy(tmp1, string);
 	char *newStr = malloc(sizeof(char) * fullLength);
 
-	for (int i = 0; i < argCount - 1; ++i) {
+	for (int i = 0; i < argCount - 1; ++i)
+	{
 		pos = strstr(tmp1, "{}");
 		if (pos != NULL)
 			*pos = '\0';
@@ -525,7 +589,8 @@ static bool formatString(int argCount) {
 	return true;
 }
 
-bool stringMethods(char *method, int argCount) {
+bool stringMethods(char *method, int argCount)
+{
 	if (strcmp(method, "split") == 0)
 		return splitString(argCount);
 	else if (strcmp(method, "contains") == 0)

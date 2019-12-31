@@ -31,6 +31,5 @@ void freeDictValue(dictItem *dictItem);
 void freeFile(ObjFile* file);
 void freeNativeFunc(ObjNativeFunc *func);
 void freeNativeLib(ObjNativeLib *lib);
-void enableGC();
 
 #endif
