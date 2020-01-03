@@ -6,8 +6,8 @@
 #include <stdint.h>
 
 //#define NAN_TAGGING
-//#define DEBUG_PRINT_CODE
-//#define DEBUG_TRACE_EXECUTION
+#define DEBUG_PRINT_CODE
+// #define DEBUG_TRACE_EXECUTION
 
 // #define DISABLE_GC
 // #define DEBUG_STRESS_GC

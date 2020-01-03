@@ -87,7 +87,7 @@ void runtimeError(const char *format, ...)
     fputs("\n", stderr);
     va_end(args);
   }
-  
+
   resetStack();
 }
 
@@ -144,9 +144,9 @@ void initVM(const char *path, const char *scriptName)
   } while (linked_list_next(&stdFnList));
   destroyStd();
 
-  #ifndef DISABLE_GC
+#ifndef DISABLE_GC
   vm.gc = true;
-  #endif
+#endif
 }
 
 void freeVM()
@@ -180,8 +180,10 @@ static int pushs = 0;
 
 void push(Value value)
 {
-  // pushs++;
-  // printf("Push/Pop: %d/%d -> %d\n", pushs, pops, (pushs-pops));
+  pushs++;
+  printf("Push/Pop: %d/%d -> %d\nStackTop = ", pushs, pops, (pushs - pops));
+  printValue(value);
+  printf("\n");
   *vm.stackTop = value;
   vm.stackTop++;
 }
@@ -189,8 +191,10 @@ void push(Value value)
 Value pop()
 {
   vm.stackTop--;
-  // pops++;
-  // printf("Push/Pop: %d/%d -> %d\n", pushs, pops, (pushs-pops));
+  pops++;
+  printf("Pop/Push: %d/%d -> %d\nStackTop = ", pushs, pops, (pushs - pops));
+  printValue(*vm.stackTop);
+  printf("\n");
   return *vm.stackTop;
 }
 
@@ -208,6 +212,13 @@ static bool call(ObjClosure *closure, int argCount)
                  closure->function->arity, argCount);
     return false;
   }*/
+
+  if (argCount < closure->function->arity)
+  {
+    runtimeError("Expected at least %d arguments but got %d.",
+                 closure->function->arity, argCount);
+    return false;
+  }
 
   // TODO: Pop unused variables and comment above
 
@@ -284,6 +295,7 @@ static bool callValue(Value callee, int argCount)
       NativeFn native = AS_NATIVE(callee);
       Value result = native(argCount, vm.stackTop - argCount);
       vm.stackTop -= argCount + 1;
+      pops += argCount + 1;
       push(result);
       return true;
     }
@@ -293,6 +305,7 @@ static bool callValue(Value callee, int argCount)
       ObjNativeFunc *func = AS_NATIVE_FUNC(callee);
       Value result = callNative(func, argCount, vm.stackTop - argCount);
       vm.stackTop -= argCount + 1;
+      pops += argCount + 1;
       push(result);
       return true;
     }
@@ -1012,7 +1025,7 @@ static InterpretResult run()
         writeValueArray(&list->values, start);
         start = increment(start, step, stop);
       }
-      
+
       break;
     }
     case OP_POP:
@@ -1514,6 +1527,10 @@ static InterpretResult run()
     }
     break;
 
+    case OP_DUP:
+      push(peek(0));
+      break;
+
     case OP_IMPORT:
     {
       Value asValue = peek(0);
@@ -1685,7 +1702,7 @@ static InterpretResult run()
       {
         argCount = 0;
 
-        ObjFunction* function = AS_FUNCTION(peek(0));
+        ObjFunction *function = AS_FUNCTION(peek(0));
         ObjClosure *closure = newClosure(function);
         pop();
         push(OBJ_VAL(closure));

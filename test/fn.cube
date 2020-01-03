@@ -1,0 +1,7 @@
+func printArgs(a)
+{
+    println(a);
+    println(args);
+}
+
+printArgs([1, 2, 3, 4]);

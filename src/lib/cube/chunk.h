@@ -48,6 +48,7 @@ typedef enum
   OP_JUMP_IF_FALSE,
   OP_LOOP,
   OP_BREAK,
+  OP_DUP,
   OP_IMPORT,
   OP_CALL,
   OP_INVOKE,

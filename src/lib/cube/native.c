@@ -408,9 +408,9 @@ NativeTypes getNativeType(const char *name)
         return TYPE_NONE;
     else if (strcmp(name, "bool") == 0)
         return TYPE_BOOL;
-    else if (strcmp(name, "num") == 0 || strcmp(name, "number") == 0)
+    else if (strcmp(name, "num") == 0)
         return TYPE_NUMBER;
-    else if (strcmp(name, "str") == 0 || strcmp(name, "string") == 0)
+    else if (strcmp(name, "str") == 0)
         return TYPE_STRING;
     else if (strcmp(name, "bytes") == 0)
         return TYPE_BYTES;
