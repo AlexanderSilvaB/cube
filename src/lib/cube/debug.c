@@ -195,8 +195,6 @@ int disassembleInstruction(Chunk *chunk, int offset)
     return constantInstruction("OP_METHOD", chunk, offset);
   case OP_PROPERTY:
     return constantInstruction("OP_PROPERTY", chunk, offset);
-  case OP_NAMESPACE:
-    return constantInstruction("OP_NAMESPACE", chunk, offset);
   case OP_FILE:
     return simpleInstruction("OP_FILE", offset);
   case OP_NATIVE_FUNC:

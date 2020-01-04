@@ -282,8 +282,6 @@ static TokenType identifierType()
           {
           case 'n':
             return checkKeyword(3, 0, "", TOKEN_NAN);
-          case 'm':
-            return checkKeyword(3, 6, "espace", TOKEN_NAMESPACE);
           case 't':
             return checkKeyword(3, 3, "ive", TOKEN_NATIVE);
           }
@@ -295,7 +293,6 @@ static TokenType identifierType()
     break;
   case 'o':
     return checkKeyword(1, 1, "r", TOKEN_OR);
-    break;
   case 'r':
     return checkKeyword(1, 5, "eturn", TOKEN_RETURN);
   case 's':

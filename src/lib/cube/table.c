@@ -6,6 +6,7 @@
 #include "object.h"
 #include "table.h"
 #include "value.h"
+#include "gc.h"
 
 #define TABLE_MAX_LOAD 0.75
 
@@ -195,6 +196,11 @@ void tableRemoveWhite(Table *table)
     Entry *entry = &table->entries[i];
     if (entry->key != NULL && !entry->key->obj.isMarked)
     {
+      #ifdef DEBUG_LOG_GC
+      printf("table delete: ");
+      printValue(OBJ_VAL(entry->key));
+      printf("\n");
+      #endif
       tableDelete(table, entry->key);
     }
   }
@@ -205,7 +211,7 @@ void markTable(Table *table)
   for (int i = 0; i <= table->capacityMask; i++)
   {
     Entry *entry = &table->entries[i];
-    markObject((Obj *)entry->key);
-    markValue(entry->value);
+    mark_object((Obj *)entry->key);
+    mark_value(entry->value);
   }
 }

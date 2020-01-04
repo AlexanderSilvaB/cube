@@ -5,6 +5,9 @@
 #include "table.h"
 #include "value.h"
 
+#define DISABLE_GC bool __gc = vm.gc; vm.gc = false
+#define RESTORE_GC vm.gc = __gc;
+
 #define FRAMES_MAX 512
 #define STACK_MAX (FRAMES_MAX * UINT8_COUNT)
 
@@ -25,9 +28,9 @@ typedef struct
   Table globals;
   Table strings;
   ObjString *initString;
+  ObjString *argsString;
   ObjUpvalue *openUpvalues;
   ObjList *paths;
-  ObjNamespace *currentNamespace;
 
   const char *extension;
   const char *nativeExtension;

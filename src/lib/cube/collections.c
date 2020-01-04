@@ -215,8 +215,7 @@ bool listContains(Value listV, Value search, Value *result) {
 }
 
 ObjList *copyList(ObjList *oldList, bool shallow) {
-	bool gc = vm.gc;
-	vm.gc = false;
+	DISABLE_GC;
 	ObjList *newList = initList();
 
 	for (int i = 0; i < oldList->values.count; ++i) {
@@ -231,7 +230,7 @@ ObjList *copyList(ObjList *oldList, bool shallow) {
 
 		writeValueArray(&newList->values, val);
 	}
-	vm.gc = gc;
+	RESTORE_GC;
 	return newList;
 }
 
@@ -471,8 +470,7 @@ bool dictContains(Value dictV, Value keyV, Value *result) {
 }
 
 ObjDict *copyDict(ObjDict *oldDict, bool shallow) {
-	bool gc = vm.gc;
-	vm.gc = false;
+	DISABLE_GC;
 	ObjDict *newDict = initDict();
 
 	for (int i = 0; i < oldDict->capacity; ++i) {
@@ -490,7 +488,7 @@ ObjDict *copyDict(ObjDict *oldDict, bool shallow) {
 
 		insertDict(newDict, oldDict->items[i]->key, val);
 	}
-	vm.gc = gc;
+	RESTORE_GC;
 	return newDict;
 }
 

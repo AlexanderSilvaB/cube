@@ -28,10 +28,14 @@
 #include "util.h"
 #include "compiler.h"
 #include "strings.h"
+#include "gc.h"
 
 Value clockNative(int argCount, Value *args)
 {
-    return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+
+    return NUMBER_VAL( (double)t.tv_sec +  ((double)t.tv_nsec * 1e-9) );
 }
 
 Value timeNative(int argCount, Value *args)
@@ -942,6 +946,12 @@ Value memNative(int argCount, Value *args)
     return ret;
 }
 
+Value gcNative(int argCount, Value *args)
+{
+    gc_collect();
+    return NUMBER_VAL(vm.bytesAllocated);
+}
+
 // Register
 linked_list *stdFnList;
 #define ADD_STD(name, fn) linked_list_add(stdFnList, createStdFn(name, fn))
@@ -1006,6 +1016,7 @@ void initStd()
     ADD_STD("copy", copyNative);
     ADD_STD("eval", evalNative);
     ADD_STD("mem", memNative);
+    ADD_STD("gc", gcNative);
 }
 
 void destroyStd()

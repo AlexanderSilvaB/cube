@@ -134,7 +134,7 @@ bool isValidType(const char* name)
 		strcmp(name, "bool") == 0 ||
 		strcmp(name, "num") == 0 ||
 		strcmp(name, "class") == 0 ||
-		strcmp(name, "namespace") == 0 ||
+		strcmp(name, "package") == 0 ||
 		strcmp(name, "method") == 0 ||
 		strcmp(name, "func") == 0 ||
 		strcmp(name, "instance") == 0 ||
@@ -148,4 +148,36 @@ bool isValidType(const char* name)
 		strcmp(name, "nativelib") == 0)
 		return true;
 	return false;
+}
+
+char *getFileName(char *path)
+{
+	int start = 0;
+	int len = strlen(path);
+	for(int i = 0; i < len; i++)
+	{
+		if(path[i] == '\\' || path[i] == '/')
+		{
+			start = i + 1;
+		}
+	}
+	return &path[start];
+}
+
+char *getFileDisplayName(char *path)
+{
+	char *fileName = getFileName(path);
+	int end = strlen(fileName);
+	for(int i = 0; i < end; i++)
+	{
+		if(fileName[i] == '.')
+		{
+			end = i;
+			break;
+		}
+	}
+	char *name = (char*)malloc(sizeof(char) * (end + 1));
+	memcpy(name, fileName, end);
+	name[end] = '\0';
+	return name;
 }

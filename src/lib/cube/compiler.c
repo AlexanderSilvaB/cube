@@ -8,6 +8,7 @@
 #include "memory.h"
 #include "scanner.h"
 #include "util.h"
+#include "gc.h"
 
 #ifdef DEBUG_PRINT_CODE
 #include "debug.h"
@@ -91,20 +92,12 @@ typedef struct ClassCompiler
   bool hasSuperclass;
 } ClassCompiler;
 
-typedef struct NamespaceCompiler
-{
-  struct NamespaceCompiler *enclosing;
-
-  Token name;
-} NamespaceCompiler;
-
 Parser parser;
 
 Compiler *current = NULL;
 
 ClassCompiler *currentClass = NULL;
 bool staticMethod = false;
-NamespaceCompiler *currentNamespace = NULL;
 
 static char *initString = "<CUBE>";
 
@@ -1324,7 +1317,6 @@ ParseRule rules[] = {
     {number, NULL, PREC_NONE},       // TOKEN_INF
     {NULL, NULL, PREC_NONE},         // TOKEN_IMPORT
     {NULL, NULL, PREC_NONE},         // TOKEN_AS
-    {NULL, NULL, PREC_NONE},         // TOKEN_NAMESPACE
     {NULL, NULL, PREC_NONE},         // TOKEN_NATIVE
     {let, NULL, PREC_NONE},          // TOKEN_LET
     {NULL, NULL, PREC_NONE},         // TOKEN_WITH
@@ -1442,23 +1434,6 @@ static void methodOrProperty()
   }
 }
 
-static void funcOrField()
-{
-  if (check(TOKEN_FUNC))
-  {
-    method(false);
-  }
-  else if (check(TOKEN_VAR))
-  {
-    consume(TOKEN_VAR, "Expected a variable declaration.");
-    property(false);
-  }
-  else
-  {
-    errorAtCurrent("Only variables and functions allowed inside a class.");
-  }
-}
-
 static void nativeFunc()
 {
   consume(TOKEN_IDENTIFIER, "Expect type name.");
@@ -1521,37 +1496,6 @@ static void nativeFunc()
   emitByte(OP_NATIVE_FUNC);
 
   setVariablePop(name);
-}
-
-static void namespaceDeclaration()
-{
-  consume(TOKEN_IDENTIFIER, "Expect namespace.");
-  Token namespace = parser.previous;
-  uint8_t nameConstant = identifierConstant(&parser.previous);
-  declareVariable();
-
-  emitBytes(OP_NAMESPACE, nameConstant);
-  defineVariable(nameConstant);
-
-  NamespaceCompiler namespaceCompiler;
-  namespaceCompiler.name = parser.previous;
-  namespaceCompiler.enclosing = currentNamespace;
-  currentNamespace = &namespaceCompiler;
-
-  //beginScope();
-
-  consume(TOKEN_LEFT_BRACE, "Expect '{' before namespace body.");
-  while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF))
-  {
-    namedVariable(namespace, false);
-    funcOrField();
-  }
-
-  consume(TOKEN_RIGHT_BRACE, "Expect '}' after namespace body.");
-
-  //endScope();
-
-  currentNamespace = currentNamespace->enclosing;
 }
 
 static void classDeclaration()
@@ -1966,7 +1910,7 @@ static void importStatement()
 
   if (match(TOKEN_AS))
   {
-    if (match(TOKEN_IDENTIFIER))
+    if (match(TOKEN_IDENTIFIER) || match(TOKEN_DEFAULT))
     {
       int len = parser.previous.length + 1;
       char *str = malloc(sizeof(char) * len);
@@ -1977,10 +1921,7 @@ static void importStatement()
     }
     else
     {
-      consume(TOKEN_STRING, "Expect string after as.");
-
-      emitConstant(OBJ_VAL(
-          copyString(parser.previous.start + 1, parser.previous.length - 2)));
+      consume(TOKEN_IDENTIFIER, "Expect identifier after as.");
     }
   }
   else
@@ -2179,7 +2120,6 @@ static void synchronize()
     switch (parser.current.type)
     {
     case TOKEN_CLASS:
-    case TOKEN_NAMESPACE:
     case TOKEN_NATIVE:
     case TOKEN_FUNC:
     case TOKEN_STATIC:
@@ -2207,10 +2147,6 @@ static void declaration(bool checkEnd)
   if (match(TOKEN_CLASS))
   {
     classDeclaration();
-  }
-  else if (match(TOKEN_NAMESPACE))
-  {
-    namespaceDeclaration();
   }
   else if (match(TOKEN_NATIVE))
   {
@@ -2315,6 +2251,7 @@ static void statement()
 
 ObjFunction *compile(const char *source)
 {
+  DISABLE_GC;
   ObjFunction *function = NULL;
   if (memcmp(initString, source, strlen(initString)) == 0)
   {
@@ -2356,6 +2293,7 @@ ObjFunction *compile(const char *source)
     if (parser.hadError)
       function = NULL;
   }
+  RESTORE_GC;
   return function;
 }
 
@@ -2399,7 +2337,7 @@ void markCompilerRoots()
   Compiler *compiler = current;
   while (compiler != NULL)
   {
-    markObject((Obj *)compiler->function);
+    mark_object((Obj *)compiler->function);
     compiler = compiler->enclosing;
   }
 }
@@ -2593,43 +2531,6 @@ bool writeByteCode(FILE *file, Value value)
       return false;
     i = 0;
     while (iterateTable(&klass->staticFields, &entry, &i))
-    {
-      if (entry.key == NULL)
-        continue;
-
-      if (!writeByteCode(file, OBJ_VAL(entry.key)))
-        return false;
-
-      if (!writeByteCode(file, entry.value))
-        return false;
-    }
-  }
-  else if (IS_NAMESPACE(value))
-  {
-    ObjNamespace *namespace = AS_NAMESPACE(value);
-    if (!writeByteCode(file, OBJ_VAL(namespace->name)))
-      return false;
-
-    if (fwrite(&namespace->fields.count, sizeof(namespace->fields.count), 1, file) != 1)
-      return false;
-    i = 0;
-    Entry entry;
-    while (iterateTable(&namespace->fields, &entry, &i))
-    {
-      if (entry.key == NULL)
-        continue;
-
-      if (!writeByteCode(file, OBJ_VAL(entry.key)))
-        return false;
-
-      if (!writeByteCode(file, entry.value))
-        return false;
-    }
-
-    if (fwrite(&namespace->methods.count, sizeof(namespace->methods.count), 1, file) != 1)
-      return false;
-    i = 0;
-    while (iterateTable(&namespace->methods, &entry, &i))
     {
       if (entry.key == NULL)
         continue;
@@ -2865,27 +2766,6 @@ Value loadByteCode(const char *source, uint32_t *pos, uint32_t total)
         Value key = loadByteCode(source, pos, total);
         Value val = loadByteCode(source, pos, total);
         tableSet(&klass->staticFields, AS_STRING(key), val);
-      }
-    }
-    else if (objType == OBJ_NAMESPACE)
-    {
-      Value name = loadByteCode(source, pos, total);
-      ObjNamespace *namespace = newNamespace(AS_STRING(name));
-
-      int len = READ(int);
-      for (i = 0; i < len; i++)
-      {
-        Value key = loadByteCode(source, pos, total);
-        Value val = loadByteCode(source, pos, total);
-        tableSet(&namespace->fields, AS_STRING(key), val);
-      }
-
-      len = READ(int);
-      for (i = 0; i < len; i++)
-      {
-        Value key = loadByteCode(source, pos, total);
-        Value val = loadByteCode(source, pos, total);
-        tableSet(&namespace->methods, AS_STRING(key), val);
       }
     }
     else if (objType == OBJ_UPVALUE)

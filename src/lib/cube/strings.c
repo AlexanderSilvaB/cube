@@ -20,8 +20,7 @@ static bool splitString(int argCount)
 		return false;
 	}
 
-	bool gc = vm.gc;
-	vm.gc = false;
+	DISABLE_GC;
 
 	char *delimiter = AS_CSTRING(pop());
 	char *string = AS_CSTRING(pop());
@@ -47,7 +46,7 @@ static bool splitString(int argCount)
 	free(tmpFree);
 	push(OBJ_VAL(list));
 
-	vm.gc = gc;
+	RESTORE_GC;
 
 	return true;
 }

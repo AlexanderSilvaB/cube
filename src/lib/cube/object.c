@@ -59,13 +59,11 @@ ObjClass *newClass(ObjString *name)
 	return klass;
 }
 
-ObjNamespace *newNamespace(ObjString *name)
+ObjPackage *newPackage(ObjString *name)
 {
-	ObjNamespace *namespace = ALLOCATE_OBJ(ObjNamespace, OBJ_NAMESPACE);
-	namespace->name = name;
-	initTable(&namespace->methods);
-	initTable(&namespace->fields);
-	return namespace;
+	ObjPackage *package = ALLOCATE_OBJ(ObjPackage, OBJ_PACKAGE);
+	package->name = name;
+	return package;
 }
 
 ObjClosure *newClosure(ObjFunction *function)
@@ -258,14 +256,14 @@ char *objectToString(Value value, bool literal)
 		return classString;
 	}
 
-	case OBJ_NAMESPACE:
+	case OBJ_PACKAGE:
 	{
-		ObjNamespace *namespace = AS_NAMESPACE(value);
-		char *namespaceString =
-			malloc(sizeof(char) * (namespace->name->length + 14));
-		snprintf(namespaceString, namespace->name->length + 13, "<namespace %s>",
-				 namespace->name->chars);
-		return namespaceString;
+		ObjPackage *package = AS_PACKAGE(value);
+		char *packageString =
+			malloc(sizeof(char) * (package->name->length + 14));
+		snprintf(packageString, package->name->length + 13, "<package %s>",
+				 package->name->chars);
+		return packageString;
 	}
 
 	case OBJ_BOUND_METHOD:
@@ -284,7 +282,20 @@ char *objectToString(Value value, bool literal)
 	case OBJ_CLOSURE:
 	{
 		ObjClosure *closure = AS_CLOSURE(value);
-		return objectToString( OBJ_VAL(closure->function), literal );
+
+		if (closure->function &&
+			closure->function->name)
+		{
+			return objectToString(OBJ_VAL(closure->function), literal);
+		}
+		else
+		{
+			char *nativeString = malloc(sizeof(char) * 30);
+			snprintf(nativeString, 29, "<fn uninit%ju>", (uintmax_t)(uintptr_t)AS_CLOSURE(value));
+			return nativeString;
+		}
+
+		
 	}
 
 	case OBJ_FUNCTION:
@@ -292,7 +303,7 @@ char *objectToString(Value value, bool literal)
 		ObjFunction *function = AS_FUNCTION(value);
 		char *nameStr = NULL;
 		int nameLen = 0;
-		if (function->name != NULL)
+		if (function->name != NULL && function->name->chars != NULL)
 		{
 			nameStr = function->name->chars;
 			nameLen = function->name->length;
@@ -330,7 +341,7 @@ char *objectToString(Value value, bool literal)
 	{
 		ObjString *stringObj = AS_STRING(value);
 		char *string = malloc(sizeof(char) * stringObj->length + 3);
-		if(literal)
+		if (literal)
 			snprintf(string, stringObj->length + 3, "'%s'", stringObj->chars);
 		else
 			snprintf(string, stringObj->length + 3, "%s", stringObj->chars);
@@ -354,7 +365,7 @@ char *objectToString(Value value, bool literal)
 		for (int i = 0; i < func->params.count; i++)
 			len += AS_STRING(func->params.values[i])->length + 2;
 		len += 3;
-		if(func->lib != NULL)
+		if (func->lib != NULL)
 		{
 			len += func->lib->name->length;
 		}
@@ -369,7 +380,7 @@ char *objectToString(Value value, bool literal)
 				sprintf(str + strlen(str), "%s", AS_STRING(func->params.values[i])->chars);
 		}
 		sprintf(str + strlen(str), ") [");
-		if(func->lib != NULL)
+		if (func->lib != NULL)
 		{
 			sprintf(str + strlen(str), "%s", func->lib->name->chars);
 		}
@@ -553,10 +564,10 @@ char *objectType(Value value)
 		return str;
 	}
 
-	case OBJ_NAMESPACE:
+	case OBJ_PACKAGE:
 	{
-		char *str = malloc(sizeof(char) * 11);
-		snprintf(str, 10, "namespace");
+		char *str = malloc(sizeof(char) * 9);
+		snprintf(str, 8, "package");
 		return str;
 	}
 

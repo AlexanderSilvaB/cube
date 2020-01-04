@@ -28,6 +28,7 @@ class Cat : Animal
     }
 }
 
+
 var a = Animal(none);
 var b = Dog();
 var c = Cat();

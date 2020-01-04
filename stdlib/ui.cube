@@ -34,13 +34,14 @@ class UI
         while(UI.running())
         {
             UI.cycle();
+            gc();
+            wait(16);
         }
         UI.stop();
     }
 
     static func cycle()
     {
-        println("Cycle: Begin");
         var events = ui_run_cycle();
         for(var i = 0; i < len(events); ++i)
         {
@@ -65,7 +66,6 @@ class UI
                 }
             }
         }
-        println("Cycle: End");
         return true;
     }
 

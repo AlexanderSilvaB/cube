@@ -318,6 +318,8 @@ bool valuesEqual(Value a, Value b)
 		case VAL_OBJ:
 			return objectComparison(a, b);
 	}
+  
+  return false;
 #endif
 }
 
