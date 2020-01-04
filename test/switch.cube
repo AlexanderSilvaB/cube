@@ -1,13 +1,15 @@
-switch (2) 
+var n = num(input("Number: "));
+
+switch (n) 
 {
-    case 1
+    case 1:
         println("one");
-    case 2
+    case 2:
         println("two");
-    case 3
+    case 3:
         println("three");
-    default
-        println("default");
+    default:
+        println("default ({})".format(n));
 }
 
 print("after");

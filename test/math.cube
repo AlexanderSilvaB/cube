@@ -1,9 +1,9 @@
-import math;
+import math as default;
 
 var dpi = deg(pi);
 var rpi = rad(dpi);
 
-println('deg({}) = {}, rad({}) = {}'.format(pi, dpi, dpi, rpi));
+println('deg({}) = {}\nrad({}) = {}'.format(pi, dpi, dpi, rpi));
 
 var x = -7;
 var y = abs(x);
@@ -12,7 +12,7 @@ println('abs({}) = {}'.format(x, y));
 seed();
 x = int(random() * 1000);
 y = int(random() * 1000);
-println('min({}, {}) = {}, max({}, {}) = {}'.format(x, y, min(x, y), x, y, max(x, y)));
+println('min({}, {}) = {}\nmax({}, {}) = {}'.format(x, y, min(x, y), x, y, max(x, y)));
 
 x = 57;
 println('sqrt({}) = {}'.format(x, sqrt(x)));

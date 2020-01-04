@@ -22,6 +22,53 @@
 
 VM vm; // [one]
 
+static void createThreadFrame(const char *name)
+{
+  ThreadFrame *threadFrame = (ThreadFrame*)malloc(sizeof(ThreadFrame));
+  threadFrame->name = name;
+  threadFrame->next = NULL;
+
+  ThreadFrame *tf = vm.threadFrame;
+  if(tf == NULL)
+    vm.threadFrame = threadFrame;
+  else
+  {
+    while(tf->next != NULL)
+    {
+      tf = tf->next;
+    }
+    tf->next = threadFrame;
+  } 
+}
+
+static void destroyThreadFrame(const char* name)
+{
+  ThreadFrame *tf = vm.threadFrame;
+  if(tf == NULL)
+    return;
+
+  if(strcmp(name, tf->name) == 0)
+  {
+    vm.threadFrame = tf->next;
+    free(tf);
+  }
+  else
+  {
+    ThreadFrame *parent = NULL; 
+    while(tf != NULL && strcmp(name, tf->name) != 0)
+    {
+      parent = tf;
+      tf = tf->next;
+    }
+
+    if(tf != NULL)
+    {
+      parent->next = tf->next;
+      free(tf);
+    }
+  }
+}
+
 static void resetStack()
 {
   vm.stackTop = vm.stack;
@@ -103,7 +150,11 @@ static void defineNative(const char *name, NativeFn function)
 
 void initVM(const char *path, const char *scriptName)
 {
+  vm.threadFrame = NULL;
+  vm.ctf = NULL;
+  
   resetStack();
+  
   
   vm.gc = false;
 
@@ -1856,7 +1907,7 @@ InterpretResult compileCode(const char *source, const char *path)
 
   char *bcPath = ALLOCATE(char, strlen(path) * 2);
   strcpy(bcPath, path);
-  replaceString(bcPath, ".cube", ".ccube");
+  replaceString(bcPath, ".cube", ".cubec");
 
   FILE *file = fopen(bcPath, "w");
   if (file == NULL)

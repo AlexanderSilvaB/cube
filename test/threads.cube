@@ -1,0 +1,32 @@
+func thread1()
+{
+    for(var i in 1:100)
+    {
+        print('[{}]'.format(i));
+    }
+}
+
+func thread2()
+{
+    var start = clock();
+    for(var i in 100:-1:1)
+    {
+        print('({})'.format(i));
+    }
+    return clock() - start;
+}   
+
+func thread3()
+{
+    for(var i = 0; i < 1000; ++i)
+    {
+        print('<{}>'.format(i));
+    }
+}
+
+async thread1();
+var elapsed = await thread2();
+
+async thread3();
+wait(1);
+abort thread3;

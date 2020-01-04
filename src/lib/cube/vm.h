@@ -8,7 +8,7 @@
 #define DISABLE_GC bool __gc = vm.gc; vm.gc = false
 #define RESTORE_GC vm.gc = __gc;
 
-#define FRAMES_MAX 512
+#define FRAMES_MAX 64
 #define STACK_MAX (FRAMES_MAX * UINT8_COUNT)
 
 typedef struct
@@ -18,26 +18,43 @@ typedef struct
   Value *slots;
 } CallFrame;
 
+typedef struct ThreadFrame_t
+{
+  CallFrame frames[FRAMES_MAX];
+  int frameCount;
+  Value stack[STACK_MAX];
+  Value *stackTop;
+  ObjUpvalue *openUpvalues;
+  int currentFrameCount;
+  bool eval;
+  struct ThreadFrame_t *next;
+  const char* name;
+}ThreadFrame;
+
 typedef struct
 {
   CallFrame frames[FRAMES_MAX];
   int frameCount;
-
   Value stack[STACK_MAX];
   Value *stackTop;
+  ObjUpvalue *openUpvalues;
+  int currentFrameCount;
+  bool eval;
+
+  ThreadFrame *threadFrame;
+  ThreadFrame *ctf;
+
   Table globals;
   Table strings;
   ObjString *initString;
   ObjString *argsString;
-  ObjUpvalue *openUpvalues;
   ObjList *paths;
 
   const char *extension;
   const char *nativeExtension;
   const char *scriptName;
   const char *currentScriptName;
-  int currentFrameCount;
-  bool eval;
+
   bool gc;
 
   size_t bytesAllocated;

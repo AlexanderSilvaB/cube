@@ -1,18 +1,19 @@
-for(var i = 0; i < 100; ++i)
+// Default 'for'
+for(var i = 0; i <= 10; ++i)
+{
+    print(i, '.');
+}
+println();
+
+// For with 'in'
+for(var i in 0:10)
 {
     print(i, '.');
 }
 println();
 
 
-for(var i in 0:10000)
-{
-    print(i, '.');
-}
-println();
-
-
-for(var i in "ABCD")
+for(var i in "ABCDEFGHIJK")
 {
     print(i, '.');
 }

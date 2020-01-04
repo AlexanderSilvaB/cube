@@ -2064,9 +2064,10 @@ static void switchStatement()
 
         // See if the case is equal to the value.
         emitByte(OP_DUP);
-        expression();
+        //expression();
+        parsePrecedence(PREC_UNARY);
 
-        // consume(TOKEN_COLON, "Expect ':' after case value.");
+        consume(TOKEN_COLON, "Expect ':' after case value.");
 
         emitByte(OP_EQUAL);
         previousCaseSkip = emitJump(OP_JUMP_IF_FALSE);
@@ -2077,7 +2078,7 @@ static void switchStatement()
       else
       {
         state = 2;
-        // consume(TOKEN_COLON, "Expect ':' after default.");
+        consume(TOKEN_COLON, "Expect ':' after default.");
         previousCaseSkip = -1;
       }
     }

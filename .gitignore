@@ -22,7 +22,7 @@ build/
 build*/
 
 ### Compiled cube files
-*.ccube
+*.cubec
 *.so
 *.dll
 temp/

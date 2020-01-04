@@ -1,8 +1,9 @@
-var x = let(var a = 10, var b = a ^ 3)
+let(var a = 10, var b = a ^ 3)
 {
     println(a+b);
-    a + b;
+    var x = a + b;
 };
 
-print(x);
 
+// Expected to fail as x is valid only inside 'let' context
+print(x);

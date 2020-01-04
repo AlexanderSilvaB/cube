@@ -1,0 +1,16 @@
+try
+{
+    var i = 2;
+    var j = 0;
+    var k = i/j;
+}
+catch(e)
+{
+    println("Oh! An error");
+    println(e);
+}
+
+try
+{
+    var i = 9/0;
+}

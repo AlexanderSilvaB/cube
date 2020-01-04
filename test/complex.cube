@@ -1,4 +1,4 @@
-import math as m;
+import math as default;
 
 class Complex
 {
@@ -61,7 +61,7 @@ class Complex
     func str()
     {
         if(this.imag < 0)
-            return this.real + " - " + m.abs(this.imag) + "j";
+            return this.real + " - " + abs(this.imag) + "j";
         else
             return this.real + " + " + this.imag + "j";
     }

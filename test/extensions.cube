@@ -1,19 +1,17 @@
-import math as m
-
-func string.len()
+func str.len()
 {
-    return len(this)
+    return len(this);
 }
 
-func number.sig()
+func num.sig()
 {
     if(this > 0)
-        return 1
-    return -1
+        return 1;
+    return -1;
 }
 
-str = "ABC"
-println(str,".len() = ", str.len())
+var s = "ABC";
+println(s,".len() = ", s.len());
 
-println(5, ".sig() = ", 5.sig())
-println(-5, ".sig() = ", -5.sig())
+println(5, ".sig() = ", 5.sig());
+println(-5, ".sig() = ", -5.sig());
