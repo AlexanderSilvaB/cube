@@ -31,6 +31,7 @@ typedef struct TaskFrame_t
   int frameCount;
   Value stack[STACK_MAX];
   Value *stackTop;
+  Value currentArgs;
   ObjUpvalue *openUpvalues;
   int currentFrameCount;
   bool eval;
@@ -53,20 +54,20 @@ typedef struct
   Table globals;
   Table strings;
   ObjString *initString;
-  ObjString *argsString;
   ObjList *paths;
 
+  const char *argsString;
   const char *extension;
   const char *nativeExtension;
   const char *scriptName;
 
   bool gc;
+  bool autoGC;
 
   size_t bytesAllocated;
   size_t nextGC;
 
   Obj *objects;
-  Obj *listObjects;
 
   bool newLine;
 } VM;

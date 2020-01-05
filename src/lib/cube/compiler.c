@@ -624,6 +624,15 @@ static void emitPreviousAsString()
   free(str);
 }
 
+static char* getPreviousAsString()
+{
+  int len = parser.previous.length + 1;
+  char *str = malloc(sizeof(char) * len);
+  strncpy(str, parser.previous.start, parser.previous.length);
+  str[parser.previous.length] = '\0';
+  return str;
+}
+
 static void await(bool canAssign)
 {
   consume(TOKEN_IDENTIFIER, "Expect a function call in await.");
@@ -1131,7 +1140,7 @@ static void function(FunctionType type)
   Token argsToken;
   uint8_t args = createSyntheticVariable("args", &argsToken);
   defineVariable(args);
-  Token argsInternToken = syntheticToken("__args");
+  Token argsInternToken = syntheticToken(vm.argsString);
   getVariable(argsInternToken);
   setVariablePop(argsToken);
 
@@ -1956,7 +1965,7 @@ static void importStatement()
 static void asyncStatement()
 {
   consume(TOKEN_IDENTIFIER, "Expect a function call in async.");
-  emitPreviousAsString();
+  char *name = getPreviousAsString();
 
   Compiler compiler;
   initCompiler(&compiler, TYPE_FUNCTION);
@@ -1965,7 +1974,7 @@ static void asyncStatement()
   // Create args
   Token argsToken = syntheticToken("args");
   uint8_t args = identifierConstant(&argsToken);
-  getVariable(syntheticToken("__args"));
+  getVariable(syntheticToken(vm.argsString));
   defineVariable(args);
 
   namedVariable(parser.previous, false);
@@ -1973,6 +1982,13 @@ static void asyncStatement()
   consume(TOKEN_LEFT_PAREN, "Expect a function function call in async.");
   uint8_t argCount = argumentList();
   emitBytes(OP_CALL, argCount);
+
+  if(match(TOKEN_AS))
+  {
+    consume(TOKEN_IDENTIFIER, "Expect a task name after 'as' in async.");
+    free(name);
+    name = getPreviousAsString();
+  }
 
   consume(TOKEN_SEMICOLON, "Expect ';' after async.");
 
@@ -1982,7 +1998,10 @@ static void asyncStatement()
   ObjFunction *function = endCompiler();
   emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
 
+  emitConstant(STRING_VAL(name));
   emitByte(OP_ASYNC);
+
+  free(name);
 
   for (int i = 0; i < function->upvalueCount; i++)
   {
@@ -2383,7 +2402,7 @@ ObjFunction *compile(const char *source)
     // Create args
     Token argsToken = syntheticToken("args");
     uint8_t args = identifierConstant(&argsToken);
-    getVariable(syntheticToken("__args"));
+    getVariable(syntheticToken(vm.argsString));
     defineVariable(args);
 
     // Parse the code

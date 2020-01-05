@@ -28,8 +28,6 @@ void collectGarbage();
 
 void freeObject(Obj *object);
 void freeObjects();
-void freeLists();
-void freeList();
 void freeDictValue(dictItem *dictItem);
 void freeFile(ObjFile* file);
 void freeNativeFunc(ObjNativeFunc *func);

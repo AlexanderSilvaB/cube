@@ -34,8 +34,8 @@ class UI
         while(UI.running())
         {
             UI.cycle();
-            gc();
             wait(16);
+            // println(mem(true));
         }
         UI.stop();
     }

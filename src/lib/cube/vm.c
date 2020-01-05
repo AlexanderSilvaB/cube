@@ -39,6 +39,7 @@ static TaskFrame *createTaskFrame(const char *name)
   taskFrame->endTime = 0;
   taskFrame->tryFrame = NULL;
   taskFrame->error = NULL;
+  taskFrame->currentArgs = NONE_VAL;
 
   TaskFrame *tf = vm.taskFrame;
   if (tf == NULL)
@@ -178,9 +179,13 @@ void initVM(const char *path, const char *scriptName)
   resetStack();
 
   vm.gc = false;
+  #ifdef GC_AUTO
+  vm.autoGC = true;
+  #else
+  vm.autoGC = false;
+  #endif
 
   vm.objects = NULL;
-  vm.listObjects = NULL;
   vm.bytesAllocated = 0;
   vm.nextGC = 1024 * 1024;
 
@@ -197,8 +202,9 @@ void initVM(const char *path, const char *scriptName)
 #endif
   vm.scriptName = scriptName;
   vm.ctf->currentScriptName = scriptName;
+  vm.argsString = "__args__";
+
   vm.initString = AS_STRING(STRING_VAL("init"));
-  vm.argsString = AS_STRING(STRING_VAL("__args"));
   vm.newLine = false;
 
   // STD
@@ -221,10 +227,8 @@ void freeVM()
   freeTable(&vm.globals);
   freeTable(&vm.strings);
   vm.initString = NULL;
-  vm.argsString = NULL;
   vm.gc = false;
   freeObjects();
-  freeLists();
 }
 
 void addPath(const char *path)
@@ -309,13 +313,7 @@ static bool call(ObjClosure *closure, int argCount)
   {
     writeValueArray(&args->values, peek(i));
   }
-  push(OBJ_VAL(args));
-
-  push(OBJ_VAL(vm.argsString));
-
-  tableSet(&vm.globals, vm.argsString, peek(1));
-  pop();
-  pop();
+  vm.ctf->currentArgs = OBJ_VAL(args);
 
   return true;
 }
@@ -747,6 +745,10 @@ Value envVariable(ObjString *name)
   if (strcmp(name->chars, "__name__") == 0)
   {
     return STRING_VAL(vm.ctf->currentScriptName);
+  }
+  else if (strcmp(name->chars, vm.argsString) == 0)
+  {
+    return vm.ctf->currentArgs;
   }
   return NONE_VAL;
 }
@@ -2144,9 +2146,10 @@ static InterpretResult run()
     }
     case OP_ASYNC:
     {
-      ObjClosure *closure = AS_CLOSURE(pop());
-
       ObjString *name = AS_STRING(pop());
+
+      ObjClosure *closure = AS_CLOSURE(pop());
+      
       TaskFrame *tf = createTaskFrame(name->chars);
 
       // Push the context
@@ -2161,7 +2164,7 @@ static InterpretResult run()
       frame->slots = tf->stackTop - 1;
 
       ObjList *args = initList();
-      tableSet(&vm.globals, vm.argsString, OBJ_VAL(args));
+      tf->currentArgs = OBJ_VAL(args);
 
       break;
     }

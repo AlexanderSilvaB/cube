@@ -14,5 +14,6 @@ bool isValidType(const char* name);
 char *getFileName(char *path);
 char *getFileDisplayName(char *path);
 uint64_t cube_clock();
+void cube_wait(uint64_t t);
 
 #endif

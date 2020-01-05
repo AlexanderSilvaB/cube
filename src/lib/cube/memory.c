@@ -18,8 +18,7 @@ void *reallocate(void *previous, size_t oldSize, size_t newSize)
 {
   vm.bytesAllocated += newSize - oldSize;
 
-  #ifdef GC_AUTO
-  if (newSize > oldSize)
+  if (vm.autoGC && newSize > oldSize)
   {
     #ifdef DEBUG_STRESS_GC
     gc_collect();
@@ -27,7 +26,6 @@ void *reallocate(void *previous, size_t oldSize, size_t newSize)
     gc_maybe_collect();
     #endif
   }
-  #endif
 
   if (newSize == 0)
   {
@@ -121,7 +119,6 @@ void freeObject(Obj *object)
   {
     ObjNativeLib *lib = (ObjNativeLib *)object;
     freeNativeLib(lib);
-    FREE(ObjNativeLib, lib);
     break;
   }
 
@@ -165,31 +162,6 @@ void freeObjects()
   }
 }
 
-void freeList(Obj *object)
-{
-  if (object->type == OBJ_LIST)
-  {
-    ObjList *list = (ObjList *)object;
-    freeValueArray(&list->values);
-    FREE(ObjList, list);
-  }
-  else
-  {
-    ObjDict *dict = (ObjDict *)object;
-    freeDict(dict);
-  }
-}
-
-void freeLists()
-{
-  Obj *object = vm.listObjects;
-  while (object != NULL)
-  {
-    Obj *next = object->next;
-    freeList(object);
-    object = next;
-  }
-}
 
 void freeDictValue(dictItem *dictItem)
 {
@@ -223,6 +195,10 @@ void freeFile(ObjFile *file)
 void freeNativeFunc(ObjNativeFunc *func)
 {
   func->lib->functions--;
+  if(func->lib != NULL && func->lib->functions == 0)
+  {
+    FREE(ObjNativeLib, func->lib);
+  }
 }
 
 void freeNativeLib(ObjNativeLib *lib)

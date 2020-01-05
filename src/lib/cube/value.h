@@ -122,7 +122,6 @@ bool valuesEqual(Value a, Value b);
 void initValueArray(ValueArray *array);
 void writeValueArray(ValueArray *array, Value value);
 
-ObjDict *initDictValues(uint32_t capacity);
 void insertDict(ObjDict *dict, char *key, Value value);
 void resizeDict(ObjDict *dict, bool grow);
 Value searchDict(ObjDict *dict, char *key);

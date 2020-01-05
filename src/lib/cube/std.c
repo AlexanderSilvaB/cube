@@ -951,6 +951,15 @@ Value gcNative(int argCount, Value *args)
     return NUMBER_VAL(vm.bytesAllocated);
 }
 
+Value autoGCNative(int argCount, Value *args)
+{
+    if (argCount == 0)
+        return BOOL_VAL(vm.autoGC);
+    bool autoGC = AS_BOOL(toBool(args[0]));
+    vm.autoGC = autoGC;
+    return BOOL_VAL(vm.autoGC);
+}
+
 // Register
 linked_list *stdFnList;
 #define ADD_STD(name, fn) linked_list_add(stdFnList, createStdFn(name, fn))
@@ -1016,6 +1025,7 @@ void initStd()
     ADD_STD("eval", evalNative);
     ADD_STD("mem", memNative);
     ADD_STD("gc", gcNative);
+    ADD_STD("autoGC", autoGCNative);
 }
 
 void destroyStd()

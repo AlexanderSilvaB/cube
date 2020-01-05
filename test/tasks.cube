@@ -1,35 +1,30 @@
-func task1()
-{
-    for(var i in 1:100)
-    {
-        print('[{}]'.format(i));
-    }
-}
-
-func task2()
+// In cube, tasks are just like any other functions
+// Here we define a function named 'task'
+func task(count, model)
 {
     var start = clock();
-    for(var i = 400; i >= 0; --i)
+    for(var i in 0:count)
     {
-        print('({})'.format(i));
+        print(model.format(i));
     }
     return clock() - start;
-}   
-
-func task3()
-{
-    for(var i = 0; i < 1000; ++i)
-    {
-        print('<{}>'.format(i));
-    }
 }
 
-async task1();
-async task2();
+// As 'task' is a function, we can call it
+task(20, 'x{}x');
 
-var elapsed = await task2;
-println("\nElapsed: ", elapsed);
+// To run a function as a task, we use the 'async' before the function call
+// A task with the same name of the function will be created
+async task(20, '[{}]') as t1;
 
-async task3();
-wait(3);
-abort task3;
+// If the want to change the name of the task, we use the keyword 'as' and a name after the function call
+async task(20, '({})') as t2;
+
+// If we want to wait for some task to finish and get its results, we use 'await' before the task
+var elapsed = await t2;
+println("\nElapsed: ", elapsed, 's');
+
+// We can abort a running task at any time by using the 'abort' keyword followed by the task name
+async task(200, '<{}>');
+wait(1);
+abort task;

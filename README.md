@@ -11,3 +11,4 @@ Cube is a dynamic typed programing language running on its own VM
 
 ## TODO
 * Modules system
+* Fix GC

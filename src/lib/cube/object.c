@@ -9,31 +9,20 @@
 #include "vm.h"
 #include "collections.h"
 
-#define ALLOCATE_OBJ_LIST(type, objectType) \
-	(type *)allocateObject(sizeof(type), objectType, true)
-
 #define ALLOCATE_OBJ(type, objectType) \
-	(type *)allocateObject(sizeof(type), objectType, false)
+	(type *)allocateObject(sizeof(type), objectType)
 
-static Obj *allocateObject(size_t size, ObjType type, bool isList)
+static Obj *allocateObject(size_t size, ObjType type)
 {
 	Obj *object = (Obj *)reallocate(NULL, 0, size);
 	object->type = type;
 	object->isMarked = false;
 
-	if (!isList)
-	{
-		object->next = vm.objects;
-		vm.objects = object;
-	}
-	else
-	{
-		object->next = vm.listObjects;
-		vm.listObjects = object;
-	}
+	object->next = vm.objects;
+	vm.objects = object;
 
 #ifdef DEBUG_LOG_GC
-	// printf("%p allocate %ld for %d\n", object, size, type);
+	printf("%p allocate %ld for %d\n", object, size, type);
 #endif
 
 	return object;
@@ -139,7 +128,11 @@ ObjBytes *initBytes()
 
 ObjDict *initDict()
 {
-	ObjDict *dict = initDictValues(8);
+	ObjDict *dict = ALLOCATE_OBJ(ObjDict, OBJ_DICT);
+	dict->capacity = 8;
+	dict->count = 0;
+	dict->items = calloc(dict->capacity, sizeof(*dict->items));
+
 	return dict;
 }
 
@@ -294,8 +287,6 @@ char *objectToString(Value value, bool literal)
 			snprintf(nativeString, 29, "<fn uninit%ju>", (uintmax_t)(uintptr_t)AS_CLOSURE(value));
 			return nativeString;
 		}
-
-		
 	}
 
 	case OBJ_FUNCTION:

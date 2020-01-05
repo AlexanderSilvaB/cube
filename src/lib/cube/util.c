@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 #include "util.h"
 #include "memory.h"
 #include "vm.h"
@@ -188,6 +189,11 @@ uint64_t cube_clock()
 	struct timespec t;
     clock_gettime(CLOCK_MONOTONIC, &t);
 	
-	uint32_t ret = t.tv_sec * 1e9 + t.tv_nsec;
+	uint64_t ret = t.tv_sec * 1e9 + t.tv_nsec;
 	return ret;
+}
+
+void cube_wait(uint64_t t)
+{
+	usleep(t);
 }

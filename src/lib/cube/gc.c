@@ -101,6 +101,9 @@ void mark_task_frame(TaskFrame *tf)
     {
         mark_object((Obj *)upvalue);
     }
+
+    mark_value(tf->currentArgs);
+    mark_value(tf->result);
 }
 
 void mark_roots()
@@ -115,7 +118,6 @@ void mark_roots()
     markTable(&vm.globals);
     markCompilerRoots();
     mark_object((Obj *)vm.initString);
-    mark_object((Obj *)vm.argsString);
     mark_object((Obj *)vm.paths);
 }
 
