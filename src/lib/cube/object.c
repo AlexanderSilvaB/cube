@@ -42,6 +42,7 @@ ObjClass *newClass(ObjString *name)
 {
 	ObjClass *klass = ALLOCATE_OBJ(ObjClass, OBJ_CLASS);
 	klass->name = name;
+	klass->package = NULL;
 	initTable(&klass->methods);
 	initTable(&klass->fields);
 	initTable(&klass->staticFields);

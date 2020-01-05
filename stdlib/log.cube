@@ -1,0 +1,59 @@
+class Log
+{
+    static var DEBUG = 1;
+    static var INFO = 2;
+    static var ERROR = 3;
+    static var NONE = 4;
+
+    var level = 0;
+
+    func Log(l)
+    {
+        this.level = l;
+    }
+
+    func error()
+    {
+        if(this.level > Log.ERROR)
+            return false;
+
+        print(color('green'), date('dd/MM/YYYY HH:mm:ss: '), color('red'));
+        for(var arg in args)
+            print(arg, ' ');
+        println(color());
+        return true;
+    }
+
+    func info()
+    {
+        if(this.level > Log.INFO)
+            return false;
+
+        print(color('green'), date('dd/MM/YYYY HH:mm:ss: '), color('blue'));
+        for(var arg in args)
+            print(arg, ' ');
+        println(color());
+        return true;
+    }
+
+    func debug()
+    {
+        if(this.level > Log.DEBUG)
+            return false;
+
+        print(color('green'), date('dd/MM/YYYY HH:mm:ss: '), color());
+        for(var arg in args)
+            print(arg, ' ');
+        println(color());
+
+        return true;
+    }
+}
+
+if(__name__ == "__main__")
+{
+    var log = Log();
+    log.debug('This is a log');
+    log.error('This is an error');
+    log.info('This is an info');
+}

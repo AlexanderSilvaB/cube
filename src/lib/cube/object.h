@@ -161,21 +161,22 @@ typedef struct
   int upvalueCount;
 } ObjClosure;
 
-typedef struct sObjClass
-{
-  Obj obj;
-  ObjString *name;
-  Table methods;
-  Table fields;
-  Table staticFields;
-} ObjClass;
-
 typedef struct sObjPackage
 {
   Obj obj;
   ObjString *name;
   Table symbols;
 } ObjPackage;
+
+typedef struct sObjClass
+{
+  Obj obj;
+  ObjString *name;
+  ObjPackage *package;
+  Table methods;
+  Table fields;
+  Table staticFields;
+} ObjClass;
 
 typedef struct
 {

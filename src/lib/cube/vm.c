@@ -339,6 +339,7 @@ static bool callValue(Value callee, int argCount)
       // Replace the bound method with the receiver so it's in the
       // right slot when the method is called.
       vm.ctf->stackTop[-argCount - 1] = bound->receiver;
+      vm.frame->nextPackage = vm.frame->package;
       return call(bound->method, argCount);
     }
 
@@ -352,6 +353,7 @@ static bool callValue(Value callee, int argCount)
       Value initializer;
       if (tableGet(&klass->methods, vm.initString, &initializer))
       {
+        vm.frame->nextPackage = klass->package ? klass->package : vm.frame->package;
         return call(AS_CLOSURE(initializer), argCount);
       }
       else if (argCount != 0)
@@ -409,6 +411,7 @@ static bool invokeFromClass(ObjClass *klass, ObjString *name,
     }
   }
 
+  vm.frame->nextPackage = klass->package ? klass->package : vm.frame->package;
   return call(AS_CLOSURE(method), argCount);
   ;
 }
@@ -435,6 +438,7 @@ static bool invoke(ObjString *name, int argCount)
       return false;
     }
 
+    vm.frame->nextPackage = instance->package ? instance->package : vm.frame->package;
     return callValue(method, argCount);
   }
 
@@ -474,6 +478,7 @@ static bool invoke(ObjString *name, int argCount)
   if (tableGet(&instance->fields, name, &value))
   {
     vm.ctf->stackTop[-argCount - 1] = value;
+    vm.frame->nextPackage = instance->klass->package ? instance->klass->package : vm.frame->package;
     return callValue(value, argCount);
   }
 
@@ -2113,7 +2118,11 @@ static InterpretResult run()
     }
 
     case OP_CLASS:
-      push(OBJ_VAL(newClass(READ_STRING())));
+    {
+      ObjClass *klass = newClass(READ_STRING());
+      klass->package = frame->package;
+      push(OBJ_VAL(klass));
+    }
       break;
 
     case OP_INHERIT:
