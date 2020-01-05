@@ -548,15 +548,8 @@ static void is(bool canAssign)
   {
     ObjString *str = copyString(parser.previous.start, parser.previous.length);
 
-    if (!isValidType(str->chars))
-    {
-      errorAtCurrent("Invalid type on 'is' operator.");
-    }
-    else
-    {
-      emitConstant(OBJ_VAL(str));
-      emitByte(OP_IS);
-    }
+    emitConstant(OBJ_VAL(str));
+    emitByte(OP_IS);
   }
   else
     errorAtCurrent("Expected type name after 'is'.");
@@ -1340,6 +1333,8 @@ ParseRule rules[] = {
     {NULL, NULL, PREC_NONE},         // TOKEN_ASYNC
     {await, NULL, PREC_NONE},         // TOKEN_AWAIT
     {NULL, NULL, PREC_NONE},         // TOKEN_ABORT
+    {NULL, NULL, PREC_NONE},         // TOKEN_TRY
+    {NULL, NULL, PREC_NONE},         // TOKEN_CATCH
     {NULL, NULL, PREC_NONE},         // TOKEN_ERROR
     {NULL, NULL, PREC_NONE},         // TOKEN_EOF
 };
@@ -1771,6 +1766,7 @@ static void forStatement()
     getVariable(valVar);
     endSyntheticCall(1);
     setVariablePop(condVar);
+    emitByte(OP_POP);
 
     getVariable(loopVar);
     getVariable(condVar);
@@ -1816,6 +1812,7 @@ static void forStatement()
     getVariable(loopVar);
     emitByte(OP_SUBSCRIPT);
     setVariablePop(nameVar);
+    emitByte(OP_POP);
   }
 
   statement();
@@ -1834,6 +1831,13 @@ static void forStatement()
     setVariable(loopVar, NUMBER_VAL(0));
     setVariable(condVar, NUMBER_VAL(0));
     setVariable(valVar, NUMBER_VAL(0));
+
+    emitByte(OP_POP);
+    emitByte(OP_POP);
+    emitByte(OP_POP);
+    emitByte(OP_POP);
+    emitByte(OP_POP);
+    emitByte(OP_POP);
   }
 
   innermostLoopStart = surroundingLoopStart;
@@ -2170,6 +2174,29 @@ static void switchStatement()
   emitByte(OP_POP); // The switch value.
 }
 
+static void tryStatement()
+{
+  int catch = emitJump(OP_TRY);
+
+  declaration(true);
+  
+  int end = emitJump(OP_CLOSE_TRY);
+  patchJump(catch);
+
+  if(match(TOKEN_CATCH))
+  {
+    emitByte(OP_TRUE);
+    function(TYPE_FUNCTION);
+    emitBytes(OP_CALL, 1);
+  }
+  else
+  {
+    emitByte(OP_FALSE);
+  }
+  
+  patchJump(end);
+}
+
 static void synchronize()
 {
   parser.panicMode = false;
@@ -2195,6 +2222,8 @@ static void synchronize()
     case TOKEN_WITH:
     case TOKEN_ASYNC:
     case TOKEN_ABORT:
+    case TOKEN_TRY:
+    case TOKEN_CATCH:
       return;
 
     default:
@@ -2282,6 +2311,10 @@ static void statement()
   else if (match(TOKEN_SWITCH))
   {
     switchStatement();
+  }
+  else if (match(TOKEN_TRY))
+  {
+    tryStatement();
   }
   else if (match(TOKEN_LEFT_BRACE))
   {

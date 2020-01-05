@@ -2,7 +2,7 @@ try
 {
     var i = 2;
     var j = 0;
-    var k = i/j;
+    var k = i/c;
 }
 catch(e)
 {

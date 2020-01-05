@@ -37,6 +37,8 @@ static TaskFrame *createTaskFrame(const char *name)
   taskFrame->currentFrameCount = 0;
   taskFrame->startTime = 0;
   taskFrame->endTime = 0;
+  taskFrame->tryFrame = NULL;
+  taskFrame->error = NULL;
 
   TaskFrame *tf = vm.taskFrame;
   if (tf == NULL)
@@ -60,7 +62,7 @@ static TaskFrame *findTaskFrame(const char *name)
 
   while (tf != NULL)
   {
-    if(strcmp(name, tf->name) == 0)
+    if (strcmp(name, tf->name) == 0)
     {
       return tf;
     }
@@ -100,6 +102,21 @@ static void destroyTaskFrame(const char *name)
   }
 }
 
+static void pushTry(CallFrame *frame, uint16_t offset)
+{
+  TryFrame *try = (TryFrame *)malloc(sizeof(TryFrame));
+  try->next = vm.ctf->tryFrame;
+  try->ip = frame->ip + offset;
+  vm.ctf->tryFrame = try;
+}
+
+static void popTry()
+{
+  TryFrame *try = vm.ctf->tryFrame;
+  vm.ctf->tryFrame = try ->next;
+  free(try);
+}
+
 static void resetStack()
 {
   vm.ctf->stackTop = vm.ctf->stack;
@@ -108,39 +125,10 @@ static void resetStack()
   vm.ctf->currentFrameCount = 0;
 }
 
-/*
 void runtimeError(const char *format, ...)
 {
-  va_list args;
-  va_start(args, format);
-  vfprintf(stderr, format, args);
-  va_end(args);
-  fputs("\n", stderr);
-
-  for (int i = vm.frameCount - 1; i >= 0; i--)
-  {
-    CallFrame *frame = &vm.frames[i];
-    ObjFunction *function = frame->closure->function;
-
-    size_t instruction = frame->ip - function->chunk.code - 1;
-    fprintf(stderr, "[line %d] in ",
-            function->chunk.lines[instruction]);
-    if (function->name == NULL)
-    {
-      fprintf(stderr, "%s: ", vm.currentScriptName);
-    }
-    else
-    {
-      fprintf(stderr, "%s()\n", function->name->chars);
-    }
-  }
-
-  resetStack();
-}
-*/
-
-void runtimeError(const char *format, ...)
-{
+  char *str = (char *)malloc(sizeof(char) * 1024);
+  str[0] = '\0';
   for (int i = vm.ctf->frameCount - 1; i >= 0; i--)
   {
     CallFrame *frame = &vm.ctf->frames[i];
@@ -150,24 +138,25 @@ void runtimeError(const char *format, ...)
     // -1 because the IP is sitting on the next instruction to be
     // executed.
     size_t instruction = frame->ip - function->chunk.code - 1;
-    fprintf(stderr, "[line %d] in ", function->chunk.lines[instruction]);
+    sprintf(str + strlen(str), "[line %d] in ", function->chunk.lines[instruction]);
 
     if (function->name == NULL)
     {
-      fprintf(stderr, "%s: ", vm.ctf->currentScriptName);
+      sprintf(str + strlen(str), "%s: ", vm.ctf->currentScriptName);
       i = -1;
     }
     else
-      fprintf(stderr, "%s(): ", function->name->chars);
+      sprintf(str + strlen(str), "%s(): ", function->name->chars);
 
     va_list args;
     va_start(args, format);
-    vfprintf(stderr, format, args);
-    fputs("\n", stderr);
+    vsprintf(str, format, args);
+    if(i > 0)
+      sprintf(str + strlen(str), "\n");
     va_end(args);
   }
 
-  resetStack();
+  vm.ctf->error = str;
 }
 
 static void defineNative(const char *name, NativeFn function)
@@ -486,6 +475,59 @@ static bool bindMethod(ObjClass *klass, ObjString *name)
   return true;
 }
 
+static bool classContains(Value container, Value item, Value *result)
+{
+  if (!IS_STRING(item))
+  {
+    return false;
+  }
+
+  ObjClass *klass = AS_CLASS(container);
+  ObjString *name = AS_STRING(item);
+
+  Value value;
+  if (tableGet(&klass->fields, name, &value))
+  {
+    *result = TRUE_VAL;
+    return true;
+  }
+
+  if (tableGet(&klass->methods, name, &value))
+  {
+    *result = TRUE_VAL;
+    return true;
+  }
+
+  if (tableGet(&klass->staticFields, name, &value))
+  {
+    *result = TRUE_VAL;
+    return true;
+  }
+
+  *result = FALSE_VAL;
+  return true;
+}
+
+static bool instanceContains(Value container, Value item, Value *result)
+{
+  if (!IS_STRING(item))
+  {
+    return false;
+  }
+
+  ObjInstance *instance = AS_INSTANCE(container);
+  ObjString *name = AS_STRING(item);
+
+  Value value;
+  if (tableGet(&instance->fields, name, &value))
+  {
+    *result = TRUE_VAL;
+    return true;
+  }
+
+  return classContains(OBJ_VAL(instance->klass), item, result);
+}
+
 static ObjUpvalue *captureUpvalue(Value *local)
 {
   ObjUpvalue *prevUpvalue = NULL;
@@ -525,6 +567,56 @@ static void closeUpvalues(Value *last)
     upvalue->location = &upvalue->closed;
     vm.ctf->openUpvalues = upvalue->next;
   }
+}
+
+static bool checkTry(CallFrame *frame)
+{
+  if (vm.ctf->tryFrame != NULL)
+  {
+    uint8_t *ip = vm.ctf->tryFrame->ip;
+    popTry();
+    
+    frame->ip = ip;
+
+    bool hasCatch = (*frame->ip++) == OP_TRUE;
+
+    if(hasCatch)
+    {
+      frame->ip++;
+      ObjFunction *function = AS_FUNCTION((frame->closure->function->chunk.constants.values[*frame->ip++]));
+      ObjClosure *closure = newClosure(function);
+      push(OBJ_VAL(closure));
+      for (int i = 0; i < closure->upvalueCount; i++)
+      {
+        uint8_t isLocal = *frame->ip++;
+        uint8_t index = *frame->ip++;
+        if (isLocal)
+        {
+          closure->upvalues[i] = captureUpvalue(frame->slots + index);
+        }
+        else
+        {
+          closure->upvalues[i] = frame->closure->upvalues[index];
+        }
+      }
+
+      push(STRING_VAL(vm.ctf->error));
+      free(vm.ctf->error);
+      vm.ctf->error = NULL;
+    }
+
+    return true;
+  }
+  else
+  {
+    resetStack();
+    fputs(vm.ctf->error, stderr);
+    fputs("\n", stderr);
+    free(vm.ctf->error);
+    vm.ctf->error = NULL;
+  }
+
+  return false;
 }
 
 static void defineMethod(ObjString *name)
@@ -995,12 +1087,16 @@ static InterpretResult run()
     if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) \
     {                                               \
       runtimeError("Operands must be numbers.");    \
-      return INTERPRET_RUNTIME_ERROR;               \
+      if (!checkTry(frame))                         \
+        return INTERPRET_RUNTIME_ERROR;             \
     }                                               \
+    else                                            \
+    {                                               \
                                                     \
-    double b = AS_NUMBER(pop());                    \
-    double a = AS_NUMBER(pop());                    \
-    push(valueType(a op b));                        \
+      double b = AS_NUMBER(pop());                  \
+      double a = AS_NUMBER(pop());                  \
+      push(valueType(a op b));                      \
+    }                                               \
   } while (false)
 
   for (;;)
@@ -1010,13 +1106,13 @@ static InterpretResult run()
       return INTERPRET_OK;
     }
 
-    if(vm.ctf->endTime > 0)
+    if (vm.ctf->endTime > 0)
     {
       uint64_t t = cube_clock();
-      if(t > vm.ctf->endTime)
+      if (t > vm.ctf->endTime)
       {
         pop();
-        push(NUMBER_VAL( (t - vm.ctf->startTime) * 1e-6 ));
+        push(NUMBER_VAL((t - vm.ctf->startTime) * 1e-6));
         vm.ctf->startTime = vm.ctf->endTime = 0;
       }
       else
@@ -1028,8 +1124,8 @@ static InterpretResult run()
     CallFrame *frame = &vm.ctf->frames[vm.ctf->frameCount - 1];
 
 #ifdef DEBUG_TRACE_EXECUTION
-    printf("          ");
-    for (Value *slot = vm.stack; slot < vm.stackTop; slot++)
+    printf("Task: %s\n", vm.ctf->name);
+    for (Value *slot = vm.ctf->stack; slot < vm.ctf->stackTop; slot++)
     {
       printf("[ ");
       printValue(*slot);
@@ -1078,7 +1174,10 @@ static InterpretResult run()
       if (!IS_INCREMENTAL(start) || !IS_INCREMENTAL(stop) || !IS_INCREMENTAL(step))
       {
         runtimeError("Can only expand numbers and characters.");
-        return INTERPRET_RUNTIME_ERROR;
+        if (!checkTry(frame))
+          return INTERPRET_RUNTIME_ERROR;
+        else
+          break;
       }
 
       ObjList *list = initList();
@@ -1120,7 +1219,10 @@ static InterpretResult run()
         if (IS_NONE(value))
         {
           runtimeError("Undefined variable '%s'.", name->chars);
-          return INTERPRET_RUNTIME_ERROR;
+          if (!checkTry(frame))
+            return INTERPRET_RUNTIME_ERROR;
+          else
+            break;
         }
       }
       push(value);
@@ -1142,7 +1244,10 @@ static InterpretResult run()
       {
         tableDelete(&vm.globals, name); // [delete]
         runtimeError("Undefined variable '%s'.", name->chars);
-        return INTERPRET_RUNTIME_ERROR;
+        if (!checkTry(frame))
+          return INTERPRET_RUNTIME_ERROR;
+        else
+          break;
       }
       break;
     }
@@ -1166,7 +1271,10 @@ static InterpretResult run()
       if (!IS_INSTANCE(peek(0)) && !IS_CLASS(peek(0)))
       {
         runtimeError("Only instances and classes have properties.");
-        return INTERPRET_RUNTIME_ERROR;
+        if (!checkTry(frame))
+          return INTERPRET_RUNTIME_ERROR;
+        else
+          break;
       }
 
       if (IS_CLASS(peek(0)))
@@ -1183,7 +1291,10 @@ static InterpretResult run()
         else
         {
           runtimeError("Only static properties can be called without an instance.");
-          return INTERPRET_RUNTIME_ERROR;
+          if (!checkTry(frame))
+            return INTERPRET_RUNTIME_ERROR;
+          else
+            break;
         }
       }
       else
@@ -1200,7 +1311,10 @@ static InterpretResult run()
 
         if (!bindMethod(instance->klass, name))
         {
-          return INTERPRET_RUNTIME_ERROR;
+          if (!checkTry(frame))
+            return INTERPRET_RUNTIME_ERROR;
+          else
+            break;
         }
       }
 
@@ -1212,7 +1326,10 @@ static InterpretResult run()
       if (!IS_INSTANCE(peek(0)) && !IS_CLASS(peek(0)))
       {
         runtimeError("Only instances and classes have properties.");
-        return INTERPRET_RUNTIME_ERROR;
+        if (!checkTry(frame))
+          return INTERPRET_RUNTIME_ERROR;
+        else
+          break;
       }
 
       if (IS_CLASS(peek(0)))
@@ -1228,7 +1345,10 @@ static InterpretResult run()
         else
         {
           runtimeError("Only static properties can be called without an instance.");
-          return INTERPRET_RUNTIME_ERROR;
+          if (!checkTry(frame))
+            return INTERPRET_RUNTIME_ERROR;
+          else
+            break;
         }
       }
       else
@@ -1243,7 +1363,10 @@ static InterpretResult run()
         }
 
         if (!bindMethod(instance->klass, name))
-          return INTERPRET_RUNTIME_ERROR;
+          if (!checkTry(frame))
+            return INTERPRET_RUNTIME_ERROR;
+          else
+            break;
       }
 
       break;
@@ -1254,7 +1377,10 @@ static InterpretResult run()
       if (!IS_INSTANCE(peek(1)) && !IS_CLASS(peek(1)))
       {
         runtimeError("Only instances and classes have properties.");
-        return INTERPRET_RUNTIME_ERROR;
+        if (!checkTry(frame))
+          return INTERPRET_RUNTIME_ERROR;
+        else
+          break;
       }
 
       if (IS_CLASS(peek(1)))
@@ -1266,7 +1392,10 @@ static InterpretResult run()
         if (!tableGet(&klass->staticFields, name, &holder))
         {
           runtimeError("Only static properties can be set without an instance.");
-          return INTERPRET_RUNTIME_ERROR;
+          if (!checkTry(frame))
+            return INTERPRET_RUNTIME_ERROR;
+          else
+            break;
         }
         else
           tableSet(&klass->staticFields, name, value);
@@ -1290,7 +1419,10 @@ static InterpretResult run()
       ObjClass *superclass = AS_CLASS(pop());
       if (!bindMethod(superclass, name))
       {
-        return INTERPRET_RUNTIME_ERROR;
+        if (!checkTry(frame))
+          return INTERPRET_RUNTIME_ERROR;
+        else
+          break;
       }
       break;
     }
@@ -1351,7 +1483,10 @@ static InterpretResult run()
         else
         {
           runtimeError("Operands must be two numbers or two strings.");
-          return INTERPRET_RUNTIME_ERROR;
+          if (!checkTry(frame))
+            return INTERPRET_RUNTIME_ERROR;
+          else
+            break;
         }
       }
       break;
@@ -1372,7 +1507,10 @@ static InterpretResult run()
       if (!IS_NUMBER(peek(0)))
       {
         runtimeError("Operand must be a number.");
-        return INTERPRET_RUNTIME_ERROR;
+        if (!checkTry(frame))
+          return INTERPRET_RUNTIME_ERROR;
+        else
+          break;
       }
 
       push(NUMBER_VAL(AS_NUMBER(pop()) + 1));
@@ -1383,7 +1521,10 @@ static InterpretResult run()
       if (!IS_NUMBER(peek(0)))
       {
         runtimeError("Operand must be a number.");
-        return INTERPRET_RUNTIME_ERROR;
+        if (!checkTry(frame))
+          return INTERPRET_RUNTIME_ERROR;
+        else
+          break;
       }
 
       push(NUMBER_VAL(AS_NUMBER(pop()) - 1));
@@ -1452,7 +1593,10 @@ static InterpretResult run()
         if (!stringContains(container, item, &result))
         {
           runtimeError("Could not search on string");
-          return INTERPRET_RUNTIME_ERROR;
+          if (!checkTry(frame))
+            return INTERPRET_RUNTIME_ERROR;
+          else
+            break;
         }
       }
       else if (IS_LIST(container))
@@ -1460,7 +1604,10 @@ static InterpretResult run()
         if (!listContains(container, item, &result))
         {
           runtimeError("Could not search on list");
-          return INTERPRET_RUNTIME_ERROR;
+          if (!checkTry(frame))
+            return INTERPRET_RUNTIME_ERROR;
+          else
+            break;
         }
       }
       else if (IS_DICT(container))
@@ -1468,7 +1615,32 @@ static InterpretResult run()
         if (!dictContains(container, item, &result))
         {
           runtimeError("Key in dict must be a string");
-          return INTERPRET_RUNTIME_ERROR;
+          if (!checkTry(frame))
+            return INTERPRET_RUNTIME_ERROR;
+          else
+            break;
+        }
+      }
+      else if (IS_INSTANCE(container))
+      {
+        if (!instanceContains(container, item, &result))
+        {
+          runtimeError("Could not search on instance");
+          if (!checkTry(frame))
+            return INTERPRET_RUNTIME_ERROR;
+          else
+            break;
+        }
+      }
+      else if (IS_CLASS(container))
+      {
+        if (!classContains(container, item, &result))
+        {
+          runtimeError("Could not search on class");
+          if (!checkTry(frame))
+            return INTERPRET_RUNTIME_ERROR;
+          else
+            break;
         }
       }
       else
@@ -1486,7 +1658,8 @@ static InterpretResult run()
     {
       ObjString *type = AS_STRING(peek(0));
       bool not = AS_BOOL(peek(1));
-      char *objType = valueType(peek(2));
+      Value obj = peek(2);
+      char *objType = valueType(obj);
       Value ret;
       if (strcmp(objType, type->chars) == 0)
       {
@@ -1494,7 +1667,16 @@ static InterpretResult run()
       }
       else
       {
-        ret = not? TRUE_VAL : FALSE_VAL;
+        if (IS_INSTANCE(obj))
+        {
+          ObjInstance *instance = AS_INSTANCE(obj);
+          if (strcmp(instance->klass->name->chars, type->chars) == 0)
+            ret = not? FALSE_VAL : TRUE_VAL;
+          else
+            ret = not? TRUE_VAL : FALSE_VAL;
+        }
+        else
+          ret = not? TRUE_VAL : FALSE_VAL;
       }
 
       pop();
@@ -1513,7 +1695,10 @@ static InterpretResult run()
       if (!IS_NUMBER(peek(0)))
       {
         runtimeError("Operand must be a number.");
-        return INTERPRET_RUNTIME_ERROR;
+        if (!checkTry(frame))
+          return INTERPRET_RUNTIME_ERROR;
+        else
+          break;
       }
 
       push(NUMBER_VAL(-AS_NUMBER(pop())));
@@ -1576,7 +1761,10 @@ static InterpretResult run()
       if (s == NULL)
       {
         runtimeError("Could not loaded the file \"%s\".", fileName->chars);
-        return INTERPRET_RUNTIME_ERROR;
+        if (!checkTry(frame))
+          return INTERPRET_RUNTIME_ERROR;
+        else
+          break;
       }
       vm.ctf->currentScriptName = fileName->chars;
 
@@ -1655,7 +1843,10 @@ static InterpretResult run()
       if (!IS_STRING(key))
       {
         runtimeError("Dictionary key must be a string.");
-        return INTERPRET_RUNTIME_ERROR;
+        if (!checkTry(frame))
+          return INTERPRET_RUNTIME_ERROR;
+        else
+          break;
       }
 
       ObjDict *dict = AS_DICT(dictValue);
@@ -1677,7 +1868,10 @@ static InterpretResult run()
 
       if (!subscript(listValue, indexValue, &result))
       {
-        return INTERPRET_RUNTIME_ERROR;
+        if (!checkTry(frame))
+          return INTERPRET_RUNTIME_ERROR;
+        else
+          break;
       }
 
       pop();
@@ -1697,7 +1891,10 @@ static InterpretResult run()
         pop();
         pop();
         push(NONE_VAL);
-        return INTERPRET_RUNTIME_ERROR;
+        if (!checkTry(frame))
+          return INTERPRET_RUNTIME_ERROR;
+        else
+          break;
       }
 
       pop();
@@ -1712,7 +1909,10 @@ static InterpretResult run()
       int argCount = READ_BYTE();
       if (!callValue(peek(argCount), argCount))
       {
-        return INTERPRET_RUNTIME_ERROR;
+        if (!checkTry(frame))
+          return INTERPRET_RUNTIME_ERROR;
+        else
+          break;
       }
 
       if (vm.ctf->eval && IS_FUNCTION(peek(0)))
@@ -1726,7 +1926,10 @@ static InterpretResult run()
 
         if (!callValue(peek(argCount), argCount))
         {
-          return INTERPRET_RUNTIME_ERROR;
+          if (!checkTry(frame))
+            return INTERPRET_RUNTIME_ERROR;
+          else
+            break;
         }
       }
       frame = &vm.ctf->frames[vm.ctf->frameCount - 1];
@@ -1740,7 +1943,10 @@ static InterpretResult run()
       ObjString *method = READ_STRING();
       if (!invoke(method, argCount))
       {
-        return INTERPRET_RUNTIME_ERROR;
+        if (!checkTry(frame))
+          return INTERPRET_RUNTIME_ERROR;
+        else
+          break;
       }
       frame = &vm.ctf->frames[vm.ctf->frameCount - 1];
       break;
@@ -1753,7 +1959,10 @@ static InterpretResult run()
       ObjClass *superclass = AS_CLASS(pop());
       if (!invokeFromClass(superclass, method, argCount))
       {
-        return INTERPRET_RUNTIME_ERROR;
+        if (!checkTry(frame))
+          return INTERPRET_RUNTIME_ERROR;
+        else
+          break;
       }
       frame = &vm.ctf->frames[vm.ctf->frameCount - 1];
       break;
@@ -1831,7 +2040,10 @@ static InterpretResult run()
       if (!IS_CLASS(superclass))
       {
         runtimeError("Superclass must be a class.");
-        return INTERPRET_RUNTIME_ERROR;
+        if (!checkTry(frame))
+          return INTERPRET_RUNTIME_ERROR;
+        else
+          break;
       }
 
       ObjClass *subclass = AS_CLASS(peek(0));
@@ -1855,13 +2067,19 @@ static InterpretResult run()
       if (!IS_STRING(openType))
       {
         runtimeError("File open type must be a string");
-        return INTERPRET_RUNTIME_ERROR;
+        if (!checkTry(frame))
+          return INTERPRET_RUNTIME_ERROR;
+        else
+          break;
       }
 
       if (!IS_STRING(fileName))
       {
         runtimeError("Filename must be a string");
-        return INTERPRET_RUNTIME_ERROR;
+        if (!checkTry(frame))
+          return INTERPRET_RUNTIME_ERROR;
+        else
+          break;
       }
 
       ObjString *openTypeString = AS_STRING(openType);
@@ -1872,7 +2090,10 @@ static InterpretResult run()
       if (file == NULL)
       {
         runtimeError("Unable to open file");
-        return INTERPRET_RUNTIME_ERROR;
+        if (!checkTry(frame))
+          return INTERPRET_RUNTIME_ERROR;
+        else
+          break;
       }
 
       pop();
@@ -1949,13 +2170,13 @@ static InterpretResult run()
     {
       ObjString *name = AS_STRING(pop());
       TaskFrame *tf = findTaskFrame(name->chars);
-      if(tf == NULL)
+      if (tf == NULL)
       {
         push(NONE_VAL);
       }
       else
       {
-        if(tf->finished)
+        if (tf->finished)
         {
           push(tf->result);
         }
@@ -1964,9 +2185,8 @@ static InterpretResult run()
           push(OBJ_VAL(name));
           frame->ip--;
         }
-        
       }
-      
+
       break;
     }
 
@@ -1974,6 +2194,21 @@ static InterpretResult run()
     {
       ObjString *name = AS_STRING(pop());
       destroyTaskFrame(name->chars);
+      break;
+    }
+
+    case OP_TRY:
+    {
+      uint16_t catch = READ_SHORT();
+      pushTry(frame, catch);
+      break;
+    }
+
+    case OP_CLOSE_TRY:
+    {
+      uint16_t end = READ_SHORT();
+      frame->ip += end;
+      popTry();
       break;
     }
     }

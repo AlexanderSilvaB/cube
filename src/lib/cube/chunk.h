@@ -64,6 +64,8 @@ typedef enum
   OP_ASYNC,
   OP_AWAIT,
   OP_ABORT,
+  OP_TRY,
+  OP_CLOSE_TRY,
   OP_NATIVE_FUNC,
   OP_NATIVE
 } OpCode;

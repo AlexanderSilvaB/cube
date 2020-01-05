@@ -203,6 +203,10 @@ int disassembleInstruction(Chunk *chunk, int offset)
     return simpleInstruction("OP_AWAIT", offset);
   case OP_ABORT:
     return simpleInstruction("OP_ABORT", offset);
+  case OP_TRY:
+    return jumpInstruction("OP_TRY", 1, chunk, offset);
+  case OP_CLOSE_TRY:
+    return jumpInstruction("OP_CLOSE_TRY", 1, chunk, offset);
   case OP_NATIVE_FUNC:
     return simpleInstruction("OP_NATIVE_FUNC", offset);
   case OP_NATIVE:

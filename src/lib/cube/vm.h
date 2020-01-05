@@ -18,6 +18,13 @@ typedef struct
   Value *slots;
 } CallFrame;
 
+typedef struct TryFrame_t
+{
+  uint8_t *ip;
+  struct TryFrame_t *next;
+}TryFrame;
+
+
 typedef struct TaskFrame_t
 {
   CallFrame frames[FRAMES_MAX];
@@ -32,8 +39,10 @@ typedef struct TaskFrame_t
   const char *currentScriptName;
   Value result;
   bool finished;
+  char *error;
   uint64_t endTime;
   uint64_t startTime;
+  TryFrame *tryFrame;
 }TaskFrame;
 
 typedef struct
