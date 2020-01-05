@@ -2352,7 +2352,7 @@ InterpretResult compileCode(const char *source, const char *path)
 
   char *bcPath = ALLOCATE(char, strlen(path) * 2);
   strcpy(bcPath, path);
-  replaceString(bcPath, ".cube", ".cubec");
+  replaceStringN(bcPath, ".cube", ".cubec", 1);
 
   FILE *file = fopen(bcPath, "w");
   if (file == NULL)

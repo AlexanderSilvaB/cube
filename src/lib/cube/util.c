@@ -92,6 +92,25 @@ void replaceString(char *str, const char *find, const char *replace)
 	FREE_ARRAY(char, tmp, lenS);
 }
 
+void replaceStringN(char *str, const char *find, const char *replace, int N)
+{
+	char *pt = strstr(str, find);
+	int lenF = strlen(find);
+	int lenR = strlen(replace);
+	int lenS = strlen(str);
+	char *tmp = ALLOCATE(char, strlen(str));
+	int n = 0;
+	while (pt != NULL & n < N)
+	{
+		strcpy(tmp, pt + lenF);
+		memcpy(pt, replace, lenR);
+		strcpy(pt + lenR, tmp);
+		pt = strstr(str, find);
+		n++;
+	}
+	FREE_ARRAY(char, tmp, lenS);
+}
+
 char *findFile(const char *name)
 {
 	char *strPath = malloc(sizeof(char) * (strlen(name) + 2));
