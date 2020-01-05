@@ -747,7 +747,14 @@ Value envNative(int argCount, Value *args)
 
     int i = 0;
     Entry entry;
-    while (iterateTable(&vm.globals, &entry, &i))
+    Table *table = &vm.globals;
+
+    if(IS_PACKAGE(args[0]))
+    {
+        table = &(AS_PACKAGE(args[0])->symbols);
+    }
+
+    while (iterateTable(table, &entry, &i))
     {
         if (entry.key == NULL)
             continue;

@@ -2340,6 +2340,7 @@ InterpretResult interpret(const char *source)
   else
     callValue(OBJ_VAL(closure), 0);
 
+  vm.taskFrame->finished = false;
   return run();
 }
 
