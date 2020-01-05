@@ -16,6 +16,8 @@ typedef struct
   ObjClosure *closure;
   uint8_t *ip;
   Value *slots;
+  ObjPackage *package;
+  ObjPackage *nextPackage;
 } CallFrame;
 
 typedef struct TryFrame_t
@@ -50,6 +52,7 @@ typedef struct
 {
   TaskFrame *taskFrame;
   TaskFrame *ctf;
+  CallFrame *frame;
 
   Table globals;
   Table strings;

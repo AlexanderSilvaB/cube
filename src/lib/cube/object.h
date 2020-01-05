@@ -174,6 +174,7 @@ typedef struct sObjPackage
 {
   Obj obj;
   ObjString *name;
+  Table symbols;
 } ObjPackage;
 
 typedef struct
@@ -213,6 +214,7 @@ ObjClosure *newClosure(ObjFunction *function);
 ObjFunction *newFunction(bool isStatic);
 ObjInstance *newInstance(ObjClass *klass);
 ObjNative *newNative(NativeFn function);
+ObjPackage *newPackage(ObjString *name);
 ObjNativeFunc *initNativeFunc();
 ObjNativeLib *initNativeLib();
 ObjString *takeString(char *chars, int length);

@@ -175,6 +175,7 @@ void initVM(const char *path, const char *scriptName)
   createTaskFrame("");
 
   vm.ctf = vm.taskFrame;
+  vm.frame = NULL;
 
   resetStack();
 
@@ -305,6 +306,13 @@ static bool call(ObjClosure *closure, int argCount)
   CallFrame *frame = &vm.ctf->frames[vm.ctf->frameCount++];
   frame->closure = closure;
   frame->ip = closure->function->chunk.code;
+  frame->package = vm.frame ? vm.frame->package : NULL;
+  frame->nextPackage = NULL;
+  if(vm.frame && vm.frame->nextPackage != NULL)
+  {
+    frame->package = vm.frame->nextPackage;
+    vm.frame->nextPackage = NULL;
+  }
 
   frame->slots = vm.ctf->stackTop - argCount - 1;
 
@@ -428,6 +436,20 @@ static bool invoke(ObjString *name, int argCount)
     }
 
     return callValue(method, argCount);
+  }
+
+  else if (IS_PACKAGE(receiver))
+  {
+    ObjPackage *package = AS_PACKAGE(receiver);
+    Value func;
+    if (!tableGet(&package->symbols, name, &func))
+    {
+      runtimeError("Undefined field '%s' in '%s'.", name->chars, package->name->chars);
+      return false;
+    }
+
+    vm.frame->nextPackage = package;
+    return callValue(func, argCount);
   }
 
   else if (IS_LIST(receiver))
@@ -1124,6 +1146,7 @@ static InterpretResult run()
     }
 
     CallFrame *frame = &vm.ctf->frames[vm.ctf->frameCount - 1];
+    vm.frame = frame;
 
 #ifdef DEBUG_TRACE_EXECUTION
     printf("Task: %s\n", vm.ctf->name);
@@ -1215,7 +1238,20 @@ static InterpretResult run()
     {
       ObjString *name = READ_STRING();
       Value value;
-      if (!tableGet(&vm.globals, name, &value))
+
+      Table *table = &vm.globals;
+      if(frame->package != NULL)
+      {
+        table = &frame->package->symbols;
+        if (tableGet(table, name, &value))
+        {
+          push(value);
+          break;
+        }
+        table = &vm.globals;
+      }
+      
+      if (!tableGet(table, name, &value))
       {
         value = envVariable(name);
         if (IS_NONE(value))
@@ -1234,7 +1270,11 @@ static InterpretResult run()
     case OP_DEFINE_GLOBAL:
     {
       ObjString *name = READ_STRING();
-      tableSet(&vm.globals, name, peek(0));
+      Table *table = &vm.globals;
+      if(frame->package != NULL)
+        table = &frame->package->symbols;
+
+      tableSet(table, name, peek(0));
       pop();
       break;
     }
@@ -1242,9 +1282,13 @@ static InterpretResult run()
     case OP_SET_GLOBAL:
     {
       ObjString *name = READ_STRING();
-      if (tableSet(&vm.globals, name, peek(0)))
+      Table *table = &vm.globals;
+      if(frame->package != NULL)
+        table = &frame->package->symbols;
+      
+      if (tableSet(table, name, peek(0)))
       {
-        tableDelete(&vm.globals, name); // [delete]
+        tableDelete(table, name); // [delete]
         runtimeError("Undefined variable '%s'.", name->chars);
         if (!checkTry(frame))
           return INTERPRET_RUNTIME_ERROR;
@@ -1270,9 +1314,9 @@ static InterpretResult run()
 
     case OP_GET_PROPERTY:
     {
-      if (!IS_INSTANCE(peek(0)) && !IS_CLASS(peek(0)))
+      if (!IS_INSTANCE(peek(0)) && !IS_CLASS(peek(0)) && !IS_PACKAGE(peek(0)))
       {
-        runtimeError("Only instances and classes have properties.");
+        runtimeError("Only instances, classes and packages have properties.");
         if (!checkTry(frame))
           return INTERPRET_RUNTIME_ERROR;
         else
@@ -1293,6 +1337,26 @@ static InterpretResult run()
         else
         {
           runtimeError("Only static properties can be called without an instance.");
+          if (!checkTry(frame))
+            return INTERPRET_RUNTIME_ERROR;
+          else
+            break;
+        }
+      }
+      else if (IS_PACKAGE(peek(0)))
+      {
+        ObjPackage *package = AS_PACKAGE(peek(0));
+        ObjString *name = READ_STRING();
+        Value value;
+        if (tableGet(&package->symbols, name, &value))
+        {
+          pop(); // Instance.
+          push(value);
+          break;
+        }
+        else
+        {
+          runtimeError("Field not found on package.");
           if (!checkTry(frame))
             return INTERPRET_RUNTIME_ERROR;
           else
@@ -1785,15 +1849,24 @@ static InterpretResult run()
         name = getFileDisplayName(fileName->chars);
       }
 
+
       ObjFunction *function = compile(s);
       if (function == NULL)
       {
         free(s);
         return INTERPRET_COMPILE_ERROR;
       }
+      pop();
+      pop();
 
-      pop();
-      pop();
+      ObjPackage *package = NULL;
+      if(name != NULL)
+      {
+        ObjString *nameStr = AS_STRING(STRING_VAL(name));
+        package = newPackage(nameStr);
+        tableSet(&vm.globals, nameStr, OBJ_VAL(package));
+      }
+      
 
       push(OBJ_VAL(function));
       ObjClosure *closure = newClosure(function);
@@ -1805,6 +1878,8 @@ static InterpretResult run()
       frame->ip = closure->function->chunk.code;
       frame->closure = closure;
       frame->slots = vm.ctf->stackTop - 1;
+      frame->package = package;
+      frame->nextPackage = NULL;
       free(s);
       free(name);
       break;
@@ -2000,6 +2075,11 @@ static InterpretResult run()
     {
       Value result = pop();
 
+      if(frame->package != NULL)
+      {
+        frame->package = NULL;
+      }
+
       closeUpvalues(frame->slots);
       vm.ctf->frameCount--;
 
@@ -2157,9 +2237,12 @@ static InterpretResult run()
       tf->stackTop++;
 
       // Add the context to the frames stack
+      
       CallFrame *frame = &tf->frames[tf->frameCount++];
       frame->closure = closure;
       frame->ip = closure->function->chunk.code;
+      frame->package = vm.frame->package;
+      frame->nextPackage = NULL;
 
       frame->slots = tf->stackTop - 1;
 

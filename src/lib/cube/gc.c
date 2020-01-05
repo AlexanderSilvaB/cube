@@ -170,6 +170,7 @@ void mark_object(Obj *object)
         {
             ObjPackage *package = (ObjPackage *)object;
             mark_object((Obj *)package->name);
+            markTable(&package->symbols);
             break;
         }
 

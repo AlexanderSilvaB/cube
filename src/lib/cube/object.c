@@ -52,6 +52,7 @@ ObjPackage *newPackage(ObjString *name)
 {
 	ObjPackage *package = ALLOCATE_OBJ(ObjPackage, OBJ_PACKAGE);
 	package->name = name;
+	initTable(&package->symbols);
 	return package;
 }
 
