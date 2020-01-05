@@ -82,7 +82,7 @@ void sweep()
     }
 }
 
-void mark_thread_frame(ThreadFrame *tf)
+void mark_task_frame(TaskFrame *tf)
 {
     // Mark stack
     for(Value *v = tf->stack; v < tf->stackTop; v++)
@@ -105,10 +105,10 @@ void mark_thread_frame(ThreadFrame *tf)
 
 void mark_roots()
 {
-    ThreadFrame *tf = vm.threadFrame;
+    TaskFrame *tf = vm.taskFrame;
     while(tf != NULL)
     {
-        mark_thread_frame(tf);
+        mark_task_frame(tf);
         tf = tf->next;
     }
 

@@ -22,39 +22,39 @@
 
 VM vm; // [one]
 
-static ThreadFrame *createThreadFrame(const char *name)
+static TaskFrame *createTaskFrame(const char *name)
 {
-  ThreadFrame *threadFrame = (ThreadFrame *)malloc(sizeof(ThreadFrame));
-  threadFrame->name = (char *)malloc(sizeof(char) * (strlen(name) + 1));
-  strcpy(threadFrame->name, name);
-  threadFrame->next = NULL;
-  threadFrame->finished = false;
-  threadFrame->result = NONE_VAL;
-  threadFrame->eval = false;
-  threadFrame->stackTop = threadFrame->stack;
-  threadFrame->frameCount = 0;
-  threadFrame->openUpvalues = NULL;
-  threadFrame->currentFrameCount = 0;
-  threadFrame->startTime = 0;
-  threadFrame->endTime = 0;
+  TaskFrame *taskFrame = (TaskFrame *)malloc(sizeof(TaskFrame));
+  taskFrame->name = (char *)malloc(sizeof(char) * (strlen(name) + 1));
+  strcpy(taskFrame->name, name);
+  taskFrame->next = NULL;
+  taskFrame->finished = false;
+  taskFrame->result = NONE_VAL;
+  taskFrame->eval = false;
+  taskFrame->stackTop = taskFrame->stack;
+  taskFrame->frameCount = 0;
+  taskFrame->openUpvalues = NULL;
+  taskFrame->currentFrameCount = 0;
+  taskFrame->startTime = 0;
+  taskFrame->endTime = 0;
 
-  ThreadFrame *tf = vm.threadFrame;
+  TaskFrame *tf = vm.taskFrame;
   if (tf == NULL)
-    vm.threadFrame = threadFrame;
+    vm.taskFrame = taskFrame;
   else
   {
     while (tf->next != NULL)
     {
       tf = tf->next;
     }
-    tf->next = threadFrame;
+    tf->next = taskFrame;
   }
-  return threadFrame;
+  return taskFrame;
 }
 
-static ThreadFrame *findThreadFrame(const char *name)
+static TaskFrame *findTaskFrame(const char *name)
 {
-  ThreadFrame *tf = vm.threadFrame;
+  TaskFrame *tf = vm.taskFrame;
   if (tf == NULL)
     return NULL;
 
@@ -70,21 +70,21 @@ static ThreadFrame *findThreadFrame(const char *name)
   return NULL;
 }
 
-static void destroyThreadFrame(const char *name)
+static void destroyTaskFrame(const char *name)
 {
-  ThreadFrame *tf = vm.threadFrame;
+  TaskFrame *tf = vm.taskFrame;
   if (tf == NULL)
     return;
 
   if (strcmp(name, tf->name) == 0)
   {
-    vm.threadFrame = tf->next;
+    vm.taskFrame = tf->next;
     free(tf->name);
     free(tf);
   }
   else
   {
-    ThreadFrame *parent = NULL;
+    TaskFrame *parent = NULL;
     while (tf != NULL && strcmp(name, tf->name) != 0)
     {
       parent = tf;
@@ -181,10 +181,10 @@ static void defineNative(const char *name, NativeFn function)
 
 void initVM(const char *path, const char *scriptName)
 {
-  vm.threadFrame = NULL;
-  createThreadFrame("");
+  vm.taskFrame = NULL;
+  createTaskFrame("");
 
-  vm.ctf = vm.threadFrame;
+  vm.ctf = vm.taskFrame;
 
   resetStack();
 
@@ -960,14 +960,14 @@ bool instanceOperation(const char *op)
   return invokeFromClass(instance->klass, name, 1);
 }
 
-static bool nextThread()
+static bool nextTask()
 {
-  ThreadFrame *ctf = vm.ctf;
+  TaskFrame *ctf = vm.ctf;
 
 next:
   vm.ctf = vm.ctf->next;
   if (vm.ctf == NULL)
-    vm.ctf = vm.threadFrame;
+    vm.ctf = vm.taskFrame;
   if (vm.ctf->finished)
   {
     if (vm.ctf == ctf)
@@ -1005,7 +1005,7 @@ static InterpretResult run()
 
   for (;;)
   {
-    if (!nextThread())
+    if (!nextTask())
     {
       return INTERPRET_OK;
     }
@@ -1926,7 +1926,7 @@ static InterpretResult run()
       ObjClosure *closure = AS_CLOSURE(pop());
 
       ObjString *name = AS_STRING(pop());
-      ThreadFrame *tf = createThreadFrame(name->chars);
+      TaskFrame *tf = createTaskFrame(name->chars);
 
       // Push the context
       *tf->stackTop = OBJ_VAL(closure);
@@ -1948,7 +1948,7 @@ static InterpretResult run()
     case OP_AWAIT:
     {
       ObjString *name = AS_STRING(pop());
-      ThreadFrame *tf = findThreadFrame(name->chars);
+      TaskFrame *tf = findTaskFrame(name->chars);
       if(tf == NULL)
       {
         push(NONE_VAL);
@@ -1973,7 +1973,7 @@ static InterpretResult run()
     case OP_ABORT:
     {
       ObjString *name = AS_STRING(pop());
-      destroyThreadFrame(name->chars);
+      destroyTaskFrame(name->chars);
       break;
     }
     }

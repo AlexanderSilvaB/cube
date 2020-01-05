@@ -1,4 +1,4 @@
-func thread1()
+func task1()
 {
     for(var i in 1:100)
     {
@@ -6,17 +6,17 @@ func thread1()
     }
 }
 
-func thread2()
+func task2()
 {
     var start = clock();
-    for(var i in 100:-1:1)
+    for(var i = 400; i >= 0; --i)
     {
         print('({})'.format(i));
     }
     return clock() - start;
 }   
 
-func thread3()
+func task3()
 {
     for(var i = 0; i < 1000; ++i)
     {
@@ -24,12 +24,12 @@ func thread3()
     }
 }
 
-async thread1();
-async thread2();
+async task1();
+async task2();
 
-var elapsed = await thread2;
+var elapsed = await task2;
 println("\nElapsed: ", elapsed);
 
-async thread3();
+async task3();
 wait(3);
-abort thread3;
+abort task3;

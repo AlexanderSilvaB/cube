@@ -18,7 +18,7 @@ typedef struct
   Value *slots;
 } CallFrame;
 
-typedef struct ThreadFrame_t
+typedef struct TaskFrame_t
 {
   CallFrame frames[FRAMES_MAX];
   int frameCount;
@@ -27,29 +27,19 @@ typedef struct ThreadFrame_t
   ObjUpvalue *openUpvalues;
   int currentFrameCount;
   bool eval;
-  struct ThreadFrame_t *next;
+  struct TaskFrame_t *next;
   char* name;
   const char *currentScriptName;
   Value result;
   bool finished;
   uint64_t endTime;
   uint64_t startTime;
-}ThreadFrame;
+}TaskFrame;
 
 typedef struct
 {
-  /*
-  CallFrame frames[FRAMES_MAX];
-  int frameCount;
-  Value stack[STACK_MAX];
-  Value *stackTop;
-  ObjUpvalue *openUpvalues;
-  int currentFrameCount;
-  bool eval;
-  */
-
-  ThreadFrame *threadFrame;
-  ThreadFrame *ctf;
+  TaskFrame *taskFrame;
+  TaskFrame *ctf;
 
   Table globals;
   Table strings;
