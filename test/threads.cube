@@ -25,8 +25,11 @@ func thread3()
 }
 
 async thread1();
-var elapsed = await thread2();
+async thread2();
+
+var elapsed = await thread2;
+println("\nElapsed: ", elapsed);
 
 async thread3();
-wait(1);
+wait(3);
 abort thread3;

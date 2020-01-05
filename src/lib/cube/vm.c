@@ -22,48 +22,79 @@
 
 VM vm; // [one]
 
-static void createThreadFrame(const char *name)
+static ThreadFrame *createThreadFrame(const char *name)
 {
-  ThreadFrame *threadFrame = (ThreadFrame*)malloc(sizeof(ThreadFrame));
-  threadFrame->name = name;
+  ThreadFrame *threadFrame = (ThreadFrame *)malloc(sizeof(ThreadFrame));
+  threadFrame->name = (char *)malloc(sizeof(char) * (strlen(name) + 1));
+  strcpy(threadFrame->name, name);
   threadFrame->next = NULL;
+  threadFrame->finished = false;
+  threadFrame->result = NONE_VAL;
+  threadFrame->eval = false;
+  threadFrame->stackTop = threadFrame->stack;
+  threadFrame->frameCount = 0;
+  threadFrame->openUpvalues = NULL;
+  threadFrame->currentFrameCount = 0;
+  threadFrame->startTime = 0;
+  threadFrame->endTime = 0;
 
   ThreadFrame *tf = vm.threadFrame;
-  if(tf == NULL)
+  if (tf == NULL)
     vm.threadFrame = threadFrame;
   else
   {
-    while(tf->next != NULL)
+    while (tf->next != NULL)
     {
       tf = tf->next;
     }
     tf->next = threadFrame;
-  } 
+  }
+  return threadFrame;
 }
 
-static void destroyThreadFrame(const char* name)
+static ThreadFrame *findThreadFrame(const char *name)
 {
   ThreadFrame *tf = vm.threadFrame;
-  if(tf == NULL)
+  if (tf == NULL)
+    return NULL;
+
+  while (tf != NULL)
+  {
+    if(strcmp(name, tf->name) == 0)
+    {
+      return tf;
+    }
+
+    tf = tf->next;
+  }
+  return NULL;
+}
+
+static void destroyThreadFrame(const char *name)
+{
+  ThreadFrame *tf = vm.threadFrame;
+  if (tf == NULL)
     return;
 
-  if(strcmp(name, tf->name) == 0)
+  if (strcmp(name, tf->name) == 0)
   {
     vm.threadFrame = tf->next;
+    free(tf->name);
     free(tf);
   }
   else
   {
-    ThreadFrame *parent = NULL; 
-    while(tf != NULL && strcmp(name, tf->name) != 0)
+    ThreadFrame *parent = NULL;
+    while (tf != NULL && strcmp(name, tf->name) != 0)
     {
       parent = tf;
       tf = tf->next;
     }
 
-    if(tf != NULL)
+    if (tf != NULL)
     {
       parent->next = tf->next;
+      free(tf->name);
       free(tf);
     }
   }
@@ -71,10 +102,10 @@ static void destroyThreadFrame(const char* name)
 
 static void resetStack()
 {
-  vm.stackTop = vm.stack;
-  vm.frameCount = 0;
-  vm.openUpvalues = NULL;
-  vm.currentFrameCount = 0;
+  vm.ctf->stackTop = vm.ctf->stack;
+  vm.ctf->frameCount = 0;
+  vm.ctf->openUpvalues = NULL;
+  vm.ctf->currentFrameCount = 0;
 }
 
 /*
@@ -110,9 +141,9 @@ void runtimeError(const char *format, ...)
 
 void runtimeError(const char *format, ...)
 {
-  for (int i = vm.frameCount - 1; i >= 0; i--)
+  for (int i = vm.ctf->frameCount - 1; i >= 0; i--)
   {
-    CallFrame *frame = &vm.frames[i];
+    CallFrame *frame = &vm.ctf->frames[i];
 
     ObjFunction *function = frame->closure->function;
 
@@ -123,7 +154,7 @@ void runtimeError(const char *format, ...)
 
     if (function->name == NULL)
     {
-      fprintf(stderr, "%s: ", vm.currentScriptName);
+      fprintf(stderr, "%s: ", vm.ctf->currentScriptName);
       i = -1;
     }
     else
@@ -143,7 +174,7 @@ static void defineNative(const char *name, NativeFn function)
 {
   push(OBJ_VAL(copyString(name, (int)strlen(name))));
   push(OBJ_VAL(newNative(function)));
-  tableSet(&vm.globals, AS_STRING(vm.stack[0]), vm.stack[1]);
+  tableSet(&vm.globals, AS_STRING(vm.ctf->stack[0]), vm.ctf->stack[1]);
   pop();
   pop();
 }
@@ -151,24 +182,18 @@ static void defineNative(const char *name, NativeFn function)
 void initVM(const char *path, const char *scriptName)
 {
   vm.threadFrame = NULL;
-  vm.ctf = NULL;
-  
+  createThreadFrame("");
+
+  vm.ctf = vm.threadFrame;
+
   resetStack();
-  
-  
+
   vm.gc = false;
 
   vm.objects = NULL;
   vm.listObjects = NULL;
   vm.bytesAllocated = 0;
-  //vm.nextGC = 1024 * 1024;
-  vm.nextGC = 1024;
-
-  vm.eval = false;
-
-  vm.grayCount = 0;
-  vm.grayCapacity = 0;
-  vm.grayStack = NULL;
+  vm.nextGC = 1024 * 1024;
 
   initTable(&vm.globals);
   initTable(&vm.strings);
@@ -182,7 +207,7 @@ void initVM(const char *path, const char *scriptName)
   vm.nativeExtension = ".so";
 #endif
   vm.scriptName = scriptName;
-  vm.currentScriptName = scriptName;
+  vm.ctf->currentScriptName = scriptName;
   vm.initString = AS_STRING(STRING_VAL("init"));
   vm.argsString = AS_STRING(STRING_VAL("__args"));
   vm.newLine = false;
@@ -240,23 +265,23 @@ void push(Value value)
   // printf("Push/Pop: %d/%d -> %d\nStackTop = ", pushs, pops, (pushs - pops));
   // printValue(value);
   // printf("\n");
-  *vm.stackTop = value;
-  vm.stackTop++;
+  *vm.ctf->stackTop = value;
+  vm.ctf->stackTop++;
 }
 
 Value pop()
 {
-  vm.stackTop--;
+  vm.ctf->stackTop--;
   // pops++;
   // printf("Pop/Push: %d/%d -> %d\nStackTop = ", pushs, pops, (pushs - pops));
   // printValue(*vm.stackTop);
   // printf("\n");
-  return *vm.stackTop;
+  return *vm.ctf->stackTop;
 }
 
 Value peek(int distance)
 {
-  return vm.stackTop[-1 - distance];
+  return vm.ctf->stackTop[-1 - distance];
 }
 
 static bool call(ObjClosure *closure, int argCount)
@@ -278,17 +303,17 @@ static bool call(ObjClosure *closure, int argCount)
 
   // TODO: Pop unused variables and comment above
 
-  if (vm.frameCount == FRAMES_MAX)
+  if (vm.ctf->frameCount == FRAMES_MAX)
   {
     runtimeError("Stack overflow.");
     return false;
   }
 
-  CallFrame *frame = &vm.frames[vm.frameCount++];
+  CallFrame *frame = &vm.ctf->frames[vm.ctf->frameCount++];
   frame->closure = closure;
   frame->ip = closure->function->chunk.code;
 
-  frame->slots = vm.stackTop - argCount - 1;
+  frame->slots = vm.ctf->stackTop - argCount - 1;
 
   ObjList *args = initList();
   for (int i = argCount - 1; i >= 0; i--)
@@ -318,7 +343,7 @@ static bool callValue(Value callee, int argCount)
 
       // Replace the bound method with the receiver so it's in the
       // right slot when the method is called.
-      vm.stackTop[-argCount - 1] = bound->receiver;
+      vm.ctf->stackTop[-argCount - 1] = bound->receiver;
       return call(bound->method, argCount);
     }
 
@@ -327,7 +352,7 @@ static bool callValue(Value callee, int argCount)
       ObjClass *klass = AS_CLASS(callee);
 
       // Create the instance.
-      vm.stackTop[-argCount - 1] = OBJ_VAL(newInstance(klass));
+      vm.ctf->stackTop[-argCount - 1] = OBJ_VAL(newInstance(klass));
       // Call the initializer, if there is one.
       Value initializer;
       if (tableGet(&klass->methods, vm.initString, &initializer))
@@ -348,8 +373,8 @@ static bool callValue(Value callee, int argCount)
     case OBJ_NATIVE:
     {
       NativeFn native = AS_NATIVE(callee);
-      Value result = native(argCount, vm.stackTop - argCount);
-      vm.stackTop -= argCount + 1;
+      Value result = native(argCount, vm.ctf->stackTop - argCount);
+      vm.ctf->stackTop -= argCount + 1;
       pops += argCount + 1;
       push(result);
       return true;
@@ -358,8 +383,8 @@ static bool callValue(Value callee, int argCount)
     case OBJ_NATIVE_FUNC:
     {
       ObjNativeFunc *func = AS_NATIVE_FUNC(callee);
-      Value result = callNative(func, argCount, vm.stackTop - argCount);
-      vm.stackTop -= argCount + 1;
+      Value result = callNative(func, argCount, vm.ctf->stackTop - argCount);
+      vm.ctf->stackTop -= argCount + 1;
       pops += argCount + 1;
       push(result);
       return true;
@@ -439,7 +464,7 @@ static bool invoke(ObjString *name, int argCount)
   Value value;
   if (tableGet(&instance->fields, name, &value))
   {
-    vm.stackTop[-argCount - 1] = value;
+    vm.ctf->stackTop[-argCount - 1] = value;
     return callValue(value, argCount);
   }
 
@@ -464,7 +489,7 @@ static bool bindMethod(ObjClass *klass, ObjString *name)
 static ObjUpvalue *captureUpvalue(Value *local)
 {
   ObjUpvalue *prevUpvalue = NULL;
-  ObjUpvalue *upvalue = vm.openUpvalues;
+  ObjUpvalue *upvalue = vm.ctf->openUpvalues;
 
   while (upvalue != NULL && upvalue->location > local)
   {
@@ -480,7 +505,7 @@ static ObjUpvalue *captureUpvalue(Value *local)
 
   if (prevUpvalue == NULL)
   {
-    vm.openUpvalues = createdUpvalue;
+    vm.ctf->openUpvalues = createdUpvalue;
   }
   else
   {
@@ -492,13 +517,13 @@ static ObjUpvalue *captureUpvalue(Value *local)
 
 static void closeUpvalues(Value *last)
 {
-  while (vm.openUpvalues != NULL &&
-         vm.openUpvalues->location >= last)
+  while (vm.ctf->openUpvalues != NULL &&
+         vm.ctf->openUpvalues->location >= last)
   {
-    ObjUpvalue *upvalue = vm.openUpvalues;
+    ObjUpvalue *upvalue = vm.ctf->openUpvalues;
     upvalue->closed = *upvalue->location;
     upvalue->location = &upvalue->closed;
-    vm.openUpvalues = upvalue->next;
+    vm.ctf->openUpvalues = upvalue->next;
   }
 }
 
@@ -629,7 +654,7 @@ Value envVariable(ObjString *name)
 {
   if (strcmp(name->chars, "__name__") == 0)
   {
-    return STRING_VAL(vm.currentScriptName);
+    return STRING_VAL(vm.ctf->currentScriptName);
   }
   return NONE_VAL;
 }
@@ -935,10 +960,26 @@ bool instanceOperation(const char *op)
   return invokeFromClass(instance->klass, name, 1);
 }
 
+static bool nextThread()
+{
+  ThreadFrame *ctf = vm.ctf;
+
+next:
+  vm.ctf = vm.ctf->next;
+  if (vm.ctf == NULL)
+    vm.ctf = vm.threadFrame;
+  if (vm.ctf->finished)
+  {
+    if (vm.ctf == ctf)
+      return false;
+    else
+      goto next;
+  }
+  return true;
+}
+
 static InterpretResult run()
 {
-  CallFrame *frame = &vm.frames[vm.frameCount - 1];
-
 #define READ_BYTE() (*frame->ip++)
 #define READ_SHORT() \
   (frame->ip += 2, (uint16_t)((frame->ip[-2] << 8) | frame->ip[-1]))
@@ -964,6 +1005,28 @@ static InterpretResult run()
 
   for (;;)
   {
+    if (!nextThread())
+    {
+      return INTERPRET_OK;
+    }
+
+    if(vm.ctf->endTime > 0)
+    {
+      uint64_t t = cube_clock();
+      if(t > vm.ctf->endTime)
+      {
+        pop();
+        push(NUMBER_VAL( (t - vm.ctf->startTime) * 1e-6 ));
+        vm.ctf->startTime = vm.ctf->endTime = 0;
+      }
+      else
+      {
+        continue;
+      }
+    }
+
+    CallFrame *frame = &vm.ctf->frames[vm.ctf->frameCount - 1];
+
 #ifdef DEBUG_TRACE_EXECUTION
     printf("          ");
     for (Value *slot = vm.stack; slot < vm.stackTop; slot++)
@@ -1144,7 +1207,7 @@ static InterpretResult run()
       break;
     }
 
-    OP_GET_PROPERTY_NO_POP:
+    case OP_GET_PROPERTY_NO_POP:
     {
       if (!IS_INSTANCE(peek(0)) && !IS_CLASS(peek(0)))
       {
@@ -1283,7 +1346,7 @@ static InterpretResult run()
       {
         if (instanceOperation("+"))
         {
-          frame = &vm.frames[vm.frameCount - 1];
+          frame = &vm.ctf->frames[vm.ctf->frameCount - 1];
         }
         else
         {
@@ -1297,7 +1360,7 @@ static InterpretResult run()
     case OP_SUBTRACT:
       if (instanceOperation("-"))
       {
-        frame = &vm.frames[vm.frameCount - 1];
+        frame = &vm.ctf->frames[vm.ctf->frameCount - 1];
       }
       else
       {
@@ -1329,7 +1392,7 @@ static InterpretResult run()
     case OP_MULTIPLY:
       if (instanceOperation("*"))
       {
-        frame = &vm.frames[vm.frameCount - 1];
+        frame = &vm.ctf->frames[vm.ctf->frameCount - 1];
       }
       else
       {
@@ -1339,7 +1402,7 @@ static InterpretResult run()
     case OP_DIVIDE:
       if (instanceOperation("/"))
       {
-        frame = &vm.frames[vm.frameCount - 1];
+        frame = &vm.ctf->frames[vm.ctf->frameCount - 1];
       }
       else
       {
@@ -1351,7 +1414,7 @@ static InterpretResult run()
     {
       if (instanceOperation("%"))
       {
-        frame = &vm.frames[vm.frameCount - 1];
+        frame = &vm.ctf->frames[vm.ctf->frameCount - 1];
       }
       else
       {
@@ -1367,7 +1430,7 @@ static InterpretResult run()
     {
       if (instanceOperation("^"))
       {
-        frame = &vm.frames[vm.frameCount - 1];
+        frame = &vm.ctf->frames[vm.ctf->frameCount - 1];
       }
       else
       {
@@ -1515,15 +1578,15 @@ static InterpretResult run()
         runtimeError("Could not loaded the file \"%s\".", fileName->chars);
         return INTERPRET_RUNTIME_ERROR;
       }
-      vm.currentScriptName = fileName->chars;
+      vm.ctf->currentScriptName = fileName->chars;
 
       char *name = NULL;
 
-      if(as != NULL)
+      if (as != NULL)
       {
-        if(strcmp(as->chars, "default") != 0)
+        if (strcmp(as->chars, "default") != 0)
         {
-          name = (char*)malloc(sizeof(char) * (as->length + 1));
+          name = (char *)malloc(sizeof(char) * (as->length + 1));
           strcpy(name, as->chars);
         }
       }
@@ -1546,12 +1609,12 @@ static InterpretResult run()
       ObjClosure *closure = newClosure(function);
       pop();
 
-      vm.currentFrameCount = vm.frameCount;
+      vm.ctf->currentFrameCount = vm.ctf->frameCount;
 
-      frame = &vm.frames[vm.frameCount++];
+      frame = &vm.ctf->frames[vm.ctf->frameCount++];
       frame->ip = closure->function->chunk.code;
       frame->closure = closure;
-      frame->slots = vm.stackTop - 1;
+      frame->slots = vm.ctf->stackTop - 1;
       free(s);
       free(name);
       break;
@@ -1652,7 +1715,7 @@ static InterpretResult run()
         return INTERPRET_RUNTIME_ERROR;
       }
 
-      if (vm.eval && IS_FUNCTION(peek(0)))
+      if (vm.ctf->eval && IS_FUNCTION(peek(0)))
       {
         argCount = 0;
 
@@ -1666,8 +1729,8 @@ static InterpretResult run()
           return INTERPRET_RUNTIME_ERROR;
         }
       }
-      frame = &vm.frames[vm.frameCount - 1];
-      vm.eval = false;
+      frame = &vm.ctf->frames[vm.ctf->frameCount - 1];
+      vm.ctf->eval = false;
       break;
     }
 
@@ -1679,7 +1742,7 @@ static InterpretResult run()
       {
         return INTERPRET_RUNTIME_ERROR;
       }
-      frame = &vm.frames[vm.frameCount - 1];
+      frame = &vm.ctf->frames[vm.ctf->frameCount - 1];
       break;
     }
 
@@ -1692,7 +1755,7 @@ static InterpretResult run()
       {
         return INTERPRET_RUNTIME_ERROR;
       }
-      frame = &vm.frames[vm.frameCount - 1];
+      frame = &vm.ctf->frames[vm.ctf->frameCount - 1];
       break;
     }
 
@@ -1718,7 +1781,7 @@ static InterpretResult run()
     }
 
     case OP_CLOSE_UPVALUE:
-      closeUpvalues(vm.stackTop - 1);
+      closeUpvalues(vm.ctf->stackTop - 1);
       pop();
       break;
 
@@ -1727,16 +1790,21 @@ static InterpretResult run()
       Value result = pop();
 
       closeUpvalues(frame->slots);
-      vm.frameCount--;
+      vm.ctf->frameCount--;
 
-      if (vm.frameCount == vm.currentFrameCount)
+      if (vm.ctf->frameCount == vm.ctf->currentFrameCount)
       {
-        vm.currentScriptName = vm.scriptName;
-        vm.currentFrameCount = -1;
+        vm.ctf->currentScriptName = vm.scriptName;
+        vm.ctf->currentFrameCount = -1;
       }
 
-      if (vm.frameCount == 0)
-        return INTERPRET_OK;
+      if (vm.ctf->frameCount == 0)
+      {
+        vm.ctf->result = result;
+        vm.ctf->finished = true;
+        //return INTERPRET_OK;
+        break;
+      }
 
       /*
       if (vm.frameCount == 0)
@@ -1746,10 +1814,10 @@ static InterpretResult run()
       }
       */
 
-      vm.stackTop = frame->slots;
+      vm.ctf->stackTop = frame->slots;
       push(result);
 
-      frame = &vm.frames[vm.frameCount - 1];
+      frame = &vm.ctf->frames[vm.ctf->frameCount - 1];
       break;
     }
 
@@ -1851,6 +1919,61 @@ static InterpretResult run()
       lib->name = AS_STRING(pop());
 
       push(OBJ_VAL(lib));
+      break;
+    }
+    case OP_ASYNC:
+    {
+      ObjClosure *closure = AS_CLOSURE(pop());
+
+      ObjString *name = AS_STRING(pop());
+      ThreadFrame *tf = createThreadFrame(name->chars);
+
+      // Push the context
+      *tf->stackTop = OBJ_VAL(closure);
+      tf->stackTop++;
+
+      // Add the context to the frames stack
+      CallFrame *frame = &tf->frames[tf->frameCount++];
+      frame->closure = closure;
+      frame->ip = closure->function->chunk.code;
+
+      frame->slots = tf->stackTop - 1;
+
+      ObjList *args = initList();
+      tableSet(&vm.globals, vm.argsString, OBJ_VAL(args));
+
+      break;
+    }
+
+    case OP_AWAIT:
+    {
+      ObjString *name = AS_STRING(pop());
+      ThreadFrame *tf = findThreadFrame(name->chars);
+      if(tf == NULL)
+      {
+        push(NONE_VAL);
+      }
+      else
+      {
+        if(tf->finished)
+        {
+          push(tf->result);
+        }
+        else
+        {
+          push(OBJ_VAL(name));
+          frame->ip--;
+        }
+        
+      }
+      
+      break;
+    }
+
+    case OP_ABORT:
+    {
+      ObjString *name = AS_STRING(pop());
+      destroyThreadFrame(name->chars);
       break;
     }
     }

@@ -163,8 +163,6 @@ void freeObjects()
     freeObject(object);
     object = next;
   }
-
-  free(vm.grayStack);
 }
 
 void freeList(Obj *object)

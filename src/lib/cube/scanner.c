@@ -176,10 +176,27 @@ static TokenType identifierType()
     {
       switch (scanner.start[1])
       {
+      case 'b':
+        return checkKeyword(2, 3, "ort", TOKEN_ABORT);
       case 's':
-        return checkKeyword(2, 0, "", TOKEN_AS);
+      {
+        if (scanner.current - scanner.start > 2)
+        {
+          switch (scanner.start[2])
+          {
+          case 'y':
+            return checkKeyword(3, 2, "nc", TOKEN_ASYNC);
+          }
+        }
+        else
+        {
+          return checkKeyword(2, 0, "", TOKEN_AS);
+        }
+      }
       case 'n':
         return checkKeyword(2, 1, "d", TOKEN_AND);
+      case 'w':
+        return checkKeyword(2, 3, "ait", TOKEN_AWAIT);
       }
     }
     break;

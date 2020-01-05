@@ -61,6 +61,9 @@ typedef enum
   OP_METHOD,
   OP_PROPERTY,
   OP_FILE,
+  OP_ASYNC,
+  OP_AWAIT,
+  OP_ABORT,
   OP_NATIVE_FUNC,
   OP_NATIVE
 } OpCode;

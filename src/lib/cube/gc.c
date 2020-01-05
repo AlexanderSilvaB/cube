@@ -82,24 +82,34 @@ void sweep()
     }
 }
 
-void mark_roots()
+void mark_thread_frame(ThreadFrame *tf)
 {
     // Mark stack
-    for(Value *v = vm.stack; v < vm.stackTop; v++)
+    for(Value *v = tf->stack; v < tf->stackTop; v++)
     {
         mark_value(*v);
     }
 
     // Mark frames
-    for (int i = 0; i < vm.frameCount; i++)
+    for (int i = 0; i < tf->frameCount; i++)
     {
-        mark_object((Obj *)vm.frames[i].closure);
+        mark_object((Obj *)tf->frames[i].closure);
     }
 
     // Mark open upvalues
-    for (ObjUpvalue *upvalue = vm.openUpvalues; upvalue != NULL; upvalue = upvalue->next)
+    for (ObjUpvalue *upvalue = tf->openUpvalues; upvalue != NULL; upvalue = upvalue->next)
     {
         mark_object((Obj *)upvalue);
+    }
+}
+
+void mark_roots()
+{
+    ThreadFrame *tf = vm.threadFrame;
+    while(tf != NULL)
+    {
+        mark_thread_frame(tf);
+        tf = tf->next;
     }
 
     markTable(&vm.globals);

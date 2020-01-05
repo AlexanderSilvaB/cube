@@ -197,6 +197,12 @@ int disassembleInstruction(Chunk *chunk, int offset)
     return constantInstruction("OP_PROPERTY", chunk, offset);
   case OP_FILE:
     return simpleInstruction("OP_FILE", offset);
+  case OP_ASYNC:
+    return simpleInstruction("OP_ASYNC", offset);
+  case OP_AWAIT:
+    return simpleInstruction("OP_AWAIT", offset);
+  case OP_ABORT:
+    return simpleInstruction("OP_ABORT", offset);
   case OP_NATIVE_FUNC:
     return simpleInstruction("OP_NATIVE_FUNC", offset);
   case OP_NATIVE:

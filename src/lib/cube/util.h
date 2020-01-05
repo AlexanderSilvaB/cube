@@ -2,6 +2,7 @@
 #define CUBE_util_h
 
 #include <stdbool.h>
+#include <stdint.h>
 
 char *readFile(const char *path, bool verbose);
 char *getFolder(const char* path);
@@ -12,5 +13,6 @@ bool existsFile(const char *name);
 bool isValidType(const char* name);
 char *getFileName(char *path);
 char *getFileDisplayName(char *path);
+uint64_t cube_clock();
 
 #endif

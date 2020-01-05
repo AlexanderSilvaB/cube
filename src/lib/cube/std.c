@@ -32,10 +32,7 @@
 
 Value clockNative(int argCount, Value *args)
 {
-    struct timespec t;
-    clock_gettime(CLOCK_MONOTONIC, &t);
-
-    return NUMBER_VAL( (double)t.tv_sec +  ((double)t.tv_nsec * 1e-9) );
+    return NUMBER_VAL( ( cube_clock() * 1e-9 ) );
 }
 
 Value timeNative(int argCount, Value *args)
@@ -120,7 +117,9 @@ Value waitNative(int argCount, Value *args)
     else
         wait = toNumber(args[0]);
 
-    usleep(1000 * AS_NUMBER(wait));
+    uint64_t current = cube_clock();
+    vm.ctf->startTime = current;
+    vm.ctf->endTime = current + ( AS_NUMBER(wait) * 1e6 );
     return wait;
 }
 
@@ -894,7 +893,7 @@ Value evalNative(int argCount, Value *args)
         return NONE_VAL;
     }
 
-    vm.eval = true;
+    vm.ctf->eval = true;
     return OBJ_VAL(function);
 }
 

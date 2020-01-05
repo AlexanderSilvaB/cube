@@ -1,0 +1,14 @@
+func A()
+{
+    for(var i = 200; i < 300; ++i)
+    {
+        println(i);
+    }
+}
+
+async A();
+
+for(var i = 0; i < 100; ++i)
+{
+    println(i);
+}

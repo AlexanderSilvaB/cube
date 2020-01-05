@@ -621,6 +621,23 @@ static void call(bool canAssign)
   emitBytes(OP_CALL, argCount);
 }
 
+static void emitPreviousAsString()
+{
+  int len = parser.previous.length + 1;
+  char *str = malloc(sizeof(char) * len);
+  strncpy(str, parser.previous.start, parser.previous.length);
+  str[parser.previous.length] = '\0';
+  emitConstant(OBJ_VAL(copyString(str, strlen(str))));
+  free(str);
+}
+
+static void await(bool canAssign)
+{
+  consume(TOKEN_IDENTIFIER, "Expect a function call in await.");
+  emitPreviousAsString();
+  emitByte(OP_AWAIT);
+}
+
 static void dot(bool canAssign)
 {
   consume(TOKEN_IDENTIFIER, "Expect property name after '.'.");
@@ -1320,6 +1337,9 @@ ParseRule rules[] = {
     {NULL, NULL, PREC_NONE},         // TOKEN_NATIVE
     {let, NULL, PREC_NONE},          // TOKEN_LET
     {NULL, NULL, PREC_NONE},         // TOKEN_WITH
+    {NULL, NULL, PREC_NONE},         // TOKEN_ASYNC
+    {await, NULL, PREC_NONE},         // TOKEN_AWAIT
+    {NULL, NULL, PREC_NONE},         // TOKEN_ABORT
     {NULL, NULL, PREC_NONE},         // TOKEN_ERROR
     {NULL, NULL, PREC_NONE},         // TOKEN_EOF
 };
@@ -1912,12 +1932,7 @@ static void importStatement()
   {
     if (match(TOKEN_IDENTIFIER) || match(TOKEN_DEFAULT))
     {
-      int len = parser.previous.length + 1;
-      char *str = malloc(sizeof(char) * len);
-      strncpy(str, parser.previous.start, parser.previous.length);
-      str[parser.previous.length] = '\0';
-      emitConstant(OBJ_VAL(copyString(str, strlen(str))));
-      free(str);
+      emitPreviousAsString();
     }
     else
     {
@@ -1932,6 +1947,52 @@ static void importStatement()
   consume(TOKEN_SEMICOLON, "Expect ';' after import.");
 
   emitByte(OP_IMPORT);
+}
+
+static void asyncStatement()
+{
+  consume(TOKEN_IDENTIFIER, "Expect a function call in async.");
+  emitPreviousAsString();
+
+  Compiler compiler;
+  initCompiler(&compiler, TYPE_FUNCTION);
+  beginScope(); // [no-end-scope]
+
+  // Create args
+  Token argsToken = syntheticToken("args");
+  uint8_t args = identifierConstant(&argsToken);
+  getVariable(syntheticToken("__args"));
+  defineVariable(args);
+
+  namedVariable(parser.previous, false);
+
+  consume(TOKEN_LEFT_PAREN, "Expect a function function call in async.");
+  uint8_t argCount = argumentList();
+  emitBytes(OP_CALL, argCount);
+
+  consume(TOKEN_SEMICOLON, "Expect ';' after async.");
+
+  emitByte(OP_RETURN);
+
+  // Create the function object.
+  ObjFunction *function = endCompiler();
+  emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
+
+  emitByte(OP_ASYNC);
+
+  for (int i = 0; i < function->upvalueCount; i++)
+  {
+    emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
+    emitByte(compiler.upvalues[i].index);
+  }
+}
+
+static void abortStatement()
+{
+  consume(TOKEN_IDENTIFIER, "Expect a function call in abort.");
+  emitPreviousAsString();
+  consume(TOKEN_SEMICOLON, "Expect ';' after abort.");
+  emitByte(OP_ABORT);
 }
 
 static void whileStatement()
@@ -2132,6 +2193,8 @@ static void synchronize()
     case TOKEN_IMPORT:
     case TOKEN_BREAK:
     case TOKEN_WITH:
+    case TOKEN_ASYNC:
+    case TOKEN_ABORT:
       return;
 
     default:
@@ -2191,6 +2254,14 @@ static void statement()
   else if (match(TOKEN_IMPORT))
   {
     importStatement();
+  }
+  else if (match(TOKEN_ASYNC))
+  {
+    asyncStatement();
+  }
+  else if (match(TOKEN_ABORT))
+  {
+    abortStatement();
   }
   else if (match(TOKEN_BREAK))
   {

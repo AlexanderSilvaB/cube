@@ -28,11 +28,17 @@ typedef struct ThreadFrame_t
   int currentFrameCount;
   bool eval;
   struct ThreadFrame_t *next;
-  const char* name;
+  char* name;
+  const char *currentScriptName;
+  Value result;
+  bool finished;
+  uint64_t endTime;
+  uint64_t startTime;
 }ThreadFrame;
 
 typedef struct
 {
+  /*
   CallFrame frames[FRAMES_MAX];
   int frameCount;
   Value stack[STACK_MAX];
@@ -40,6 +46,7 @@ typedef struct
   ObjUpvalue *openUpvalues;
   int currentFrameCount;
   bool eval;
+  */
 
   ThreadFrame *threadFrame;
   ThreadFrame *ctf;
@@ -53,7 +60,6 @@ typedef struct
   const char *extension;
   const char *nativeExtension;
   const char *scriptName;
-  const char *currentScriptName;
 
   bool gc;
 
@@ -62,9 +68,6 @@ typedef struct
 
   Obj *objects;
   Obj *listObjects;
-  int grayCount;
-  int grayCapacity;
-  Obj **grayStack;
 
   bool newLine;
 } VM;

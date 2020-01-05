@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include "util.h"
 #include "memory.h"
 #include "vm.h"
@@ -180,4 +181,13 @@ char *getFileDisplayName(char *path)
 	memcpy(name, fileName, end);
 	name[end] = '\0';
 	return name;
+}
+
+uint64_t cube_clock()
+{
+	struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+	
+	uint32_t ret = t.tv_sec * 1e9 + t.tv_nsec;
+	return ret;
 }
