@@ -1,6 +1,6 @@
 import net;
 
-var client = HTTPClient("127.0.0.1", 8080);
+var client = net.HTTPClient("127.0.0.1", 8080);
 client.connect();
 
 client.get('README.md');

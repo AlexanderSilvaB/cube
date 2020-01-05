@@ -1,4 +1,4 @@
-import ui;
+import ui as default;
 
 UI.start();
 

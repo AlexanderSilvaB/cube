@@ -226,7 +226,7 @@ class HTTPServer
         if(isempty(page))
             return mime;
 
-        var ext = extension(page);
+        var ext = files.extension(page);
         if(ext == "aac")
             mime = "audio/aac";
         else if(ext == "avi")

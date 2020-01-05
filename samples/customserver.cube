@@ -32,7 +32,7 @@ func get(server, client, request, data)
     return response;
 }
 
-var server = HTTPServer(8080);
+var server = net.HTTPServer(8080);
 server.get(get);
 
 println("Running server at http://localhost:{}".format(server.port));
