@@ -9,12 +9,46 @@
 #include "debug.h"
 #include "vm.h"
 
+
+extern Value nativeToValue(cube_native_var *var, NativeTypes *nt);
+extern void valueToNative(cube_native_var *var, Value value);
+
 void start(const char* path, const char* scriptName)
 {
     //signal(SIGQUIT, handle_sigint);
 
-    char *folder = getFolder(path);
+    char *folder = NULL;
+    char cCurrentPath[FILENAME_MAX];
+    bool findInPath = true;
+    if (GetCurrentDir(cCurrentPath, sizeof(cCurrentPath)))
+    {
+        cCurrentPath[sizeof(cCurrentPath) - 1] = '\0';
+        folder = cCurrentPath;
+    }
+    else
+    {
+        folder = getFolder(path);
+        findInPath = false;
+    }
+
     initVM(folder, scriptName);
+    if(findInPath)
+    {
+        folder = getFolder(path);
+        if(folder != NULL)
+            addPath(folder);
+    }
+
+    addPath("libs/");
+    addPath("stdlib/");
+
+    #ifdef WINDOWS
+    addPath("C:/cube/libs/");
+    addPath("C:/cube/stdlib/");
+    #else
+    addPath("/usr/local/share/cube/libs/");
+    addPath("/usr/local/share/cube/stdlib/");
+    #endif
 }
 
 void stop()
@@ -102,8 +136,10 @@ int repl()
             printf("\n");
             vm.newLine = false;
         }
+        if(!vm.running)
+            break;
     }
-    return 0;
+    return vm.exitCode;
 }
 
 int runFile(const char *path, bool execute)
@@ -125,5 +161,28 @@ int runFile(const char *path, bool execute)
         return 65;
     if (result == INTERPRET_RUNTIME_ERROR)
         return 70;
-    return 0;
+    return vm.exitCode;
+}
+
+bool addGlobal(const char *name, cube_native_var *var)
+{
+    if(!vm.ready)
+        return false;
+    NativeTypes nt;
+    Value val = nativeToValue(var, &nt);
+    tableSet(&vm.globals, AS_STRING(STRING_VAL(name)), val);
+    return true;
+}
+
+cube_native_var *getGlobal(const char *name)
+{
+    if(!vm.ready)
+        return NULL;
+    cube_native_var *var = NATIVE_NONE();
+    Value val;
+    if(tableGet(&vm.globals, AS_STRING(STRING_VAL(name)), &val))
+    {
+        valueToNative(var, val);
+    }
+    return var;
 }

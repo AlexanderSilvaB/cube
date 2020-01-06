@@ -20,6 +20,7 @@ CTestTestfile.cmake
 ### build ###
 build/
 build*/
+libs/
 
 ### Compiled cube files
 *.cubec

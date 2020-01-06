@@ -4,6 +4,20 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#ifdef WINDOWS
+#include <direct.h>
+#define GetCurrentDir _getcwd
+#define MakeDir(path, mode) _mkdir(path)
+#define RmDir _rmdir
+#else
+#include <unistd.h>
+#include <sys/stat.h>
+#include <dirent.h>
+#define GetCurrentDir getcwd
+#define MakeDir(path, mode) mkdir(path, mode)
+#define RmDir rmdir
+#endif
+
 char *readFile(const char *path, bool verbose);
 char *getFolder(const char* path);
 int countBytes(const void* raw, int maxSize);

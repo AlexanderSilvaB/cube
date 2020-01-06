@@ -49,6 +49,8 @@ char *getFolder(const char *path)
 	char *lastSlash = NULL;
 	char *parent = NULL;
 	lastSlash = strrchr(path, c); // you need escape character
+	if(lastSlash == NULL)
+		return NULL;
 	int len = strlen(path) - strlen(lastSlash) + 3;
 	parent = malloc(sizeof(char) * len);
 	strncpy(parent, path, len - 2);

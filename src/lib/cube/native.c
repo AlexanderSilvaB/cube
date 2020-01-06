@@ -204,6 +204,11 @@ void freeNativeVar(cube_native_var *var, bool skipFirst, bool skipInterns)
         free(var);
 }
 
+void freeVarNative(cube_native_var *var)
+{
+    freeNativeVar(var, false, false);
+}
+
 Value callNativeFn(lib_func func, NativeTypes ret, int count, cube_native_var **values)
 {
     Value result = NONE_VAL;

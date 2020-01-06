@@ -171,7 +171,10 @@ static void defineNative(const char *name, NativeFn function)
 
 void initVM(const char *path, const char *scriptName)
 {
+  vm.ready = false;
+  vm.exitCode = 0;
   vm.taskFrame = NULL;
+  vm.running = true;
   createTaskFrame("");
 
   vm.ctf = vm.taskFrame;
@@ -221,10 +224,13 @@ void initVM(const char *path, const char *scriptName)
 #ifndef GC_DISABLED
   vm.gc = true;
 #endif
+  vm.ready = true;
 }
 
 void freeVM()
 {
+  vm.ready = false;
+  vm.running = false;
   freeTable(&vm.globals);
   freeTable(&vm.strings);
   vm.initString = NULL;
@@ -1130,6 +1136,10 @@ static InterpretResult run()
 
   for (;;)
   {
+    if(!vm.running)
+    {
+      return INTERPRET_OK;
+    }
     if (!nextTask())
     {
       return INTERPRET_OK;

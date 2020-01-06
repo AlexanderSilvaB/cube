@@ -6,20 +6,6 @@
 #include <math.h>
 #include <ctype.h>
 
-#ifdef WINDOWS
-#include <direct.h>
-#define GetCurrentDir _getcwd
-#define MakeDir(path, mode) _mkdir(path)
-#define RmDir _rmdir
-#else
-#include <unistd.h>
-#include <sys/stat.h>
-#include <dirent.h>
-#define GetCurrentDir getcwd
-#define MakeDir(path, mode) mkdir(path, mode)
-#define RmDir rmdir
-#endif
-
 #include "std.h"
 #include "object.h"
 #include "vm.h"
@@ -49,8 +35,10 @@ Value exitNative(int argCount, Value *args)
     if (argCount > 0)
     {
         code = (int)AS_NUMBER(args[0]);
-    }
-    exit(code);
+    }   
+    vm.exitCode = code;
+    vm.running = false;
+    //exit(code);
     return NONE_VAL;
 }
 

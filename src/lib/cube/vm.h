@@ -73,6 +73,9 @@ typedef struct
   Obj *objects;
 
   bool newLine;
+  bool ready;
+  int exitCode;
+  bool running;
 } VM;
 
 typedef enum

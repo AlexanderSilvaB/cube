@@ -1,1 +1,16 @@
-{"name": "cube", "language": "c", "tool": "cmake-tools v0.1", "descr": "A dynamic typing programming language", "version": "0.1", "deps": [], "exes": ["main"], "libs": ["cube", "stdlib", "calc"]}
+{
+    "name": "cube",
+    "language": "c",
+    "tool": "cmake-tools v0.1",
+    "descr": "A dynamic typing programming language",
+    "version": "0.1",
+    "deps": [],
+    "exes": [
+        ["main", "cube"]
+    ],
+    "libs": [
+        "cube",
+        "stdlib",
+        "calc"
+    ]
+}
