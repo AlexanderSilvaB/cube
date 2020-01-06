@@ -76,6 +76,8 @@ typedef struct
   bool ready;
   int exitCode;
   bool running;
+  Value repl;
+  bool print;
 } VM;
 
 typedef enum

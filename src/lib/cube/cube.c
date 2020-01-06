@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 
 #include "cube.h"
 #include "util.h"
@@ -15,7 +16,6 @@ extern void valueToNative(cube_native_var *var, Value value);
 
 void start(const char* path, const char* scriptName)
 {
-    //signal(SIGQUIT, handle_sigint);
 
     char *folder = NULL;
     char cCurrentPath[FILENAME_MAX];
@@ -43,9 +43,9 @@ void start(const char* path, const char* scriptName)
     addPath("stdlib/");
 
     #ifdef WINDOWS
-    addPath("C:/cube/");
-    addPath("C:/cube/libs/");
-    addPath("C:/cube/stdlib/");
+    addPath("C:/cube/share/");
+    addPath("C:/cube/share/libs/");
+    addPath("C:/cube/share/stdlib/");
     #else
     addPath("/usr/local/share/cube/");
     addPath("/usr/local/share/cube/libs/");
@@ -124,6 +124,7 @@ char *readLine(const char* str)
 
 int repl()
 {
+    printf("%s %d.%d\n", LANG_NAME, VERSION_MAJOR, VERSION_MINIR);
     char line[1024];
     for (;;)
     {
@@ -133,13 +134,23 @@ int repl()
             printf("\n");
             break;
         }
-        
+
+        if(strlen(line) == 0 || line[0] == '\n')
+            continue;
+
         interpret(line);
         if(vm.newLine)
         {
             printf("\n");
             vm.newLine = false;
         }
+        if(vm.print == false || !IS_NONE(vm.repl))
+        {
+            printValue(vm.repl);
+            printf("\n");
+        }
+        vm.repl = NONE_VAL;
+        vm.print = false;
         if(!vm.running)
             break;
     }

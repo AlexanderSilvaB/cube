@@ -5,6 +5,10 @@
 #ifndef _CUBE_CUBE_H_
 #define _CUBE_CUBE_H_
 
+#define LANG_NAME "Cube"
+#define VERSION_MAJOR 0
+#define VERSION_MINIR 1
+
 #include <stdbool.h>
 #include "cubeext.h"
 

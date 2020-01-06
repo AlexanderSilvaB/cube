@@ -19,5 +19,10 @@ set(SRC cube.c
         native.c
         gc.c)
 
+set(INCLUDES
+    ${CMAKE_CURRENT_SOURCE_DIR}/cube.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/cubeext.h)
+
 add_library(cube ${SRC})
 target_link_libraries(cube m dl)
+set_target_properties(cube PROPERTIES PUBLIC_HEADER "${INCLUDES}")

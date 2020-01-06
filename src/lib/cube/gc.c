@@ -119,6 +119,7 @@ void mark_roots()
     markCompilerRoots();
     mark_object((Obj *)vm.initString);
     mark_object((Obj *)vm.paths);
+    mark_value(vm.repl);
 }
 
 

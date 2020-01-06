@@ -15,6 +15,7 @@
 #include "compiler.h"
 #include "strings.h"
 #include "gc.h"
+#include "system.h"
 
 Value clockNative(int argCount, Value *args)
 {
@@ -52,6 +53,7 @@ Value printNative(int argCount, Value *args)
         else
             printValue(value);
     }
+    vm.print = true;
     vm.newLine = true;
     return NONE_VAL;
 }
@@ -754,6 +756,7 @@ Value envNative(int argCount, Value *args)
         printf("\n");
     }
 
+    vm.print = true;
     vm.newLine = false;
     return NONE_VAL;
 }
@@ -970,6 +973,32 @@ Value autoGCNative(int argCount, Value *args)
     return BOOL_VAL(vm.autoGC);
 }
 
+Value getSystemInfoNative(int argCount, Value *args)
+{
+    ObjDict *dict = initDict();
+
+    Value os = STRING_VAL(PLATFORM_NAME);
+    insertDict(dict, "os", os);
+
+    return OBJ_VAL(dict);
+}
+
+Value printStackNative(int argCount, Value *args)
+{
+    printf("Task(%s)\n", vm.ctf->name);
+    for (Value *slot = vm.ctf->stack; slot < vm.ctf->stackTop - 1; slot++)
+    {
+      printf("[ ");
+      printValue(*slot);
+      printf(" ]");
+    }
+
+    vm.newLine = true;
+    vm.print = true;
+    return NONE_VAL;
+}
+
+
 // Register
 linked_list *stdFnList;
 #define ADD_STD(name, fn) linked_list_add(stdFnList, createStdFn(name, fn))
@@ -1036,7 +1065,9 @@ void initStd()
     ADD_STD("eval", evalNative);
     ADD_STD("mem", memNative);
     ADD_STD("gc", gcNative);
-    ADD_STD("autoGC", autoGCNative);
+    ADD_STD("enableAutoGC", autoGCNative);
+    ADD_STD("getSystemInfo", getSystemInfoNative);
+    ADD_STD("printStack", printStackNative);
 }
 
 void destroyStd()

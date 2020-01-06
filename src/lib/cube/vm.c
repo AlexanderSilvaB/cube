@@ -175,7 +175,9 @@ void initVM(const char *path, const char *scriptName)
   vm.exitCode = 0;
   vm.taskFrame = NULL;
   vm.running = true;
-  createTaskFrame("");
+  vm.repl = NONE_VAL;
+  vm.print = false;
+  createTaskFrame("default");
 
   vm.ctf = vm.taskFrame;
   vm.frame = NULL;
@@ -1234,6 +1236,10 @@ static InterpretResult run()
     case OP_POP:
       pop();
       break;
+    
+    case OP_REPL_POP:
+      vm.repl = pop();
+      break;
 
     case OP_GET_LOCAL:
     {
@@ -1290,6 +1296,7 @@ static InterpretResult run()
         table = &frame->package->symbols;
 
       tableSet(table, name, peek(0));
+      vm.repl = peek(0);
       pop();
       break;
     }
@@ -1897,6 +1904,9 @@ static InterpretResult run()
       frame->nextPackage = NULL;
       free(s);
       free(name);
+
+      vm.repl = OBJ_VAL(package);
+
       break;
     }
 
@@ -2131,6 +2141,7 @@ static InterpretResult run()
     {
       ObjClass *klass = newClass(READ_STRING());
       klass->package = frame->package;
+      vm.repl = OBJ_VAL(klass);
       push(OBJ_VAL(klass));
     }
       break;
@@ -2360,7 +2371,9 @@ InterpretResult interpret(const char *source)
     callValue(OBJ_VAL(closure), 0);
 
   vm.taskFrame->finished = false;
-  return run();
+  InterpretResult ret = run();
+  pop();
+  return ret;
 }
 
 InterpretResult compileCode(const char *source, const char *path)
