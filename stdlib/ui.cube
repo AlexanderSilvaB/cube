@@ -1,4 +1,4 @@
-native stdlib/libs/libui
+native libs/libui
 {
     void ui_start();
     void ui_stop();

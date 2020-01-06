@@ -1,9 +1,16 @@
 import ui as default;
 
+var uiFile = find("samples/ui/calculator.ui");
+if(uiFile is none)
+{
+    println("UI file not found!");
+    exit(-1);
+}
+
 UI.start();
 
 var calculator = Window("Calculator", 190, 250);
-calculator.load("samples/ui/calculator.ui");
+calculator.load(uiFile);
 
 calculator.on("QPushButton", "MouseButtonPress", @(window, target, props)
 {

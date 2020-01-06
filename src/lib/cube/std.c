@@ -860,6 +860,21 @@ Value existsNative(int argCount, Value *args)
     return BOOL_VAL(existsFile(str));
 }
 
+Value findNative(int argCount, Value *args)
+{
+    if (argCount == 0)
+        return NONE_VAL;
+    if (!IS_STRING(args[0]))
+        return NONE_VAL;
+    char *str = AS_CSTRING(args[0]);
+    char *found = findFile(str);
+    if(found == NULL)
+        return NONE_VAL;
+    Value ret = STRING_VAL(found);
+    free(found);
+    return ret;
+}
+
 Value copyNative(int argCount, Value *args)
 {
     if (argCount == 0)
@@ -1015,6 +1030,7 @@ void initStd()
     ADD_STD("pwd", pwdNative);
     ADD_STD("ls", lsNative);
     ADD_STD("exists", existsNative);
+    ADD_STD("find", findNative);
     ADD_STD("make", makeNative);
     ADD_STD("copy", copyNative);
     ADD_STD("eval", evalNative);

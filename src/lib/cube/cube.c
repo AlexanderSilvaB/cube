@@ -43,9 +43,11 @@ void start(const char* path, const char* scriptName)
     addPath("stdlib/");
 
     #ifdef WINDOWS
+    addPath("C:/cube/");
     addPath("C:/cube/libs/");
     addPath("C:/cube/stdlib/");
     #else
+    addPath("/usr/local/share/cube/");
     addPath("/usr/local/share/cube/libs/");
     addPath("/usr/local/share/cube/stdlib/");
     #endif
@@ -90,6 +92,8 @@ int runCube(int argc, const char *argv[])
     else
     {
         rc = runFile(fileName, execute);
+        if(vm.newLine)
+            printf("\n");
     }
 
     return rc;
