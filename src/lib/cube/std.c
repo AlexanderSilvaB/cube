@@ -55,6 +55,7 @@ Value printNative(int argCount, Value *args)
     }
     vm.print = true;
     vm.newLine = true;
+    vm.repl = NONE_VAL;
     return NONE_VAL;
 }
 
@@ -361,7 +362,7 @@ Value listNative(int argCount, Value *args)
                     }
 
                     len = strlen(item->key);
-                    char *key = malloc(sizeof(char) * len);
+                    char *key = malloc(sizeof(char) * (len+1));
                     strcpy(key, item->key);
                     writeValueArray(&list->values, STRING_VAL(key));
                     free(key);
@@ -758,6 +759,7 @@ Value envNative(int argCount, Value *args)
 
     vm.print = true;
     vm.newLine = false;
+    vm.repl = NONE_VAL;
     return NONE_VAL;
 }
 
@@ -995,7 +997,50 @@ Value printStackNative(int argCount, Value *args)
 
     vm.newLine = true;
     vm.print = true;
+    vm.repl = NONE_VAL;
     return NONE_VAL;
+}
+
+Value isdigitNative(int argCount, Value *args)
+{
+    if (argCount != 1)
+        return FALSE_VAL;
+    if (!IS_STRING(args[0]))
+        return FALSE_VAL;
+    ObjString *str = AS_STRING(args[0]);
+    if(str->length != 1)
+        return FALSE_VAL;
+
+    char c = str->chars[0];
+    return BOOL_VAL(isdigit(c));
+}
+
+Value ischarNative(int argCount, Value *args)
+{
+    if (argCount != 1)
+        return FALSE_VAL;
+    if (!IS_STRING(args[0]))
+        return FALSE_VAL;
+    ObjString *str = AS_STRING(args[0]);
+    if(str->length != 1)
+        return FALSE_VAL;
+
+    char c = str->chars[0];
+    return BOOL_VAL( ( (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '_' ) );
+}
+
+Value isspaceNative(int argCount, Value *args)
+{
+    if (argCount != 1)
+        return FALSE_VAL;
+    if (!IS_STRING(args[0]))
+        return FALSE_VAL;
+    ObjString *str = AS_STRING(args[0]);
+    if(str->length != 1)
+        return FALSE_VAL;
+
+    char c = str->chars[0];
+    return BOOL_VAL( ( c == ' ' || c == '\n' || c == '\r' || c == '\t' ) );
 }
 
 
@@ -1068,6 +1113,9 @@ void initStd()
     ADD_STD("enableAutoGC", autoGCNative);
     ADD_STD("getSystemInfo", getSystemInfoNative);
     ADD_STD("printStack", printStackNative);
+    ADD_STD("isdigit", isdigitNative);
+    ADD_STD("isspace", isspaceNative);
+    ADD_STD("ischar", ischarNative);
 }
 
 void destroyStd()

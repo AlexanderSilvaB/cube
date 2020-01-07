@@ -1,0 +1,82 @@
+native libs/libjson
+{
+    dict json_native_read(str);
+    bool json_native_write(str, dict);
+}
+
+func read(fileName)
+{
+    return json_native_read(fileName);
+}
+
+func write(fileName, data)
+{
+    return json_native_write(fileName, data);
+}
+
+class JSON
+{
+    var fileName = none;
+    var data = {};
+    func init(fileName)
+    {
+        this.fileName = fileName;
+        this.load();
+    }
+
+    func load()
+    {
+        this.data = read(this.fileName);
+        if(this.data is none)
+        {
+            this.data = {};
+            return false;
+        }
+        return true;
+    }
+
+    func clear()
+    {
+        this.data = {};
+    }
+
+    func save()
+    {
+        return write(this.fileName, this.data);
+    }
+
+    func set(key, value)
+    {
+        this.data[key] = value;
+    }
+
+    func get(key)
+    {
+        return this.data[key];
+    }
+
+    func keys()
+    {
+        return this.data.keys();
+    }
+
+    func values()
+    {
+        return this.data.values();
+    }
+
+    func str()
+    {
+        return str(this.data);
+    }
+
+    func [](key)
+    {
+        return this.data[key];
+    }
+
+    func [=](key, value)
+    {
+        this.data[key] = value;
+    }
+}

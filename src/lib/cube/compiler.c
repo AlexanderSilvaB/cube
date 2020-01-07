@@ -92,6 +92,12 @@ typedef struct ClassCompiler
   bool hasSuperclass;
 } ClassCompiler;
 
+typedef struct BreakPoint_t
+{
+  int point;
+  struct BreakPoint_t *next;
+}BreakPoint;
+
 Parser parser;
 
 Compiler *current = NULL;
@@ -104,6 +110,9 @@ static char *initString = "<CUBE>";
 // Used for "continue" statements
 int innermostLoopStart = -1;
 int innermostLoopScopeDepth = 0;
+
+// Used for "break" statements
+BreakPoint *currentBreak = NULL;
 
 static Chunk *currentChunk()
 {
@@ -214,6 +223,21 @@ static int emitJump(uint8_t instruction)
   return currentChunk()->count - 2;
 }
 
+static void emitBreak()
+{
+  BreakPoint *bp = (BreakPoint*)malloc(sizeof(BreakPoint));
+  bp->point = emitJump(OP_BREAK);
+  bp->next = NULL;
+  
+  if(currentBreak == NULL)
+    currentBreak = bp;
+  else
+  {
+    bp->next = currentBreak;
+    currentBreak = bp;
+  }
+}
+
 static void emitReturn()
 {
   if (current->type == TYPE_INITIALIZER)
@@ -256,6 +280,17 @@ static void patchJump(int offset)
 
   currentChunk()->code[offset] = (jump >> 8) & 0xff;
   currentChunk()->code[offset + 1] = jump & 0xff;
+}
+
+static void patchBreak()
+{
+  while(currentBreak != NULL)
+  {
+    patchJump(currentBreak->point);
+    BreakPoint *next = currentBreak->next;
+    free(currentBreak);
+    currentBreak = next;
+  }
 }
 
 static void initCompiler(Compiler *compiler, FunctionType type)
@@ -1397,13 +1432,39 @@ static void method(bool isStatic)
     type = TYPE_METHOD;
 
   consume(TOKEN_FUNC, "Expect a function declaration.");
+  bool bracked = false;
+  bool set = false;
   if (!check(TOKEN_IDENTIFIER) && !isOperator(parser.current.type))
   {
-    errorAtCurrent("Expect method name.");
+    if(match(TOKEN_LEFT_BRACKET))
+    {
+      if(match(TOKEN_RIGHT_BRACKET))
+      {
+        bracked = true;
+      }
+      else if(match(TOKEN_EQUAL))
+      {
+        if(match(TOKEN_RIGHT_BRACKET))
+        {
+          bracked = true;
+          set = true;
+        }
+      }
+    }
+    if(!bracked)
+      errorAtCurrent("Expect method name.");
   }
-  advance();
+  if(!bracked)
+    advance();
 
-  uint8_t constant = identifierConstant(&parser.previous);
+  uint8_t constant;
+  if(!bracked)
+    constant = identifierConstant(&parser.previous);
+  else
+  {
+    Token br = syntheticToken(set ? "[=]" : "[]");
+    constant = identifierConstant(&br);
+  }
 
   // If the method is named "init", it's an initializer.
   if (parser.previous.length == 4 &&
@@ -1829,6 +1890,7 @@ static void forStatement()
   // Jump back to the beginning (or the increment).
   emitLoop(innermostLoopStart);
 
+  patchBreak();
   if (exitJump != -1)
   {
     patchJump(exitJump);
@@ -2039,6 +2101,7 @@ static void whileStatement()
   // Loop back to the start.
   emitLoop(innermostLoopStart);
 
+  patchBreak();
   patchJump(exitJump);
   emitByte(OP_POP);
 
@@ -2072,6 +2135,7 @@ static void doWhileStatement()
   // Loop back to the start.
   emitLoop(innermostLoopStart);
 
+  patchBreak();
   patchJump(exitJump);
   emitByte(OP_POP);
 
@@ -2106,7 +2170,7 @@ static void breakStatement()
   }
 
   consume(TOKEN_SEMICOLON, "Expected semicolon after break");
-  emitByte(OP_BREAK);
+  emitBreak();
 }
 
 static void switchStatement()

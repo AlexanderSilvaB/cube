@@ -356,7 +356,7 @@ Value copyValue(Value value)
   if(IS_STRING(value))
   {
     ObjString* oldStr = AS_STRING(value);
-    char *str = ALLOCATE(char, oldStr->length);
+    char *str = ALLOCATE(char, oldStr->length + 1);
     strcpy(str, oldStr->chars);
     Value ret = STRING_VAL(str);
     FREE(char, str);

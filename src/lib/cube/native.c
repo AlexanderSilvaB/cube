@@ -51,10 +51,9 @@ Value nativeToValue(cube_native_var *var, NativeTypes *nt)
     {
         ObjList *list = initList();
         
-        while(HAS_NATIVE_NEXT(var))
+        for(int i = 0; i < var->size; i++)
         {
-            var = NATIVE_NEXT(var);
-            result = nativeToValue(var, nt);
+            result = nativeToValue(var->list[i], nt);
             writeValueArray(&list->values, result);
         }
         *nt = TYPE_LIST;
@@ -63,14 +62,11 @@ Value nativeToValue(cube_native_var *var, NativeTypes *nt)
     else if(IS_NATIVE_DICT(var))
     {
         ObjDict *dict = initDict();
-        char *key;
         
-        while(HAS_NATIVE_NEXT(var))
+        for(int i = 0; i < var->size; i++)
         {
-            key = var->key;
-            var = NATIVE_NEXT(var);
-            result = nativeToValue(var, nt);
-            insertDict(dict, key, result);
+            result = nativeToValue(var->dict[i], nt);
+            insertDict(dict, var->dict[i]->key, result);
         }
         *nt = TYPE_DICT;
         result = OBJ_VAL(dict);
@@ -120,35 +116,29 @@ void valueToNative(cube_native_var *var, Value value)
 {
     if(IS_NONE(value))
     {
-        var->type = TYPE_NONE;
+        TO_NATIVE_NONE(var);
     }
     else if(IS_BOOL(value))
     {
-        var->type = TYPE_BOOL;
-        var->value._bool = AS_BOOL(value);
+        TO_NATIVE_BOOL(var, AS_BOOL(value));
     }
     else if(IS_NUMBER(value))
     {
-        var->type = TYPE_NUMBER;
-        var->value._number = AS_NUMBER(value);
+        TO_NATIVE_NUMBER(var, AS_NUMBER(value));
     }
     else if(IS_STRING(value))
     {
-        var->type = TYPE_STRING;
-        var->value._string = AS_CSTRING(value);
+        TO_NATIVE_STRING(var, AS_CSTRING(value));
     }
     else if(IS_BYTES(value))
     {
         ObjBytes *bytes = AS_BYTES(value);
-        var->type = TYPE_BYTES;
-        var->value._bytes.length = bytes->length;
-        var->value._bytes.bytes = bytes->bytes;
+        TO_NATIVE_BYTES_ARG(var, bytes->length, bytes->bytes);
     }
     else if(IS_LIST(value))
     {
         ObjList *list = AS_LIST(value);
-        var->type = TYPE_VOID;
-        var->is_list = true;
+        TO_NATIVE_LIST(var);
         for(int i = 0; i < list->values.count; i++)
         {
             cube_native_var *next = NATIVE_VAR();
@@ -159,8 +149,7 @@ void valueToNative(cube_native_var *var, Value value)
     else if(IS_DICT(value))
     {
         ObjDict *dict = AS_DICT(value);
-        var->type = TYPE_VOID;
-        var->is_dict = true;
+        TO_NATIVE_DICT(var);
 
         for (int i = 0; i < dict->capacity; i++)
         {
@@ -174,8 +163,7 @@ void valueToNative(cube_native_var *var, Value value)
     }
     else
     {
-        var->type = TYPE_BOOL;
-        var->value._bool = false;
+        TO_NATIVE_BOOL(var, false);
     }
 }
 
@@ -195,10 +183,27 @@ void freeNativeVar(cube_native_var *var, bool skipFirst, bool skipInterns)
             free(var->value._bytes.bytes);
         }
     }
-    if(var->next != NULL)
+    if(var->is_list && var->list != NULL)
     {
-        freeNativeVar(var->next, false, skipInterns);
-        var->next = NULL;
+        for(int i = 0; i < var->size; i++)
+        {
+            freeNativeVar(var->list[i], false, skipInterns);
+        }
+        free(var->list);
+        var->list = NULL;
+        var->size = 0;
+        var->capacity = 0;
+    }
+    if(var->is_dict && var->dict != NULL)
+    {
+        for(int i = 0; i < var->size; i++)
+        {
+            freeNativeVar(var->dict[i], false, skipInterns);
+        }
+        free(var->dict);
+        var->dict = NULL;
+        var->size = 0;
+        var->capacity = 0;
     }
     if(!skipFirst)
         free(var);
@@ -348,26 +353,21 @@ Value callNative(ObjNativeFunc *func, int argCount, Value *args)
         switch (type)
         {
         case TYPE_NONE:
-            values[i]->type = TYPE_NONE;
+            TO_NATIVE_NONE(values[i]);
             break;
         case TYPE_BOOL:
-            values[i]->type = TYPE_BOOL;
-            values[i]->value._bool = AS_BOOL(toBool(args[i]));
+            TO_NATIVE_BOOL(values[i], AS_BOOL(toBool(args[i])));
             break;
         case TYPE_NUMBER:
-            values[i]->type = TYPE_NUMBER;
-            values[i]->value._number = (double)AS_NUMBER(toNumber(args[i]));
+            TO_NATIVE_NUMBER(values[i], (double)AS_NUMBER(toNumber(args[i])));
             break;
         case TYPE_STRING:
-            values[i]->type = TYPE_STRING;
-            values[i]->value._string = AS_CSTRING(toString(args[i]));
+            TO_NATIVE_STRING(values[i], AS_CSTRING(toString(args[i])));
             break;
         case TYPE_BYTES:
         {
             ObjBytes *bytes = AS_BYTES(toBytes(args[i]));
-            values[i]->type = TYPE_BYTES;
-            values[i]->value._bytes.length = bytes->length;
-            values[i]->value._bytes.bytes = bytes->bytes;
+            TO_NATIVE_BYTES_ARG(values[i], bytes->length, bytes->bytes);
         }
         break;
         case TYPE_LIST:

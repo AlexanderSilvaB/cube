@@ -333,7 +333,7 @@ char *objectToString(Value value, bool literal)
 	case OBJ_STRING:
 	{
 		ObjString *stringObj = AS_STRING(value);
-		char *string = malloc(sizeof(char) * stringObj->length + 3);
+		char *string = malloc(sizeof(char) * stringObj->length + 4);
 		if (literal)
 			snprintf(string, stringObj->length + 3, "'%s'", stringObj->chars);
 		else
@@ -420,7 +420,7 @@ char *objectToString(Value value, bool literal)
 			int elementSize = strlen(element);
 			listStringSize = strlen(listString);
 
-			if ((elementSize + 6) >= (size - listStringSize - 1))
+			if ((elementSize + 12) >= (size - listStringSize - 1))
 			{
 				if (elementSize > size * 2)
 					size += elementSize * 2;

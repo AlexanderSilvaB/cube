@@ -1,0 +1,14 @@
+#!/usr/local/bin/cube
+
+import json;
+
+var t = json.JSON('temp/test.json');
+
+t['os'] = getSystemInfo();
+t['ps'] = 5;
+t['v'] = t.values();
+t['k'] = t.keys();
+
+println(t.str());
+
+t.save();

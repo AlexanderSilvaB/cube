@@ -370,6 +370,64 @@ static bool getDictItem(int argCount) {
 	return true;
 }
 
+static bool dictKeys(int argCount) {
+	if (argCount != 1) {
+		runtimeError("get() takes 1 arguments (%d  given)", argCount);
+		return false;
+	}
+
+	ObjDict *dict = AS_DICT(pop());
+	ObjList *list = initList();
+
+	int len = 0;
+
+	for (int i = 0; i < dict->capacity; ++i)
+	{
+		dictItem *item = dict->items[i];
+
+		if (!item || item->deleted)
+		{
+			continue;
+		}
+
+		len = strlen(item->key);
+		char *key = malloc(sizeof(char) * (len + 1));
+		strcpy(key, item->key);
+		writeValueArray(&list->values, STRING_VAL(key));
+		free(key);
+	}
+
+	push(OBJ_VAL(list));
+
+	return true;
+}
+
+static bool dictValues(int argCount) {
+	if (argCount != 1) {
+		runtimeError("get() takes 1 arguments (%d  given)", argCount);
+		return false;
+	}
+
+	ObjDict *dict = AS_DICT(pop());
+	ObjList *list = initList();
+
+	for (int i = 0; i < dict->capacity; ++i)
+	{
+		dictItem *item = dict->items[i];
+
+		if (!item || item->deleted)
+		{
+			continue;
+		}
+
+		writeValueArray(&list->values, copyValue(item->item));
+	}
+
+	push(OBJ_VAL(list));
+
+	return true;
+}
+
 static uint32_t hash(char *str) {
 	uint32_t hash = 5381;
 	int c;
@@ -519,6 +577,10 @@ static bool copyDictDeep(int argCount) {
 bool dictMethods(char *method, int argCount) {
 	if (strcmp(method, "get") == 0)
 		return getDictItem(argCount);
+	else if (strcmp(method, "keys") == 0)
+		return dictKeys(argCount);
+	else if (strcmp(method, "values") == 0)
+		return dictValues(argCount);
 	else if (strcmp(method, "remove") == 0)
 		return removeDictItem(argCount);
 	else if (strcmp(method, "exists") == 0)

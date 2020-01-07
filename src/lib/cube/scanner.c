@@ -118,6 +118,16 @@ static void skipWhitespace()
       advance();
       break;
 
+    case '#':
+    {
+      if(peekNext() == '!' && scanner.start == scanner.current)
+      {
+        while (peek() != '\n' && !isAtEnd())
+          advance();
+      }
+      break;
+    }
+
     case '/':
       if (peekNext() == '/')
       {

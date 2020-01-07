@@ -64,7 +64,10 @@ typedef struct cube_native_var_t {
     bool is_dict;
     cube_native_value value;
     char *key;
-    struct cube_native_var_t *next;
+    int size;
+    int capacity;
+    struct cube_native_var_t **list;
+    struct cube_native_var_t **dict;
 } cube_native_var;
 
 
@@ -75,8 +78,13 @@ typedef struct cube_native_var_t {
 #define AS_NATIVE_BYTES(var) var->value._bytes
 #define IS_NATIVE_LIST(var) (var->is_list)
 #define IS_NATIVE_DICT(var) (var->is_dict)
-#define NATIVE_NEXT(var) (var->next)
-#define HAS_NATIVE_NEXT(var) (var->next != NULL)
+
+static char *COPY_STR(const char* str)
+{
+    char *s = (char*)malloc(sizeof(char) * (strlen(str) + 1));
+    strcpy(s, str);
+    return s;
+}
 
 static cube_native_var* NATIVE_VAR()
 {
@@ -84,8 +92,11 @@ static cube_native_var* NATIVE_VAR()
     var->is_list = false;
     var->is_dict = false;
     var->type = TYPE_VOID;
-    var->next = NULL;
+    var->list = NULL;
+    var->dict = NULL;
     var->key = NULL;
+    var->size = 0;
+    var->capacity = 0;
     return var;
 }
 
@@ -138,12 +149,23 @@ static cube_native_var* NATIVE_BYTES()
     return var;
 }
 
+static cube_native_var* NATIVE_BYTES_ARG(unsigned int length, unsigned char *bytes)
+{
+    cube_native_var* var = NATIVE_VAR();
+    var->type = TYPE_BYTES;
+    var->value._bytes.length = length;
+    var->value._bytes.bytes = bytes;
+    return var;
+}
+
 static cube_native_var* NATIVE_LIST()
 {
     cube_native_var* var = NATIVE_VAR();
     var->type = TYPE_VOID;
     var->is_list = true;
-    var->next = NULL;
+    var->size = 0;
+    var->capacity = 8;
+    var->list = (cube_native_var**)malloc(sizeof(cube_native_var*) * var->capacity);
     return var;
 }
 
@@ -152,33 +174,96 @@ static cube_native_var* NATIVE_DICT()
     cube_native_var* var = NATIVE_VAR();
     var->type = TYPE_VOID;
     var->is_dict = true;
+    var->size = 0;
+    var->capacity = 8;
+    var->dict = (cube_native_var**)malloc(sizeof(cube_native_var*) * var->capacity);
+    return var;
+}
+
+static cube_native_var* TO_NATIVE_NONE(cube_native_var* var)
+{
+    var->type = TYPE_NONE;
+    return var;
+}
+
+static cube_native_var* TO_NATIVE_BOOL(cube_native_var* var, bool v)
+{
+    var->type = TYPE_BOOL;
+    var->value._bool = v;
+    return var;
+}
+
+static cube_native_var* TO_NATIVE_NUMBER(cube_native_var* var, double v)
+{
+    var->type = TYPE_NUMBER;
+    var->value._number = v;
+    return var;
+}
+
+static cube_native_var* TO_NATIVE_STRING(cube_native_var* var, char* v)
+{
+    var->type = TYPE_STRING;
+    var->value._string = v;
+    return var;
+}
+
+static cube_native_var* TO_NATIVE_BYTES(cube_native_var* var)
+{
+    var->type = TYPE_BYTES;
+    var->value._bytes.length = 0;
+    var->value._bytes.bytes = NULL;
+    return var;
+}
+
+static cube_native_var* TO_NATIVE_BYTES_ARG(cube_native_var* var, unsigned int length, unsigned char* bytes)
+{
+    var->type = TYPE_BYTES;
+    var->value._bytes.length = length;
+    var->value._bytes.bytes = bytes;
+    return var;
+}
+
+static cube_native_var* TO_NATIVE_LIST(cube_native_var* var)
+{
+    var->type = TYPE_VOID;
+    var->is_list = true;
+    var->size = 0;
+    var->capacity = 8;
+    var->list = (cube_native_var**)malloc(sizeof(cube_native_var*) * var->capacity);
+    return var;
+}
+
+static cube_native_var* TO_NATIVE_DICT(cube_native_var* var)
+{
+    var->type = TYPE_VOID;
+    var->is_dict = true;
     var->key = NULL;
-    var->next = NULL;
+    var->size = 0;
+    var->capacity = 8;
+    var->dict = (cube_native_var**)malloc(sizeof(cube_native_var*) * var->capacity);
     return var;
 }
 
 static void ADD_NATIVE_LIST(cube_native_var *list, cube_native_var *val)
 {
-    if(list->next == NULL)
+    list->list[list->size] = val;
+    list->size++;
+    if(list->size == list->capacity)
     {
-        list->next = val;
-    }
-    else
-    {
-        ADD_NATIVE_LIST(list->next, val);
+        list->capacity *= 2;
+        list->list = (cube_native_var**)realloc(list->list, sizeof(cube_native_var*) * list->capacity);
     }
 }
 
 static void ADD_NATIVE_DICT(cube_native_var *dict, char *key, cube_native_var *val)
 {
-    if(dict->next == NULL)
+    val->key = key;
+    dict->dict[dict->size] = val;
+    dict->size++;
+    if(dict->size == dict->capacity)
     {
-        dict->next = val;
-        dict->key = key;
-    }
-    else
-    {
-        ADD_NATIVE_DICT(dict->next, key, val);
+        dict->capacity *= 2;
+        dict->dict = (cube_native_var**)realloc(dict->dict, sizeof(cube_native_var*) * dict->capacity);
     }
 }
 

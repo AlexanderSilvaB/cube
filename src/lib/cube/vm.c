@@ -105,16 +105,22 @@ static void destroyTaskFrame(const char *name)
 
 static void pushTry(CallFrame *frame, uint16_t offset)
 {
-  TryFrame *try = (TryFrame *)malloc(sizeof(TryFrame));
-  try->next = vm.ctf->tryFrame;
-  try->ip = frame->ip + offset;
-  vm.ctf->tryFrame = try;
+  TryFrame *try
+    = (TryFrame *)malloc(sizeof(TryFrame));
+  try
+    ->next = vm.ctf->tryFrame;
+  try
+    ->ip = frame->ip + offset;
+  vm.ctf->tryFrame = try
+    ;
 }
 
 static void popTry()
 {
-  TryFrame *try = vm.ctf->tryFrame;
-  vm.ctf->tryFrame = try ->next;
+  TryFrame *try
+    = vm.ctf->tryFrame;
+  vm.ctf->tryFrame = try
+    ->next;
   free(try);
 }
 
@@ -152,7 +158,7 @@ void runtimeError(const char *format, ...)
     va_list args;
     va_start(args, format);
     vsprintf(str, format, args);
-    if(i > 0)
+    if (i > 0)
       sprintf(str + strlen(str), "\n");
     va_end(args);
   }
@@ -185,11 +191,11 @@ void initVM(const char *path, const char *scriptName)
   resetStack();
 
   vm.gc = false;
-  #ifdef GC_AUTO
+#ifdef GC_AUTO
   vm.autoGC = true;
-  #else
+#else
   vm.autoGC = false;
-  #endif
+#endif
 
   vm.objects = NULL;
   vm.bytesAllocated = 0;
@@ -316,7 +322,7 @@ static bool call(ObjClosure *closure, int argCount)
   frame->ip = closure->function->chunk.code;
   frame->package = vm.frame ? vm.frame->package : NULL;
   frame->nextPackage = NULL;
-  if(vm.frame && vm.frame->nextPackage != NULL)
+  if (vm.frame && vm.frame->nextPackage != NULL)
   {
     frame->package = vm.frame->nextPackage;
     vm.frame->nextPackage = NULL;
@@ -608,12 +614,12 @@ static bool checkTry(CallFrame *frame)
   {
     uint8_t *ip = vm.ctf->tryFrame->ip;
     popTry();
-    
+
     frame->ip = ip;
 
     bool hasCatch = (*frame->ip++) == OP_TRUE;
 
-    if(hasCatch)
+    if (hasCatch)
     {
       frame->ip++;
       ObjFunction *function = AS_FUNCTION((frame->closure->function->chunk.constants.values[*frame->ip++]));
@@ -647,6 +653,8 @@ static bool checkTry(CallFrame *frame)
     fputs("\n", stderr);
     free(vm.ctf->error);
     vm.ctf->error = NULL;
+    vm.repl = NONE_VAL;
+    vm.print = true;
   }
 
   return false;
@@ -1073,6 +1081,27 @@ bool instanceOperation(const char *op)
 {
   if (!IS_INSTANCE(peek(0)) || !IS_INSTANCE(peek(1)))
   {
+    if (!IS_INSTANCE(peek(1)) || ( strcmp(op, "[]") != 0 && strcmp(op, "[]=") != 0 ))
+      return false;
+  }
+
+  ObjString *name = AS_STRING(STRING_VAL(op));
+
+  ObjInstance *instance = AS_INSTANCE(peek(1));
+
+  Value method;
+  if (!tableGet(&instance->klass->methods, name, &method))
+  {
+    return false;
+  }
+
+  return invokeFromClass(instance->klass, name, 1);
+}
+
+bool instanceOperationGet(const char *op)
+{
+  if (!IS_INSTANCE(peek(1)))
+  {
     return false;
   }
 
@@ -1087,6 +1116,26 @@ bool instanceOperation(const char *op)
   }
 
   return invokeFromClass(instance->klass, name, 1);
+}
+
+bool instanceOperationSet(const char *op)
+{
+  if (!IS_INSTANCE(peek(2)))
+  {
+      return false;
+  }
+
+  ObjString *name = AS_STRING(STRING_VAL(op));
+
+  ObjInstance *instance = AS_INSTANCE(peek(2));
+
+  Value method;
+  if (!tableGet(&instance->klass->methods, name, &method))
+  {
+    return false;
+  }
+
+  return invokeFromClass(instance->klass, name, 2);
 }
 
 static bool nextTask()
@@ -1138,7 +1187,7 @@ static InterpretResult run()
 
   for (;;)
   {
-    if(!vm.running)
+    if (!vm.running)
     {
       return INTERPRET_OK;
     }
@@ -1164,6 +1213,12 @@ static InterpretResult run()
 
     CallFrame *frame = &vm.ctf->frames[vm.ctf->frameCount - 1];
     vm.frame = frame;
+
+    if (vm.ctf->error != NULL)
+    {
+      if (!checkTry(frame))
+        return INTERPRET_RUNTIME_ERROR;
+    }
 
 #ifdef DEBUG_TRACE_EXECUTION
     printf("Task: %s\n", vm.ctf->name);
@@ -1236,10 +1291,15 @@ static InterpretResult run()
     case OP_POP:
       pop();
       break;
-    
+
     case OP_REPL_POP:
-      vm.repl = pop();
-      break;
+    {
+      if (frame->package == NULL)
+        vm.repl = pop();
+      else
+        pop();
+    }
+    break;
 
     case OP_GET_LOCAL:
     {
@@ -1261,7 +1321,7 @@ static InterpretResult run()
       Value value;
 
       Table *table = &vm.globals;
-      if(frame->package != NULL)
+      if (frame->package != NULL)
       {
         table = &frame->package->symbols;
         if (tableGet(table, name, &value))
@@ -1271,7 +1331,7 @@ static InterpretResult run()
         }
         table = &vm.globals;
       }
-      
+
       if (!tableGet(table, name, &value))
       {
         value = envVariable(name);
@@ -1292,11 +1352,12 @@ static InterpretResult run()
     {
       ObjString *name = READ_STRING();
       Table *table = &vm.globals;
-      if(frame->package != NULL)
+      if (frame->package != NULL)
         table = &frame->package->symbols;
 
       tableSet(table, name, peek(0));
-      vm.repl = peek(0);
+      if (frame->package == NULL)
+        vm.repl = peek(0);
       pop();
       break;
     }
@@ -1305,9 +1366,9 @@ static InterpretResult run()
     {
       ObjString *name = READ_STRING();
       Table *table = &vm.globals;
-      if(frame->package != NULL)
+      if (frame->package != NULL)
         table = &frame->package->symbols;
-      
+
       if (tableSet(table, name, peek(0)))
       {
         tableDelete(table, name); // [delete]
@@ -1816,7 +1877,8 @@ static InterpretResult run()
 
     case OP_BREAK:
     {
-      printf("break");
+      uint16_t offset = READ_SHORT();
+      frame->ip += offset;
     }
     break;
 
@@ -1848,7 +1910,7 @@ static InterpretResult run()
       }
       if (s == NULL)
       {
-        runtimeError("Could not loaded the file \"%s\".", fileName->chars);
+        runtimeError("Could not load the file \"%s\".", fileName->chars);
         if (!checkTry(frame))
           return INTERPRET_RUNTIME_ERROR;
         else
@@ -1871,7 +1933,6 @@ static InterpretResult run()
         name = getFileDisplayName(fileName->chars);
       }
 
-
       ObjFunction *function = compile(s);
       if (function == NULL)
       {
@@ -1882,13 +1943,12 @@ static InterpretResult run()
       pop();
 
       ObjPackage *package = NULL;
-      if(name != NULL)
+      if (name != NULL)
       {
         ObjString *nameStr = AS_STRING(STRING_VAL(name));
         package = newPackage(nameStr);
         tableSet(&vm.globals, nameStr, OBJ_VAL(package));
       }
-      
 
       push(OBJ_VAL(function));
       ObjClosure *closure = newClosure(function);
@@ -1968,17 +2028,24 @@ static InterpretResult run()
       Value listValue = peek(1);
       Value result;
 
-      if (!subscript(listValue, indexValue, &result))
+      if (instanceOperationGet("[]"))
       {
-        if (!checkTry(frame))
-          return INTERPRET_RUNTIME_ERROR;
-        else
-          break;
+        frame = &vm.ctf->frames[vm.ctf->frameCount - 1];
       }
+      else
+      {
+        if (!subscript(listValue, indexValue, &result))
+        {
+          if (!checkTry(frame))
+            return INTERPRET_RUNTIME_ERROR;
+          else
+            break;
+        }
 
-      pop();
-      pop();
-      push(result);
+        pop();
+        pop();
+        push(result);
+      }
       break;
     }
     case OP_SUBSCRIPT_ASSIGN:
@@ -1987,22 +2054,29 @@ static InterpretResult run()
       Value indexValue = peek(1);
       Value listValue = peek(2);
 
-      if (!subscriptAssign(listValue, indexValue, assignValue))
+      if (instanceOperationSet("[=]"))
       {
+        frame = &vm.ctf->frames[vm.ctf->frameCount - 1];
+      }
+      else
+      {
+        if (!subscriptAssign(listValue, indexValue, assignValue))
+        {
+          pop();
+          pop();
+          pop();
+          push(NONE_VAL);
+          if (!checkTry(frame))
+            return INTERPRET_RUNTIME_ERROR;
+          else
+            break;
+        }
+
         pop();
         pop();
         pop();
         push(NONE_VAL);
-        if (!checkTry(frame))
-          return INTERPRET_RUNTIME_ERROR;
-        else
-          break;
       }
-
-      pop();
-      pop();
-      pop();
-      push(NONE_VAL);
       break;
     }
 
@@ -2100,7 +2174,7 @@ static InterpretResult run()
     {
       Value result = pop();
 
-      if(frame->package != NULL)
+      if (frame->package != NULL)
       {
         frame->package = NULL;
       }
@@ -2144,7 +2218,7 @@ static InterpretResult run()
       vm.repl = OBJ_VAL(klass);
       push(OBJ_VAL(klass));
     }
-      break;
+    break;
 
     case OP_INHERIT:
     {
@@ -2259,7 +2333,7 @@ static InterpretResult run()
       ObjString *name = AS_STRING(pop());
 
       ObjClosure *closure = AS_CLOSURE(pop());
-      
+
       TaskFrame *tf = createTaskFrame(name->chars);
 
       // Push the context
@@ -2267,7 +2341,7 @@ static InterpretResult run()
       tf->stackTop++;
 
       // Add the context to the frames stack
-      
+
       CallFrame *frame = &tf->frames[tf->frameCount++];
       frame->closure = closure;
       frame->ip = closure->function->chunk.code;
