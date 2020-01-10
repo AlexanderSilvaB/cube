@@ -124,6 +124,20 @@ Value NativeToValue(cube_native_var *var)
 
 extern "C"
 {
+    EXPORTED cube_native_var* json_native_parse(cube_native_var* str)
+    {
+        cube_native_var* ret = NATIVE_NONE();
+
+        Value value;
+        if(value.Parse(string(AS_NATIVE_STRING(str))))
+        {
+            ValueToNative(ret, value);
+        }
+
+        
+        return ret;
+    }
+
     EXPORTED cube_native_var* json_native_read(cube_native_var* fileName)
     {
         cube_native_var* ret = NATIVE_NONE();

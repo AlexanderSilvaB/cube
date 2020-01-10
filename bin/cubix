@@ -1,0 +1,202 @@
+#!/usr/local/bin/cube
+
+import json;
+import net;
+import os;
+import paths;
+import parser as default;
+
+var parser = Parser('Cubix', 'The cube package manager', '0.1');
+parser.add('install', 'i', str, '+', 'selects the package to install');
+parser.add('uninstall', 'u', str, '+', 'selects the package to uninstall');
+
+parser.parse(args);
+
+// var address = 'https://raw.githubusercontent.com';
+// var base = 'AlexanderSilvaB/cube-packages/master/';
+var address = '127.0.0.1';
+var base = '';
+
+func readWeb(address, request)
+{
+    var http = net.HTTPClient(address, net.HTTP.PORT);
+    if(!http.connect())
+        error('Failed to connect');
+    
+     http.get(request);
+    var contents = http.receive();
+    http.disconnect();
+    return contents;
+}
+
+func install(libs)
+{
+    println('Installing: ', libs.join(' '));
+
+    var contents = readWeb(address, '{}index.json'.format(base));
+    var packages = json.parseJson(contents)['packages'];
+
+    var package = none;
+
+    for(var lib in libs)
+    {
+        package = none;
+        for(var p in packages)
+        {
+            if(p.endsWith('/{}'.format(lib)))
+            {
+                package = p;
+            }
+        }
+
+        if(package is none)
+            error('Package "', lib, '" not found!');
+
+        if(package.startsWith("libs/"))
+            installPackage(lib, '{}/{}{}'.format(address, base, package));
+        else
+            installPackage(lib, package);
+    }
+}
+
+func uninstall(libs)
+{
+    println('Uninstalling: ', libs.join(' '));
+
+    for(var lib in libs)
+    {
+        uninstallPackage(lib);
+    }   
+}
+
+func installPackage(lib, url)
+{
+    var parts = url.split('/');
+    var address = parts[0];
+    var base = parts[1:(len(parts)-1)].join('/');
+
+
+    var contents = readWeb(address, '{}/package.json'.format(base));
+    var package = json.parseJson(contents);
+    
+    var current = none;
+    try
+    {
+        var j = json.readJson("{}/{}.json".format(os.allowedLibsPath, lib));
+        current = j['version'];
+    }
+
+    var version = package['version'];
+    println("{} [{} -> {}]\t".format(lib, current, version));
+    if(current == version)
+    {
+        println("Already updated");
+        return;
+    }
+    var data;
+    var name;
+    var path;
+
+    path = os.allowedLibsPath+'/'+lib+'.json';
+
+    with(path, 'w')
+    {
+        file.write(contents);
+    }
+
+
+    for(var f in package['files'])
+    {
+        print('Downloading: ', f);
+        data = readWeb(address, '{}/{}'.format(base, f));
+        name = paths.fileName(f);
+        if(package['bin'])
+            path = os.allowedBinPath;
+        else   
+            path = os.allowedLibsPath;
+
+        path += '/{}'.format(name);
+        
+        with(path, 'w')
+        {
+            file.write(data);
+        }
+
+        println('\rDownloaded: ', f, ' ');
+    }
+
+    for(var f in package['native'])
+    {
+        print('Downloading: ', f);
+        data = readWeb(address, '{}/native/{}/{}{}'.format(base, os.name, f, os.libsExt));
+        name = paths.fileName(f);
+        path = os.allowedLibsPath;
+        path += '/{}{}'.format(name, os.libsExt);
+        
+
+        with(path, 'w')
+        {
+            file.write(data);
+        }
+
+        println('\rDownloaded: ', f, ' ');
+    }
+}
+
+func uninstallPackage(lib)
+{
+    var package = json.readJson("{}/{}.json".format(os.allowedLibsPath, lib));
+    if(package == none or len(package) == 0)
+    {
+        println("Not found!");
+        return;
+    }
+
+    var name;
+    var path;
+
+    for(var f in package['files'])
+    {
+        print('Removing: ', f);
+        name = paths.fileName(f);
+        if(package['bin'])
+            path = os.allowedBinPath;
+        else   
+            path = os.allowedLibsPath;
+
+        path += '/{}'.format(name);
+        
+        remove(path);
+
+        println('\rRemoved: ', f, ' ');
+    }
+
+    for(var f in package['native'])
+    {
+        print('Removing: ', f);
+        name = paths.fileName(f);
+        path = os.allowedLibsPath;
+        path += '/{}{}'.format(name, os.libsExt);
+        
+        remove(path);
+
+        println('\rRemoved: ', f, ' ');
+    }
+
+    path = os.allowedLibsPath+'/'+lib+'.json';
+    remove(path);
+
+}
+
+if(parser.args['install'] is not none and len(parser.args['install']) > 0 )
+{
+    install(parser.args['install']);
+}
+else if( parser.args['uninstall'] is not none and len(parser.args['uninstall']) > 0 )
+{
+    uninstall(parser.args['uninstall']);
+}
+else
+{
+    parser.header();
+}

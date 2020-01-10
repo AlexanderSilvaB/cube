@@ -36,6 +36,7 @@ typedef struct TaskFrame_t
   Value currentArgs;
   ObjUpvalue *openUpvalues;
   int currentFrameCount;
+  bool popCallFrame;
   bool eval;
   struct TaskFrame_t *next;
   char* name;

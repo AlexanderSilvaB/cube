@@ -728,6 +728,10 @@ bool objectComparison(Value a, Value b)
 	{
 		return false;
 	}
+	else if(AS_OBJ(a) == NULL || AS_OBJ(b) == NULL)
+	{
+		return false;
+	}
 	else if (IS_STRING(a) && IS_STRING(b))
 	{
 		return strcmp(AS_CSTRING(a), AS_CSTRING(b)) == 0;

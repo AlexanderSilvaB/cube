@@ -41,14 +41,14 @@ static bool writeFile(int argCount, bool newLine) {
 	int wrote = 0;
 	if(!FILE_IS_BINARY(file))
 	{
-		ObjString *string = AS_STRING( toString(pop()) );
+		ObjString *string = AS_STRING( toString(data) );
 		wrote = fprintf(file->file, "%s", string->chars);
 		if (newLine)
 			fprintf(file->file, "\n");
 	}
 	else
 	{
-		ObjBytes *bytes = AS_BYTES( toBytes(pop()) );
+		ObjBytes *bytes = AS_BYTES( toBytes(data) );
 		wrote = fwrite(bytes->bytes, sizeof(char), bytes->length, file->file);
 		if (newLine)
 		{

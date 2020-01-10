@@ -157,7 +157,7 @@ void runtimeError(const char *format, ...)
 
     va_list args;
     va_start(args, format);
-    vsprintf(str, format, args);
+    vsprintf(str + strlen(str), format, args);
     if (i > 0)
       sprintf(str + strlen(str), "\n");
     va_end(args);
@@ -248,9 +248,24 @@ void freeVM()
 
 void addPath(const char *path)
 {
+  char *home = getHome();
+  char *pathStr;
+  if(home == NULL)
+    pathStr = path;
+  else
+  {
+    pathStr = (char*)malloc(sizeof(char) * 256);
+    pathStr[0] = '\0';
+    strcpy(pathStr, path);
+    replaceString(pathStr, "~", home);
+  }
+
   DISABLE_GC;
-  writeValueArray(&vm.paths->values, STRING_VAL(path));
+  writeValueArray(&vm.paths->values, STRING_VAL(pathStr));
   RESTORE_GC;
+
+  if(home == NULL)
+    free(pathStr);
 }
 
 static int initArgC = 0;
@@ -640,9 +655,10 @@ static bool checkTry(CallFrame *frame)
       }
 
       push(STRING_VAL(vm.ctf->error));
-      free(vm.ctf->error);
-      vm.ctf->error = NULL;
     }
+
+    free(vm.ctf->error);
+    vm.ctf->error = NULL;
 
     return true;
   }
@@ -1218,13 +1234,15 @@ static InterpretResult run()
     {
       if (!checkTry(frame))
         return INTERPRET_RUNTIME_ERROR;
+      
     }
 
 #ifdef DEBUG_TRACE_EXECUTION
     printf("Task: %s\n", vm.ctf->name);
-    for (Value *slot = vm.ctf->stack; slot < vm.ctf->stackTop; slot++)
+    int st = 0;
+    for (Value *slot = vm.ctf->stack; slot < vm.ctf->stackTop; slot++, st++)
     {
-      printf("[ ");
+      printf("[ (%d) ", st);
       printValue(*slot);
       printf(" ]");
     }
@@ -2247,8 +2265,8 @@ static InterpretResult run()
 
     case OP_FILE:
     {
-      Value openType = peek(0);
-      Value fileName = peek(1);
+      Value openType = pop();
+      Value fileName = pop();
 
       if (!IS_STRING(openType))
       {
@@ -2275,15 +2293,13 @@ static InterpretResult run()
 
       if (file == NULL)
       {
-        runtimeError("Unable to open file");
+        runtimeError("Unable to open file [%s]", fileNameString->chars);
         if (!checkTry(frame))
           return INTERPRET_RUNTIME_ERROR;
         else
           break;
       }
 
-      pop();
-      pop();
       push(OBJ_VAL(file));
       break;
     }
@@ -2401,6 +2417,9 @@ static InterpretResult run()
       popTry();
       break;
     }
+
+    case OP_TEST:
+      break;
     }
   }
 

@@ -1,5 +1,3 @@
-#!/usr/local/bin/cube
-
 import json;
 
 var t = json.JSON('temp/test.json');

@@ -106,6 +106,7 @@ ClassCompiler *currentClass = NULL;
 bool staticMethod = false;
 
 static char *initString = "<CUBE>";
+static int loopInCount = 0;
 
 // Used for "continue" statements
 int innermostLoopStart = -1;
@@ -1184,7 +1185,7 @@ static void function(FunctionType type)
   block();
 
   // Check this out
-  endScope();
+  // endScope();
 
   if (type == TYPE_STATIC)
     staticMethod = false;
@@ -1769,24 +1770,33 @@ static void forStatement()
     {
       if (match(TOKEN_IN))
       {
+        char *str__value = (char*)malloc(sizeof(char) * 32);
+        char *str__index = (char*)malloc(sizeof(char) * 32);
+        char *str__cond = (char*)malloc(sizeof(char) * 32);
+        str__value[0] = str__index[0] = str__cond[0] = '\0';
+        sprintf(str__value, "__value%d", loopInCount);
+        sprintf(str__index, "__index%d", loopInCount);
+        sprintf(str__cond, "__cond%d", loopInCount);
+        loopInCount++;
+
         emitByte(OP_NONE);
         defineVariable(name);
 
-        var = createSyntheticVariable("__value", &valVar);
+        var = createSyntheticVariable(str__value, &valVar);
         emitByte(OP_NONE);
         defineVariable(var);
 
         expression();
         setVariablePop(valVar);
 
-        it = createSyntheticVariable("__index", &loopVar);
+        it = createSyntheticVariable(str__index, &loopVar);
         emitByte(OP_NONE);
         defineVariable(it);
 
         emitConstant(NUMBER_VAL(0));
         setVariablePop(loopVar);
 
-        cond = createSyntheticVariable("__cond", &condVar);
+        cond = createSyntheticVariable(str__cond, &condVar);
         emitByte(OP_NONE);
         defineVariable(cond);
 
@@ -1962,14 +1972,16 @@ static void withStatement()
   local->name = file;
 
   emitByte(OP_FILE);
+  setVariablePop(file);
 
   statement();
 
   getVariable(file);
-  emitBytes(OP_INVOKE, 0);
 
   Token fn = syntheticToken("close");
   uint8_t name = identifierConstant(&fn);
+  
+  emitBytes(OP_INVOKE, 0);
   emitByte(name);
 
   endScope();

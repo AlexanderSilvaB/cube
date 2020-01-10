@@ -1,0 +1,46 @@
+var systemInfo = getSystemInfo();
+
+var installPath = none;
+var libsExt = none;
+var binExt = none;
+var name = systemInfo['os'];
+var userHome = env('HOME');
+if(userHome == none)
+    userHome = '';
+var userDir = '{}/.cube'.format(userHome);
+
+if(systemInfo['os'] == 'windows')
+{
+    installPath = 'C:/cube';
+    libsExt = '.dll';
+    binExt = '.exe';
+}
+else
+{
+    installPath = '/usr/local/share/cube';
+    libsExt = '.so';
+    binExt = '';
+}
+
+var binPath = '{}/bin'.format(installPath);
+var libsPath = '{}/libs'.format(installPath);
+var userBinPath = '{}/bin'.format(userDir);
+var userLibsPath = '{}/libs'.format(userDir);
+
+var previleged = false;
+
+try
+{
+    with('{}/.lock'.format(installPath), 'w')
+    {
+        previleged = true;
+    }
+}
+
+var allowedBinPath = binPath;
+var allowedLibsPath = libsPath;
+if(not os.previleged)
+{
+    allowedBinPath = userBinPath;
+    allowedLibsPath = userLibsPath;
+}

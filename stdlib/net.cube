@@ -10,7 +10,7 @@ native libs/libnet
     str tcp_udp_socket_client(num);
 }
 
-import files;
+import paths;
 
 class Socket
 {
@@ -79,6 +79,7 @@ class Socket
 
 class HTTP
 {
+    static var PORT = 8080;
     static var SUCCESS = 201;
     static var NOT_FOUND = 404;
 }
@@ -226,7 +227,7 @@ class HTTPServer
         if(isempty(page))
             return mime;
 
-        var ext = files.extension(page);
+        var ext = paths.extension(page);
         if(ext == "aac")
             mime = "audio/aac";
         else if(ext == "avi")
@@ -280,6 +281,7 @@ class HTTPServer
 class HTTPClient
 {
     var address = "127.0.0.1";
+    var host = none;
     var port = 8080;
     var socket = none;
     var waitTime = 10;
@@ -294,6 +296,9 @@ class HTTPClient
     {
         if(this.socket is not none)
             return true;
+
+        this.host = this.address.replace('https://', '');
+        this.host = this.host.replace('http://', '');
 
         this.socket = Socket();
         this.socket.port = this.port;
@@ -317,8 +322,8 @@ class HTTPClient
         if(this.socket is none)
             return none;
 
-        var data = 'GET /{} HTTP/1.1'.format(request);
-        var ret =  this.socket.send(data);
+        var data = 'GET /{} HTTP/1.1\nHost: {}'.format(request, this.host);
+        var ret = this.socket.send(data);
         wait(this.waitTime);
         return ret;
     }
@@ -328,7 +333,7 @@ class HTTPClient
         if(this.socket is none)
             return none;
 
-        var data = 'POST {} HTTP/1.1'.format(request);
+        var data = 'POST {} HTTP/1.1\nHost: {}'.format(request, this.gost);
         var ret =  this.socket.send(data);
         wait(this.waitTime);
         return ret;

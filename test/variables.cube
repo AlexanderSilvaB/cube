@@ -36,4 +36,4 @@ var p = o('Mike');
 println(p.name);
 
 println("Env: ");
-env();
+vars();

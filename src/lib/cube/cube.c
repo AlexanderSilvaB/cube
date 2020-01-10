@@ -51,6 +51,9 @@ void start(const char* path, const char* scriptName)
     addPath("/usr/local/share/cube/libs/");
     addPath("/usr/local/share/cube/stdlib/");
     #endif
+
+    addPath("~/.cube/");
+    addPath("~/.cube/libs/");
 }
 
 void stop()

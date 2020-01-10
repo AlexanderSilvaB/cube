@@ -67,6 +67,29 @@ Value printlnNative(int argCount, Value *args)
     return NONE_VAL;
 }
 
+Value errorNative(int argCount, Value *args)
+{
+    int sz = 128;
+    int len = 0;
+    char *error = ALLOCATE(char, sz);
+    error[0] = '\0';
+    for (int i = 0; i < argCount; i++)
+    {
+        char *str = valueToString(args[i], false);
+        if(len + strlen(error) + 1 >= sz)
+        {
+            error = GROW_ARRAY(error, char, sz, sz * 2);
+            sz *= 2;
+        }
+        strcat(error + len, str);
+        free(str);
+        len = strlen(error);
+    }
+    runtimeError(error);
+    FREE_ARRAY(char, error, sz);
+    return NONE_VAL;
+}
+
 Value inputNative(int argCount, Value *args)
 {
     printNative(argCount, args);
@@ -388,7 +411,7 @@ Value dictNative(int argCount, Value *args)
 {
     if(argCount != 3)
     {
-        printf("dict(str, delimiter, innerDelimiter) takes exactly 3 arguments (%d given).\n", argCount);
+        runtimeError("dict(str, delimiter, innerDelimiter) takes exactly 3 arguments (%d given).", argCount);
         return NONE_VAL;
     }
 
@@ -396,7 +419,7 @@ Value dictNative(int argCount, Value *args)
     {
         if(!IS_STRING(args[i]))
         {
-            printf("'dict' argument must be a string.\n");
+            runtimeError("'dict' argument must be a string.");
             return NONE_VAL;
         }
     }
@@ -404,7 +427,7 @@ Value dictNative(int argCount, Value *args)
     Value listV = stringSplit(args[0], args[1]);
     if(!IS_LIST(listV))
     {
-        printf("dict(): Failed to split '%s' by '%s'.\n", AS_CSTRING(args[0]), AS_CSTRING(args[1]));
+        runtimeError("dict(): Failed to split '%s' by '%s'.", AS_CSTRING(args[0]), AS_CSTRING(args[1]));
         return NONE_VAL;
     }
 
@@ -417,7 +440,7 @@ Value dictNative(int argCount, Value *args)
         Value innerV = stringSplit(list->values.values[i], args[2]);
         if(!IS_LIST(innerV))
         {
-            printf("dict(): Failed to split '%s' by '%s'.\n", AS_CSTRING(list->values.values[i]), AS_CSTRING(args[2]));
+            runtimeError("dict(): Failed to split '%s' by '%s'.", AS_CSTRING(list->values.values[i]), AS_CSTRING(args[2]));
             return NONE_VAL;
         }
 
@@ -699,8 +722,7 @@ Value lenNative(int argCount, Value *args)
 {
     if (argCount != 1)
     {
-        //runtimeError("len() takes exactly 1 argument (%d given).", argCount);
-        printf("len() takes exactly 1 argument (%d given).\n", argCount);
+        runtimeError("len() takes exactly 1 argument (%d given).", argCount);
         return NONE_VAL;
     }
 
@@ -711,10 +733,7 @@ Value lenNative(int argCount, Value *args)
     else if (IS_DICT(args[0]))
         return NUMBER_VAL(AS_DICT(args[0])->count);
 
-    //runtimeError("Unsupported type passed to len()", argCount);
-    printf("Unsupported type passed to len(): ");
-    printValue(args[0]);
-    printf("\n");
+    runtimeError("Unsupported type passed to len()", argCount);
     return NONE_VAL;
 }
 
@@ -728,7 +747,7 @@ Value typeNative(int argCount, Value *args)
     return res;
 }
 
-Value envNative(int argCount, Value *args)
+Value varsNative(int argCount, Value *args)
 {
     bool showNative = false;
     if (argCount > 0)
@@ -767,8 +786,7 @@ Value openNative(int argCount, Value *args)
 {
     if (argCount == 0)
     {
-        //runtimeError("open requires at least a file name");
-        printf("'open' requires at least a file name\n");
+        runtimeError("open requires at least a file name");
         return NONE_VAL;
     }
 
@@ -781,15 +799,13 @@ Value openNative(int argCount, Value *args)
 
     if (!IS_STRING(openType))
     {
-        //runtimeError("File open type must be a string");
-        printf("File open type must be a string\n");
+        runtimeError("File open type must be a string");
         return NONE_VAL;
     }
 
     if (!IS_STRING(fileName))
     {
-        //runtimeError("Filename must be a string");
-        printf("Filename must be a string\n");
+        runtimeError("Filename must be a string");
         return NONE_VAL;
     }
 
@@ -799,8 +815,7 @@ Value openNative(int argCount, Value *args)
     ObjFile *file = openFile(fileNameString->chars, openTypeString->chars);
     if (file == NULL)
     {
-        //runtimeError("Unable to open file");
-        printf("Unable to open file\n");
+        // runtimeError("Unable to open file");
         return NONE_VAL;
     }
 
@@ -880,6 +895,30 @@ Value findNative(int argCount, Value *args)
     return ret;
 }
 
+Value removeNative(int argCount, Value *args)
+{
+    if (argCount == 0)
+        return NONE_VAL;
+    if (!IS_STRING(args[0]))
+        return NONE_VAL;
+    char *str = AS_CSTRING(args[0]);
+    int rc = remove(str);
+    return BOOL_VAL(rc == 0);
+}
+
+Value envNative(int argCount, Value *args)
+{
+    if (argCount == 0)
+        return NONE_VAL;
+    if (!IS_STRING(args[0]))
+        return NONE_VAL;
+    char *str = AS_CSTRING(args[0]);
+    char *env = getEnv(str);
+    if(env == NULL)
+        return NONE_VAL;
+    return STRING_VAL(env);
+}
+
 Value copyNative(int argCount, Value *args)
 {
     if (argCount == 0)
@@ -895,7 +934,7 @@ Value evalNative(int argCount, Value *args)
     Value arg = args[0];
     if (!IS_STRING(arg))
     {
-        printf("'eval' requires a string parameter\n");
+        runtimeError("'eval' requires a string parameter\n");
         return NONE_VAL;
     }
 
@@ -904,7 +943,7 @@ Value evalNative(int argCount, Value *args)
 
     if (function == NULL)
     {
-        printf("Failed to evaluate.\n");
+        runtimeError("Failed to evaluate.\n");
         return NONE_VAL;
     }
 
@@ -1066,6 +1105,7 @@ void initStd()
     ADD_STD("input", inputNative);
     ADD_STD("print", printNative);
     ADD_STD("println", printlnNative);
+    ADD_STD("error", errorNative);
     ADD_STD("random", randomNative);
     ADD_STD("seed", seedNative);
     ADD_STD("wait", waitNative);
@@ -1098,13 +1138,15 @@ void initStd()
     ADD_STD("exp", expNative);
     ADD_STD("len", lenNative);
     ADD_STD("type", typeNative);
-    ADD_STD("env", envNative);
+    ADD_STD("vars", varsNative);
     ADD_STD("open", openNative);
     ADD_STD("cd", cdNative);
     ADD_STD("pwd", pwdNative);
     ADD_STD("ls", lsNative);
     ADD_STD("exists", existsNative);
     ADD_STD("find", findNative);
+    ADD_STD("remove", removeNative);
+    ADD_STD("env", envNative);
     ADD_STD("make", makeNative);
     ADD_STD("copy", copyNative);
     ADD_STD("eval", evalNative);

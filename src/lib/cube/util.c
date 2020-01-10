@@ -218,3 +218,18 @@ void cube_wait(uint64_t t)
 {
 	usleep(t);
 }
+
+char *getEnv(const char *name)
+{
+	return getenv(name);
+}
+
+char *getHome()
+{
+	#ifdef WIN32
+	char *home = getEnv("UserProfile");
+	#else
+	char *home = getEnv("HOME");
+	#endif
+	return home;
+}

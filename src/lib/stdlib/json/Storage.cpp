@@ -294,11 +294,16 @@ Value Value::parseArray(string &text, int *i)
     *i = *i + 1;
     while(*i < text.size())
     {
-        Value v = parse(text, i);
-        if(!v.valid)
-            break;
-        value.Add(v);
+        Value v;
         trim(text, i);
+        if(text[*i] != ']')
+        {
+            v = parse(text, i);
+            if(!v.valid)
+                break;
+            value.Add(v);
+            trim(text, i);
+        }
         if(*i >= text.size())
             break;
         if(text[*i] == ',')

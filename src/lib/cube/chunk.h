@@ -68,7 +68,8 @@ typedef enum
   OP_CLOSE_TRY,
   OP_NATIVE_FUNC,
   OP_NATIVE,
-  OP_REPL_POP
+  OP_REPL_POP,
+  OP_TEST
 } OpCode;
 
 typedef struct

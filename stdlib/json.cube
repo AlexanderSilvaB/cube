@@ -1,15 +1,21 @@
 native libs/libjson
 {
+    dict json_native_parse(str);
     dict json_native_read(str);
     bool json_native_write(str, dict);
 }
 
-func read(fileName)
+func parseJson(text)
+{
+    return json_native_parse(text);
+}
+
+func readJson(fileName)
 {
     return json_native_read(fileName);
 }
 
-func write(fileName, data)
+func writeJson(fileName, data)
 {
     return json_native_write(fileName, data);
 }
@@ -26,7 +32,7 @@ class JSON
 
     func load()
     {
-        this.data = read(this.fileName);
+        this.data = readJson(this.fileName);
         if(this.data is none)
         {
             this.data = {};
@@ -42,7 +48,7 @@ class JSON
 
     func save()
     {
-        return write(this.fileName, this.data);
+        return writeJson(this.fileName, this.data);
     }
 
     func set(key, value)

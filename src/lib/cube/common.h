@@ -8,6 +8,7 @@
 //#define NAN_TAGGING
 // #define DEBUG_PRINT_CODE
 // #define DEBUG_TRACE_EXECUTION
+// #define DEBUG_TRACE_EXECUTION_ON_ERROR
 
 // #define GC_DISABLED
 #define GC_AUTO

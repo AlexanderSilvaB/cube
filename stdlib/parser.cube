@@ -1,0 +1,133 @@
+class Parser
+{
+    var rules = [];
+    var name = "";
+    var descr = "";
+    var version = "";
+    var args = {};
+
+    func init(name, descr, version)
+    {
+        this.name = name;
+        this.descr = descr;
+        this.version = version;
+    }
+
+    func add(name, letter, type, descr)
+    {
+        this.rules.add(args);
+    }
+
+    func isRule(key)
+    {
+        for(var rule in this.rules)
+        {
+            if(key == '--'+rule[0])
+                return true;
+            if(rule[1] is not none and key == '-'+rule[1])
+                return true;
+        }
+        return false;
+    }
+
+    func setArg(key, value)
+    {
+        var rule = none;
+        for(var r in this.rules)
+        {
+            if(key == r[0])
+            {
+                rule = r;
+            }
+        }
+        
+        if(rule is none or rule[3] is not func)
+            this.args[key] = value;
+        else 
+        {
+            if(value is list)
+            {
+                for(var i = 0; i < len(value); ++i)
+                {
+                    value[i] = rule[3](value[i]);
+                }
+                this.args[key] = value;
+            }
+            else
+                this.args[key] = rule[3](value);
+        }
+    }
+
+    func parse(data)
+    {
+        if('--help' in data or '-h' in data)
+        {
+            this.help();
+            exit(0);
+        }
+
+        for(var rule in this.rules)
+        {
+            this.args[rule[0]] = none;
+        }
+
+        var i = 0;
+        var values = [];
+        for(var rule in this.rules)
+        {
+            i = data.index('--'+rule[0]);
+            if(i < 0 and rule[1] is not none)
+                i = data.index('-'+rule[1]);
+            
+            if(i >= 0)
+            {
+                if(rule[2] is none or rule[3] == 0)
+                    this.args[rule[0]] = true;
+                else if(rule[3] == '?' or rule[3] == '+' or rule[3] is num)
+                {
+                    ++i;
+                    values = [];
+                    while(i < len(data) and not this.isRule(data[i]))
+                    {
+                        values.add(data[i]);
+                        ++i;
+                    }
+
+                    if(rule[3] == '?')
+                        this.setArg(rule[0], values);
+                    else if(rule[3] == '+' and len(values) > 0)
+                        this.setArg(rule[0], values);
+                    else if(rule[3] == 1 and len(values) == 1)
+                        this.setArg(rule[0], values[0]);
+                    else if(rule[3] == len(values))
+                        this.setArg(rule[0], values);
+                    else
+                    {
+                        error("Invalid arguments for ", rule[0], ': ', values);
+                    }
+                }
+            }
+        }
+    }
+
+    func header()
+    {
+        println(this.name, ' ', this.version);
+        println(this.descr);
+    }
+
+    func help()
+    {
+        this.header();
+        println('Options: ');
+        for(var rule in this.rules)
+        {
+            print('[--', rule[0],']');
+            if(rule[1] is not none)
+                print('[-', rule[1],']');
+            if(rule[3] is not none)
+                println(' ',rule[4]);
+        }
+    }
+
+}

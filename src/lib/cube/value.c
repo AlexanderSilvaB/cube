@@ -23,6 +23,8 @@ void writeValueArray(ValueArray *array, Value value)
     array->capacity = GROW_CAPACITY(oldCapacity);
     array->values = GROW_ARRAY(array->values, Value,
                                oldCapacity, array->capacity);
+    for(int i = oldCapacity; i < array->capacity; i++)
+      array->values[i] = NONE_VAL;
   }
 
   array->values[array->count] = value;

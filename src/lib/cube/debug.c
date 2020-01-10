@@ -215,6 +215,8 @@ int disassembleInstruction(Chunk *chunk, int offset)
     return simpleInstruction("OP_NATIVE_FUNC", offset);
   case OP_NATIVE:
     return constantInstruction("OP_NATIVE", chunk, offset);
+  case OP_TEST:
+    return simpleInstruction("OP_TEST", offset);
   default:
     printf("Unknown opcode %d\n", instruction);
     return offset + 1;

@@ -45,11 +45,16 @@ extern "C"
                 AS_NATIVE_BOOL(isServer),
                 AS_NATIVE_NUMBER(timeout));
 
-        int addr = sockets.size();
-        sockets[addr] = socket;
-        buffers[addr] = new char[BUFFER_SIZE];
+        cube_native_var* ret = NATIVE_NONE();
+        
+        if(AS_NATIVE_BOOL(isServer) || socket->isConnected())
+        {
+            int addr = sockets.size();
+            sockets[addr] = socket;
+            buffers[addr] = new char[BUFFER_SIZE];
 
-        cube_native_var* ret = NATIVE_NUMBER(addr);
+            TO_NATIVE_NUMBER(ret, addr);
+        }
         return ret;
     }
 

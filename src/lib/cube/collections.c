@@ -189,6 +189,38 @@ static bool containsListItem(int argCount) {
 	return true;
 }
 
+static bool indexList(int argCount) {
+	if (argCount != 2) {
+		runtimeError("contains() takes 2 arguments (%d  given)", argCount);
+		return false;
+	}
+
+	Value search = pop();
+	ObjList *list = AS_LIST(pop());
+
+	int i = 0;
+	for (i = 0; i < list->values.capacity; ++i) {
+		#ifndef NAN_TAGGING
+		if (valuesEqual(list->values.values[i], search)) {
+			break;
+		}
+		#else
+		if (!list->values.values[i])
+			continue;
+
+		if (list->values.values[i] == search) {
+			break;
+		}
+		#endif
+	}
+
+	if(i >= list->values.capacity)
+		i = -1;
+
+	push(NUMBER_VAL(i));
+	return true;
+}
+
 bool listContains(Value listV, Value search, Value *result) {
 
 	ObjList *list = AS_LIST(listV);
@@ -328,6 +360,8 @@ bool listMethods(char *method, int argCount) {
 		return popListItem(argCount);
 	else if (strcmp(method, "contains") == 0)
 		return containsListItem(argCount);
+	else if (strcmp(method, "index") == 0)
+		return indexList(argCount);
 	else if (strcmp(method, "copy") == 0)
 		return copyListShallow(argCount);
 	else if (strcmp(method, "deepCopy") == 0)

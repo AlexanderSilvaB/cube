@@ -1,0 +1,29 @@
+func extension(path)
+{
+    var parts = path.split('.');
+    var ext = parts[-1];
+    return ext;
+}
+
+func fileName(path)
+{
+    var parts = path.split('/');
+    var name = parts[-1];
+    return name;
+}
+
+func folder(path)
+{
+    var parts = path.split('/');
+    var name = parts[-1];
+    return name;
+}
+
+func expand(p)
+{
+    var home = env("HOME");
+    if(home is none)
+        return p;
+
+    return p.replace('~', home);
+}
