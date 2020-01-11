@@ -12,16 +12,19 @@ parser.add('uninstall', 'u', str, '+', 'selects the package to uninstall');
 
 parser.parse(args);
 
+
 // var address = 'https://raw.githubusercontent.com';
 // var base = 'AlexanderSilvaB/cube-packages/master/';
+// var port = net.HTTP.PORT;
 var address = '127.0.0.1';
 var base = '';
+var port = 8080;
 
 func readWeb(address, request)
 {
-    var http = net.HTTPClient(address, net.HTTP.PORT);
+    var http = net.HTTPClient(address, port);
     if(!http.connect())
-        error('Failed to connect');
+        error('Failed to connect [', address, ':', port, ']');
     
      http.get(request);
     var contents = http.receive();

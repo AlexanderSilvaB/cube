@@ -79,7 +79,7 @@ class Socket
 
 class HTTP
 {
-    static var PORT = 8080;
+    static var PORT = 80;
     static var SUCCESS = 201;
     static var NOT_FOUND = 404;
 }
