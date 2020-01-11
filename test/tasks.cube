@@ -14,17 +14,16 @@ func task(count, model)
 task(20, 'x{}x');
 
 // To run a function as a task, we use the 'async' before the function call
-// A task with the same name of the function will be created
-async task(20, '[{}]') as t1;
+async task(20, '[{}]');
 
-// If the want to change the name of the task, we use the keyword 'as' and a name after the function call
-async task(20, '({})') as t2;
+// If we need to manipulate the task, we can use the returned variable
+var t2 = async task(20, '({})');
 
 // If we want to wait for some task to finish and get its results, we use 'await' before the task
 var elapsed = await t2;
 println("\nElapsed: ", elapsed, 's');
 
 // We can abort a running task at any time by using the 'abort' keyword followed by the task name
-async task(200, '<{}>');
+var t3 = async task(200, '<{}>');
 wait(1);
-abort task;
+abort t3;
