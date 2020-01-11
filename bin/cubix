@@ -10,6 +10,7 @@ var parser = Parser('Cubix', 'The cube package manager', '0.1');
 parser.add('install', 'i', str, '+', 'selects the package to install');
 parser.add('uninstall', 'u', str, '+', 'selects the package to uninstall');
 parser.add('list', 'l', none, 0, 'list installed packages');
+parser.add('online', 'o', none, 0, 'list online packages');
 
 parser.parse(args);
 
@@ -88,6 +89,17 @@ func listPackages()
     
     if(size == 0)
         println("No packages found");
+}
+
+func listOnlinePackages()
+{
+    var contents = readWeb(address, '{}index.json'.format(base));
+    var packages = json.parseJson(contents)['packages'];
+    for(var p in packages)
+    {
+        print(p.split('/')[-1], ', ');
+    }
+    println('\b\b  ');
 }
 
 func installPackage(lib, url)
@@ -231,6 +243,10 @@ else if( parser.args['uninstall'] is not none and len(parser.args['uninstall']) 
 else if( parser.args['list'])
 {
     listPackages();
+}
+else if( parser.args['online'] )
+{
+    listOnlinePackages();
 }
 else
 {
