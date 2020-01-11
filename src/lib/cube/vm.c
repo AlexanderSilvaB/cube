@@ -2351,9 +2351,6 @@ static InterpretResult run()
     }
     case OP_ASYNC:
     {
-      // ObjString *name = AS_STRING(pop());
-      // ObjString *name = READ_STRING();
-
       char *name = (char*)malloc(sizeof(char) * 32);
       name[0] = '\0';
       sprintf(name, "Task%d", taskCount);
@@ -2361,8 +2358,6 @@ static InterpretResult run()
 
 
       ObjClosure *closure = AS_CLOSURE(pop());
-
-      // TaskFrame *tf = createTaskFrame(name->chars);
       TaskFrame *tf = createTaskFrame(name);
 
       
@@ -2404,8 +2399,6 @@ static InterpretResult run()
           break;
       }
       ObjTask *task = AS_TASK(pop());
-      //ObjString *name = AS_STRING(pop());
-      // TaskFrame *tf = findTaskFrame(name->chars);
       TaskFrame *tf = findTaskFrame(task->name->chars);
       if (tf == NULL)
       {
@@ -2419,7 +2412,6 @@ static InterpretResult run()
         }
         else
         {
-          // push(OBJ_VAL(name));
           push(OBJ_VAL(task));
           frame->ip--;
         }
@@ -2439,8 +2431,6 @@ static InterpretResult run()
           break;
       }
       ObjTask *task = AS_TASK(pop());
-      // ObjString *name = AS_STRING(pop());
-      // destroyTaskFrame(name->chars);
       destroyTaskFrame(task->name->chars);
       break;
     }

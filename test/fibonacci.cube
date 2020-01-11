@@ -54,4 +54,4 @@ println("Fibonacci Iterative(10) = ", result, " [", time*1e3, "]");
 start = clock();
 result = fibTask(10);
 time = clock()-start;
-println("Fibonacci Parallel(10) = ", result, " [", time*1e3, "]");
+println("Fibonacci Parallelized(10) = ", result, " [", time*1e3, "]");

@@ -1304,7 +1304,6 @@ static void static_(bool canAssign)
 static void await(bool canAssign)
 {
   consume(TOKEN_IDENTIFIER, "Expect a function call in await.");
-  // emitPreviousAsString();
   getVariable(parser.previous);
   emitByte(OP_AWAIT);
 }
@@ -1312,7 +1311,6 @@ static void await(bool canAssign)
 static void async(bool canAssign)
 {
   consume(TOKEN_IDENTIFIER, "Expect a function call in async.");
-  // char *name = getPreviousAsString();
 
   Compiler compiler;
   initCompiler(&compiler, TYPE_FUNCTION);
@@ -1330,30 +1328,11 @@ static void async(bool canAssign)
   uint8_t argCount = argumentList();
   emitBytes(OP_CALL, argCount);
 
-  // if(match(TOKEN_AS))
-  // {
-  //   consume(TOKEN_IDENTIFIER, "Expect a task name after 'as' in async.");
-  //   free(name);
-  //   name = getPreviousAsString();
-  // }
-
-  // consume(TOKEN_SEMICOLON, "Expect ';' after async.");
-
   emitByte(OP_RETURN);
 
   // Create the function object.
   ObjFunction *function = endCompiler();
   emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
-
-  // emitConstant(STRING_VAL(name));
-
-  // Token taskName = syntheticToken(name);
-  // uint8_t nameConstant = identifierConstant(&taskName);
-  // declareNamedVariable(&taskName);
-
-  // defineVariable(nameConstant);
-
-  // free(name);
 
   for (int i = 0; i < function->upvalueCount; i++)
   {
@@ -2096,7 +2075,6 @@ static void importStatement()
 static void abortStatement()
 {
   consume(TOKEN_IDENTIFIER, "Expect a function call in abort.");
-  // emitPreviousAsString();
   getVariable(parser.previous);
   consume(TOKEN_SEMICOLON, "Expect ';' after abort.");
   emitByte(OP_ABORT);
