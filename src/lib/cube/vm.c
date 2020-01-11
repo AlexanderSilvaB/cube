@@ -251,7 +251,7 @@ void addPath(const char *path)
   char *home = getHome();
   char *pathStr;
   if(home == NULL)
-    pathStr = path;
+    pathStr = (char*)path;
   else
   {
     pathStr = (char*)malloc(sizeof(char) * 256);
@@ -319,12 +319,15 @@ static bool call(ObjClosure *closure, int argCount)
 
   if (argCount < closure->function->arity)
   {
-    runtimeError("Expected at least %d arguments but got %d.",
-                 closure->function->arity, argCount);
-    return false;
+    // runtimeError("Expected at least %d arguments but got %d.",
+    //              closure->function->arity, argCount);
+    // return false;
+    while(argCount < closure->function->arity)
+    {
+      push(NONE_VAL);
+      argCount++;
+    }
   }
-
-  // TODO: Pop unused variables and comment above
 
   if (vm.ctf->frameCount == FRAMES_MAX)
   {
