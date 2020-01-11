@@ -127,7 +127,7 @@ char *readLine(const char* str)
 
 int repl()
 {
-    printf("%s %d.%d\n", LANG_NAME, VERSION_MAJOR, VERSION_MINIR);
+    printf("%s %d.%d\n", LANG_NAME, VERSION_MAJOR, VERSION_MINOR);
     char line[1024];
     for (;;)
     {

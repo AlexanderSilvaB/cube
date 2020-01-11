@@ -16,6 +16,7 @@
 #include "strings.h"
 #include "gc.h"
 #include "system.h"
+#include "version.h"
 
 Value clockNative(int argCount, Value *args)
 {
@@ -906,6 +907,23 @@ Value removeNative(int argCount, Value *args)
     return BOOL_VAL(rc == 0);
 }
 
+Value mkdirNative(int argCount, Value *args)
+{
+    if (argCount == 0)
+        return NONE_VAL;
+    if (!IS_STRING(args[0]))
+        return NONE_VAL;
+    char *str = AS_CSTRING(args[0]);
+    int mode = 0777;
+    if(argCount > 1 && IS_NUMBER(args[1]))
+    {
+        mode = AS_NUMBER(args[1]);
+    }
+
+    int rc = mkdir(str, mode);
+    return BOOL_VAL(rc == 0);
+}
+
 Value envNative(int argCount, Value *args)
 {
     if (argCount == 0)
@@ -1014,13 +1032,18 @@ Value autoGCNative(int argCount, Value *args)
     return BOOL_VAL(vm.autoGC);
 }
 
-Value getSystemInfoNative(int argCount, Value *args)
+Value systemInfoNative(int argCount, Value *args)
 {
     ObjDict *dict = initDict();
 
     Value os = STRING_VAL(PLATFORM_NAME);
     insertDict(dict, "os", os);
-
+    insertDict(dict, "version", NUMBER_VAL((VERSION_MAJOR + 0.1 * VERSION_MINOR)));
+    
+    if ((size_t)-1 > 0xffffffffUL)
+        insertDict(dict, "arch", NUMBER_VAL(64));
+    else
+        insertDict(dict, "arch", NUMBER_VAL(32));
     return OBJ_VAL(dict);
 }
 
@@ -1146,6 +1169,7 @@ void initStd()
     ADD_STD("exists", existsNative);
     ADD_STD("find", findNative);
     ADD_STD("remove", removeNative);
+    ADD_STD("mkdir", mkdirNative);
     ADD_STD("env", envNative);
     ADD_STD("make", makeNative);
     ADD_STD("copy", copyNative);
@@ -1153,7 +1177,7 @@ void initStd()
     ADD_STD("mem", memNative);
     ADD_STD("gc", gcNative);
     ADD_STD("enableAutoGC", autoGCNative);
-    ADD_STD("getSystemInfo", getSystemInfoNative);
+    ADD_STD("systemInfo", systemInfoNative);
     ADD_STD("printStack", printStackNative);
     ADD_STD("isdigit", isdigitNative);
     ADD_STD("isspace", isspaceNative);

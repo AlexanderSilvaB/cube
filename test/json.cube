@@ -2,7 +2,7 @@ import json;
 
 var t = json.JSON('temp/test.json');
 
-t['os'] = getSystemInfo();
+t['os'] = systemInfo();
 t['ps'] = 5;
 t['v'] = t.values();
 t['k'] = t.keys();

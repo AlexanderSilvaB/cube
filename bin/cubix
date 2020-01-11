@@ -9,6 +9,7 @@ import parser as default;
 var parser = Parser('Cubix', 'The cube package manager', '0.1');
 parser.add('install', 'i', str, '+', 'selects the package to install');
 parser.add('uninstall', 'u', str, '+', 'selects the package to uninstall');
+parser.add('list', 'l', none, 0, 'list installed packages');
 
 parser.parse(args);
 
@@ -72,6 +73,23 @@ func uninstall(libs)
     }   
 }
 
+func listPackages()
+{
+    var files = ls(os.allowedLibsPath);
+    var size = 0;
+    for(var file in files)
+    {
+        if(file.endsWith('.json'))
+        {
+            if(listPackage(file))
+                ++size;
+        }
+    }
+    
+    if(size == 0)
+        println("No packages found");
+}
+
 func installPackage(lib, url)
 {
     var parts = url.split('/');
@@ -131,7 +149,7 @@ func installPackage(lib, url)
     for(var f in package['native'])
     {
         print('Downloading: ', f);
-        data = readWeb(address, '{}/native/{}/{}{}'.format(base, os.name, f, os.libsExt));
+        data = readWeb(address, '{}/native/{}/{}/{}{}'.format(base, os.name, os.arch, f, os.libsExt));
         name = paths.fileName(f);
         path = os.allowedLibsPath;
         path += '/{}{}'.format(name, os.libsExt);
@@ -191,6 +209,17 @@ func uninstallPackage(lib)
 
 }
 
+func listPackage(lib)
+{
+    var path = '{}/{}'.format(os.allowedLibsPath, lib);
+    var package = json.readJson(path);
+    if(package is none or len(package) == 0)
+        return false;
+
+    println(package['name'], ':', package['version'], '  [', package['description'], ']');
+    return true;
+}
+
 if(parser.args['install'] is not none and len(parser.args['install']) > 0 )
 {
     install(parser.args['install']);
@@ -198,6 +227,10 @@ if(parser.args['install'] is not none and len(parser.args['install']) > 0 )
 else if( parser.args['uninstall'] is not none and len(parser.args['uninstall']) > 0 )
 {
     uninstall(parser.args['uninstall']);
+}
+else if( parser.args['list'])
+{
+    listPackages();
 }
 else
 {
