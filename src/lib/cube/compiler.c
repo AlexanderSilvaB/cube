@@ -669,13 +669,6 @@ static char* getPreviousAsString()
   return str;
 }
 
-static void await(bool canAssign)
-{
-  consume(TOKEN_IDENTIFIER, "Expect a function call in await.");
-  emitPreviousAsString();
-  emitByte(OP_AWAIT);
-}
-
 static void dot(bool canAssign)
 {
   consume(TOKEN_IDENTIFIER, "Expect property name after '.'.");
@@ -1308,6 +1301,70 @@ static void static_(bool canAssign)
     error("Cannot use 'static' outside of a class.");
 }
 
+static void await(bool canAssign)
+{
+  consume(TOKEN_IDENTIFIER, "Expect a function call in await.");
+  // emitPreviousAsString();
+  getVariable(parser.previous);
+  emitByte(OP_AWAIT);
+}
+
+static void async(bool canAssign)
+{
+  consume(TOKEN_IDENTIFIER, "Expect a function call in async.");
+  // char *name = getPreviousAsString();
+
+  Compiler compiler;
+  initCompiler(&compiler, TYPE_FUNCTION);
+  beginScope(); // [no-end-scope]
+
+  // Create args
+  Token argsToken = syntheticToken("args");
+  uint8_t args = identifierConstant(&argsToken);
+  getVariable(syntheticToken(vm.argsString));
+  defineVariable(args);
+
+  namedVariable(parser.previous, false);
+
+  consume(TOKEN_LEFT_PAREN, "Expect a function function call in async.");
+  uint8_t argCount = argumentList();
+  emitBytes(OP_CALL, argCount);
+
+  // if(match(TOKEN_AS))
+  // {
+  //   consume(TOKEN_IDENTIFIER, "Expect a task name after 'as' in async.");
+  //   free(name);
+  //   name = getPreviousAsString();
+  // }
+
+  // consume(TOKEN_SEMICOLON, "Expect ';' after async.");
+
+  emitByte(OP_RETURN);
+
+  // Create the function object.
+  ObjFunction *function = endCompiler();
+  emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
+
+  // emitConstant(STRING_VAL(name));
+
+  // Token taskName = syntheticToken(name);
+  // uint8_t nameConstant = identifierConstant(&taskName);
+  // declareNamedVariable(&taskName);
+
+  // defineVariable(nameConstant);
+
+  // free(name);
+
+  for (int i = 0; i < function->upvalueCount; i++)
+  {
+    emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
+    emitByte(compiler.upvalues[i].index);
+  }
+
+  emitByte(OP_ASYNC);
+}
+
+
 ParseRule rules[] = {
     {grouping, call, PREC_CALL},     // TOKEN_LEFT_PAREN
     {NULL, NULL, PREC_NONE},         // TOKEN_RIGHT_PAREN
@@ -1375,7 +1432,7 @@ ParseRule rules[] = {
     {NULL, NULL, PREC_NONE},         // TOKEN_NATIVE
     {let, NULL, PREC_NONE},          // TOKEN_LET
     {NULL, NULL, PREC_NONE},         // TOKEN_WITH
-    {NULL, NULL, PREC_NONE},         // TOKEN_ASYNC
+    {async, NULL, PREC_NONE},         // TOKEN_ASYNC
     {await, NULL, PREC_NONE},         // TOKEN_AWAIT
     {NULL, NULL, PREC_NONE},         // TOKEN_ABORT
     {NULL, NULL, PREC_NONE},         // TOKEN_TRY
@@ -2036,58 +2093,11 @@ static void importStatement()
   emitByte(OP_IMPORT);
 }
 
-static void asyncStatement()
-{
-  consume(TOKEN_IDENTIFIER, "Expect a function call in async.");
-  char *name = getPreviousAsString();
-
-  Compiler compiler;
-  initCompiler(&compiler, TYPE_FUNCTION);
-  beginScope(); // [no-end-scope]
-
-  // Create args
-  Token argsToken = syntheticToken("args");
-  uint8_t args = identifierConstant(&argsToken);
-  getVariable(syntheticToken(vm.argsString));
-  defineVariable(args);
-
-  namedVariable(parser.previous, false);
-
-  consume(TOKEN_LEFT_PAREN, "Expect a function function call in async.");
-  uint8_t argCount = argumentList();
-  emitBytes(OP_CALL, argCount);
-
-  if(match(TOKEN_AS))
-  {
-    consume(TOKEN_IDENTIFIER, "Expect a task name after 'as' in async.");
-    free(name);
-    name = getPreviousAsString();
-  }
-
-  consume(TOKEN_SEMICOLON, "Expect ';' after async.");
-
-  emitByte(OP_RETURN);
-
-  // Create the function object.
-  ObjFunction *function = endCompiler();
-  emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
-
-  emitConstant(STRING_VAL(name));
-  emitByte(OP_ASYNC);
-
-  free(name);
-
-  for (int i = 0; i < function->upvalueCount; i++)
-  {
-    emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
-    emitByte(compiler.upvalues[i].index);
-  }
-}
-
 static void abortStatement()
 {
   consume(TOKEN_IDENTIFIER, "Expect a function call in abort.");
-  emitPreviousAsString();
+  // emitPreviousAsString();
+  getVariable(parser.previous);
   consume(TOKEN_SEMICOLON, "Expect ';' after abort.");
   emitByte(OP_ABORT);
 }
@@ -2315,7 +2325,6 @@ static void synchronize()
     case TOKEN_IMPORT:
     case TOKEN_BREAK:
     case TOKEN_WITH:
-    case TOKEN_ASYNC:
     case TOKEN_ABORT:
     case TOKEN_TRY:
     case TOKEN_CATCH:
@@ -2378,10 +2387,6 @@ static void statement()
   else if (match(TOKEN_IMPORT))
   {
     importStatement();
-  }
-  else if (match(TOKEN_ASYNC))
-  {
-    asyncStatement();
   }
   else if (match(TOKEN_ABORT))
   {
@@ -2793,7 +2798,9 @@ bool writeByteCodeChunk(FILE *file, Chunk *chunk)
     return false;
   if (fwrite(chunk->code, sizeof(uint8_t), chunk->count, file) != chunk->count)
     return false;
-  if (fwrite(chunk->lines, sizeof(int), chunk->count, file) != chunk->count)
+  if (fwrite(&chunk->lineCount, sizeof(chunk->lineCount), 1, file) != 1)
+    return false;
+  if (fwrite(chunk->lines, sizeof(LineStart), chunk->lineCount, file) != chunk->lineCount)
     return false;
   if (fwrite(&chunk->constants.count, sizeof(chunk->constants.count), 1, file) != 1)
     return false;
@@ -3021,11 +3028,15 @@ void loadChunk(Chunk *chunk, const char *source, uint32_t *pos, uint32_t total)
   chunk->capacity = chunk->count;
   chunk->code = GROW_ARRAY(chunk->code, uint8_t,
                            0, chunk->capacity);
-  chunk->lines = GROW_ARRAY(chunk->lines, int,
-                            0, chunk->capacity);
-
   READ_ARRAY(uint8_t, chunk->code, chunk->count);
-  READ_ARRAY(int, chunk->lines, chunk->count);
+
+
+  chunk->lineCount = READ(int);
+  chunk->lineCapacity = chunk->lineCount;
+  chunk->lines = GROW_ARRAY(chunk->lines, LineStart,
+                            0, chunk->lineCapacity);
+
+  READ_ARRAY(LineStart, chunk->lines, chunk->lineCount);
 
   int i = 0;
   int len = READ(int);

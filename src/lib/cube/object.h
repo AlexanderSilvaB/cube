@@ -25,6 +25,7 @@
 #define IS_BYTES(value) isObjType(value, OBJ_BYTES)
 #define IS_NATIVE_FUNC(value) isObjType(value, OBJ_NATIVE_FUNC)
 #define IS_NATIVE_LIB(value) isObjType(value, OBJ_NATIVE_LIB)
+#define IS_TASK(value) isObjType(value, OBJ_TASK)
 
 #define AS_BOUND_METHOD(value) ((ObjBoundMethod *)AS_OBJ(value))
 #define AS_CLASS(value) ((ObjClass *)AS_OBJ(value))
@@ -42,6 +43,7 @@
 #define AS_CBYTES(value) (((ObjBytes *)AS_OBJ(value))->bytes)
 #define AS_NATIVE_FUNC(value)          ((ObjNativeFunc*)AS_OBJ(value))
 #define AS_NATIVE_LIB(value)          ((ObjNativeLib*)AS_OBJ(value))
+#define AS_TASK(value)          ((ObjTask*)AS_OBJ(value))
 
 #define STRING_VAL(str) (OBJ_VAL(copyString(str, strlen(str))))
 #define BYTES_VAL(data, len) (OBJ_VAL(copyBytes(data, len)))
@@ -64,6 +66,7 @@ typedef enum
   OBJ_BYTES,
   OBJ_NATIVE_FUNC,
   OBJ_NATIVE_LIB,
+  OBJ_TASK,
   OBJ_UPVALUE
 } ObjType;
 
@@ -209,8 +212,16 @@ typedef struct
   ValueArray params;
 } ObjNativeFunc;
 
+typedef struct
+{
+  Obj obj;
+  ObjString *name;
+} ObjTask;
+
+
 ObjBoundMethod *newBoundMethod(Value receiver, ObjClosure *method);
 ObjClass *newClass(ObjString *name);
+ObjTask *newTask(ObjString *name);
 ObjClosure *newClosure(ObjFunction *function);
 ObjFunction *newFunction(bool isStatic);
 ObjInstance *newInstance(ObjClass *klass);

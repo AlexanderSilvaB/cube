@@ -21,6 +21,7 @@
 #include "gc.h"
 
 VM vm; // [one]
+static int taskCount = 0;
 
 static TaskFrame *createTaskFrame(const char *name)
 {
@@ -145,7 +146,8 @@ void runtimeError(const char *format, ...)
     // -1 because the IP is sitting on the next instruction to be
     // executed.
     size_t instruction = frame->ip - function->chunk.code - 1;
-    sprintf(str + strlen(str), "[line %d] in ", function->chunk.lines[instruction]);
+    int line = getLine(&function->chunk, instruction);
+    sprintf(str + strlen(str), "[line %d] in ", line);
 
     if (function->name == NULL)
     {
@@ -2349,11 +2351,27 @@ static InterpretResult run()
     }
     case OP_ASYNC:
     {
-      ObjString *name = AS_STRING(pop());
+      // ObjString *name = AS_STRING(pop());
+      // ObjString *name = READ_STRING();
+
+      char *name = (char*)malloc(sizeof(char) * 32);
+      name[0] = '\0';
+      sprintf(name, "Task%d", taskCount);
+      taskCount++;
+
 
       ObjClosure *closure = AS_CLOSURE(pop());
 
-      TaskFrame *tf = createTaskFrame(name->chars);
+      // TaskFrame *tf = createTaskFrame(name->chars);
+      TaskFrame *tf = createTaskFrame(name);
+
+      
+      ObjString *strTaskName = AS_STRING(STRING_VAL(name));
+      free(name);
+
+      ObjTask *task = newTask(strTaskName);
+      
+      push(OBJ_VAL(task));
 
       // Push the context
       *tf->stackTop = OBJ_VAL(closure);
@@ -2377,8 +2395,18 @@ static InterpretResult run()
 
     case OP_AWAIT:
     {
-      ObjString *name = AS_STRING(pop());
-      TaskFrame *tf = findTaskFrame(name->chars);
+      if(!IS_TASK( peek(0) ))
+      {
+        runtimeError("A task is required in await.");
+        if (!checkTry(frame))
+          return INTERPRET_RUNTIME_ERROR;
+        else
+          break;
+      }
+      ObjTask *task = AS_TASK(pop());
+      //ObjString *name = AS_STRING(pop());
+      // TaskFrame *tf = findTaskFrame(name->chars);
+      TaskFrame *tf = findTaskFrame(task->name->chars);
       if (tf == NULL)
       {
         push(NONE_VAL);
@@ -2391,7 +2419,8 @@ static InterpretResult run()
         }
         else
         {
-          push(OBJ_VAL(name));
+          // push(OBJ_VAL(name));
+          push(OBJ_VAL(task));
           frame->ip--;
         }
       }
@@ -2401,8 +2430,18 @@ static InterpretResult run()
 
     case OP_ABORT:
     {
-      ObjString *name = AS_STRING(pop());
-      destroyTaskFrame(name->chars);
+      if(!IS_TASK( peek(0) ))
+      {
+        runtimeError("A task is required in abort.");
+        if (!checkTry(frame))
+          return INTERPRET_RUNTIME_ERROR;
+        else
+          break;
+      }
+      ObjTask *task = AS_TASK(pop());
+      // ObjString *name = AS_STRING(pop());
+      // destroyTaskFrame(name->chars);
+      destroyTaskFrame(task->name->chars);
       break;
     }
 
@@ -2485,7 +2524,7 @@ InterpretResult compileCode(const char *source, const char *path)
   else
     strcat(bcPath + strlen(bcPath), ".cubec");
 
-  FILE *file = fopen(bcPath, "w");
+  FILE *file = fopen(bcPath, "wb");
   if (file == NULL)
   {
     printf("Could not write the byte code");

@@ -49,6 +49,13 @@ ObjClass *newClass(ObjString *name)
 	return klass;
 }
 
+ObjTask *newTask(ObjString *name)
+{
+	ObjTask *task = ALLOCATE_OBJ(ObjTask, OBJ_TASK);
+	task->name = name;
+	return task;
+}
+
 ObjPackage *newPackage(ObjString *name)
 {
 	ObjPackage *package = ALLOCATE_OBJ(ObjPackage, OBJ_PACKAGE);
@@ -247,6 +254,16 @@ char *objectToString(Value value, bool literal)
 		char *classString =
 			malloc(sizeof(char) * (klass->name->length + 10));
 		snprintf(classString, klass->name->length + 9, "<class %s>",
+				 klass->name->chars);
+		return classString;
+	}
+
+	case OBJ_TASK:
+	{
+		ObjClass *klass = AS_CLASS(value);
+		char *classString =
+			malloc(sizeof(char) * (klass->name->length + 10));
+		snprintf(classString, klass->name->length + 9, "<task %s>",
 				 klass->name->chars);
 		return classString;
 	}
@@ -554,6 +571,13 @@ char *objectType(Value value)
 	{
 		char *str = malloc(sizeof(char) * 7);
 		snprintf(str, 6, "class");
+		return str;
+	}
+
+	case OBJ_TASK:
+	{
+		char *str = malloc(sizeof(char) * 7);
+		snprintf(str, 6, "task");
 		return str;
 	}
 

@@ -6,6 +6,23 @@ func fibRecursive(n)
         return fibRecursive(n - 1) + fibRecursive(n - 2);
 }
 
+func fibTask(n) 
+{
+    if (n < 2)
+        return n;
+    else 
+    {
+       var t1 = async fibTask(n - 1);
+       var t2 = async fibTask(n - 2);
+
+       var x = await t1;
+       var y = await t2;
+
+       return x + y;
+    }
+}
+
+
 func fibIterative(n)
 {
     var j = 1;
@@ -19,5 +36,22 @@ func fibIterative(n)
     return j;
 }
 
-println("Fibonacci Recursive(10) = ", fibRecursive(10));
-println("Fibonacci Iterative(10) = ", fibIterative(10));
+
+var start;
+var result;
+var time;
+
+start = clock();
+result = fibRecursive(10);
+time = clock()-start;
+println("Fibonacci Recursive(10) = ", result, " [", time*1e3, "]");
+
+start = clock();
+result = fibIterative(10);
+time = clock()-start;
+println("Fibonacci Iterative(10) = ", result, " [", time*1e3, "]");
+
+start = clock();
+result = fibTask(10);
+time = clock()-start;
+println("Fibonacci Parallel(10) = ", result, " [", time*1e3, "]");
