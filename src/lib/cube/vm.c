@@ -19,12 +19,68 @@
 #include "scanner.h"
 #include "native.h"
 #include "gc.h"
+#include "threads.h"
 
 VM vm; // [one]
-static int taskCount = 0;
+
+void *threadFn(void *data);
+
+#if MAX_THREADS == 1
+ThreadFrame *currentThread()
+{
+  return &vm.threadFrames[0];
+}
+#else
+ThreadFrame *currentThread()
+{
+  int id = thread_id();
+  for (int i = 0; i < MAX_THREADS; i++)
+  {
+    int _id = vm.threadFrames[i].id;
+    if (id == vm.threadFrames[i].id)
+      return &vm.threadFrames[0];
+  }
+  return &vm.threadFrames[0];
+}
+#endif
+
+static ThreadFrame *createThreadFrame()
+{
+  int i = 0;
+  for (i = 0; i < MAX_THREADS; i++)
+  {
+    if (vm.threadFrames[i].taskFrame == NULL)
+      break;
+  }
+  if (i == MAX_THREADS)
+    return currentThread();
+
+  if (i > 0)
+  {
+    vm.threadFrames[i].running = false;
+    int id = thread_create(threadFn, &vm.threadFrames[i]);
+    if (id == 0)
+    {
+      return currentThread();
+    }
+
+    vm.threadFrames[i].id = id;
+  }
+  else
+  {
+    int id = thread_id();
+    vm.threadFrames[i].running = true;
+    vm.threadFrames[i].id = thread_id();
+    vm.threadFrames[i].result = INTERPRET_OK;
+  }
+
+  return &vm.threadFrames[i];
+}
 
 static TaskFrame *createTaskFrame(const char *name)
 {
+  ThreadFrame *threadFrame = createThreadFrame();
+
   TaskFrame *taskFrame = (TaskFrame *)malloc(sizeof(TaskFrame));
   taskFrame->name = (char *)malloc(sizeof(char) * (strlen(name) + 1));
   strcpy(taskFrame->name, name);
@@ -41,10 +97,11 @@ static TaskFrame *createTaskFrame(const char *name)
   taskFrame->tryFrame = NULL;
   taskFrame->error = NULL;
   taskFrame->currentArgs = NONE_VAL;
+  taskFrame->threadFrame = threadFrame;
 
-  TaskFrame *tf = vm.taskFrame;
+  TaskFrame *tf = threadFrame->taskFrame;
   if (tf == NULL)
-    vm.taskFrame = taskFrame;
+    threadFrame->taskFrame = taskFrame;
   else
   {
     while (tf->next != NULL)
@@ -53,12 +110,19 @@ static TaskFrame *createTaskFrame(const char *name)
     }
     tf->next = taskFrame;
   }
+
+  if (threadFrame != currentThread())
+  {
+    threadFrame->ctf = threadFrame->taskFrame;
+    threadFrame->frame = NULL;
+  }
+
   return taskFrame;
 }
 
 static TaskFrame *findTaskFrame(const char *name)
 {
-  TaskFrame *tf = vm.taskFrame;
+  TaskFrame *tf = currentThread()->taskFrame;
   if (tf == NULL)
     return NULL;
 
@@ -76,13 +140,13 @@ static TaskFrame *findTaskFrame(const char *name)
 
 static void destroyTaskFrame(const char *name)
 {
-  TaskFrame *tf = vm.taskFrame;
+  TaskFrame *tf = currentThread()->taskFrame;
   if (tf == NULL)
     return;
 
   if (strcmp(name, tf->name) == 0)
   {
-    vm.taskFrame = tf->next;
+    currentThread()->taskFrame = tf->next;
     free(tf->name);
     free(tf);
   }
@@ -109,37 +173,37 @@ static void pushTry(CallFrame *frame, uint16_t offset)
   TryFrame *try
     = (TryFrame *)malloc(sizeof(TryFrame));
   try
-    ->next = vm.ctf->tryFrame;
+    ->next = currentThread()->ctf->tryFrame;
   try
     ->ip = frame->ip + offset;
-  vm.ctf->tryFrame = try
+  currentThread()->ctf->tryFrame = try
     ;
 }
 
 static void popTry()
 {
   TryFrame *try
-    = vm.ctf->tryFrame;
-  vm.ctf->tryFrame = try
+    = currentThread()->ctf->tryFrame;
+  currentThread()->ctf->tryFrame = try
     ->next;
   free(try);
 }
 
 static void resetStack()
 {
-  vm.ctf->stackTop = vm.ctf->stack;
-  vm.ctf->frameCount = 0;
-  vm.ctf->openUpvalues = NULL;
-  vm.ctf->currentFrameCount = 0;
+  currentThread()->ctf->stackTop = currentThread()->ctf->stack;
+  currentThread()->ctf->frameCount = 0;
+  currentThread()->ctf->openUpvalues = NULL;
+  currentThread()->ctf->currentFrameCount = 0;
 }
 
 void runtimeError(const char *format, ...)
 {
   char *str = (char *)malloc(sizeof(char) * 1024);
   str[0] = '\0';
-  for (int i = vm.ctf->frameCount - 1; i >= 0; i--)
+  for (int i = currentThread()->ctf->frameCount - 1; i >= 0; i--)
   {
-    CallFrame *frame = &vm.ctf->frames[i];
+    CallFrame *frame = &currentThread()->ctf->frames[i];
 
     ObjFunction *function = frame->closure->function;
 
@@ -151,7 +215,7 @@ void runtimeError(const char *format, ...)
 
     if (function->name == NULL)
     {
-      sprintf(str + strlen(str), "%s: ", vm.ctf->currentScriptName);
+      sprintf(str + strlen(str), "%s: ", currentThread()->ctf->currentScriptName);
       i = -1;
     }
     else
@@ -165,14 +229,16 @@ void runtimeError(const char *format, ...)
     va_end(args);
   }
 
-  vm.ctf->error = str;
+  sprintf(str + strlen(str), "\nThread[%d] Task[%s]", currentThread()->id, currentThread()->ctf->name);
+
+  currentThread()->ctf->error = str;
 }
 
 static void defineNative(const char *name, NativeFn function)
 {
   push(OBJ_VAL(copyString(name, (int)strlen(name))));
   push(OBJ_VAL(newNative(function)));
-  tableSet(&vm.globals, AS_STRING(vm.ctf->stack[0]), vm.ctf->stack[1]);
+  tableSet(&vm.globals, AS_STRING(currentThread()->ctf->stack[0]), currentThread()->ctf->stack[1]);
   pop();
   pop();
 }
@@ -181,14 +247,17 @@ void initVM(const char *path, const char *scriptName)
 {
   vm.ready = false;
   vm.exitCode = 0;
-  vm.taskFrame = NULL;
+  // currentThread()->taskFrame = NULL;
   vm.running = true;
   vm.repl = NONE_VAL;
   vm.print = false;
+
+  memset(vm.threadFrames, '\0', sizeof(ThreadFrame) * MAX_THREADS);
+
   createTaskFrame("default");
 
-  vm.ctf = vm.taskFrame;
-  vm.frame = NULL;
+  currentThread()->ctf = currentThread()->taskFrame;
+  currentThread()->frame = NULL;
 
   resetStack();
 
@@ -215,7 +284,7 @@ void initVM(const char *path, const char *scriptName)
   vm.nativeExtension = ".so";
 #endif
   vm.scriptName = scriptName;
-  vm.ctf->currentScriptName = scriptName;
+  currentThread()->ctf->currentScriptName = scriptName;
   vm.argsString = "__args__";
 
   vm.initString = AS_STRING(STRING_VAL("init"));
@@ -252,11 +321,11 @@ void addPath(const char *path)
 {
   char *home = getHome();
   char *pathStr;
-  if(home == NULL)
-    pathStr = (char*)path;
+  if (home == NULL)
+    pathStr = (char *)path;
   else
   {
-    pathStr = (char*)malloc(sizeof(char) * 256);
+    pathStr = (char *)malloc(sizeof(char) * 256);
     pathStr[0] = '\0';
     strcpy(pathStr, path);
     replaceString(pathStr, "~", home);
@@ -266,7 +335,7 @@ void addPath(const char *path)
   writeValueArray(&vm.paths->values, STRING_VAL(pathStr));
   RESTORE_GC;
 
-  if(home == NULL)
+  if (home == NULL)
     free(pathStr);
 }
 
@@ -290,23 +359,23 @@ void push(Value value)
   // printf("Push/Pop: %d/%d -> %d\nStackTop = ", pushs, pops, (pushs - pops));
   // printValue(value);
   // printf("\n");
-  *vm.ctf->stackTop = value;
-  vm.ctf->stackTop++;
+  *currentThread()->ctf->stackTop = value;
+  currentThread()->ctf->stackTop++;
 }
 
 Value pop()
 {
-  vm.ctf->stackTop--;
+  currentThread()->ctf->stackTop--;
   // pops++;
   // printf("Pop/Push: %d/%d -> %d\nStackTop = ", pushs, pops, (pushs - pops));
   // printValue(*vm.stackTop);
   // printf("\n");
-  return *vm.ctf->stackTop;
+  return *currentThread()->ctf->stackTop;
 }
 
 Value peek(int distance)
 {
-  return vm.ctf->stackTop[-1 - distance];
+  return currentThread()->ctf->stackTop[-1 - distance];
 }
 
 static bool call(ObjClosure *closure, int argCount)
@@ -324,38 +393,38 @@ static bool call(ObjClosure *closure, int argCount)
     // runtimeError("Expected at least %d arguments but got %d.",
     //              closure->function->arity, argCount);
     // return false;
-    while(argCount < closure->function->arity)
+    while (argCount < closure->function->arity)
     {
       push(NONE_VAL);
       argCount++;
     }
   }
 
-  if (vm.ctf->frameCount == FRAMES_MAX)
+  if (currentThread()->ctf->frameCount == FRAMES_MAX)
   {
     runtimeError("Stack overflow.");
     return false;
   }
 
-  CallFrame *frame = &vm.ctf->frames[vm.ctf->frameCount++];
+  CallFrame *frame = &(currentThread()->ctf)->frames[currentThread()->ctf->frameCount++];
   frame->closure = closure;
   frame->ip = closure->function->chunk.code;
-  frame->package = vm.frame ? vm.frame->package : NULL;
+  frame->package = currentThread()->frame ? currentThread()->frame->package : NULL;
   frame->nextPackage = NULL;
-  if (vm.frame && vm.frame->nextPackage != NULL)
+  if (currentThread()->frame && currentThread()->frame->nextPackage != NULL)
   {
-    frame->package = vm.frame->nextPackage;
-    vm.frame->nextPackage = NULL;
+    frame->package = currentThread()->frame->nextPackage;
+    currentThread()->frame->nextPackage = NULL;
   }
 
-  frame->slots = vm.ctf->stackTop - argCount - 1;
+  frame->slots = currentThread()->ctf->stackTop - argCount - 1;
 
   ObjList *args = initList();
   for (int i = argCount - 1; i >= 0; i--)
   {
     writeValueArray(&args->values, peek(i));
   }
-  vm.ctf->currentArgs = OBJ_VAL(args);
+  currentThread()->ctf->currentArgs = OBJ_VAL(args);
 
   return true;
 }
@@ -372,8 +441,8 @@ static bool callValue(Value callee, int argCount)
 
       // Replace the bound method with the receiver so it's in the
       // right slot when the method is called.
-      vm.ctf->stackTop[-argCount - 1] = bound->receiver;
-      vm.frame->nextPackage = vm.frame->package;
+      currentThread()->ctf->stackTop[-argCount - 1] = bound->receiver;
+      currentThread()->frame->nextPackage = currentThread()->frame->package;
       return call(bound->method, argCount);
     }
 
@@ -382,12 +451,12 @@ static bool callValue(Value callee, int argCount)
       ObjClass *klass = AS_CLASS(callee);
 
       // Create the instance.
-      vm.ctf->stackTop[-argCount - 1] = OBJ_VAL(newInstance(klass));
+      currentThread()->ctf->stackTop[-argCount - 1] = OBJ_VAL(newInstance(klass));
       // Call the initializer, if there is one.
       Value initializer;
       if (tableGet(&klass->methods, vm.initString, &initializer))
       {
-        vm.frame->nextPackage = klass->package ? klass->package : vm.frame->package;
+        currentThread()->frame->nextPackage = klass->package ? klass->package : currentThread()->frame->package;
         return call(AS_CLOSURE(initializer), argCount);
       }
       else if (argCount != 0)
@@ -404,8 +473,8 @@ static bool callValue(Value callee, int argCount)
     case OBJ_NATIVE:
     {
       NativeFn native = AS_NATIVE(callee);
-      Value result = native(argCount, vm.ctf->stackTop - argCount);
-      vm.ctf->stackTop -= argCount + 1;
+      Value result = native(argCount, currentThread()->ctf->stackTop - argCount);
+      currentThread()->ctf->stackTop -= argCount + 1;
       pops += argCount + 1;
       push(result);
       return true;
@@ -414,8 +483,8 @@ static bool callValue(Value callee, int argCount)
     case OBJ_NATIVE_FUNC:
     {
       ObjNativeFunc *func = AS_NATIVE_FUNC(callee);
-      Value result = callNative(func, argCount, vm.ctf->stackTop - argCount);
-      vm.ctf->stackTop -= argCount + 1;
+      Value result = callNative(func, argCount, currentThread()->ctf->stackTop - argCount);
+      currentThread()->ctf->stackTop -= argCount + 1;
       pops += argCount + 1;
       push(result);
       return true;
@@ -445,7 +514,7 @@ static bool invokeFromClass(ObjClass *klass, ObjString *name,
     }
   }
 
-  vm.frame->nextPackage = klass->package ? klass->package : vm.frame->package;
+  currentThread()->frame->nextPackage = klass->package ? klass->package : currentThread()->frame->package;
   return call(AS_CLOSURE(method), argCount);
   ;
 }
@@ -472,7 +541,7 @@ static bool invoke(ObjString *name, int argCount)
       return false;
     }
 
-    vm.frame->nextPackage = instance->package ? instance->package : vm.frame->package;
+    currentThread()->frame->nextPackage = instance->package ? instance->package : currentThread()->frame->package;
     return callValue(method, argCount);
   }
 
@@ -486,7 +555,7 @@ static bool invoke(ObjString *name, int argCount)
       return false;
     }
 
-    vm.frame->nextPackage = package;
+    currentThread()->frame->nextPackage = package;
     return callValue(func, argCount);
   }
 
@@ -511,8 +580,8 @@ static bool invoke(ObjString *name, int argCount)
   Value value;
   if (tableGet(&instance->fields, name, &value))
   {
-    vm.ctf->stackTop[-argCount - 1] = value;
-    vm.frame->nextPackage = instance->klass->package ? instance->klass->package : vm.frame->package;
+    currentThread()->ctf->stackTop[-argCount - 1] = value;
+    currentThread()->frame->nextPackage = instance->klass->package ? instance->klass->package : currentThread()->frame->package;
     return callValue(value, argCount);
   }
 
@@ -590,7 +659,7 @@ static bool instanceContains(Value container, Value item, Value *result)
 static ObjUpvalue *captureUpvalue(Value *local)
 {
   ObjUpvalue *prevUpvalue = NULL;
-  ObjUpvalue *upvalue = vm.ctf->openUpvalues;
+  ObjUpvalue *upvalue = currentThread()->ctf->openUpvalues;
 
   while (upvalue != NULL && upvalue->location > local)
   {
@@ -606,7 +675,7 @@ static ObjUpvalue *captureUpvalue(Value *local)
 
   if (prevUpvalue == NULL)
   {
-    vm.ctf->openUpvalues = createdUpvalue;
+    currentThread()->ctf->openUpvalues = createdUpvalue;
   }
   else
   {
@@ -618,21 +687,21 @@ static ObjUpvalue *captureUpvalue(Value *local)
 
 static void closeUpvalues(Value *last)
 {
-  while (vm.ctf->openUpvalues != NULL &&
-         vm.ctf->openUpvalues->location >= last)
+  while (currentThread()->ctf->openUpvalues != NULL &&
+         currentThread()->ctf->openUpvalues->location >= last)
   {
-    ObjUpvalue *upvalue = vm.ctf->openUpvalues;
+    ObjUpvalue *upvalue = currentThread()->ctf->openUpvalues;
     upvalue->closed = *upvalue->location;
     upvalue->location = &upvalue->closed;
-    vm.ctf->openUpvalues = upvalue->next;
+    currentThread()->ctf->openUpvalues = upvalue->next;
   }
 }
 
 static bool checkTry(CallFrame *frame)
 {
-  if (vm.ctf->tryFrame != NULL)
+  if (currentThread()->ctf->tryFrame != NULL)
   {
-    uint8_t *ip = vm.ctf->tryFrame->ip;
+    uint8_t *ip = currentThread()->ctf->tryFrame->ip;
     popTry();
 
     frame->ip = ip;
@@ -659,21 +728,21 @@ static bool checkTry(CallFrame *frame)
         }
       }
 
-      push(STRING_VAL(vm.ctf->error));
+      push(STRING_VAL(currentThread()->ctf->error));
     }
 
-    free(vm.ctf->error);
-    vm.ctf->error = NULL;
+    free(currentThread()->ctf->error);
+    currentThread()->ctf->error = NULL;
 
     return true;
   }
   else
   {
     resetStack();
-    fputs(vm.ctf->error, stderr);
+    fputs(currentThread()->ctf->error, stderr);
     fputs("\n", stderr);
-    free(vm.ctf->error);
-    vm.ctf->error = NULL;
+    free(currentThread()->ctf->error);
+    currentThread()->ctf->error = NULL;
     vm.repl = NONE_VAL;
     vm.print = true;
   }
@@ -808,11 +877,11 @@ Value envVariable(ObjString *name)
 {
   if (strcmp(name->chars, "__name__") == 0)
   {
-    return STRING_VAL(vm.ctf->currentScriptName);
+    return STRING_VAL(currentThread()->ctf->currentScriptName);
   }
   else if (strcmp(name->chars, vm.argsString) == 0)
   {
-    return vm.ctf->currentArgs;
+    return currentThread()->ctf->currentArgs;
   }
   return NONE_VAL;
 }
@@ -1102,7 +1171,7 @@ bool instanceOperation(const char *op)
 {
   if (!IS_INSTANCE(peek(0)) || !IS_INSTANCE(peek(1)))
   {
-    if (!IS_INSTANCE(peek(1)) || ( strcmp(op, "[]") != 0 && strcmp(op, "[]=") != 0 ))
+    if (!IS_INSTANCE(peek(1)) || (strcmp(op, "[]") != 0 && strcmp(op, "[]=") != 0))
       return false;
   }
 
@@ -1143,7 +1212,7 @@ bool instanceOperationSet(const char *op)
 {
   if (!IS_INSTANCE(peek(2)))
   {
-      return false;
+    return false;
   }
 
   ObjString *name = AS_STRING(STRING_VAL(op));
@@ -1161,15 +1230,15 @@ bool instanceOperationSet(const char *op)
 
 static bool nextTask()
 {
-  TaskFrame *ctf = vm.ctf;
+  TaskFrame *ctf = currentThread()->ctf;
 
 next:
-  vm.ctf = vm.ctf->next;
-  if (vm.ctf == NULL)
-    vm.ctf = vm.taskFrame;
-  if (vm.ctf->finished)
+  currentThread()->ctf = currentThread()->ctf->next;
+  if (currentThread()->ctf == NULL)
+    currentThread()->ctf = currentThread()->taskFrame;
+  if (currentThread()->ctf->finished)
   {
-    if (vm.ctf == ctf)
+    if (currentThread()->ctf == ctf)
       return false;
     else
       goto next;
@@ -1177,8 +1246,6 @@ next:
   return true;
 }
 
-static InterpretResult run()
-{
 #define READ_BYTE() (*frame->ip++)
 #define READ_SHORT() \
   (frame->ip += 2, (uint16_t)((frame->ip[-2] << 8) | frame->ip[-1]))
@@ -1206,8 +1273,15 @@ static InterpretResult run()
     }                                               \
   } while (false)
 
+InterpretResult run()
+{
   for (;;)
   {
+    // if(currentThread()->id != vm.threadFrames[0].id)
+    // {
+    //   printf("Other\n");
+    //   continue;
+    // }
     if (!vm.running)
     {
       return INTERPRET_OK;
@@ -1217,14 +1291,14 @@ static InterpretResult run()
       return INTERPRET_OK;
     }
 
-    if (vm.ctf->endTime > 0)
+    if (currentThread()->ctf->endTime > 0)
     {
       uint64_t t = cube_clock();
-      if (t > vm.ctf->endTime)
+      if (t > currentThread()->ctf->endTime)
       {
         pop();
-        push(NUMBER_VAL((t - vm.ctf->startTime) * 1e-6));
-        vm.ctf->startTime = vm.ctf->endTime = 0;
+        push(NUMBER_VAL((t - currentThread()->ctf->startTime) * 1e-6));
+        currentThread()->ctf->startTime = currentThread()->ctf->endTime = 0;
       }
       else
       {
@@ -1232,20 +1306,23 @@ static InterpretResult run()
       }
     }
 
-    CallFrame *frame = &vm.ctf->frames[vm.ctf->frameCount - 1];
-    vm.frame = frame;
+    CallFrame *frame = &currentThread()->ctf->frames[currentThread()->ctf->frameCount - 1];
+    currentThread()->frame = frame;
+    // if (frame->ip == NULL)
+    // {
+    //   printf("ALgo errado\n");
+    // }
 
-    if (vm.ctf->error != NULL)
+    if (currentThread()->ctf->error != NULL)
     {
       if (!checkTry(frame))
         return INTERPRET_RUNTIME_ERROR;
-      
     }
 
 #ifdef DEBUG_TRACE_EXECUTION
-    printf("Task: %s\n", vm.ctf->name);
+    printf("Thread: %d, Task: %s\n", currentThread()->id, currentThread()->ctf->name);
     int st = 0;
-    for (Value *slot = vm.ctf->stack; slot < vm.ctf->stackTop; slot++, st++)
+    for (Value *slot = currentThread()->ctf->stack; slot < currentThread()->ctf->stackTop; slot++, st++)
     {
       printf("[ (%d) ", st);
       printValue(*slot);
@@ -1650,7 +1727,7 @@ static InterpretResult run()
       {
         if (instanceOperation("+"))
         {
-          frame = &vm.ctf->frames[vm.ctf->frameCount - 1];
+          frame = &currentThread()->ctf->frames[currentThread()->ctf->frameCount - 1];
         }
         else
         {
@@ -1667,7 +1744,7 @@ static InterpretResult run()
     case OP_SUBTRACT:
       if (instanceOperation("-"))
       {
-        frame = &vm.ctf->frames[vm.ctf->frameCount - 1];
+        frame = &currentThread()->ctf->frames[currentThread()->ctf->frameCount - 1];
       }
       else
       {
@@ -1705,7 +1782,7 @@ static InterpretResult run()
     case OP_MULTIPLY:
       if (instanceOperation("*"))
       {
-        frame = &vm.ctf->frames[vm.ctf->frameCount - 1];
+        frame = &currentThread()->ctf->frames[currentThread()->ctf->frameCount - 1];
       }
       else
       {
@@ -1715,7 +1792,7 @@ static InterpretResult run()
     case OP_DIVIDE:
       if (instanceOperation("/"))
       {
-        frame = &vm.ctf->frames[vm.ctf->frameCount - 1];
+        frame = &currentThread()->ctf->frames[currentThread()->ctf->frameCount - 1];
       }
       else
       {
@@ -1727,7 +1804,7 @@ static InterpretResult run()
     {
       if (instanceOperation("%"))
       {
-        frame = &vm.ctf->frames[vm.ctf->frameCount - 1];
+        frame = &currentThread()->ctf->frames[currentThread()->ctf->frameCount - 1];
       }
       else
       {
@@ -1743,7 +1820,7 @@ static InterpretResult run()
     {
       if (instanceOperation("^"))
       {
-        frame = &vm.ctf->frames[vm.ctf->frameCount - 1];
+        frame = &currentThread()->ctf->frames[currentThread()->ctf->frameCount - 1];
       }
       else
       {
@@ -1939,7 +2016,7 @@ static InterpretResult run()
         else
           break;
       }
-      vm.ctf->currentScriptName = fileName->chars;
+      currentThread()->ctf->currentScriptName = fileName->chars;
 
       char *name = NULL;
 
@@ -1977,16 +2054,122 @@ static InterpretResult run()
       ObjClosure *closure = newClosure(function);
       pop();
 
-      vm.ctf->currentFrameCount = vm.ctf->frameCount;
+      currentThread()->ctf->currentFrameCount = currentThread()->ctf->frameCount;
 
-      frame = &vm.ctf->frames[vm.ctf->frameCount++];
+      frame = &currentThread()->ctf->frames[currentThread()->ctf->frameCount++];
       frame->ip = closure->function->chunk.code;
       frame->closure = closure;
-      frame->slots = vm.ctf->stackTop - 1;
+      frame->slots = currentThread()->ctf->stackTop - 1;
       frame->package = package;
       frame->nextPackage = NULL;
       free(s);
       free(name);
+
+      vm.repl = OBJ_VAL(package);
+
+      break;
+    }
+
+    case OP_REQUIRE:
+    {
+      if (!IS_STRING(peek(1)))
+      {
+        runtimeError("Require argument must be an string variable.");
+        if (!checkTry(frame))
+          return INTERPRET_RUNTIME_ERROR;
+        else
+          break;
+      }
+
+      Value asValue = peek(0);
+      ObjString *as = NULL;
+      if (IS_STRING(asValue))
+      {
+        as = AS_STRING(asValue);
+      }
+
+      ObjString *fileNameStr = AS_STRING(peek(1));
+
+      char *fileName = (char *)malloc(sizeof(char) * (fileNameStr->length + strlen(vm.extension) + 2));
+      strcpy(fileName, fileNameStr->chars);
+      if(strstr(fileName, vm.extension) == NULL)
+      {
+        strcat(fileName, vm.extension);
+      }
+
+      int len = strlen(fileName);
+
+      char *s = readFile(fileName, false);
+      int index = 0;
+      while (s == NULL && index < vm.paths->values.count)
+      {
+        ObjString *folder = AS_STRING(vm.paths->values.values[index]);
+        char *strPath = malloc(sizeof(char) * (folder->length + len + 2));
+        strcpy(strPath, folder->chars);
+        strcat(strPath, fileName);
+        s = readFile(strPath, false);
+        free(strPath);
+        index++;
+      }
+      if (s == NULL)
+      {
+        free(fileName);
+        runtimeError("Could not load the file \"%s\".", fileName);
+        if (!checkTry(frame))
+          return INTERPRET_RUNTIME_ERROR;
+        else
+          break;
+      }
+      currentThread()->ctf->currentScriptName = fileName;
+
+      char *name = NULL;
+
+      if (as != NULL)
+      {
+        if (strcmp(as->chars, "default") != 0)
+        {
+          name = (char *)malloc(sizeof(char) * (as->length + 1));
+          strcpy(name, as->chars);
+        }
+      }
+      else
+      {
+        name = getFileDisplayName(fileName);
+      }
+
+      ObjFunction *function = compile(s);
+      if (function == NULL)
+      {
+        free(s);
+        free(name);
+        return INTERPRET_COMPILE_ERROR;
+      }
+      pop();
+      pop();
+
+      ObjPackage *package = NULL;
+      if (name != NULL)
+      {
+        ObjString *nameStr = AS_STRING(STRING_VAL(name));
+        package = newPackage(nameStr);
+        tableSet(&vm.globals, nameStr, OBJ_VAL(package));
+      }
+
+      push(OBJ_VAL(function));
+      ObjClosure *closure = newClosure(function);
+      pop();
+
+      currentThread()->ctf->currentFrameCount = currentThread()->ctf->frameCount;
+
+      frame = &currentThread()->ctf->frames[currentThread()->ctf->frameCount++];
+      frame->ip = closure->function->chunk.code;
+      frame->closure = closure;
+      frame->slots = currentThread()->ctf->stackTop - 1;
+      frame->package = package;
+      frame->nextPackage = NULL;
+      free(s);
+      if(name != NULL)
+        free(name);
 
       vm.repl = OBJ_VAL(package);
 
@@ -2053,7 +2236,7 @@ static InterpretResult run()
 
       if (instanceOperationGet("[]"))
       {
-        frame = &vm.ctf->frames[vm.ctf->frameCount - 1];
+        frame = &currentThread()->ctf->frames[currentThread()->ctf->frameCount - 1];
       }
       else
       {
@@ -2079,7 +2262,7 @@ static InterpretResult run()
 
       if (instanceOperationSet("[=]"))
       {
-        frame = &vm.ctf->frames[vm.ctf->frameCount - 1];
+        frame = &currentThread()->ctf->frames[currentThread()->ctf->frameCount - 1];
       }
       else
       {
@@ -2114,7 +2297,7 @@ static InterpretResult run()
           break;
       }
 
-      if (vm.ctf->eval && IS_FUNCTION(peek(0)))
+      if (currentThread()->ctf->eval && IS_FUNCTION(peek(0)))
       {
         argCount = 0;
 
@@ -2131,8 +2314,8 @@ static InterpretResult run()
             break;
         }
       }
-      frame = &vm.ctf->frames[vm.ctf->frameCount - 1];
-      vm.ctf->eval = false;
+      frame = &currentThread()->ctf->frames[currentThread()->ctf->frameCount - 1];
+      currentThread()->ctf->eval = false;
       break;
     }
 
@@ -2147,7 +2330,7 @@ static InterpretResult run()
         else
           break;
       }
-      frame = &vm.ctf->frames[vm.ctf->frameCount - 1];
+      frame = &currentThread()->ctf->frames[currentThread()->ctf->frameCount - 1];
       break;
     }
 
@@ -2163,7 +2346,7 @@ static InterpretResult run()
         else
           break;
       }
-      frame = &vm.ctf->frames[vm.ctf->frameCount - 1];
+      frame = &currentThread()->ctf->frames[currentThread()->ctf->frameCount - 1];
       break;
     }
 
@@ -2189,7 +2372,7 @@ static InterpretResult run()
     }
 
     case OP_CLOSE_UPVALUE:
-      closeUpvalues(vm.ctf->stackTop - 1);
+      closeUpvalues(currentThread()->ctf->stackTop - 1);
       pop();
       break;
 
@@ -2203,34 +2386,34 @@ static InterpretResult run()
       }
 
       closeUpvalues(frame->slots);
-      vm.ctf->frameCount--;
+      currentThread()->ctf->frameCount--;
 
-      if (vm.ctf->frameCount == vm.ctf->currentFrameCount)
+      if (currentThread()->ctf->frameCount == currentThread()->ctf->currentFrameCount)
       {
-        vm.ctf->currentScriptName = vm.scriptName;
-        vm.ctf->currentFrameCount = -1;
+        currentThread()->ctf->currentScriptName = vm.scriptName;
+        currentThread()->ctf->currentFrameCount = -1;
       }
 
-      if (vm.ctf->frameCount == 0)
+      if (currentThread()->ctf->frameCount == 0)
       {
-        vm.ctf->result = result;
-        vm.ctf->finished = true;
+        currentThread()->ctf->result = result;
+        currentThread()->ctf->finished = true;
         //return INTERPRET_OK;
         break;
       }
 
       /*
-      if (vm.frameCount == 0)
+      if (currentThread()->frameCount == 0)
       {
         pop();
         return INTERPRET_OK;
       }
       */
 
-      vm.ctf->stackTop = frame->slots;
+      currentThread()->ctf->stackTop = frame->slots;
       push(result);
 
-      frame = &vm.ctf->frames[vm.ctf->frameCount - 1];
+      frame = &currentThread()->ctf->frames[currentThread()->ctf->frameCount - 1];
       break;
     }
 
@@ -2351,21 +2534,19 @@ static InterpretResult run()
     }
     case OP_ASYNC:
     {
-      char *name = (char*)malloc(sizeof(char) * 32);
+      char *name = (char *)malloc(sizeof(char) * 32);
       name[0] = '\0';
-      sprintf(name, "Task%d", taskCount);
-      taskCount++;
-
+      sprintf(name, "Task[%d-%d]", thread_id(), currentThread()->tasksCount);
+      currentThread()->tasksCount++;
 
       ObjClosure *closure = AS_CLOSURE(pop());
       TaskFrame *tf = createTaskFrame(name);
 
-      
       ObjString *strTaskName = AS_STRING(STRING_VAL(name));
       free(name);
 
       ObjTask *task = newTask(strTaskName);
-      
+
       push(OBJ_VAL(task));
 
       // Push the context
@@ -2377,7 +2558,7 @@ static InterpretResult run()
       CallFrame *frame = &tf->frames[tf->frameCount++];
       frame->closure = closure;
       frame->ip = closure->function->chunk.code;
-      frame->package = vm.frame->package;
+      frame->package = currentThread()->frame->package;
       frame->nextPackage = NULL;
 
       frame->slots = tf->stackTop - 1;
@@ -2385,12 +2566,14 @@ static InterpretResult run()
       ObjList *args = initList();
       tf->currentArgs = OBJ_VAL(args);
 
+      ((ThreadFrame *)tf->threadFrame)->running = true;
+
       break;
     }
 
     case OP_AWAIT:
     {
-      if(!IS_TASK( peek(0) ))
+      if (!IS_TASK(peek(0)))
       {
         runtimeError("A task is required in await.");
         if (!checkTry(frame))
@@ -2422,7 +2605,7 @@ static InterpretResult run()
 
     case OP_ABORT:
     {
-      if(!IS_TASK( peek(0) ))
+      if (!IS_TASK(peek(0)))
       {
         runtimeError("A task is required in abort.");
         if (!checkTry(frame))
@@ -2455,18 +2638,11 @@ static InterpretResult run()
     }
   }
 
-#undef READ_BYTE
-#undef READ_SHORT
-#undef READ_CONSTANT
-#undef READ_STRING
-#undef BINARY_OP
-}
-
-void hack(bool b)
-{
-  run();
-  if (b)
-    hack(false);
+  // #undef READ_BYTE
+  // #undef READ_SHORT
+  // #undef READ_CONSTANT
+  // #undef READ_STRING
+  // #undef BINARY_OP
 }
 
 InterpretResult interpret(const char *source)
@@ -2495,9 +2671,26 @@ InterpretResult interpret(const char *source)
   else
     callValue(OBJ_VAL(closure), 0);
 
-  vm.taskFrame->finished = false;
+  currentThread()->taskFrame->finished = false;
   InterpretResult ret = run();
   pop();
+
+  int i = 1;
+loopWait:
+  for (i = 1; i < MAX_THREADS; i++)
+  {
+    ThreadFrame *tfr = &vm.threadFrames[i];
+    if (vm.threadFrames[i].taskFrame != NULL && vm.threadFrames[i].result == INTERPRET_WAIT)
+    {
+      break;
+    }
+  }
+  if (i < MAX_THREADS)
+  {
+    goto loopWait;
+    printf("Waiting: %d\n", i);
+  }
+
   return ret;
 }
 
@@ -2509,7 +2702,7 @@ InterpretResult compileCode(const char *source, const char *path)
 
   char *bcPath = ALLOCATE(char, strlen(path) * 2);
   strcpy(bcPath, path);
-  if(strstr(bcPath, ".cube") != NULL)
+  if (strstr(bcPath, ".cube") != NULL)
     replaceStringN(bcPath, ".cube", ".cubec", 1);
   else
     strcat(bcPath + strlen(bcPath), ".cubec");
@@ -2545,4 +2738,31 @@ InterpretResult compileCode(const char *source, const char *path)
   fclose(file);
 
   return INTERPRET_OK;
+}
+
+void *threadFn(void *data)
+{
+  ThreadFrame *threadFrame = (ThreadFrame *)data;
+  currentThread()->result = INTERPRET_WAIT;
+  printf("Thread start: %d\n", thread_id());
+  while (true)
+  {
+    if (!threadFrame->running)
+    {
+      printf("Thread wait: %d\n", thread_id());
+      cube_wait(10);
+    }
+    else
+    {
+      printf("Thread run: %d\n", thread_id());
+      currentThread()->result = INTERPRET_WAIT;
+      // cube_wait(1000000);
+      printf("Start\n");
+      currentThread()->taskFrame->finished = false;
+      currentThread()->result = run();
+      pop();
+      currentThread()->running = false;
+      printf("End\n");
+    }
+  }
 }

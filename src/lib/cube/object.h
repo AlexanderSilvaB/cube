@@ -1,5 +1,5 @@
-#ifndef clox_object_h
-#define clox_object_h
+#ifndef CLOX_object_h
+#define CLOX_object_h
 
 #include <stdlib.h>
 #include <stdio.h>

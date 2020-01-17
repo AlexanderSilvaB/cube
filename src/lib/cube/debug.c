@@ -192,6 +192,8 @@ int disassembleInstruction(Chunk *chunk, int offset)
     return simpleInstruction("OP_RETURN", offset);
   case OP_IMPORT:
     return simpleInstruction("OP_IMPORT", offset);
+  case OP_REQUIRE:
+    return simpleInstruction("OP_REQUIRE", offset);
   case OP_CLASS:
     return constantInstruction("OP_CLASS", chunk, offset);
   case OP_INHERIT:

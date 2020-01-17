@@ -1,5 +1,5 @@
-#ifndef clox_vm_h
-#define clox_vm_h
+#ifndef CLOX_vm_h
+#define CLOX_vm_h
 
 #include "object.h"
 #include "table.h"
@@ -47,13 +47,31 @@ typedef struct TaskFrame_t
   uint64_t endTime;
   uint64_t startTime;
   TryFrame *tryFrame;
+  void *threadFrame;
 }TaskFrame;
 
-typedef struct
+typedef enum
 {
+  INTERPRET_OK,
+  INTERPRET_COMPILE_ERROR,
+  INTERPRET_RUNTIME_ERROR,
+  INTERPRET_WAIT
+} InterpretResult;
+
+typedef struct ThreadFrame_t
+{
+  bool running;
+  int tasksCount;
+  int id;
   TaskFrame *taskFrame;
   TaskFrame *ctf;
   CallFrame *frame;
+  InterpretResult result;
+}ThreadFrame;
+
+typedef struct
+{
+  ThreadFrame threadFrames[MAX_THREADS];
 
   Table globals;
   Table strings;
@@ -81,19 +99,13 @@ typedef struct
   bool print;
 } VM;
 
-typedef enum
-{
-  INTERPRET_OK,
-  INTERPRET_COMPILE_ERROR,
-  INTERPRET_RUNTIME_ERROR
-} InterpretResult;
-
 extern VM vm;
 
 void initVM(const char* path, const char *scriptName);
 void freeVM();
 void addPath(const char* path);
 void loadArgs(int argc, const char *argv[], int argStart);
+ThreadFrame* currentThread();
 
 InterpretResult interpret(const char *source);
 InterpretResult compileCode(const char *source, const char* path);

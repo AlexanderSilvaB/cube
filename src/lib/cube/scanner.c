@@ -120,7 +120,7 @@ static void skipWhitespace()
 
     case '#':
     {
-      if(peekNext() == '!' && scanner.start == scanner.current)
+      if (peekNext() == '!' && scanner.start == scanner.current)
       {
         while (peek() != '\n' && !isAtEnd())
           advance();
@@ -265,6 +265,9 @@ static TokenType identifierType()
       }
     }
     break;
+  case 'g':
+    return checkKeyword(1, 5, "lobal", TOKEN_GLOBAL);
+    break;
   case 'i':
     if (scanner.current - scanner.start > 1)
       switch (scanner.start[1])
@@ -333,7 +336,27 @@ static TokenType identifierType()
   case 'o':
     return checkKeyword(1, 1, "r", TOKEN_OR);
   case 'r':
-    return checkKeyword(1, 5, "eturn", TOKEN_RETURN);
+    if (scanner.current - scanner.start > 1)
+    {
+      switch (scanner.start[1])
+      {
+        case 'e':
+        {
+          if (scanner.current - scanner.start > 2)
+          {
+            switch (scanner.start[2])
+            {
+            case 't':
+              return checkKeyword(3, 3, "urn", TOKEN_RETURN);
+            case 'q':
+              return checkKeyword(3, 4, "uire", TOKEN_REQUIRE);
+            }
+          }
+          break;
+        }
+      }
+    }
+    break;
   case 's':
     if (scanner.current - scanner.start > 1)
     {
@@ -353,22 +376,22 @@ static TokenType identifierType()
     {
       switch (scanner.start[1])
       {
-        case 'h':
-          return checkKeyword(2, 2, "is", TOKEN_THIS);
-        case 'r':
+      case 'h':
+        return checkKeyword(2, 2, "is", TOKEN_THIS);
+      case 'r':
+      {
+        if (scanner.current - scanner.start > 2)
         {
-          if (scanner.current - scanner.start > 2)
+          switch (scanner.start[2])
           {
-            switch (scanner.start[2])
-            {
-            case 'u':
-              return checkKeyword(3, 1, "e", TOKEN_TRUE);
-            case 'y':
-              return checkKeyword(3, 0, "", TOKEN_TRY);
-            }
+          case 'u':
+            return checkKeyword(3, 1, "e", TOKEN_TRUE);
+          case 'y':
+            return checkKeyword(3, 0, "", TOKEN_TRY);
           }
-          break;
         }
+        break;
+      }
       }
     }
     break;

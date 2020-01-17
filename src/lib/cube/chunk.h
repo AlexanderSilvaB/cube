@@ -1,5 +1,5 @@
-#ifndef clox_chunk_h
-#define clox_chunk_h
+#ifndef CLOX_chunk_h
+#define CLOX_chunk_h
 
 #include "common.h"
 #include "value.h"
@@ -50,6 +50,7 @@ typedef enum
   OP_BREAK,
   OP_DUP,
   OP_IMPORT,
+  OP_REQUIRE,
   OP_CALL,
   OP_INVOKE,
   OP_SUPER,

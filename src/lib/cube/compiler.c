@@ -1301,6 +1301,32 @@ static void static_(bool canAssign)
     error("Cannot use 'static' outside of a class.");
 }
 
+static void require(bool canAssign)
+{
+  expression();
+  // consume(TOKEN_IDENTIFIER, "Expect an identifier in require.");
+  // getVariable(parser.previous);
+  
+  if (match(TOKEN_AS))
+  {
+    if (check(TOKEN_STRING) || check(TOKEN_IDENTIFIER) || check(TOKEN_DEFAULT))
+    {
+      expression();
+      // emitPreviousAsString();
+    }
+    else
+    {
+      consume(TOKEN_IDENTIFIER, "Expect identifier after as.");
+    }
+  }
+  else
+  {
+    emitByte(OP_NONE);
+  }
+
+  emitByte(OP_REQUIRE);
+}
+
 static void await(bool canAssign)
 {
   consume(TOKEN_IDENTIFIER, "Expect a function call in await.");
@@ -1395,6 +1421,7 @@ ParseRule rules[] = {
     {this_, NULL, PREC_NONE},        // TOKEN_THIS
     {literal, NULL, PREC_NONE},      // TOKEN_TRUE
     {NULL, NULL, PREC_NONE},         // TOKEN_VAR
+    {NULL, NULL, PREC_NONE},         // TOKEN_GLOBAL
     {NULL, NULL, PREC_NONE},         // TOKEN_WHILE
     {NULL, NULL, PREC_NONE},         // TOKEN_DO
     {NULL, binary, PREC_TERM},       // TOKEN_IN
@@ -1407,6 +1434,7 @@ ParseRule rules[] = {
     {number, NULL, PREC_NONE},       // TOKEN_NAN
     {number, NULL, PREC_NONE},       // TOKEN_INF
     {NULL, NULL, PREC_NONE},         // TOKEN_IMPORT
+    {require, NULL, PREC_NONE},         // TOKEN_REQUIRE
     {NULL, NULL, PREC_NONE},         // TOKEN_AS
     {NULL, NULL, PREC_NONE},         // TOKEN_NATIVE
     {let, NULL, PREC_NONE},          // TOKEN_LET
@@ -1748,6 +1776,28 @@ static void funDeclaration()
   markInitialized();
   function(TYPE_FUNCTION);
   defineVariable(global);
+}
+
+static void globalDeclaration(bool checkEnd)
+{
+  consume(TOKEN_VAR, "Only global variable declaration is valid.");
+
+  consume(TOKEN_IDENTIFIER, "Expect variable name.");
+
+  uint8_t global = identifierConstant(&parser.previous);
+
+  if (match(TOKEN_EQUAL))
+  {
+    expression();
+  }
+  else
+  {
+    emitByte(OP_NONE);
+  }
+  if (checkEnd)
+    consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
+
+  emitBytes(OP_DEFINE_GLOBAL, global);
 }
 
 static void varDeclaration(bool checkEnd)
@@ -2296,6 +2346,7 @@ static void synchronize()
     case TOKEN_FUNC:
     case TOKEN_STATIC:
     case TOKEN_VAR:
+    case TOKEN_GLOBAL:
     case TOKEN_FOR:
     case TOKEN_IF:
     case TOKEN_WHILE:
@@ -2330,6 +2381,10 @@ static void declaration(bool checkEnd)
   else if (match(TOKEN_FUNC))
   {
     funDeclaration();
+  }
+  else if (match(TOKEN_GLOBAL))
+  {
+    globalDeclaration(checkEnd);
   }
   else if (match(TOKEN_VAR))
   {

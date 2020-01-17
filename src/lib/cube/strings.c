@@ -320,7 +320,7 @@ static bool fromString(int argCount)
 
 	ObjString *string = AS_STRING(pop());
 
-	if (start >= string->length)
+	if (start > string->length)
 	{
 		runtimeError("start index out of bounds", start);
 		return false;

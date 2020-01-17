@@ -133,8 +133,8 @@ Value waitNative(int argCount, Value *args)
         wait = toNumber(args[0]);
 
     uint64_t current = cube_clock();
-    vm.ctf->startTime = current;
-    vm.ctf->endTime = current + ( AS_NUMBER(wait) * 1e6 );
+    currentThread()->ctf->startTime = current;
+    currentThread()->ctf->endTime = current + ( AS_NUMBER(wait) * 1e6 );
     return wait;
 }
 
@@ -965,7 +965,7 @@ Value evalNative(int argCount, Value *args)
         return NONE_VAL;
     }
 
-    vm.ctf->eval = true;
+    currentThread()->ctf->eval = true;
     return OBJ_VAL(function);
 }
 
@@ -1049,8 +1049,8 @@ Value systemInfoNative(int argCount, Value *args)
 
 Value printStackNative(int argCount, Value *args)
 {
-    printf("Task(%s)\n", vm.ctf->name);
-    for (Value *slot = vm.ctf->stack; slot < vm.ctf->stackTop - 1; slot++)
+    printf("Task(%s)\n", currentThread()->ctf->name);
+    for (Value *slot = currentThread()->ctf->stack; slot < currentThread()->ctf->stackTop - 1; slot++)
     {
       printf("[ ");
       printValue(*slot);

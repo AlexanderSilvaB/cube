@@ -1,5 +1,7 @@
 include_directories(..)
 
+find_package (Threads)
+
 set(SRC cube.c 
         chunk.c 
         memory.c 
@@ -17,7 +19,8 @@ set(SRC cube.c
         files.c
         linkedList.c
         native.c
-        gc.c)
+        gc.c
+        threads.c)
 
 set(INCLUDES
     ${CMAKE_CURRENT_SOURCE_DIR}/cube.h
@@ -25,4 +28,7 @@ set(INCLUDES
 
 add_library(cube ${SRC})
 target_link_libraries(cube m dl)
+
+target_link_libraries (cube ${CMAKE_THREAD_LIBS_INIT})
+
 set_target_properties(cube PROPERTIES PUBLIC_HEADER "${INCLUDES}")
