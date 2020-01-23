@@ -169,6 +169,7 @@ typedef struct sObjPackage
   Obj obj;
   ObjString *name;
   Table symbols;
+  struct sObjPackage *parent;
 } ObjPackage;
 
 typedef struct sObjClass

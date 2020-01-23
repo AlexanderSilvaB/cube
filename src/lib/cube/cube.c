@@ -3,6 +3,8 @@
 #include <string.h>
 #include <signal.h>
 
+#include <linenoise/linenoise.h>
+
 #include "cube.h"
 #include "util.h"
 #include "common.h"
@@ -94,6 +96,9 @@ int runCube(int argc, const char *argv[])
     }
     else
     {
+        char *folder = getFolder(fileName);
+        if(folder != NULL)
+            addPath(folder);
         rc = runFile(fileName, execute);
         if(vm.newLine)
             printf("\n");
@@ -107,32 +112,63 @@ void stopCube()
     stop();
 }
 
-/*
-char *readLine(const char* str)
-{
-    printf("%s", str);
-
-    int buffSz = 1024;
-    char *line = (char*)malloc(buffSz);
-    if (!fgets(line, sizeof(line), stdin))
-    {
-        printf("\n");
-        free(line);
-        return NULL;
-    }
-
-    return line;
-}
-*/
-
 int repl()
 {
+    linenoise_init();
+
+    linenoise_add_keyword("and");
+    linenoise_add_keyword("or");
+    linenoise_add_keyword("not");
+    linenoise_add_keyword("var");
+    linenoise_add_keyword("for");
+    linenoise_add_keyword("while");
+    linenoise_add_keyword("do");
+    linenoise_add_keyword("if");
+    linenoise_add_keyword("else");
+    linenoise_add_keyword("true");
+    linenoise_add_keyword("false");
+    linenoise_add_keyword("none");
+    linenoise_add_keyword("class");
+    linenoise_add_keyword("func");
+    linenoise_add_keyword("static");
+    linenoise_add_keyword("global");
+    linenoise_add_keyword("return");
+    linenoise_add_keyword("super");
+    linenoise_add_keyword("this");
+    linenoise_add_keyword("in");
+    linenoise_add_keyword("is");
+    linenoise_add_keyword("continue");
+    linenoise_add_keyword("break");
+    linenoise_add_keyword("switch");
+    linenoise_add_keyword("case");
+    linenoise_add_keyword("default");
+    linenoise_add_keyword("nan");
+    linenoise_add_keyword("inf");
+    linenoise_add_keyword("import");
+    linenoise_add_keyword("require");
+    linenoise_add_keyword("as");
+    linenoise_add_keyword("native");
+    linenoise_add_keyword("let");
+    linenoise_add_keyword("with");
+    linenoise_add_keyword("async");
+    linenoise_add_keyword("await");
+    linenoise_add_keyword("abort");
+    linenoise_add_keyword("try");
+    linenoise_add_keyword("catch");
+    linenoise_add_keyword("for");
+
+    linenoise_set_multiline(true);
+    linenoise_set_history_max_len(20);
+    
+    char *historyPath = fixPath("~/.cube/history.txt");
+    linenoise_load_history(historyPath);
+
     printf("%s %d.%d\n", LANG_NAME, VERSION_MAJOR, VERSION_MINOR);
-    char line[1024];
+
+    char line[LINENOISE_MAX_LINE];
     for (;;)
     {
-        printf("> ");
-        if (!fgets(line, sizeof(line), stdin))
+        if(linenoise_read_line("> ", line))
         {
             printf("\n");
             break;
@@ -140,6 +176,8 @@ int repl()
 
         if(strlen(line) == 0 || line[0] == '\n')
             continue;
+
+        linenoise_add_history(line);
 
         interpret(line);
         if(vm.newLine)
@@ -157,6 +195,10 @@ int repl()
         if(!vm.running)
             break;
     }
+
+    linenoise_save_history(historyPath);
+    free(historyPath);
+
     return vm.exitCode;
 }
 

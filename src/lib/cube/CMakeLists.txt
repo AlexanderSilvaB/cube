@@ -2,6 +2,8 @@ include_directories(..)
 
 find_package (Threads)
 
+
+
 set(SRC cube.c 
         chunk.c 
         memory.c 
@@ -27,7 +29,9 @@ set(INCLUDES
     ${CMAKE_CURRENT_SOURCE_DIR}/cubeext.h)
 
 add_library(cube ${SRC})
-target_link_libraries(cube m dl)
+target_link_libraries(cube m linenoise)
+
+target_link_libraries(cube dl)
 
 target_link_libraries (cube ${CMAKE_THREAD_LIBS_INIT})
 

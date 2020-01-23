@@ -108,14 +108,22 @@ void mark_task_frame(TaskFrame *tf)
 
 void mark_roots()
 {
-    for(int i = 0; i < MAX_THREADS; i++)
+    // for(int i = 0; i < MAX_THREADS; i++)
+    // {
+    //     TaskFrame *tf = vm.threadFrames[i].taskFrame;
+    //     while(tf != NULL)
+    //     {
+    //         mark_task_frame(tf);
+    //         tf = tf->next;
+    //     }
+    // }
+
+
+    TaskFrame *tf = vm.taskFrame;
+    while(tf != NULL)
     {
-        TaskFrame *tf = vm.threadFrames[i].taskFrame;
-        while(tf != NULL)
-        {
-            mark_task_frame(tf);
-            tf = tf->next;
-        }
+        mark_task_frame(tf);
+        tf = tf->next;
     }
 
     markTable(&vm.globals);

@@ -1309,10 +1309,15 @@ static void require(bool canAssign)
   
   if (match(TOKEN_AS))
   {
-    if (check(TOKEN_STRING) || check(TOKEN_IDENTIFIER) || check(TOKEN_DEFAULT))
+    if (check(TOKEN_STRING) || check(TOKEN_IDENTIFIER))
     {
       expression();
       // emitPreviousAsString();
+    }
+    else if (match(TOKEN_DEFAULT))
+    {
+      // expression();
+      emitPreviousAsString();
     }
     else
     {
@@ -1797,7 +1802,7 @@ static void globalDeclaration(bool checkEnd)
   if (checkEnd)
     consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
 
-  emitBytes(OP_DEFINE_GLOBAL, global);
+  emitBytes(OP_DEFINE_GLOBAL_FORCED, global);
 }
 
 static void varDeclaration(bool checkEnd)

@@ -19,6 +19,26 @@ func folder(path)
     return name;
 }
 
+func back(path)
+{
+    if(path == '/')
+        return path;
+    var p;
+    if(path.endsWith('/'))
+        p = path.substr(0, len(path)-2);
+    else
+        p = path;
+    if(path.startsWith('/'))
+        p = p.from(1);
+    var parts = p.split('/');
+    var backFolder = '';
+    if(path.startsWith('/'))
+        backFolder = '/';
+    if(len(parts) > 1)
+        backFolder += parts[0:len(parts)-2].join('/');
+    return backFolder;
+}
+
 func expand(p)
 {
     var home = env("HOME");

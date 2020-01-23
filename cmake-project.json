@@ -11,6 +11,7 @@
     "libs": [
         "cube",
         "stdlib",
+        "linenoise",
         "calc"
     ]
 }

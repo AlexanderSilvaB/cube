@@ -20,7 +20,7 @@
 
 Value clockNative(int argCount, Value *args)
 {
-    return NUMBER_VAL( ( cube_clock() * 1e-9 ) );
+    return NUMBER_VAL((cube_clock() * 1e-9));
 }
 
 Value timeNative(int argCount, Value *args)
@@ -37,7 +37,7 @@ Value exitNative(int argCount, Value *args)
     if (argCount > 0)
     {
         code = (int)AS_NUMBER(args[0]);
-    }   
+    }
     vm.exitCode = code;
     vm.running = false;
     //exit(code);
@@ -77,7 +77,7 @@ Value errorNative(int argCount, Value *args)
     for (int i = 0; i < argCount; i++)
     {
         char *str = valueToString(args[i], false);
-        if(len + strlen(error) + 1 >= sz)
+        if (len + strlen(error) + 1 >= sz)
         {
             error = GROW_ARRAY(error, char, sz, sz * 2);
             sz *= 2;
@@ -133,8 +133,8 @@ Value waitNative(int argCount, Value *args)
         wait = toNumber(args[0]);
 
     uint64_t current = cube_clock();
-    currentThread()->ctf->startTime = current;
-    currentThread()->ctf->endTime = current + ( AS_NUMBER(wait) * 1e6 );
+    vm.ctf->startTime = current;
+    vm.ctf->endTime = current + (AS_NUMBER(wait) * 1e6);
     return wait;
 }
 
@@ -386,7 +386,7 @@ Value listNative(int argCount, Value *args)
                     }
 
                     len = strlen(item->key);
-                    char *key = malloc(sizeof(char) * (len+1));
+                    char *key = malloc(sizeof(char) * (len + 1));
                     strcpy(key, item->key);
                     writeValueArray(&list->values, STRING_VAL(key));
                     free(key);
@@ -410,15 +410,15 @@ Value listNative(int argCount, Value *args)
 
 Value dictNative(int argCount, Value *args)
 {
-    if(argCount != 3)
+    if (argCount != 3)
     {
         runtimeError("dict(str, delimiter, innerDelimiter) takes exactly 3 arguments (%d given).", argCount);
         return NONE_VAL;
     }
 
-    for(int i = 0; i < argCount; i++)
+    for (int i = 0; i < argCount; i++)
     {
-        if(!IS_STRING(args[i]))
+        if (!IS_STRING(args[i]))
         {
             runtimeError("'dict' argument must be a string.");
             return NONE_VAL;
@@ -426,41 +426,41 @@ Value dictNative(int argCount, Value *args)
     }
 
     Value listV = stringSplit(args[0], args[1]);
-    if(!IS_LIST(listV))
+    if (!IS_LIST(listV))
     {
         runtimeError("dict(): Failed to split '%s' by '%s'.", AS_CSTRING(args[0]), AS_CSTRING(args[1]));
         return NONE_VAL;
     }
 
     ObjList *list = AS_LIST(listV);
-    
+
     ObjDict *dict = initDict();
 
-    for(int i = 0; i < list->values.count; i++)
+    for (int i = 0; i < list->values.count; i++)
     {
         Value innerV = stringSplit(list->values.values[i], args[2]);
-        if(!IS_LIST(innerV))
+        if (!IS_LIST(innerV))
         {
             runtimeError("dict(): Failed to split '%s' by '%s'.", AS_CSTRING(list->values.values[i]), AS_CSTRING(args[2]));
             return NONE_VAL;
         }
 
-        ObjList *inner = AS_LIST(innerV);      
-        if(inner->values.count == 0)
+        ObjList *inner = AS_LIST(innerV);
+        if (inner->values.count == 0)
             continue;
-        if(AS_STRING(inner->values.values[0])->length == 0)
+        if (AS_STRING(inner->values.values[0])->length == 0)
             continue;
-            
+
         char *key = AS_CSTRING(inner->values.values[0]);
         Value val;
-        if(inner->values.count > 1)
+        if (inner->values.count > 1)
             val = inner->values.values[1];
         else
             val = STRING_VAL("");
         insertDict(dict, key, val);
     }
 
-    return OBJ_VAL(dict);    
+    return OBJ_VAL(dict);
 }
 
 Value bytesNative(int argCount, Value *args)
@@ -760,7 +760,7 @@ Value varsNative(int argCount, Value *args)
     Entry entry;
     Table *table = &vm.globals;
 
-    if(IS_PACKAGE(args[0]))
+    if (IS_PACKAGE(args[0]))
     {
         table = &(AS_PACKAGE(args[0])->symbols);
     }
@@ -813,7 +813,10 @@ Value openNative(int argCount, Value *args)
     ObjString *openTypeString = AS_STRING(openType);
     ObjString *fileNameString = AS_STRING(fileName);
 
-    ObjFile *file = openFile(fileNameString->chars, openTypeString->chars);
+    char *path = fixPath(fileNameString->chars);
+
+    ObjFile *file = openFile(path, openTypeString->chars);
+    free(path);
     if (file == NULL)
     {
         // runtimeError("Unable to open file");
@@ -837,9 +840,12 @@ Value pwdNative(int argCount, Value *args)
 
 Value lsNative(int argCount, Value *args)
 {
-    char *path = ".";
+
+    char *pathRaw = ".";
     if (argCount > 0 && IS_STRING(args[0]))
-        path = AS_CSTRING(args[0]);
+        pathRaw = AS_CSTRING(args[0]);
+
+    char *path = fixPath(pathRaw);
 
     ObjList *list = initList();
 #ifdef WINDOWS
@@ -857,7 +863,30 @@ Value lsNative(int argCount, Value *args)
         closedir(d);
     }
 #endif
+    free(path);
     return OBJ_VAL(list);
+}
+
+Value isdirNative(int argCount, Value *args)
+{
+    if (argCount == 0)
+        return NONE_VAL;
+    if (!IS_STRING(args[0]))
+        return NONE_VAL;
+    char *str = AS_CSTRING(args[0]);
+    char *path = fixPath(str);
+
+    struct stat statbuf;
+    if (stat(path, &statbuf) != 0)
+    {
+        free(path);
+        return FALSE_VAL;
+    }
+    free(path);
+
+    int rc = S_ISDIR(statbuf.st_mode);
+    
+    return BOOL_VAL(rc != 0);
 }
 
 Value cdNative(int argCount, Value *args)
@@ -867,7 +896,10 @@ Value cdNative(int argCount, Value *args)
     if (!IS_STRING(args[0]))
         return NONE_VAL;
     char *str = AS_CSTRING(args[0]);
-    int rc = chdir(str);
+    char *path = fixPath(str);
+
+    int rc = chdir(path);
+    free(path);
     return BOOL_VAL(rc == 0);
 }
 
@@ -878,7 +910,10 @@ Value existsNative(int argCount, Value *args)
     if (!IS_STRING(args[0]))
         return NONE_VAL;
     char *str = AS_CSTRING(args[0]);
-    return BOOL_VAL(existsFile(str));
+    char *path = fixPath(str);
+    Value ret = BOOL_VAL(existsFile(path));
+    free(path);
+    return ret;
 }
 
 Value findNative(int argCount, Value *args)
@@ -888,8 +923,11 @@ Value findNative(int argCount, Value *args)
     if (!IS_STRING(args[0]))
         return NONE_VAL;
     char *str = AS_CSTRING(args[0]);
-    char *found = findFile(str);
-    if(found == NULL)
+    char *path = fixPath(str);
+    char *found = findFile(path);
+    free(path);
+
+    if (found == NULL)
         return NONE_VAL;
     Value ret = STRING_VAL(found);
     free(found);
@@ -903,7 +941,9 @@ Value removeNative(int argCount, Value *args)
     if (!IS_STRING(args[0]))
         return NONE_VAL;
     char *str = AS_CSTRING(args[0]);
-    int rc = remove(str);
+    char *path = fixPath(str);
+    int rc = remove(path);
+    free(path);
     return BOOL_VAL(rc == 0);
 }
 
@@ -915,12 +955,15 @@ Value mkdirNative(int argCount, Value *args)
         return NONE_VAL;
     char *str = AS_CSTRING(args[0]);
     int mode = 0777;
-    if(argCount > 1 && IS_NUMBER(args[1]))
+    if (argCount > 1 && IS_NUMBER(args[1]))
     {
         mode = AS_NUMBER(args[1]);
     }
 
-    int rc = mkdir(str, mode);
+    char *path = fixPath(str);
+    int rc = mkdir(path, mode);
+    free(path);
+
     return BOOL_VAL(rc == 0);
 }
 
@@ -932,7 +975,7 @@ Value envNative(int argCount, Value *args)
         return NONE_VAL;
     char *str = AS_CSTRING(args[0]);
     char *env = getEnv(str);
-    if(env == NULL)
+    if (env == NULL)
         return NONE_VAL;
     return STRING_VAL(env);
 }
@@ -965,7 +1008,7 @@ Value evalNative(int argCount, Value *args)
         return NONE_VAL;
     }
 
-    currentThread()->ctf->eval = true;
+    vm.ctf->eval = true;
     return OBJ_VAL(function);
 }
 
@@ -977,13 +1020,13 @@ Value memNative(int argCount, Value *args)
         human = AS_BOOL(toBool(args[0]));
     }
 
-    if(!human)
+    if (!human)
     {
         return NUMBER_VAL(vm.bytesAllocated);
     }
 
     int sz = vm.bytesAllocated;
-    char *comp = (char*)malloc(sizeof(char) * 4);
+    char *comp = (char *)malloc(sizeof(char) * 4);
     if (sz > 1024 * 1024 * 1024)
     {
         sz /= (1024 * 1024 * 1024);
@@ -997,15 +1040,14 @@ Value memNative(int argCount, Value *args)
     else if (sz > 1024)
     {
         sz /= 1024;
-        strcpy(comp, " Kb");   
+        strcpy(comp, " Kb");
     }
     else
         strcpy(comp, " b");
 
-
     char *vStr = valueToString(NUMBER_VAL(sz), false);
 
-    char *str = (char*)malloc(sizeof(char) * ( strlen(comp) + strlen(vStr) + 1 ));
+    char *str = (char *)malloc(sizeof(char) * (strlen(comp) + strlen(vStr) + 1));
     strcpy(str, vStr);
     strcat(str, comp);
 
@@ -1039,7 +1081,7 @@ Value systemInfoNative(int argCount, Value *args)
     Value os = STRING_VAL(PLATFORM_NAME);
     insertDict(dict, "os", os);
     insertDict(dict, "version", NUMBER_VAL((VERSION_MAJOR + 0.1 * VERSION_MINOR)));
-    
+
     if ((size_t)-1 > 0xffffffffUL)
         insertDict(dict, "arch", NUMBER_VAL(64));
     else
@@ -1049,12 +1091,12 @@ Value systemInfoNative(int argCount, Value *args)
 
 Value printStackNative(int argCount, Value *args)
 {
-    printf("Task(%s)\n", currentThread()->ctf->name);
-    for (Value *slot = currentThread()->ctf->stack; slot < currentThread()->ctf->stackTop - 1; slot++)
+    printf("Task(%s)\n", vm.ctf->name);
+    for (Value *slot = vm.ctf->stack; slot < vm.ctf->stackTop - 1; slot++)
     {
-      printf("[ ");
-      printValue(*slot);
-      printf(" ]");
+        printf("[ ");
+        printValue(*slot);
+        printf(" ]");
     }
 
     vm.newLine = true;
@@ -1070,7 +1112,7 @@ Value isdigitNative(int argCount, Value *args)
     if (!IS_STRING(args[0]))
         return FALSE_VAL;
     ObjString *str = AS_STRING(args[0]);
-    if(str->length != 1)
+    if (str->length != 1)
         return FALSE_VAL;
 
     char c = str->chars[0];
@@ -1084,11 +1126,11 @@ Value ischarNative(int argCount, Value *args)
     if (!IS_STRING(args[0]))
         return FALSE_VAL;
     ObjString *str = AS_STRING(args[0]);
-    if(str->length != 1)
+    if (str->length != 1)
         return FALSE_VAL;
 
     char c = str->chars[0];
-    return BOOL_VAL( ( (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '_' ) );
+    return BOOL_VAL(((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '_'));
 }
 
 Value isspaceNative(int argCount, Value *args)
@@ -1098,13 +1140,12 @@ Value isspaceNative(int argCount, Value *args)
     if (!IS_STRING(args[0]))
         return FALSE_VAL;
     ObjString *str = AS_STRING(args[0]);
-    if(str->length != 1)
+    if (str->length != 1)
         return FALSE_VAL;
 
     char c = str->chars[0];
-    return BOOL_VAL( ( c == ' ' || c == '\n' || c == '\r' || c == '\t' ) );
+    return BOOL_VAL((c == ' ' || c == '\n' || c == '\r' || c == '\t'));
 }
-
 
 // Register
 linked_list *stdFnList;
@@ -1163,6 +1204,7 @@ void initStd()
     ADD_STD("type", typeNative);
     ADD_STD("vars", varsNative);
     ADD_STD("open", openNative);
+    ADD_STD("isdir", isdirNative);
     ADD_STD("cd", cdNative);
     ADD_STD("pwd", pwdNative);
     ADD_STD("ls", lsNative);

@@ -49,7 +49,7 @@ char *getFolder(const char *path)
 	char *lastSlash = NULL;
 	char *parent = NULL;
 	lastSlash = strrchr(path, c); // you need escape character
-	if(lastSlash == NULL)
+	if (lastSlash == NULL)
 		return NULL;
 	int len = strlen(path) - strlen(lastSlash) + 3;
 	parent = malloc(sizeof(char) * len);
@@ -151,9 +151,9 @@ bool existsFile(const char *name)
 	return true;
 }
 
-bool isValidType(const char* name)
+bool isValidType(const char *name)
 {
-	if(	strcmp(name, "none") == 0 ||
+	if (strcmp(name, "none") == 0 ||
 		strcmp(name, "bool") == 0 ||
 		strcmp(name, "num") == 0 ||
 		strcmp(name, "class") == 0 ||
@@ -177,9 +177,9 @@ char *getFileName(char *path)
 {
 	int start = 0;
 	int len = strlen(path);
-	for(int i = 0; i < len; i++)
+	for (int i = 0; i < len; i++)
 	{
-		if(path[i] == '\\' || path[i] == '/')
+		if (path[i] == '\\' || path[i] == '/')
 		{
 			start = i + 1;
 		}
@@ -191,15 +191,15 @@ char *getFileDisplayName(char *path)
 {
 	char *fileName = getFileName(path);
 	int end = strlen(fileName);
-	for(int i = 0; i < end; i++)
+	for (int i = 0; i < end; i++)
 	{
-		if(fileName[i] == '.')
+		if (fileName[i] == '.')
 		{
 			end = i;
 			break;
 		}
 	}
-	char *name = (char*)malloc(sizeof(char) * (end + 1));
+	char *name = (char *)malloc(sizeof(char) * (end + 1));
 	memcpy(name, fileName, end);
 	name[end] = '\0';
 	return name;
@@ -208,8 +208,8 @@ char *getFileDisplayName(char *path)
 uint64_t cube_clock()
 {
 	struct timespec t;
-    clock_gettime(CLOCK_MONOTONIC, &t);
-	
+	clock_gettime(CLOCK_MONOTONIC, &t);
+
 	uint64_t ret = t.tv_sec * 1e9 + t.tv_nsec;
 	return ret;
 }
@@ -226,10 +226,22 @@ char *getEnv(const char *name)
 
 char *getHome()
 {
-	#ifdef WIN32
+#ifdef WIN32
 	char *home = getEnv("UserProfile");
-	#else
+#else
 	char *home = getEnv("HOME");
-	#endif
+#endif
 	return home;
+}
+
+char *fixPath(const char *path)
+{
+	char *home = getHome();
+	char *pathStr = (char *)malloc(sizeof(char) * 256);
+	strcpy(pathStr, path);
+	if (home != NULL)
+	{	
+		replaceString(pathStr, "~", home);
+	}
+	return pathStr;
 }

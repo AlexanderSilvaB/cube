@@ -32,5 +32,6 @@ uint64_t cube_clock();
 void cube_wait(uint64_t t);
 char *getEnv(const char *name);
 char *getHome();
+char *fixPath(const char *path);
 
 #endif
