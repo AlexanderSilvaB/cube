@@ -127,6 +127,7 @@ void mark_roots()
     }
 
     markTable(&vm.globals);
+    markTable(&vm.extensions);
     markCompilerRoots();
     mark_object((Obj *)vm.initString);
     mark_object((Obj *)vm.paths);

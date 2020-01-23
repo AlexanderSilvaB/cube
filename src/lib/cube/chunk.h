@@ -62,6 +62,7 @@ typedef enum
   OP_INHERIT,
   OP_METHOD,
   OP_PROPERTY,
+  OP_EXTENSION,
   OP_FILE,
   OP_ASYNC,
   OP_AWAIT,

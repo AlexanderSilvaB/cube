@@ -1,7 +1,7 @@
 let(var a = 10, var b = a ^ 3)
 {
-    println(a+b);
     var x = a + b;
+    println(x);
 };
 
 

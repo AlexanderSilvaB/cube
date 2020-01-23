@@ -284,6 +284,7 @@ void initVM(const char *path, const char *scriptName)
 
   initTable(&vm.globals);
   initTable(&vm.strings);
+  initTable(&vm.extensions);
   vm.paths = initList();
   addPath(path);
 
@@ -513,6 +514,55 @@ static bool callValue(Value callee, int argCount)
   return false;
 }
 
+static bool hasExtension(Value receiver, ObjString *name)
+{
+  char *typeStr = valueType(receiver);
+  ObjString *type = AS_STRING(STRING_VAL(typeStr));
+  free(typeStr);
+
+  Value value;
+  if (!tableGet(&vm.extensions, type, &value))
+  {
+    return false;
+  }
+
+  Value result;
+  return dictContains(value, OBJ_VAL(name), &result);
+}
+
+static void defineExtension(ObjString *name, ObjString *type)
+{
+  Value value;
+  if (!tableGet(&vm.extensions, type, &value))
+  {
+    ObjDict *dict = initDict();
+    value = OBJ_VAL(dict);
+    tableSet(&vm.extensions, type, value);
+  }
+
+  ObjDict *extensions = AS_DICT(value);
+
+  value = peek(0);
+  insertDict(extensions, name->chars, value);
+  pop();
+}
+
+static bool callExtension(Value receiver, ObjString *name, int argCount)
+{
+  char *typeStr = valueType(receiver);
+  ObjString *type = AS_STRING(STRING_VAL(typeStr));
+  free(typeStr);
+  
+  Value value;
+  if (!tableGet(&vm.extensions, type, &value))
+  {
+    return false;
+  }
+
+  Value fn = searchDict(AS_DICT(value), name->chars);
+  return call(AS_CLOSURE(fn), argCount);
+}
+
 static bool invokeFromClass(ObjClass *klass, ObjString *name,
                             int argCount)
 {
@@ -529,7 +579,6 @@ static bool invokeFromClass(ObjClass *klass, ObjString *name,
 
   vm.frame->nextPackage = klass->package ? klass->package : vm.frame->package;
   return call(AS_CLOSURE(method), argCount);
-  ;
 }
 
 static bool invoke(ObjString *name, int argCount)
@@ -571,7 +620,8 @@ static bool invoke(ObjString *name, int argCount)
     vm.frame->nextPackage = package;
     return callValue(func, argCount);
   }
-
+  else if(hasExtension(receiver, name))
+    return callExtension(receiver, name, argCount);
   else if (IS_LIST(receiver))
     return listMethods(name->chars, argCount + 1);
   else if (IS_DICT(receiver))
@@ -2518,6 +2568,9 @@ InterpretResult run()
       break;
     case OP_PROPERTY:
       defineProperty(READ_STRING());
+      break;
+    case OP_EXTENSION:
+      defineExtension(READ_STRING(), READ_STRING());
       break;
 
     case OP_FILE:

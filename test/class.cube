@@ -29,6 +29,6 @@ class Cat : Animal
 }
 
 
-var a = Animal(none);
+var a = Animal();
 var b = Dog();
 var c = Cat();

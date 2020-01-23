@@ -82,6 +82,7 @@ typedef struct
 
   Table globals;
   Table strings;
+  Table extensions;
   ObjString *initString;
   ObjList *paths;
 

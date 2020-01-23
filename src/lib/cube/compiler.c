@@ -66,6 +66,7 @@ typedef enum
   TYPE_FUNCTION,
   TYPE_INITIALIZER,
   TYPE_METHOD,
+  TYPE_EXTENSION,
   TYPE_STATIC,
   TYPE_SCRIPT,
   TYPE_EVAL
@@ -314,7 +315,7 @@ static void initCompiler(Compiler *compiler, FunctionType type)
   Local *local = &current->locals[current->localCount++];
   local->depth = 0;
   local->isCaptured = false;
-  if (type != TYPE_FUNCTION && type != TYPE_STATIC)
+  if (type == TYPE_INITIALIZER || type == TYPE_METHOD || type == TYPE_EXTENSION)
   {
     local->name.start = "this";
     local->name.length = 4;
@@ -1079,7 +1080,11 @@ static void super_(bool canAssign)
 
 static void this_(bool canAssign)
 {
-  if (currentClass == NULL)
+  if(current->type == TYPE_EXTENSION)
+  {
+    variable(false);
+  }
+  else if (currentClass == NULL)
   {
     error("Cannot use 'this' outside of a class.");
   }
@@ -1777,10 +1782,32 @@ static void nativeDeclaration()
 
 static void funDeclaration()
 {
-  uint8_t global = parseVariable("Expect function name.");
-  markInitialized();
-  function(TYPE_FUNCTION);
-  defineVariable(global);
+  uint8_t global;
+  uint8_t prop;
+  consume(TOKEN_IDENTIFIER, "Expect function name or type.");
+  if(parser.current.type == TOKEN_DOT)
+  {
+    global = identifierConstant(&parser.previous);
+    advance();
+    consume(TOKEN_IDENTIFIER, "Expect function name");
+    prop = identifierConstant(&parser.previous);
+
+    function(TYPE_EXTENSION);
+
+    emitBytes(OP_EXTENSION, global);
+    emitByte(prop);
+  }
+  else
+  {
+    declareVariable();
+    if (current->scopeDepth > 0)
+      global = 0;
+    else
+      global = identifierConstant(&parser.previous);
+    markInitialized();
+    function(TYPE_FUNCTION);
+    defineVariable(global);
+  }
 }
 
 static void globalDeclaration(bool checkEnd)

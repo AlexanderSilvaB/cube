@@ -35,6 +35,19 @@ static int invokeInstruction(const char *name, Chunk *chunk,
   return offset + 2;
 }
 
+static int extensionInstruction(const char *name, Chunk *chunk,
+                             int offset)
+{
+  uint8_t type = chunk->code[offset + 1];
+  uint8_t fn = chunk->code[offset + 2];
+  printf("%-16s %4d %4d '", name, type, fn);
+  printValue(chunk->constants.values[type]);
+  printf("' '");
+  printValue(chunk->constants.values[fn]);
+  printf("'\n");
+  return offset + 2;
+}
+
 static int simpleInstruction(const char *name, int offset)
 {
   printf("%s\n", name);
@@ -204,6 +217,8 @@ int disassembleInstruction(Chunk *chunk, int offset)
     return constantInstruction("OP_METHOD", chunk, offset);
   case OP_PROPERTY:
     return constantInstruction("OP_PROPERTY", chunk, offset);
+  case OP_EXTENSION:
+    return extensionInstruction("OP_EXTENSION", chunk, offset);
   case OP_FILE:
     return simpleInstruction("OP_FILE", offset);
   case OP_ASYNC:
