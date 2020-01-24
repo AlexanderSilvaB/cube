@@ -216,7 +216,6 @@ bool hasBreakPoint(int line, const char *path)
     }
     
     BreakPoint *current = breakpoints;
-    BreakPoint *parent = NULL;
     while(current != NULL)
     {
         if(current->line == line && strcmp(current->path, path) == 0)
@@ -229,7 +228,6 @@ bool hasBreakPoint(int line, const char *path)
             addOpenBreakPoint(line, path);
             return true;
         }
-        parent = current;
         current = current->next;
     }
 

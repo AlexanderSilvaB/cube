@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
+#include <locale.h>
 
 #include <linenoise/linenoise.h>
 
@@ -12,12 +13,15 @@
 #include "debug.h"
 #include "vm.h"
 
-
 extern Value nativeToValue(cube_native_var *var, NativeTypes *nt);
 extern void valueToNative(cube_native_var *var, Value value);
 
-void start(const char* path, const char* scriptName)
+void start(const char *path, const char *scriptName)
 {
+    #ifdef UNICODE
+    setlocale(LC_ALL, "");
+    setlocale(LC_CTYPE, "UTF-8");
+    #endif
 
     char *folder = NULL;
     char cCurrentPath[FILENAME_MAX];
@@ -34,25 +38,25 @@ void start(const char* path, const char* scriptName)
     }
 
     initVM(folder, scriptName);
-    if(findInPath)
+    if (findInPath)
     {
         folder = getFolder(path);
-        if(folder != NULL)
+        if (folder != NULL)
             addPath(folder);
     }
 
     addPath("libs/");
     addPath("stdlib/");
 
-    #ifdef WINDOWS
+#ifdef WINDOWS
     addPath("C:/cube/share/");
     addPath("C:/cube/share/libs/");
     addPath("C:/cube/share/stdlib/");
-    #else
+#else
     addPath("/usr/local/share/cube/");
     addPath("/usr/local/share/cube/libs/");
     addPath("/usr/local/share/cube/stdlib/");
-    #endif
+#endif
 
     addPath("~/.cube/");
     addPath("~/.cube/libs/");
@@ -71,13 +75,13 @@ void startCube(int argc, const char *argv[])
 int runCube(int argc, const char *argv[])
 {
     int rc = 0;
-    const char* fileName = NULL;
+    const char *fileName = NULL;
     bool execute = true;
     bool debug = false;
     int argStart = 1;
-    for(int i = 1; i < argc; i++)
+    for (int i = 1; i < argc; i++)
     {
-        if(existsFile(argv[i]) && fileName == NULL)
+        if (existsFile(argv[i]) && fileName == NULL)
         {
             fileName = argv[i];
             argStart++;
@@ -105,10 +109,10 @@ int runCube(int argc, const char *argv[])
     else
     {
         char *folder = getFolder(fileName);
-        if(folder != NULL)
+        if (folder != NULL)
             addPath(folder);
         rc = runFile(fileName, execute);
-        if(vm.newLine)
+        if (vm.newLine)
             printf("\n");
     }
 
@@ -167,7 +171,7 @@ int repl()
 
     linenoise_set_multiline(true);
     linenoise_set_history_max_len(20);
-    
+
     char *historyPath = fixPath("~/.cube/history.txt");
     linenoise_load_history(historyPath);
 
@@ -176,31 +180,31 @@ int repl()
     char line[LINENOISE_MAX_LINE];
     for (;;)
     {
-        if(linenoise_read_line("> ", line))
+        if (linenoise_read_line("> ", line))
         {
             printf("\n");
             break;
         }
 
-        if(strlen(line) == 0 || line[0] == '\n')
+        if (strlen(line) == 0 || line[0] == '\n')
             continue;
 
         linenoise_add_history(line);
 
         interpret(line, NULL);
-        if(vm.newLine)
+        if (vm.newLine)
         {
             printf("\n");
             vm.newLine = false;
         }
-        if(vm.print == false || !IS_NONE(vm.repl))
+        if (vm.print == false || !IS_NONE(vm.repl))
         {
             printValue(vm.repl);
             printf("\n");
         }
         vm.repl = NONE_VAL;
         vm.print = false;
-        if(!vm.running)
+        if (!vm.running)
             break;
     }
 
@@ -219,7 +223,7 @@ int runFile(const char *path, bool execute)
     }
 
     InterpretResult result;
-    if(execute)
+    if (execute)
         result = interpret(source, path);
     else
         result = compileCode(source, path);
@@ -234,7 +238,7 @@ int runFile(const char *path, bool execute)
 
 bool addGlobal(const char *name, cube_native_var *var)
 {
-    if(!vm.ready)
+    if (!vm.ready)
         return false;
     NativeTypes nt;
     Value val = nativeToValue(var, &nt);
@@ -244,11 +248,11 @@ bool addGlobal(const char *name, cube_native_var *var)
 
 cube_native_var *getGlobal(const char *name)
 {
-    if(!vm.ready)
+    if (!vm.ready)
         return NULL;
     cube_native_var *var = NATIVE_NONE();
     Value val;
-    if(tableGet(&vm.globals, AS_STRING(STRING_VAL(name)), &val))
+    if (tableGet(&vm.globals, AS_STRING(STRING_VAL(name)), &val))
     {
         valueToNative(var, val);
     }
