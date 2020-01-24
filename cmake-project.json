@@ -6,7 +6,8 @@
     "version": "0.1",
     "deps": [],
     "exes": [
-        ["main", "cube"]
+        ["main", "cube"],
+        ["dcube", "dcube"]
     ],
     "libs": [
         "cube",

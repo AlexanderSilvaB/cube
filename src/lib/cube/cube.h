@@ -17,6 +17,10 @@ int runCube(int argc, const char *argv[]);
 void startCube(int argc, const char *argv[]);
 void stopCube();
 extern void addPath(const char* path);
+void debug(bool enable);
+void continueDebug();
+bool waitingDebug();
+DebugInfo debugInfo();
 
 bool addGlobal(const char *name, cube_native_var *var);
 cube_native_var *getGlobal(const char *name);

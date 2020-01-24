@@ -32,6 +32,12 @@
 #endif
 #endif
 
+typedef struct
+{
+  int line;
+  const char *path;
+}DebugInfo;
+
 typedef enum
 {
     TYPE_VOID,

@@ -85,6 +85,7 @@ typedef struct
   Chunk chunk;
   ObjString *name;
   bool staticMethod;
+  const char *path;
 } ObjFunction;
 
 typedef Value (*NativeFn)(int argCount, Value *args);

@@ -83,6 +83,8 @@ typedef struct Compiler
   Upvalue upvalues[UINT8_COUNT];
   int scopeDepth;
   int loopDepth;
+
+  const char *path;
 } Compiler;
 
 typedef struct ClassCompiler
@@ -304,6 +306,10 @@ static void initCompiler(Compiler *compiler, FunctionType type)
   compiler->scopeDepth = 0;
   compiler->loopDepth = 0;
   compiler->function = newFunction(type == TYPE_STATIC);
+  if(current != NULL)
+    compiler->path = current->path;
+  else
+    compiler->path = "<none>";
   current = compiler;
 
   if (type != TYPE_SCRIPT && type != TYPE_EVAL)
@@ -331,6 +337,7 @@ static ObjFunction *endCompiler()
 {
   emitReturn();
   ObjFunction *function = current->function;
+  function->path = current->path;
 
 #ifdef DEBUG_PRINT_CODE
   if (!parser.hadError)
@@ -2519,7 +2526,7 @@ static void statement()
   }
 }
 
-ObjFunction *compile(const char *source)
+ObjFunction *compile(const char *source, const char *path)
 {
   DISABLE_GC;
   ObjFunction *function = NULL;
@@ -2541,6 +2548,7 @@ ObjFunction *compile(const char *source)
     Compiler compiler;
 
     initCompiler(&compiler, TYPE_SCRIPT);
+    compiler.path = path;
 
     parser.hadError = false;
     parser.panicMode = false;

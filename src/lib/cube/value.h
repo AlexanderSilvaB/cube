@@ -125,6 +125,7 @@ void writeValueArray(ValueArray *array, Value value);
 void insertDict(ObjDict *dict, char *key, Value value);
 void resizeDict(ObjDict *dict, bool grow);
 Value searchDict(ObjDict *dict, char *key);
+char* searchDictKey(ObjDict *dict, int index);
 void freeDict(ObjDict *dict);
 
 void freeValueArray(ValueArray *array);

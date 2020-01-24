@@ -73,20 +73,28 @@ int runCube(int argc, const char *argv[])
     int rc = 0;
     const char* fileName = NULL;
     bool execute = true;
+    bool debug = false;
     int argStart = 1;
-    if(argc >= 2)
+    for(int i = 1; i < argc; i++)
     {
-        if(existsFile(argv[1]))
+        if(existsFile(argv[i]) && fileName == NULL)
         {
-            fileName = argv[1];
-            argStart = 2;
+            fileName = argv[i];
+            argStart++;
         }
-        if (argc > 2 && strcmp(argv[2], "-c") == 0)
+        else if (strcmp(argv[i], "-c") == 0 && execute == true)
         {
             execute = false;
-            argStart = 3;
+            argStart++;
+        }
+        else if (strcmp(argv[i], "-d") == 0 && debug == false)
+        {
+            debug = true;
+            argStart++;
         }
     }
+
+    vm.debug = debug;
 
     loadArgs(argc, argv, argStart);
 
@@ -179,7 +187,7 @@ int repl()
 
         linenoise_add_history(line);
 
-        interpret(line);
+        interpret(line, NULL);
         if(vm.newLine)
         {
             printf("\n");
@@ -212,7 +220,7 @@ int runFile(const char *path, bool execute)
 
     InterpretResult result;
     if(execute)
-        result = interpret(source);
+        result = interpret(source, path);
     else
         result = compileCode(source, path);
     free(source);
@@ -245,4 +253,24 @@ cube_native_var *getGlobal(const char *name)
         valueToNative(var, val);
     }
     return var;
+}
+
+void debug(bool enable)
+{
+    vm.debug = enable;
+}
+
+void continueDebug()
+{
+    vm.continueDebug = true;
+}
+
+bool waitingDebug()
+{
+    return vm.waitingDebug;
+}
+
+DebugInfo debugInfo()
+{
+    return vm.debugInfo;
 }

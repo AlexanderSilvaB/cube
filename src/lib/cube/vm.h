@@ -1,6 +1,7 @@
 #ifndef CLOX_vm_h
 #define CLOX_vm_h
 
+#include "cubeext.h"
 #include "object.h"
 #include "table.h"
 #include "value.h"
@@ -105,6 +106,10 @@ typedef struct
   bool running;
   Value repl;
   bool print;
+  bool debug;
+  bool continueDebug;
+  bool waitingDebug;
+  DebugInfo debugInfo;
 } VM;
 
 extern VM vm;
@@ -115,7 +120,7 @@ void addPath(const char* path);
 void loadArgs(int argc, const char *argv[], int argStart);
 // ThreadFrame* currentThread();
 
-InterpretResult interpret(const char *source);
+InterpretResult interpret(const char *source, const char *path);
 InterpretResult compileCode(const char *source, const char* path);
 void push(Value value);
 Value pop();

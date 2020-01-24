@@ -254,8 +254,13 @@ static void defineNative(const char *name, NativeFn function)
 
 void initVM(const char *path, const char *scriptName)
 {
+  vm.debug = false;
   vm.ready = false;
   vm.exitCode = 0;
+  vm.continueDebug = false;
+  vm.waitingDebug = false;
+  vm.debugInfo.line = 0;
+  vm.debugInfo.path = "";
   // vm.taskFrame = NULL;
   vm.running = true;
   vm.repl = NONE_VAL;
@@ -1094,14 +1099,28 @@ bool subscriptList(Value listValue, Value indexValue, Value *result)
 
 bool subscriptDict(Value dictValue, Value indexValue, Value *result)
 {
-  if (!IS_STRING(indexValue))
+  if (!IS_STRING(indexValue) && !IS_NUMBER(indexValue))
   {
-    runtimeError("Dictionary key must be a string.");
+    runtimeError("Dictionary key must be a string or a number.");
     return false;
   }
 
   ObjDict *dict = AS_DICT(dictValue);
-  char *key = AS_CSTRING(indexValue);
+  char *key;
+  if(IS_STRING(indexValue))
+    key = AS_CSTRING(indexValue);
+  else
+  {
+    int index = AS_NUMBER(indexValue);
+    key = searchDictKey(dict, index);
+    if(key == NULL)
+    {
+      runtimeError("Invalid index for dictionary.");
+      return false;
+    }
+    *result = STRING_VAL(key);
+    return true; 
+  }
 
   *result = searchDict(dict, key);
   return true;
@@ -1216,14 +1235,27 @@ bool subscriptListAssign(Value container, Value indexValue, Value assignValue)
 
 bool subscriptDictAssign(Value dictValue, Value key, Value value)
 {
-  if (!IS_STRING(key))
+  if (!IS_STRING(key) && !IS_NUMBER(key))
   {
     runtimeError("Dictionary key must be a string.");
     return false;
   }
 
   ObjDict *dict = AS_DICT(dictValue);
-  char *keyString = AS_CSTRING(key);
+  char *keyString;
+
+  if(IS_STRING(key))
+    keyString = AS_CSTRING(key);
+  else
+  {
+    int index = AS_NUMBER(key);
+    keyString = searchDictKey(dict, index);
+    if(keyString == NULL)
+    {
+      runtimeError("Invalid index for dictionary.");
+      return false;
+    }
+  }
 
   insertDict(dict, keyString, value);
 
@@ -1390,15 +1422,31 @@ InterpretResult run()
 
     CallFrame *frame = &vm.ctf->frames[vm.ctf->frameCount - 1];
     vm.frame = frame;
-    // if (frame->ip == NULL)
-    // {
-    //   printf("ALgo errado\n");
-    // }
 
     if (vm.ctf->error != NULL)
     {
       if (!checkTry(frame))
         return INTERPRET_RUNTIME_ERROR;
+    }
+
+    if(vm.debug)
+    {
+      ObjFunction *function = frame->closure->function;
+      size_t instruction = frame->ip - function->chunk.code;
+      int line = getLine(&function->chunk, instruction);
+      if(line != vm.debugInfo.line || strcmp(function->path, vm.debugInfo.path) != 0)
+      {
+        vm.debugInfo.line = line;
+        vm.debugInfo.path = function->path;
+        while(!vm.continueDebug)
+        {
+          if(vm.waitingDebug == false)
+            vm.waitingDebug = true;
+          cube_wait(100);
+        }
+        vm.continueDebug = false;
+        vm.waitingDebug = false;
+      }
     }
 
 #ifdef DEBUG_TRACE_EXECUTION
@@ -2104,19 +2152,24 @@ InterpretResult run()
 
       ObjString *fileName = AS_STRING(peek(1));
       char *s = readFile(fileName->chars, false);
+
+      char *strPath = (char*)malloc(sizeof(char) * (fileName->length + 1));
+      strcpy(strPath, fileName->chars);
+
       int index = 0;
       while (s == NULL && index < vm.paths->values.count)
       {
         ObjString *folder = AS_STRING(vm.paths->values.values[index]);
-        char *strPath = malloc(sizeof(char) * (folder->length + fileName->length + 2));
+        free(strPath);
+        strPath = malloc(sizeof(char) * (folder->length + fileName->length + 2));
         strcpy(strPath, folder->chars);
         strcat(strPath, fileName->chars);
         s = readFile(strPath, false);
-        free(strPath);
         index++;
       }
       if (s == NULL)
       {
+        free(strPath);
         runtimeError("Could not load the file \"%s\".", fileName->chars);
         if (!checkTry(frame))
           return INTERPRET_RUNTIME_ERROR;
@@ -2140,7 +2193,7 @@ InterpretResult run()
         name = getFileDisplayName(fileName->chars);
       }
 
-      ObjFunction *function = compile(s);
+      ObjFunction *function = compile(s, strPath);
       if (function == NULL)
       {
         free(s);
@@ -2211,22 +2264,25 @@ InterpretResult run()
       }
 
       int len = strlen(fileName);
+      char *strPath = (char*)malloc(sizeof(char) * (len + 1));
+      strcpy(strPath, fileName);
 
       char *s = readFile(fileName, false);
       int index = 0;
       while (s == NULL && index < vm.paths->values.count)
       {
         ObjString *folder = AS_STRING(vm.paths->values.values[index]);
-        char *strPath = malloc(sizeof(char) * (folder->length + len + 2));
+        free(strPath);
+        strPath = malloc(sizeof(char) * (folder->length + len + 2));
         strcpy(strPath, folder->chars);
         strcat(strPath, fileName);
         s = readFile(strPath, false);
-        free(strPath);
         index++;
       }
       if (s == NULL)
       {
         runtimeError("Could not load the file \"%s\".", fileName);
+        free(strPath);
         free(fileName);
         if (!checkTry(frame))
           return INTERPRET_RUNTIME_ERROR;
@@ -2250,7 +2306,7 @@ InterpretResult run()
         name = getFileDisplayName(fileName);
       }
 
-      ObjFunction *function = compile(s);
+      ObjFunction *function = compile(s, strPath);
       if (function == NULL)
       {
         free(s);
@@ -2767,9 +2823,9 @@ InterpretResult run()
   // #undef BINARY_OP
 }
 
-InterpretResult interpret(const char *source)
+InterpretResult interpret(const char *source, const char *path)
 {
-  ObjFunction *function = compile(source);
+  ObjFunction *function = compile(source, path);
   if (function == NULL)
     return INTERPRET_COMPILE_ERROR;
 
@@ -2818,7 +2874,7 @@ InterpretResult interpret(const char *source)
 
 InterpretResult compileCode(const char *source, const char *path)
 {
-  ObjFunction *function = compile(source);
+  ObjFunction *function = compile(source, path);
   if (function == NULL)
     return INTERPRET_COMPILE_ERROR;
 

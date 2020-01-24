@@ -88,6 +88,7 @@ ObjFunction *newFunction(bool isStatic)
 	function->upvalueCount = 0;
 	function->name = NULL;
 	function->staticMethod = isStatic;
+	function->path = NULL;
 	initChunk(&function->chunk);
 	return function;
 }

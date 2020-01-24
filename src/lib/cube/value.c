@@ -164,6 +164,25 @@ Value searchDict(ObjDict *dict, char *key)
   return NONE_VAL;
 }
 
+char* searchDictKey(ObjDict *dict, int index)
+{
+  int _index = 0;
+  for (int i = 0; i < dict->capacity; ++i)
+	{
+		dictItem *item = dict->items[i];
+
+		if (!item || item->deleted)
+		{
+			continue;
+		}
+
+    if(index == _index)
+      return item->key;
+    _index++;
+	}
+  return NULL;
+}
+
 // Calling function needs to free memory
 char *valueToString(Value value, bool literal)
 {
