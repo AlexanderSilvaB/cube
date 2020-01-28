@@ -42,5 +42,7 @@ for(var i in 'A'..'Z') println('Letter: ', i);
 From here you are already a Cube Programmer. You can start venturing in the Cube world by learning the language. If you ever run into bugs, or have any ideas or questions, you can:
 
 Open an [issue](https://github.com/AlexanderSilvaB/cube/issues){:target="_blank"} on [Github](https://github.com/AlexanderSilvaB/cube){:target="_blank"}.
+
 Send a [pull request](https://github.com/AlexanderSilvaB/cube/pulls){:target="_blank"}.
+
 Email me at [alexander.ti.ufv@gmail.com](mailto:alexander.ti.ufv@gmail.com?subject=[Github]%20Cube).
