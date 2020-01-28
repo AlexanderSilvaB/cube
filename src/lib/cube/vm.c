@@ -428,6 +428,7 @@ static bool call(ObjClosure *closure, int argCount)
   CallFrame *frame = &(vm.ctf)->frames[vm.ctf->frameCount++];
   frame->closure = closure;
   frame->ip = closure->function->chunk.code;
+  frame->type = CALL_FRAME_TYPE_FUNCTION;
   frame->package = vm.frame ? vm.frame->package : NULL;
   frame->nextPackage = NULL;
   if (vm.frame && vm.frame->nextPackage != NULL)
@@ -493,10 +494,19 @@ static bool callValue(Value callee, int argCount)
     {
       NativeFn native = AS_NATIVE(callee);
       Value result = native(argCount, vm.ctf->stackTop - argCount);
-      vm.ctf->stackTop -= argCount + 1;
-      pops += argCount + 1;
-      push(result);
-      return true;
+      if(IS_REQUEST(result))
+      {
+        ObjRequest *request = AS_REQUEST(result);
+        // vm.ctf->stackTop[-argCount - 1] = value;
+        return callValue(request->fn, argCount - request->pops);
+      }
+      else
+      {
+        vm.ctf->stackTop -= argCount + 1;
+        pops += argCount + 1;
+        push(result);
+        return true;
+      }
     }
 
     case OBJ_NATIVE_FUNC:
@@ -926,7 +936,7 @@ static Value getIncrement(Value a, Value b)
   return NUMBER_VAL(inc);
 }
 
-static Value increment(Value start, Value step, Value stop)
+static Value increment(Value start, Value step, Value stop, bool ex)
 {
   double inc = valueAsDouble(step);
 
@@ -948,13 +958,30 @@ static Value increment(Value start, Value step, Value stop)
   double stop_ = valueAsDouble(stop);
   if (inc > 0)
   {
-    if (res_ > stop_)
-      res = NONE_VAL;
+    if(ex)
+    {
+      if (res_ >= stop_)
+        res = NONE_VAL;
+    }
+    else
+    {
+      if (res_ > stop_)
+        res = NONE_VAL;
+    }
+    
   }
   else
   {
-    if (res_ < stop_)
-      res = NONE_VAL;
+    if(ex)
+    {
+      if (res_ <= stop_)
+        res = NONE_VAL;
+    }
+    else
+    {
+      if (res_ < stop_)
+        res = NONE_VAL;
+    }
   }
 
   return res;
@@ -1484,6 +1511,7 @@ InterpretResult run()
       break;
     case OP_EXPAND:
     {
+      Value ex = pop();
       Value stop = pop();
       Value step = pop();
       Value start = pop();
@@ -1513,7 +1541,7 @@ InterpretResult run()
       while (!IS_NONE(start))
       {
         writeValueArray(&list->values, start);
-        start = increment(start, step, stop);
+        start = increment(start, step, stop, AS_BOOL(ex));
       }
 
       break;
@@ -2229,6 +2257,7 @@ InterpretResult run()
       frame->closure = closure;
       frame->slots = vm.ctf->stackTop - 1;
       frame->package = package;
+      frame->type = CALL_FRAME_TYPE_PACKAGE;
       frame->nextPackage = NULL;
 
       vm.repl = OBJ_VAL(package);
@@ -2343,6 +2372,7 @@ InterpretResult run()
       frame->ip = closure->function->chunk.code;
       frame->closure = closure;
       frame->slots = vm.ctf->stackTop - 1;
+      frame->type = CALL_FRAME_TYPE_PACKAGE;
       frame->package = package;
       frame->nextPackage = NULL;
 
@@ -2560,6 +2590,8 @@ InterpretResult run()
         frame->package = NULL;
       }
 
+      CallFrameType type = frame->type;
+
       closeUpvalues(frame->slots);
       vm.ctf->frameCount--;
 
@@ -2586,7 +2618,8 @@ InterpretResult run()
       */
 
       vm.ctf->stackTop = frame->slots;
-      push(result);
+      if(type != CALL_FRAME_TYPE_PACKAGE)
+        push(result);
 
       frame = &vm.ctf->frames[vm.ctf->frameCount - 1];
       break;
@@ -2737,6 +2770,7 @@ InterpretResult run()
       frame->closure = closure;
       frame->ip = closure->function->chunk.code;
       frame->package = vm.frame->package;
+      frame->type = CALL_FRAME_TYPE_FUNCTION;
       frame->nextPackage = NULL;
 
       frame->slots = tf->stackTop - 1;

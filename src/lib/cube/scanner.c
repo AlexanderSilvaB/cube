@@ -520,7 +520,17 @@ Token scanToken()
   case ',':
     return makeToken(TOKEN_COMMA);
   case '.':
-    return makeToken(TOKEN_DOT);
+  {
+    if (match('.'))
+    {
+      if (match('.'))
+        return makeToken(TOKEN_EXPAND_EX);
+      else
+        return makeToken(TOKEN_EXPAND_IN);
+    }
+    else
+      return makeToken(TOKEN_DOT);
+  }
   case '%':
     return makeToken(TOKEN_PERCENT);
   case '-':

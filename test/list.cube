@@ -4,7 +4,7 @@ println(l1);
 var l2 = ['zero', 1, 'two', 3, 'four', 5];
 println(l2);
 
-var l3 = 1:5;
+var l3 = 1..5;
 println(l3);
 
 var l4 = l1;
@@ -16,8 +16,8 @@ println(v1);
 l4[3] = 9;
 println(l4);
 
-l4[1:2] = 4;
+l4[1..2] = 4;
 println(l4);
 
-l4[3:4] = 0:1;
+l4[3..4] = 0..1;
 println(l4);

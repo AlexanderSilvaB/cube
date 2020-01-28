@@ -67,20 +67,23 @@ class Complex
     }
 }
 
-var c1 = Complex(3, 2);
-println("C1 = ", c1.str());
+if(__name__ == '__main__')
+{
+    var c1 = Complex(3, 2);
+    println("C1 = ", c1.str());
 
-var c2 = Complex(4, -3);
-println("C2 = ", c2.str());
+    var c2 = Complex(4, -3);
+    println("C2 = ", c2.str());
 
-var c3 = c1 + c2;
-println("C1 + C2 = ", c3.str());
+    var c3 = c1 + c2;
+    println("C1 + C2 = ", c3.str());
 
-var c4 = c1 - c2;
-println("C1 - C2 = ", c4.str());
+    var c4 = c1 - c2;
+    println("C1 - C2 = ", c4.str());
 
-var c5 = c1 * c2;
-println("C1 * C2 = ", c5.str());
+    var c5 = c1 * c2;
+    println("C1 * C2 = ", c5.str());
 
-var c6 = c1 / c2;
-println("C1 / C2 = ", c6.str());
+    var c6 = c1 / c2;
+    println("C1 / C2 = ", c6.str());
+}

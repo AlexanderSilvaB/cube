@@ -733,6 +733,36 @@ Value lenNative(int argCount, Value *args)
         return NUMBER_VAL(AS_LIST(args[0])->values.count);
     else if (IS_DICT(args[0]))
         return NUMBER_VAL(AS_DICT(args[0])->count);
+    else if(IS_INSTANCE(args[0]))
+    {
+        Value method;
+        if(tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("len")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+
+        if(tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("len")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+    }
+    else if(IS_CLASS(args[0]))
+    {
+        Value method;
+        if(tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("len")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+    }
 
     runtimeError("Unsupported type passed to len()", argCount);
     return NONE_VAL;

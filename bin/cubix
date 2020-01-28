@@ -105,8 +105,7 @@ func installPackage(lib, url)
 {
     var parts = url.split('/');
     var address = parts[0];
-    var base = parts[1:(len(parts)-1)].join('/');
-
+    var base = parts[1...len(parts)].join('/');
 
     var contents = readWeb(address, '{}/package.json'.format(base));
     var package = json.parseJson(contents);

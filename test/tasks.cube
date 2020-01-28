@@ -3,7 +3,7 @@
 func task(count, model)
 {
     var start = clock();
-    for(var i in 0:count)
+    for(var i in 0..count)
     {
         print(model.format(i));
     }

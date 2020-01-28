@@ -35,7 +35,7 @@ func back(path)
     if(path.startsWith('/'))
         backFolder = '/';
     if(len(parts) > 1)
-        backFolder += parts[0:len(parts)-2].join('/');
+        backFolder += parts[0..len(parts)-2].join('/');
     return backFolder;
 }
 

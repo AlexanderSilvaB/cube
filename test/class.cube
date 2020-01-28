@@ -28,7 +28,9 @@ class Cat : Animal
     }
 }
 
-
-var a = Animal();
-var b = Dog();
-var c = Cat();
+if(__name__ == '__main__')
+{
+    var a = Animal();
+    var b = Dog();
+    var c = Cat();
+}

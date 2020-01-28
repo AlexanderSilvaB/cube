@@ -6,7 +6,7 @@ for(var i = 0; i <= 10; ++i)
 println();
 
 // For with 'in'
-for(var i in 0:10)
+for(var i in 0..10)
 {
     print(i, '.');
 }

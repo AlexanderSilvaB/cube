@@ -11,7 +11,7 @@ var i = @(x) {return x + 5;};
 var j = i(9);
 var k = [1, 2, 3, 4, 5];
 //var l = k[0, 3:end];
-var m = 0:2:20;
+var m = 0..2..20;
 var n = 
 {
     'n1' : 1,

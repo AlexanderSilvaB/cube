@@ -1215,16 +1215,20 @@ static void lambda(bool canAssign)
 
 static void expand(bool canAssign)
 {
+  bool ex = parser.previous.type == TOKEN_EXPAND_EX;
   parsePrecedence(PREC_UNARY);
 
-  if (match(TOKEN_COLON))
+  if (match(TOKEN_EXPAND_IN) || match(TOKEN_EXPAND_EX))
   {
+    ex = parser.previous.type == TOKEN_EXPAND_EX;
     parsePrecedence(PREC_UNARY);
   }
   else
   {
     emitByte(OP_NONE);
   }
+
+  emitByte(ex ? OP_TRUE : OP_FALSE);
 
   emitByte(OP_EXPAND);
 }
@@ -1396,6 +1400,8 @@ ParseRule rules[] = {
     {NULL, NULL, PREC_NONE},         // TOKEN_RIGHT_BRACKET
     {NULL, NULL, PREC_NONE},         // TOKEN_COMMA
     {NULL, dot, PREC_CALL},          // TOKEN_DOT
+    {NULL, expand, PREC_FACTOR},         // TOKEN_EXPAND_IN
+    {NULL, expand, PREC_FACTOR},         // TOKEN_EXPAND_EX
     {unary, binary, PREC_TERM},      // TOKEN_MINUS
     {NULL, binary, PREC_TERM},       // TOKEN_PLUS
     {prefix, NULL, PREC_NONE},       // TOKEN_INC
@@ -1405,7 +1411,7 @@ ParseRule rules[] = {
     {NULL, NULL, PREC_NONE},         // TOKEN_MULTIPLY_EQUALS
     {NULL, NULL, PREC_NONE},         // TOKEN_DIVIDE_EQUALS
     {NULL, NULL, PREC_NONE},         // TOKEN_SEMICOLON
-    {NULL, expand, PREC_FACTOR},     // TOKEN_COLON
+    {NULL, NULL, PREC_NONE},     // TOKEN_COLON
     {NULL, binary, PREC_FACTOR},     // TOKEN_SLASH
     {NULL, binary, PREC_FACTOR},     // TOKEN_STAR
     {NULL, binary, PREC_FACTOR},     // TOKEN_PERCENT

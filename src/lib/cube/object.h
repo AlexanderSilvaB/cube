@@ -26,6 +26,8 @@
 #define IS_NATIVE_FUNC(value) isObjType(value, OBJ_NATIVE_FUNC)
 #define IS_NATIVE_LIB(value) isObjType(value, OBJ_NATIVE_LIB)
 #define IS_TASK(value) isObjType(value, OBJ_TASK)
+#define IS_REQUEST(value) isObjType(value, OBJ_REQUEST)
+
 
 #define AS_BOUND_METHOD(value) ((ObjBoundMethod *)AS_OBJ(value))
 #define AS_CLASS(value) ((ObjClass *)AS_OBJ(value))
@@ -44,6 +46,7 @@
 #define AS_NATIVE_FUNC(value)          ((ObjNativeFunc*)AS_OBJ(value))
 #define AS_NATIVE_LIB(value)          ((ObjNativeLib*)AS_OBJ(value))
 #define AS_TASK(value)          ((ObjTask*)AS_OBJ(value))
+#define AS_REQUEST(value)          ((ObjRequest*)AS_OBJ(value))
 
 #define STRING_VAL(str) (OBJ_VAL(copyString(str, strlen(str))))
 #define BYTES_VAL(data, len) (OBJ_VAL(copyBytes(data, len)))
@@ -67,6 +70,7 @@ typedef enum
   OBJ_NATIVE_FUNC,
   OBJ_NATIVE_LIB,
   OBJ_TASK,
+  OBJ_REQUEST,
   OBJ_UPVALUE
 } ObjType;
 
@@ -95,6 +99,13 @@ typedef struct
   Obj obj;
   NativeFn function;
 } ObjNative;
+
+typedef struct
+{
+  Obj obj;
+  Value fn;
+  int pops;
+} ObjRequest;
 
 struct sObjString
 {
@@ -228,6 +239,7 @@ ObjClosure *newClosure(ObjFunction *function);
 ObjFunction *newFunction(bool isStatic);
 ObjInstance *newInstance(ObjClass *klass);
 ObjNative *newNative(NativeFn function);
+ObjRequest *newRequest();
 ObjPackage *newPackage(ObjString *name);
 ObjNativeFunc *initNativeFunc();
 ObjNativeLib *initNativeLib();

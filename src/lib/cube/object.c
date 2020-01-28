@@ -109,6 +109,14 @@ ObjNative *newNative(NativeFn function)
 	return native;
 }
 
+ObjRequest *newRequest()
+{
+	ObjRequest *request = ALLOCATE_OBJ(ObjRequest, OBJ_REQUEST);
+	request->pops = 0;
+	request->fn = NONE_VAL;
+	return request;
+}
+
 static ObjString *allocateString(char *chars, int length,
 								 uint32_t hash)
 {
