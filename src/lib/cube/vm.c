@@ -369,15 +369,8 @@ void loadArgs(int argc, const char *argv[], int argStart)
   initArgV = argv;
 }
 
-static int pops = 0;
-static int pushs = 0;
-
 void push(Value value)
 {
-  // pushs++;
-  // printf("Push/Pop: %d/%d -> %d\nStackTop = ", pushs, pops, (pushs - pops));
-  // printValue(value);
-  // printf("\n");
   *vm.ctf->stackTop = value;
   vm.ctf->stackTop++;
 }
@@ -385,10 +378,6 @@ void push(Value value)
 Value pop()
 {
   vm.ctf->stackTop--;
-  // pops++;
-  // printf("Pop/Push: %d/%d -> %d\nStackTop = ", pushs, pops, (pushs - pops));
-  // printValue(*vm.stackTop);
-  // printf("\n");
   return *vm.ctf->stackTop;
 }
 
@@ -503,7 +492,6 @@ static bool callValue(Value callee, int argCount)
       else
       {
         vm.ctf->stackTop -= argCount + 1;
-        pops += argCount + 1;
         push(result);
         return true;
       }
@@ -514,7 +502,6 @@ static bool callValue(Value callee, int argCount)
       ObjNativeFunc *func = AS_NATIVE_FUNC(callee);
       Value result = callNative(func, argCount, vm.ctf->stackTop - argCount);
       vm.ctf->stackTop -= argCount + 1;
-      pops += argCount + 1;
       push(result);
       return true;
     }

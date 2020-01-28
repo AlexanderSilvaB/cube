@@ -206,6 +206,13 @@ void mark_object(Obj *object)
             break;
         }
 
+        case OBJ_REQUEST:
+        {
+            ObjRequest *request = (ObjRequest *)object;
+            mark_value(request->fn);
+            break;
+        }
+
         case OBJ_INSTANCE:
         {
             ObjInstance *instance = (ObjInstance *)object;

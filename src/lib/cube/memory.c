@@ -77,6 +77,13 @@ void freeObject(Obj *object)
     break;
   }
 
+  case OBJ_REQUEST:
+  {
+    ObjRequest *request = (ObjRequest *)object;
+    FREE(ObjRequest, request);
+    break;
+  }
+
   case OBJ_INSTANCE:
   {
     ObjInstance *instance = (ObjInstance *)object;
