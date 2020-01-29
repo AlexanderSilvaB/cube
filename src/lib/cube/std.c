@@ -68,7 +68,7 @@ Value printlnNative(int argCount, Value *args)
     return NONE_VAL;
 }
 
-Value errorNative(int argCount, Value *args)
+Value throwNative(int argCount, Value *args)
 {
     int sz = 128;
     int len = 0;
@@ -1420,7 +1420,7 @@ void initStd()
     ADD_STD("input", inputNative);
     ADD_STD("print", printNative);
     ADD_STD("println", printlnNative);
-    ADD_STD("error", errorNative);
+    ADD_STD("throw", throwNative);
     ADD_STD("random", randomNative);
     ADD_STD("seed", seedNative);
     ADD_STD("wait", waitNative);

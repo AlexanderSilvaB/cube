@@ -15,4 +15,14 @@ try
     var i = 9/0;
 }
 
-println('After all');
+println('After try without catch');
+
+try
+{
+    throw('Custom error');
+}
+catch(e)
+{
+    println("Oh! An error");
+    println(e);
+}
