@@ -311,6 +311,36 @@ Value boolNative(int argCount, Value *args)
 {
     if (argCount == 0)
         return BOOL_VAL(false);
+    else if(IS_INSTANCE(args[0]))
+    {
+        Value method;
+        if(tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("bool")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+
+        if(tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("bool")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+    }
+    else if(IS_CLASS(args[0]))
+    {
+        Value method;
+        if(tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("bool")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+    }
     return toBool(args[0]);
 }
 
@@ -318,6 +348,36 @@ Value numNative(int argCount, Value *args)
 {
     if (argCount == 0)
         return NUMBER_VAL(0);
+    else if(IS_INSTANCE(args[0]))
+    {
+        Value method;
+        if(tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("num")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+
+        if(tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("num")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+    }
+    else if(IS_CLASS(args[0]))
+    {
+        Value method;
+        if(tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("num")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+    }
     return toNumber(args[0]);
 }
 
@@ -325,6 +385,36 @@ Value intNative(int argCount, Value *args)
 {
     if (argCount == 0)
         return NUMBER_VAL(0);
+    else if(IS_INSTANCE(args[0]))
+    {
+        Value method;
+        if(tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("int")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+
+        if(tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("int")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+    }
+    else if(IS_CLASS(args[0]))
+    {
+        Value method;
+        if(tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("int")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+    }
     return NUMBER_VAL((int)AS_NUMBER(toNumber(args[0])));
 }
 
@@ -346,6 +436,36 @@ Value strNative(int argCount, Value *args)
         Value ret = STRING_VAL(str);
         free(str);
         return ret;
+    }
+    else if(IS_INSTANCE(args[0]))
+    {
+        Value method;
+        if(tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("str")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+
+        if(tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("str")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+    }
+    else if(IS_CLASS(args[0]))
+    {
+        Value method;
+        if(tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("str")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
     }
     return toString(args[0]);
 }
@@ -395,6 +515,36 @@ Value listNative(int argCount, Value *args)
                 }
             }
         }
+        else if(IS_INSTANCE(arg))
+        {
+            Value method;
+            if(tableGet(&AS_INSTANCE(arg)->klass->methods, AS_STRING(STRING_VAL("list")), &method))
+            {
+                ObjRequest *request = newRequest();
+                request->fn = method;
+                request->pops = 1;
+                return OBJ_VAL(request);
+            }
+
+            if(tableGet(&AS_INSTANCE(arg)->klass->staticFields, AS_STRING(STRING_VAL("list")), &method))
+            {
+                ObjRequest *request = newRequest();
+                request->fn = method;
+                request->pops = 1;
+                return OBJ_VAL(request);
+            }
+        }
+        else if(IS_CLASS(arg))
+        {
+            Value method;
+            if(tableGet(&AS_CLASS(arg)->staticFields, AS_STRING(STRING_VAL("list")), &method))
+            {
+                ObjRequest *request = newRequest();
+                request->fn = method;
+                request->pops = 1;
+                return OBJ_VAL(request);
+            }
+        }
     }
 
     if (list == NULL)
@@ -412,6 +562,40 @@ Value dictNative(int argCount, Value *args)
 {
     if (argCount != 3)
     {
+        if(argCount == 1)
+        {
+            if(IS_INSTANCE(args[0]))
+            {
+                Value method;
+                if(tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("dict")), &method))
+                {
+                    ObjRequest *request = newRequest();
+                    request->fn = method;
+                    request->pops = 1;
+                    return OBJ_VAL(request);
+                }
+
+                if(tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("dict")), &method))
+                {
+                    ObjRequest *request = newRequest();
+                    request->fn = method;
+                    request->pops = 1;
+                    return OBJ_VAL(request);
+                }
+            }
+            else if(IS_CLASS(args[0]))
+            {
+                Value method;
+                if(tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("dict")), &method))
+                {
+                    ObjRequest *request = newRequest();
+                    request->fn = method;
+                    request->pops = 1;
+                    return OBJ_VAL(request);
+                }
+            }
+        }
+
         runtimeError("dict(str, delimiter, innerDelimiter) takes exactly 3 arguments (%d given).", argCount);
         return NONE_VAL;
     }
@@ -470,6 +654,36 @@ Value bytesNative(int argCount, Value *args)
         char c = 0;
         return BYTES_VAL(&c, 0);
     }
+    else if(IS_INSTANCE(args[0]))
+    {
+        Value method;
+        if(tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("bytes")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+
+        if(tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("bytes")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+    }
+    else if(IS_CLASS(args[0]))
+    {
+        Value method;
+        if(tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("bytes")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+    }
     return toBytes(args[0]);
 }
 
@@ -477,7 +691,7 @@ Value makeNative(int argCount, Value *args)
 {
     if (argCount == 0)
         return NONE_VAL;
-
+    
     ValueType vType = VAL_NONE;
     ObjType oType = OBJ_STRING;
     if (IS_STRING(args[0]))
@@ -512,7 +726,14 @@ Value makeNative(int argCount, Value *args)
     }
     else
     {
-        vType = args[0].type;
+        if(IS_NONE(args[0]))
+            vType = VAL_NONE;
+        else if(IS_BOOL(args[0]))
+            vType = VAL_BOOL;
+        else if(IS_NUMBER(args[0]))
+            vType = VAL_NUMBER;
+        else
+            vType = VAL_OBJ;
         if (vType != VAL_OBJ)
         {
             if (IS_LIST(args[0]))

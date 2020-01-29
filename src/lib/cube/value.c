@@ -227,7 +227,25 @@ Value toBytes(Value value)
 {
 	ObjBytes *bytes = NULL;
 	char c = 0xFF;
+  #ifdef NAN_TAGGING
 	if(IS_NONE(value))
+		bytes = copyBytes(&c, 1);
+	else if(IS_BOOL(value))
+  {
+    bool v = AS_BOOL(value);
+		bytes = copyBytes(&v, sizeof(v));
+  }
+	else if(IS_NUMBER(value))
+  {
+    double v = AS_NUMBER(value);
+		bytes = copyBytes(&v, sizeof(v));
+  }
+	else if(IS_OBJ(value))
+  {
+    bytes = objectToBytes(value);
+  }
+  #else
+  if(IS_NONE(value))
 		bytes = copyBytes(&c, 1);
 	else if(IS_BOOL(value))
 		bytes = copyBytes(&value.as.boolean, sizeof(value.as.boolean));
@@ -237,6 +255,7 @@ Value toBytes(Value value)
   {
     bytes = objectToBytes(value);
   }
+  #endif
 
 	if(bytes == NULL)
 		bytes = initBytes();

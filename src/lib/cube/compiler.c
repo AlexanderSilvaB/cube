@@ -2640,6 +2640,7 @@ bool initByteCode(FILE *file)
 
 bool writeByteCode(FILE *file, Value value)
 {
+  #ifndef NAN_TAGGING
   uint32_t type = value.type;
   uint32_t objType = 0;
 
@@ -2867,6 +2868,7 @@ bool writeByteCode(FILE *file, Value value)
     printf("Invalid bytecode: UpValue (Valid only on runtime)\n");
     return false;
   }
+  #endif
   return true;
 }
 
@@ -2916,11 +2918,12 @@ void loadChunk(Chunk *chunk, const char *source, uint32_t *pos, uint32_t total);
 
 Value loadByteCode(const char *source, uint32_t *pos, uint32_t total)
 {
+  Value value = NONE_VAL;
+
+  #ifndef NAN_TAGGING
   uint32_t type = READ(uint32_t);
   uint32_t objType = READ(uint32_t);
   // printf("Load: %d, %d\n", type, objType);
-
-  Value value = NONE_VAL;
 
   int i = 0;
 
@@ -3098,6 +3101,7 @@ Value loadByteCode(const char *source, uint32_t *pos, uint32_t total)
   // printf("Value: ");
   // printValue(value);
   // printf("\n");
+  #endif
   return value;
 }
 

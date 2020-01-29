@@ -1,0 +1,113 @@
+native libs/libzip
+{
+    num cube_zip_open(str, str);
+    bool cube_zip_close(num);
+    num cube_zip_add(num, str, bytes);
+    num cube_zip_add_file(num, str, str);
+    num cube_zip_extract(num, str);
+    bytes cube_zip_read(num, str);
+    bool cube_zip_extract_file(num, str, str);
+    list cube_zip_list(num);
+    dict cube_zip_details(num);
+    dict cube_zip_read_all(num);
+}
+
+class Zip
+{
+    var path;
+    var mode;
+    var id;
+
+    func init(fileName, mode)
+    {
+        if(mode is none or mode is not str)
+        {
+            if(exists(fileName))
+                mode = 'a';
+            else
+                mode = 'w';
+        }
+        this.path = fileName;
+        this.mode = mode;
+        this.open();
+        this.close();
+        this.mode = 'a';
+    }
+
+    func open(mode)
+    {
+        if(mode is none or mode is not str)
+            mode = this.mode;
+        this.id = cube_zip_open(this.path, mode);
+        return this.id is not none;
+    }
+
+    func close()
+    {
+        return cube_zip_close(this.id);
+    }
+
+    func add(name, data)
+    {
+        this.open();
+        var wc = cube_zip_add(this.id, name, data);
+        this.close();
+        return (wc is not none and wc >= 0);
+    }
+
+    func addFile(name, path)
+    {
+        this.open();
+        var wc = cube_zip_add_file(this.id, name, path);
+        this.close();
+        return (wc is not none and wc >= 0);
+    }
+
+    func extract(path)
+    {
+        this.open('r');
+        var ret = cube_zip_extract(this.id, path);
+        this.close();
+        return ret;
+    }
+
+    func extractFile(name, path)
+    {
+        this.open('r');
+        var ret = cube_zip_extract_file(this.id, name, path);
+        this.close();
+        return ret;
+    }
+
+    func read(name)
+    {
+        this.open('r');
+        var ret = cube_zip_read(this.id, name);
+        this.close();
+        return ret;
+    }
+
+    func readAll()
+    {
+        this.open('r');
+        var l = cube_zip_read_all(this.id);
+        this.close();
+        return l;
+    }
+
+    func list()
+    {
+        this.open('r');
+        var l = cube_zip_list(this.id);
+        this.close();
+        return l;
+    }
+
+    func details()
+    {
+        this.open('r');
+        var l = cube_zip_details(this.id);
+        this.close();
+        return l;
+    }
+}

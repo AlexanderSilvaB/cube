@@ -784,7 +784,11 @@ bool objectComparison(Value a, Value b)
 	}
 	else
 	{
+		#ifdef NAN_TAGGING
+		return a == b;
+		#else
 		return a.as.number == b.as.number;
+		#endif
 	}
 	return false;
 }

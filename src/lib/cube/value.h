@@ -11,6 +11,14 @@ typedef struct dictItem dictItem;
 typedef struct sObjFile ObjFile;
 typedef struct sObjBytes ObjBytes;
 
+typedef enum
+{
+  VAL_BOOL,
+  VAL_NONE, // [user-types]
+  VAL_NUMBER,
+  VAL_OBJ
+} ValueType;
+
 #ifdef NAN_TAGGING
 
 // A mask that selects the sign bit.
@@ -71,14 +79,6 @@ static inline Value numToValue(double num)
 }
 
 #else
-
-typedef enum
-{
-  VAL_BOOL,
-  VAL_NONE, // [user-types]
-  VAL_NUMBER,
-  VAL_OBJ
-} ValueType;
 
 #define BOOL_TYPE bool
 #define NUMBER_TYPE double

@@ -7,6 +7,12 @@ class Complex
 
     func init(r, i)
     {
+        if(r is not num)
+            r = num(r);
+
+        if(i is not num)
+            i = num(i);
+        
         this.real = num(r);
         this.imag = num(i);
     }
