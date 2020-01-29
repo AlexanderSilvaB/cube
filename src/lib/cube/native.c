@@ -1,4 +1,9 @@
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <dlfcn.h>
+#endif
+
 #include <string.h>
 
 #include "native.h"
@@ -24,8 +29,15 @@ bool openNativeLib(ObjNativeLib *lib)
             runtimeError("Unable to find native lib: '%s'", lib->name->chars);
             return false;
         }
+        
+        #ifdef _WIN32
+        lib->handle = LoadLibrary(TEXT(path));
+        #else
         //lib->handle = dlopen(path, RTLD_NOW | RTLD_GLOBAL);
         lib->handle = dlopen(path, RTLD_LAZY);
+        #endif      
+
+        
         if (lib->handle == NULL)
         {
             runtimeError("Unable to open native lib: '%s'\nError: %s", lib->name->chars, dlerror());
@@ -39,7 +51,11 @@ void closeNativeLib(ObjNativeLib *lib)
 {
     if (lib->handle != NULL)
     {
+        #ifdef _WIN32
+        FreeLibrary(lib->handle);
+        #else
         dlclose(lib->handle);
+        #endif   
     }
     lib->handle = NULL;
 }
@@ -323,7 +339,11 @@ Value callNative(ObjNativeFunc *func, int argCount, Value *args)
         return NONE_VAL;
 
     lib_func fn;
+    #ifdef _WIN32
+    fn.f_void = (func_void)GetProcAddress(func->lib->handle, func->name->chars);
+    #else
     fn.f_void = (func_void)dlsym(func->lib->handle, func->name->chars);
+    #endif 
 
     if (fn.f_void == NULL)
     {

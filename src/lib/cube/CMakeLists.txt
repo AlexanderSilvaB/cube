@@ -31,7 +31,9 @@ set(INCLUDES
 add_library(cube ${SRC})
 target_link_libraries(cube m linenoise)
 
-target_link_libraries(cube dl)
+if (UNIX)
+    target_link_libraries(cube dl)
+endif (UNIX)
 
 target_link_libraries (cube ${CMAKE_THREAD_LIBS_INIT})
 
