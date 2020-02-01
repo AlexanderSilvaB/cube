@@ -40,7 +40,11 @@ bool openNativeLib(ObjNativeLib *lib)
         
         if (lib->handle == NULL)
         {
+            #ifdef _WIN32
+            runtimeError("Unable to open native lib: '%s'\nError: #%ld", lib->name->chars, GetLastError());
+            #else
             runtimeError("Unable to open native lib: '%s'\nError: %s", lib->name->chars, dlerror());
+            #endif
             return false;
         }
     }

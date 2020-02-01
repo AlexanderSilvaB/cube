@@ -1743,7 +1743,7 @@ static void pathOrString(const char *extension, const char *errorIdentifier, con
         if (match(TOKEN_IDENTIFIER))
         {
           totalLen += parser.previous.length + 1;
-          str = GROW_ARRAY(str, char, len, totalLen);
+          str = GROW_ARRAY(str, char, len + 1, totalLen + 1);
           str[len] = '/';
           strncpy(str + (len + 1), parser.previous.start, parser.previous.length);
           len = totalLen;
@@ -1761,12 +1761,12 @@ static void pathOrString(const char *extension, const char *errorIdentifier, con
     }
 
     totalLen = len + strlen(extension);
-    str = GROW_ARRAY(str, char, len, totalLen);
+    str = GROW_ARRAY(str, char, len + 1, totalLen + 1);
     len = totalLen;
     strcat(str, extension);
 
     emitConstant(OBJ_VAL(copyString(str, strlen(str))));
-    FREE_ARRAY(char, str, totalLen);
+    FREE_ARRAY(char, str, totalLen + 1);
   }
   else
   {

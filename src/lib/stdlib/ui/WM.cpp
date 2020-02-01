@@ -57,7 +57,7 @@ void WM::Destroy()
 {
 }
 
-int WM::CreateWindow(const char *title, int winWidth, int winHeight)
+int WM::NewWindow(const char *title, int winWidth, int winHeight)
 {
     int id = windows.size();
 

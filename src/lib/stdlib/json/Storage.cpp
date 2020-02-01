@@ -3,8 +3,40 @@
 #include <cstdlib>
 #include <iostream>
 #include <string>
+#include <sys/stat.h>
 
 using namespace std;
+
+static int own_mkdir(const char *dir, int mode) 
+{
+    char tmp[256];
+    char *p = NULL;
+    size_t len;
+
+    snprintf(tmp, sizeof(tmp),"%s",dir);
+    len = strlen(tmp);
+    if(tmp[len - 1] == '/')
+        tmp[len - 1] = 0;
+    for(p = tmp + 1; *p; p++)
+    {
+        if(*p == '/') 
+        {
+            *p = 0;
+            #ifdef _WIN32
+            mkdir(tmp);
+            #else
+            mkdir(tmp, mode);
+            #endif
+            *p = '/';
+        }
+    }
+    #ifdef _WIN32
+    int rc = mkdir(tmp);
+    #else
+    int rc = mkdir(tmp, mode);
+    #endif
+    return rc;
+}
 
 // Value
 Value::Value()
@@ -712,11 +744,9 @@ bool Storage::Open(const string fileName)
 
     stringstream ss;
     string folder = path.substr(0, path.find_last_of("\\/"));
-    ss.str("");
     if(path.find('/') != string::npos)
     {
-        ss << "mkdir -p " << folder;
-        system(ss.str().c_str());
+        own_mkdir(folder.c_str(), 777);
     }
 
     this->fileName = path;

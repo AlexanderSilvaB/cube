@@ -294,7 +294,7 @@ void initVM(const char *path, const char *scriptName)
   addPath(path);
 
   vm.extension = ".cube";
-#ifdef WINDOWS
+#ifdef _WIN32
   vm.nativeExtension = ".dll";
 #else
   vm.nativeExtension = ".so";

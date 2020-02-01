@@ -4,6 +4,8 @@ set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
 set(SRC linenoise.cpp)
 
+add_definitions(-DWIN_EXPORT)
+
 add_library(linenoise STATIC ${SRC})
          
 install(TARGETS linenoise

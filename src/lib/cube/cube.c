@@ -15,6 +15,7 @@
 
 extern Value nativeToValue(cube_native_var *var, NativeTypes *nt);
 extern void valueToNative(cube_native_var *var, Value value);
+char *version_string;
 
 void start(const char *path, const char *scriptName)
 {
@@ -22,6 +23,9 @@ void start(const char *path, const char *scriptName)
     setlocale(LC_ALL, "");
     setlocale(LC_CTYPE, "UTF-8");
     #endif
+    
+    version_string = (char*)malloc(sizeof(char) * 32);
+    snprintf(version_string, 31, "%d.%d", VERSION_MAJOR, VERSION_MINOR);
 
     char *folder = NULL;
     char cCurrentPath[FILENAME_MAX];
@@ -48,10 +52,16 @@ void start(const char *path, const char *scriptName)
     addPath("libs/");
     addPath("stdlib/");
 
-#ifdef WINDOWS
-    addPath("C:/cube/share/");
-    addPath("C:/cube/share/libs/");
-    addPath("C:/cube/share/stdlib/");
+#ifdef _WIN32
+    addPath("C:/cube/share/cube/");
+    addPath("C:/cube/share/cube/libs/");
+    addPath("C:/cube/share/cube/stdlib/");
+    addPath("C:/Program Files/cube/share/cube/");
+    addPath("C:/Program Files/cube/share/cube/libs/");
+    addPath("C:/Program Files/cube/share/cube/stdlib/");
+    addPath("C:/Program Files (x86)/cube/share/cube/");
+    addPath("C:/Program Files (x86)/cube/share/cube/libs/");
+    addPath("C:/Program Files (x86)/cube/share/cube/stdlib/");
 #else
     addPath("/usr/local/share/cube/");
     addPath("/usr/local/share/cube/libs/");
@@ -65,6 +75,7 @@ void start(const char *path, const char *scriptName)
 void stop()
 {
     freeVM();
+    free(version_string);
 }
 
 void startCube(int argc, const char *argv[])
@@ -175,7 +186,7 @@ int repl()
     char *historyPath = fixPath("~/.cube/history.txt");
     linenoise_load_history(historyPath);
 
-    printf("%s %d.%d\n", LANG_NAME, VERSION_MAJOR, VERSION_MINOR);
+    printf("%s %s\n", LANG_NAME, version_string);
 
     char line[LINENOISE_MAX_LINE];
     for (;;)

@@ -5,6 +5,11 @@
 #include <time.h>
 #include <math.h>
 #include <ctype.h>
+#include <sys/stat.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 #include "std.h"
 #include "object.h"
@@ -1099,8 +1104,23 @@ Value lsNative(int argCount, Value *args)
     char *path = fixPath(pathRaw);
 
     ObjList *list = initList();
-#ifdef WINDOWS
+#ifdef _WIN32
+    WIN32_FIND_DATA fdFile;
+    HANDLE hFind = NULL;
 
+    char sPath[2048];
+    sprintf(sPath, "%s\\*.*", path);
+    if((hFind = FindFirstFile(sPath, &fdFile)) != INVALID_HANDLE_VALUE)
+    {
+        do
+        {
+            writeValueArray(&list->values, STRING_VAL(fdFile.cFileName));
+        }
+        while(FindNextFile(hFind, &fdFile)); //Find the next file.
+
+        FindClose(hFind); //Always, Always, clean things up!
+    }
+    
 #else
     DIR *d;
     struct dirent *dir;
@@ -1198,6 +1218,37 @@ Value removeNative(int argCount, Value *args)
     return BOOL_VAL(rc == 0);
 }
 
+static int cube_mkdir(const char *dir, int mode) 
+{
+    char tmp[256];
+    char *p = NULL;
+    size_t len;
+
+    snprintf(tmp, sizeof(tmp),"%s",dir);
+    len = strlen(tmp);
+    if(tmp[len - 1] == '/')
+        tmp[len - 1] = 0;
+    for(p = tmp + 1; *p; p++)
+    {
+        if(*p == '/') 
+        {
+            *p = 0;
+            #ifdef _WIN32
+            mkdir(tmp);
+            #else
+            mkdir(tmp, mode);
+            #endif
+            *p = '/';
+        }
+    }
+    #ifdef _WIN32
+    int rc = mkdir(tmp);
+    #else
+    int rc = mkdir(tmp, mode);
+    #endif
+    return rc;
+}
+
 Value mkdirNative(int argCount, Value *args)
 {
     if (argCount == 0)
@@ -1212,7 +1263,7 @@ Value mkdirNative(int argCount, Value *args)
     }
 
     char *path = fixPath(str);
-    int rc = mkdir(path, mode);
+    int rc = cube_mkdir(path, mode);
     free(path);
 
     return BOOL_VAL(rc == 0);
@@ -1331,7 +1382,7 @@ Value systemInfoNative(int argCount, Value *args)
 
     Value os = STRING_VAL(PLATFORM_NAME);
     insertDict(dict, "os", os);
-    insertDict(dict, "version", NUMBER_VAL((VERSION_MAJOR + 0.1 * VERSION_MINOR)));
+    insertDict(dict, "version", STRING_VAL(version_string));
 
     if ((size_t)-1 > 0xffffffffUL)
         insertDict(dict, "arch", NUMBER_VAL(64));

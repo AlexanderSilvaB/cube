@@ -36,7 +36,7 @@ extern "C"
         cube_native_var* width, 
         cube_native_var* height)
     {   
-        int id = wm->CreateWindow(AS_NATIVE_STRING(title), AS_NATIVE_NUMBER(width), AS_NATIVE_NUMBER(height));
+        int id = wm->NewWindow(AS_NATIVE_STRING(title), AS_NATIVE_NUMBER(width), AS_NATIVE_NUMBER(height));
 
         cube_native_var* ret = NATIVE_NUMBER(id);
         return ret;

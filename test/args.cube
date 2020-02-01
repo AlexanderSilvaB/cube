@@ -2,5 +2,5 @@ println("Args: ", args);
 
 for(var i in args)
 {
-    println("Arg {} = {}".format(__index, i));
+    println("Arg ", i);
 }

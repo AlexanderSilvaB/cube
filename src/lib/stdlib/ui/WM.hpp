@@ -30,7 +30,7 @@ class WM
 
         bool HasQuit();
 
-        int CreateWindow(const char* title, int winWidth = 1024, int winHeight = 768);
+        int NewWindow(const char* title, int winWidth = 1024, int winHeight = 768);
         void DestroyWindow(int id);
         List Cycle();
         void Exec();
