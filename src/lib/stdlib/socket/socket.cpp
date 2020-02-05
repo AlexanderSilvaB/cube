@@ -119,6 +119,11 @@ extern "C"
         char* buffer = getBuffer(AS_NATIVE_NUMBER(pointer));
         
         int rec = socket->receive(buffer, BUFFER_SIZE);
+        if(rec < 0)
+        {
+            TO_NATIVE_NONE(ret);
+            return ret;
+        }
         AS_NATIVE_BYTES(ret).bytes = (uint8_t*) malloc(sizeof(uint8_t) * rec);
         memcpy(AS_NATIVE_BYTES(ret).bytes, buffer, rec);
         AS_NATIVE_BYTES(ret).length = rec;

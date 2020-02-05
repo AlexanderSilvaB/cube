@@ -1,4 +1,4 @@
-import net;
+import socket;
 
 func get(server, client, request, data)
 {
@@ -32,7 +32,7 @@ func get(server, client, request, data)
     return response;
 }
 
-var server = net.HTTPServer(80);
+var server = socket.HTTPServer(8080);
 server.get(get);
 
 println("Running server at http://localhost:{}".format(server.port));

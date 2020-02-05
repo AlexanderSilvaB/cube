@@ -1,4 +1,4 @@
-import net;
+import socket;
 
-var server = net.HTTPServer(8080);
+var server = socket.HTTPServer(8080);
 server.run();

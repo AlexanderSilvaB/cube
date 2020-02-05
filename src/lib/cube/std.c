@@ -45,6 +45,7 @@ Value exitNative(int argCount, Value *args)
     }
     vm.exitCode = code;
     vm.running = false;
+    vm.repl = NUMBER_VAL(code);
     //exit(code);
     return NONE_VAL;
 }

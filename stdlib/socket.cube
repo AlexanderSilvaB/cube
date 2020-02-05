@@ -1,4 +1,4 @@
-native libs/libnet
+native libs/libsocket
 {
     num tcp_udp_socket_create(num, str, bool, bool, bool, bool, num);
     bool tcp_udp_socket_close(num);
@@ -148,57 +148,64 @@ class HTTPServer
             var mode = none;
             var request = none;
             var response = none;
-            var data = {};
+            var data = {'mode' : 'GET', 'request' : none};
 
             var lines = received.split('\r\n');
             for(var i = 0; i < len(lines); ++i)
             {
-                var parts = lines[i].split(' ');
-                if(parts[0] == 'GET' or parts[0] == 'POST')
-                {
-                    data['mode'] = parts[0];
-                    var reqData = parts[1].split('?');
-                    var req = reqData[0];
-                    if(req.startsWith('/'))
+                if(!isempty(lines[i]))
+                { 
+                    var parts = lines[i].split(' ');
+                    if(parts[0] == 'GET' or parts[0] == 'POST')
                     {
-                        if( len(parts[1]) == 1 )
-                            data['request'] = '';
+                        data['mode'] = parts[0];
+                        var reqData = parts[1].split('?');
+                        var req = reqData[0];
+                        if(req.startsWith('/'))
+                        {
+                            if( len(parts[1]) == 1 )
+                                data['request'] = '';
+                            else
+                                data['request'] = req.from(1);
+                        }
                         else
-                            data['request'] = req.from(1);
-                    }
-                    else
-                        data['request'] = req;
-                    var reqArgs;
-                    if(len(reqData) > 1)
-                        reqArgs = reqData[1];
-                    else
-                        reqArgs = "";
+                            data['request'] = req;
+                        var reqArgs;
+                        if(len(reqData) > 1)
+                            reqArgs = reqData[1];
+                        else
+                            reqArgs = "";
 
-                    data['args'] = dict(reqArgs, '&', '=');
-                }
-                else if(len(parts) > 1)
-                {
-                    var field = parts[0].replace(':', '');
-                    var value = parts[ 1...len(parts) ].join(' ');
-                    data[field] = value;
-                }
-                else if(len(parts) == 1 and isempty(parts[0]))
-                {
-                    ++i;
-                    parts = lines[i].split(' ');
-                    data['data'] = dict(parts[0], '&', '=');
+                        data['args'] = dict(reqArgs, '&', '=');
+                    }
+                    else if(len(parts) > 1)
+                    {
+                        var field = parts[0].replace(':', '');
+                        var value = parts[ 1...len(parts) ].join(' ');
+                        data[field] = value;
+                    }
+                    else if(len(parts) == 1 and isempty(parts[0]))
+                    {
+                        ++i;
+                        parts = lines[i].split(' ');
+                        data['data'] = dict(parts[0], '&', '=');
+                    }
                 }
             }
             
             mode = data['mode'];
             request = data['request'];
 
-            if(mode == 'GET' and request is not none and this.onGet is func)
+            // println(mode, ' - ', request);
+
+            // if(mode == 'GET' and request is not none and this.onGet is func)
+            if(mode == 'GET' and this.onGet is func)
             {
                 response = this.onGet(this, client, request, data);
             }
 
-            if(mode == 'POST' and request is not none and this.onPost is func)
+            // if(mode == 'POST' and request is not none and this.onPost is func)
+            if(mode == 'POST' and this.onPost is func)
             {
                 response = this.onPost(this, client, request, data);
             }
