@@ -1,0 +1,75 @@
+class Status
+{
+    static var Success = 0;
+    static var Failure = 1;
+    static var Running = 2;
+}
+
+class Node
+{
+    var name = none;
+    static var id = 0;
+
+    func init()
+    {
+        this.name = 'Node' + (++Node.id);
+    }
+
+    func run()
+    {
+        println(this.name);
+        return Status.Success;
+    }
+}
+
+class Sequence : Node
+{
+    var children = [];
+
+    func add(node)
+    {
+        this.children.add(node);
+    }
+
+    func run()
+    {
+        var ret;
+        for(var child in this.children)
+        {
+            ret = child.run();
+            if(ret != Status.Success)
+            {
+                return ret;
+            }
+        }
+    }
+}
+
+class BT
+{
+    var root = none;
+    var interval = 30;
+
+    func init(root, interval)
+    {
+        if(interval == none)
+            interval = 30;
+
+        this.root = root;
+        this.interval = interval;
+    }
+
+    func run()
+    {
+        for(var i = 0; i < 1; ++i)
+        {
+            this.tick();
+            wait(this.interval);
+        }
+    }
+
+    func tick()
+    {
+        this.root.run();
+    }
+}

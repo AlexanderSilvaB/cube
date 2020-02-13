@@ -92,7 +92,7 @@ extern "C"
         if(socket == NULL)
             return ret;
 
-        AS_NATIVE_NUMBER(ret) = socket->send((char*)AS_NATIVE_BYTES(data).bytes, AS_NATIVE_BYTES(data).length);
+        AS_NATIVE_NUMBER(ret) = socket->Write((char*)AS_NATIVE_BYTES(data).bytes, AS_NATIVE_BYTES(data).length);
         return ret;
     }
 
@@ -104,7 +104,7 @@ extern "C"
         if(socket == NULL)
             return ret;
 
-        AS_NATIVE_NUMBER(ret) = socket->sendTo((char*)AS_NATIVE_BYTES(data).bytes, AS_NATIVE_BYTES(data).length, AS_NATIVE_STRING(address));
+        AS_NATIVE_NUMBER(ret) = socket->WriteTo((char*)AS_NATIVE_BYTES(data).bytes, AS_NATIVE_BYTES(data).length, AS_NATIVE_STRING(address));
         return ret;
     }
 

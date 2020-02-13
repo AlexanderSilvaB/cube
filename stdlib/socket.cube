@@ -198,14 +198,14 @@ class HTTPServer
 
             // println(mode, ' - ', request);
 
-            // if(mode == 'GET' and request is not none and this.onGet is func)
-            if(mode == 'GET' and this.onGet is func)
+            if(mode == 'GET' and request is not none and this.onGet is func)
+            // if(mode == 'GET' and this.onGet is func)
             {
                 response = this.onGet(this, client, request, data);
             }
 
-            // if(mode == 'POST' and request is not none and this.onPost is func)
-            if(mode == 'POST' and this.onPost is func)
+            if(mode == 'POST' and request is not none and this.onPost is func)
+            // if(mode == 'POST' and this.onPost is func)
             {
                 response = this.onPost(this, client, request, data);
             }
@@ -221,7 +221,7 @@ class HTTPServer
                 var fmtStr = this.getMime(request);
 
                 this.code = HTTP.SUCCESS;
-                var ret = 'HTTP/1.1 {}\nContent-Type: {}; charset=utf-8\n\n'.format(codeStr, fmtStr);
+                var ret = 'HTTP/1.1 {}\r\nContent-Type: {}; charset=utf-8\r\n\r\n'.format(codeStr, fmtStr);
                 socket.send(ret);
                 socket.send(response);
             }
@@ -335,7 +335,8 @@ class HTTPClient
         if(this.socket is none)
             return none;
 
-        var data = 'GET /{} HTTP/1.1\nHost: {}'.format(request, this.host);
+        // var data = 'GET /{} HTTP/1.1\r\nHost: {}\r\nConnection: keep-alive\r\nCache-Control: max-age=0\r\nUpgrade-Insecure-Requests: 0\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130 Safari/537.36 Edg/79.0.309.71\r\nAccept: */*'.format(request, this.host);
+        var data = 'GET /{} HTTP/1.1\r\nHost: {}\r\n'.format(request, this.host);
         var ret = this.socket.send(data);
         wait(this.waitTime);
         return ret;
@@ -346,7 +347,7 @@ class HTTPClient
         if(this.socket is none)
             return none;
 
-        var data = 'POST {} HTTP/1.1\nHost: {}'.format(request, this.gost);
+        var data = 'POST {} HTTP/1.1\r\nHost: {}\r\nConnection: keep-alive\r\nCache-Control: max-age=0\r\nUpgrade-Insecure-Requests: 0\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130 Safari/537.36 Edg/79.0.309.71\r\nAccept: */*'.format(request, this.gost);
         var ret =  this.socket.send(data);
         wait(this.waitTime);
         return ret;
@@ -360,11 +361,13 @@ class HTTPClient
         var contents = none;
         var data = str(this.socket.receive());
         var pos = data.find('\n\n');
+        if(pos < 0)
+            pos = data.find('\r\n\r\n');
         if(pos >= 0)
         {
             contents = data.from(pos + 2);
         }
-
+        
         return contents;
     }
 }

@@ -3,6 +3,13 @@
 
 #ifdef WIN32
 #include <winsock2.h>
+#ifdef _WIN32_WINNT
+#undef _WIN32_WINNT
+#endif
+#define _WIN32_WINNT 0x06000000 
+#include <ws2tcpip.h>
+#include <Ws2def.h>
+#include <windows.h>
 #else
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -46,8 +53,8 @@ public:
 
 	long receive(char* msg, int msgsize);
 	char* received_from();
-	long send(const char* msg, int msgsize);
-	long sendTo(const char* msg, int msgsize, const char* name);
+	long Write(const char* msg, int msgsize);
+	long WriteTo(const char* msg, int msgsize, const char* name);
 	int getAddress(const char * name, char * addr);
 	const char* getAddress(const char * name);
 

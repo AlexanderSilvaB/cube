@@ -8,7 +8,7 @@ set(LIB_SRC
     TcpUdpSocket.cpp)
 
 if(WIN32)
-    set(ADDITIONAL_LIBRARIES wsock32)
+    set(ADDITIONAL_LIBRARIES wsock32 Ws2_32)
 else()
     set(ADDITIONAL_LIBRARIES "")
 endif()

@@ -2635,6 +2635,7 @@ InterpretResult run()
 
       ObjClass *subclass = AS_CLASS(peek(0));
       tableAddAll(&AS_CLASS(superclass)->methods, &subclass->methods);
+      tableAddAll(&AS_CLASS(superclass)->fields, &subclass->fields);
       pop(); // Subclass.
       break;
     }

@@ -14,7 +14,7 @@ parser.add('online', 'o', none, 0, 'list online packages');
 
 parser.parse(args);
 
-// var address = 'https://raw.githubusercontent.com';
+// var address = 'raw.githubusercontent.com';
 // var base = 'AlexanderSilvaB/cube-packages/master/';
 // var port = socket.HTTP.PORT;
 var address = '127.0.0.1';

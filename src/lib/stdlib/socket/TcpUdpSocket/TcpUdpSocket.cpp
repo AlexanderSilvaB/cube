@@ -1,4 +1,5 @@
 #include "TcpUdpSocket.h"
+#include <sstream>
 
 #ifdef WIN32
 typedef int socklen_t;
@@ -34,12 +35,13 @@ TcpUdpSocket::TcpUdpSocket(int port, char* address, bool udp, bool broadcast, bo
 
 	if(timeout > 0)
 	{
+		#ifdef WIN32
+		int tv = timeout;
+		setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char*)&tv, sizeof(tv));
+		#else
 		struct timeval tv;
 		tv.tv_sec = 0;
 		tv.tv_usec = timeout*1000;
-		#ifdef WIN32
-		setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char*)&tv, sizeof(tv));
-		#else
 		setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 		#endif
 	}
@@ -60,10 +62,16 @@ TcpUdpSocket::TcpUdpSocket(int port, char* address, bool udp, bool broadcast, bo
 	else
 	{
 		client = -1;
+
+		struct hostent *hp = gethostbyname(address);
+
 		//set up address to use for sending
 		memset(&outaddr, 0, sizeof(outaddr));
 		outaddr.sin_family = AF_INET;
-		outaddr.sin_addr.s_addr = inet_addr(address);
+		if(hp == NULL)
+			outaddr.sin_addr.s_addr = inet_addr(address);
+		else
+			outaddr.sin_addr = *((struct in_addr *)hp->h_addr);
 		outaddr.sin_port = htons(port);
 
 		if (udp)
@@ -169,7 +177,8 @@ long TcpUdpSocket::receive(char* msg, int msgsize)
 	{
 		struct sockaddr_in sender;
 		socklen_t sendersize = sizeof(sender);
-		int retval = recvfrom(sock, msg, msgsize, 0, (struct sockaddr *)&sender, &sendersize);
+		// int retval = recvfrom(sock, msg, msgsize, 0, (struct sockaddr *)&sender, &sendersize);
+		int retval = recv(sock, msg, msgsize, 0);
 		strcpy(received, inet_ntoa(sender.sin_addr));
 		return retval;
 	}
@@ -189,10 +198,12 @@ char* TcpUdpSocket::received_from()
 	return received;
 }
 
-long TcpUdpSocket::send(const char* msg, int msgsize)
+long TcpUdpSocket::Write(const char* msg, int msgsize)
 {
+	printf("%s\n", msg);
 	if(client == -1)
-		return sendto(sock, msg, msgsize, 0, (struct sockaddr *)&outaddr, sizeof(outaddr));
+		// return sendto(sock, msg, msgsize, 0, (struct sockaddr *)&outaddr, sizeof(outaddr));
+		return send(sock, msg, msgsize, 0);
 	else
 		#ifdef WIN32
 		return sendto(client, msg, msgsize, 0, (struct sockaddr *)&outaddr, sizeof(outaddr));
@@ -201,7 +212,7 @@ long TcpUdpSocket::send(const char* msg, int msgsize)
 		#endif
 }
 
-long TcpUdpSocket::sendTo(const char* msg, int msgsize, const char* addr)
+long TcpUdpSocket::WriteTo(const char* msg, int msgsize, const char* addr)
 {
 	outaddr.sin_addr.s_addr = inet_addr(addr);
 	return sendto(sock, msg, msgsize, 0, (struct sockaddr *)&outaddr, sizeof(outaddr));
