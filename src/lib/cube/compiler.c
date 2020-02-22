@@ -1319,6 +1319,12 @@ static void static_(bool canAssign)
 
 static void require(bool canAssign)
 {
+  consume(TOKEN_LEFT_PAREN, "In 'require' a package name must be passed between parentesis.");
+  uint8_t argCount = argumentList();
+  if(argCount != 1)
+    error("Required accepts only one parameter.");
+  emitByte(OP_REQUIRE);
+  /*
   expression();
   // consume(TOKEN_IDENTIFIER, "Expect an identifier in require.");
   // getVariable(parser.previous);
@@ -1346,6 +1352,7 @@ static void require(bool canAssign)
   }
 
   emitByte(OP_REQUIRE);
+  */
 }
 
 static void await(bool canAssign)

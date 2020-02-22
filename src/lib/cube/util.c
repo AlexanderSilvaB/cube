@@ -43,12 +43,69 @@ char *readFile(const char *path, bool verbose)
 	return buffer;
 }
 
+const char *cube_strchr(const char *s, int c1, int c2, int* c) 
+{
+    if (s == NULL) {
+        return NULL;
+    }
+    if ((c1 > 255) || (c1 < 0)) {
+        return NULL;
+    }
+    int s_len;
+    int i;
+    s_len = strlen(s);
+    for (i = 0; i < s_len; i++) {
+        if ((char) c1 == s[i]) {
+			*c = c1;
+            return (const char*) &s[i];
+        }
+		if(c2 >= 0 && c2 <= 255)
+		{
+			if ((char) c2 == s[i]) 
+			{
+				*c = c2;
+				return (const char*) &s[i];
+			}
+		}
+    }
+    return NULL;
+}
+
+const char *cube_strrchr(const char *s, int c1, int c2, int* c) 
+{
+    if (s == NULL) {
+        return NULL;
+    }
+    if ((c1 > 255) || (c1 < 0)) {
+        return NULL;
+    }
+    int s_len;
+    int i;
+    s_len = strlen(s);
+    for (i = s_len - 1; i >= 0; i--) {
+        if ((char) c1 == s[i]) {
+			*c = c1;
+            return (const char*) &s[i];
+        }
+		if(c2 >= 0 && c2 <= 255)
+		{
+			if ((char) c2 == s[i]) 
+			{
+				*c = c2;
+				return (const char*) &s[i];
+			}
+		}
+    }
+    return NULL;
+}
+
 char *getFolder(const char *path)
 {
-	char c = '/';
+
+	int c;
 	char *lastSlash = NULL;
 	char *parent = NULL;
-	lastSlash = strrchr(path, c); // you need escape character
+	lastSlash = cube_strrchr(path, '/', '\\', &c); // you need escape character
 	if (lastSlash == NULL)
 		return NULL;
 	int len = strlen(path) - strlen(lastSlash) + 3;
@@ -56,9 +113,9 @@ char *getFolder(const char *path)
 	strncpy(parent, path, len - 2);
 	parent[len - 2] = '\0';
 	len = strlen(parent);
-	if (parent[len - 1] != c)
+	if (parent[len - 1] != (char)c)
 	{
-		parent[len] = c;
+		parent[len] = (char)c;
 		parent[len + 1] = '\0';
 	}
 	return parent;
