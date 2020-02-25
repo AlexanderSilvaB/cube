@@ -9,6 +9,8 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#else
+#include <sys/ioctl.h>
 #endif
 
 #include "std.h"
@@ -1386,6 +1388,24 @@ Value systemInfoNative(int argCount, Value *args)
     Value os = STRING_VAL(PLATFORM_NAME);
     insertDict(dict, "os", os);
     insertDict(dict, "version", STRING_VAL(version_string));
+
+    int columns, rows;
+    
+    #ifdef _WIN32
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+    columns = csbi.srWindow.Right - csbi.srWindow.Left + 1;
+    rows = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+    #else
+    struct winsize max;
+    ioctl(0, TIOCGWINSZ , &max);
+    rows = max.ws_row;
+    columns = max.ws_col;
+    #endif
+
+    insertDict(dict, "cols", NUMBER_VAL(columns));
+    insertDict(dict, "rows", NUMBER_VAL(rows));
+
 
     if ((size_t)-1 > 0xffffffffUL)
         insertDict(dict, "arch", NUMBER_VAL(64));

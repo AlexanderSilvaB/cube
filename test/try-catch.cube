@@ -23,6 +23,6 @@ try
 }
 catch(e)
 {
-    println("Oh! An error");
+    println("Oh! Another error");
     println(e);
 }

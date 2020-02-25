@@ -2,10 +2,46 @@
 #include "WM.hpp"
 #include <iostream>
 #include <string.h>
+#include <sstream>
 
 using namespace std;
 
 static WM *wm;
+
+string NativeToValue(cube_native_var *var)
+{
+    switch (NATIVE_TYPE(var))
+    {
+        case TYPE_VOID:
+        case TYPE_NONE:
+        {
+            return "";
+        }
+        break;
+        case TYPE_BOOL:
+        {
+            return AS_NATIVE_BOOL(var) ? "true" : "false";
+        }
+        break;
+        case TYPE_NUMBER:
+        {
+            stringstream ss;
+            ss << AS_NATIVE_NUMBER(var);
+            return ss.str();
+        }
+        break;
+        case TYPE_STRING:
+        {
+            return string(AS_NATIVE_STRING(var));
+            
+        }
+        break;
+        default:
+            break;
+    }
+
+    return "";
+}
 
 extern "C"
 {
@@ -162,5 +198,31 @@ extern "C"
         return ret;
     }
 
+    // Shapes
+    EXPORTED void ui_rm_shape(cube_native_var* id, cube_native_var* shape_id)
+    {
+        wm->RmShape(AS_NATIVE_NUMBER(id), AS_NATIVE_NUMBER(shape_id));
+    }
+
+    EXPORTED cube_native_var* ui_add_shape(cube_native_var* id, cube_native_var* shape)
+    {
+        map<string, string> values;
+        for(int i = 0; i < shape->size; i++)
+        {
+            values[string(shape->dict[i]->key)] = NativeToValue(shape->dict[i]);
+        }
+        int shape_id = wm->AddShape(AS_NATIVE_NUMBER(id), values);
+        return NATIVE_NUMBER(shape_id);
+    }
+
+    EXPORTED void ui_update_shape(cube_native_var* id, cube_native_var* shape)
+    {
+        map<string, string> values;
+        for(int i = 0; i < shape->size; i++)
+        {
+            values[string(shape->dict[i]->key)] = NativeToValue(shape->dict[i]);
+        }
+        wm->UpdateShape(AS_NATIVE_NUMBER(id), values);
+    }
     
 }

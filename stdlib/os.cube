@@ -1,11 +1,14 @@
 var sysInfo = systemInfo();
 
+var rows = sysInfo['rows'];
+var cols = sysInfo['cols'];
+
 var installPath = none;
 var libsExt = none;
 var binExt = none;
 var arch = sysInfo['arch'];
 var name = sysInfo['os'];
-var userHome = env('HOME');
+var userHome = env('INDEPENDENT_HOME');
 if(userHome == none)
     userHome = '';
 var userDir = '{}/.cube'.format(userHome);

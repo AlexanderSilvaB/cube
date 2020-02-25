@@ -29,7 +29,6 @@ class o
     func init(n)
     {
         this.name = n;
-        println(this.name);
     }
 }
 var p = o('Mike');

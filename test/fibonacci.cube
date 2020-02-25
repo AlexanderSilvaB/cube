@@ -44,14 +44,14 @@ var time;
 start = clock();
 result = fibRecursive(10);
 time = clock()-start;
-println("Fibonacci Recursive(10) = ", result, " [", time*1e3, "]");
+println("Fibonacci Recursive(10) = ", result, " [", time, "]");
 
 start = clock();
 result = fibIterative(10);
 time = clock()-start;
-println("Fibonacci Iterative(10) = ", result, " [", time*1e3, "]");
+println("Fibonacci Iterative(10) = ", result, " [", time, "]");
 
 start = clock();
 result = fibTask(10);
 time = clock()-start;
-println("Fibonacci Parallelized(10) = ", result, " [", time*1e3, "]");
+println("Fibonacci Parallelized(10) = ", result, " [", time, "]");

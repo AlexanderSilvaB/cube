@@ -5,19 +5,68 @@
 #include <QUiLoader>
 #include <QQuickWidget>
 #include <QUrl>
+#include "Shapes.hpp"
 
 using namespace std;
 
 class WindowWidget : public QWidget
 {
 private:
+    int ids;
     WM *wm;
+    QVector<Shape*> shapes;
 
 public:
     WindowWidget(QWidget *parent = 0) : QWidget(parent)
     {
+        ids = 0;
         wm = NULL;
         installEventFilter(this);
+    }
+
+    int addShape(Shape *shape)
+    {
+        shape->id = ids++;
+        shapes.append(shape);
+        return shape->id;
+    }
+
+    Shape* getShape(int id)
+    {
+        int i = -1;
+        for(i = 0; i < shapes.size(); i++)
+        {
+            if(shapes[i]->id == id)
+            {
+                break;
+            }
+        }
+
+        if(i >= 0 && i < shapes.size())
+        {
+            return shapes[i];
+        }
+
+        return NULL;
+    }
+
+    void rmShape(int id)
+    {
+        int i = -1;
+        for(i = 0; i < shapes.size(); i++)
+        {
+            if(shapes[i]->id == id)
+            {
+                break;
+            }
+        }
+
+        if(i >= 0 && i < shapes.size())
+        {
+            Shape *s = shapes[i];
+            shapes.remove(i);
+            delete s;
+        }
     }
 
     void setWM(WM *wm)
@@ -30,6 +79,19 @@ public:
         if (this->wm == NULL)
             return false;
         return wm->eventFilter(object, event);
+    }
+
+    void paintEvent(QPaintEvent *event)
+    {
+        if(layout() == nullptr)
+        {
+            QPainter painter(this);
+            for (int i = 0; i < shapes.size(); ++i) 
+            {
+                shapes[i]->set(painter);
+                shapes[i]->draw(painter);
+            }
+        }
     }
 };
 
@@ -495,4 +557,53 @@ Dict WM::GetProperties(int id, const char *objName)
     }
 
     return dict;
+}
+
+// Shapes
+
+int WM::AddShape(int id, Dict &values)
+{
+    QWidget *window = getWindow(id);
+    if (window == NULL)
+        return -1;
+    
+    if(values.find("type") == values.end())
+        return -1;
+
+    string type = values["type"];
+    Shape *shape = NULL;
+    if(type == "rect")
+        shape = new Rect();
+    else if(type == "arc")
+        shape = new Arc();
+    else
+        return -1;
+    
+    shape->update(values);
+    return ((WindowWidget*)window)->addShape(shape);
+}
+
+void WM::UpdateShape(int id, Dict &values)
+{
+    QWidget *window = getWindow(id);
+    if (window == NULL)
+        return;
+
+    if(values.find("id") == values.end())
+        return;
+
+    int shapeId = atoi(values["id"].c_str());
+
+    Shape *shape = ((WindowWidget*)window)->getShape(shapeId);
+    if(shape != NULL)
+        shape->update(values);
+}
+
+void WM::RmShape(int id, int shape)
+{
+    QWidget *window = getWindow(id);
+    if (window == NULL)
+        return;
+
+    ((WindowWidget*)window)->rmShape(shape);
 }

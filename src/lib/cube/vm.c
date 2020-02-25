@@ -38,7 +38,6 @@ ThreadFrame *currentThread()
   int id = thread_id();
   for (int i = 0; i < MAX_THREADS; i++)
   {
-    int _id = vm.threadFrames[i].id;
     if (id == vm.threadFrames[i].id)
       return &vm.threadFrames[i];
   }
@@ -126,50 +125,58 @@ static TaskFrame *createTaskFrame(const char *name)
 
 static TaskFrame *findTaskFrame(const char *name)
 {
-  ThreadFrame *threadFrame = currentThread();
-  TaskFrame *tf = threadFrame->taskFrame;
-  if (tf == NULL)
-    return NULL;
-
-  while (tf != NULL)
+  for(int i = 0; i < MAX_THREADS; i++)
   {
-    if (strcmp(name, tf->name) == 0)
-    {
-      return tf;
-    }
+    ThreadFrame *threadFrame = &vm.threadFrames[i];
+    TaskFrame *tf = threadFrame->taskFrame;
+    if (tf == NULL)
+      continue;
 
-    tf = tf->next;
+    while (tf != NULL)
+    {
+      if (strcmp(name, tf->name) == 0)
+      {
+        return tf;
+      }
+
+      tf = tf->next;
+    }
   }
   return NULL;
 }
 
 static void destroyTaskFrame(const char *name)
 {
-  ThreadFrame *threadFrame = currentThread();
-  TaskFrame *tf = threadFrame->taskFrame;
-  if (tf == NULL)
-    return;
-
-  if (strcmp(name, tf->name) == 0)
+  for(int i = 0; i < MAX_THREADS; i++)
   {
-    threadFrame->taskFrame = tf->next;
-    free(tf->name);
-    free(tf);
-  }
-  else
-  {
-    TaskFrame *parent = NULL;
-    while (tf != NULL && strcmp(name, tf->name) != 0)
-    {
-      parent = tf;
-      tf = tf->next;
-    }
+    ThreadFrame *threadFrame = &vm.threadFrames[i];
+    TaskFrame *tf = threadFrame->taskFrame;
+    if (tf == NULL)
+      continue;
 
-    if (tf != NULL)
+    if (strcmp(name, tf->name) == 0)
     {
-      parent->next = tf->next;
+      threadFrame->taskFrame = tf->next;
       free(tf->name);
       free(tf);
+      break;
+    }
+    else
+    {
+      TaskFrame *parent = NULL;
+      while (tf != NULL && strcmp(name, tf->name) != 0)
+      {
+        parent = tf;
+        tf = tf->next;
+      }
+
+      if (tf != NULL)
+      {
+        parent->next = tf->next;
+        free(tf->name);
+        free(tf);
+        break;
+      }
     }
   }
 }
@@ -2420,8 +2427,6 @@ InterpretResult run()
       char *strPath = (char *)malloc(sizeof(char) * (len + 1));
       strcpy(strPath, fileName);
 
-      printf("Path: %s\n", strPath);
-
       char *s = readFile(fileName, false);
       int index = 0;
       while (s == NULL && index < vm.paths->values.count)
@@ -2432,7 +2437,6 @@ InterpretResult run()
         strcpy(strPath, folder->chars);
         strcat(strPath, fileName);
 
-        printf("Path: %s\n", strPath);
         s = readFile(strPath, false);
         index++;
       }
@@ -2468,8 +2472,8 @@ InterpretResult run()
       {
         package->parent = frame->package;
       }
-      linenoise_add_keyword(name);
-      tableSet(&vm.globals, nameStr, OBJ_VAL(package));
+      // linenoise_add_keyword(name);
+      // tableSet(&vm.globals, nameStr, OBJ_VAL(package));
       if (name != NULL)
         free(name);
 
@@ -2972,6 +2976,7 @@ InterpretResult run()
     case OP_TEST:
       break;
     }
+    // thread_yield();
   }
 
   // #undef READ_BYTE
@@ -3087,11 +3092,11 @@ void *threadFn(void *data)
     if (!threadFrame->running)
     {
       // printf("Thread wait: %d\n", thread_id());
-      cube_wait(10);
+      cube_wait(1);
     }
     else
     {
-      // printf("Thread run: %d\n", thread_id());
+      printf("Thread run: %d\n", thread_id());
       threadFrame->result = INTERPRET_WAIT;
       // cube_wait(1000000);
       // printf("Start\n");

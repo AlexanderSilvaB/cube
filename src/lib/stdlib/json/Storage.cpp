@@ -4,6 +4,7 @@
 #include <iostream>
 #include <string>
 #include <sys/stat.h>
+#include <cstring>
 
 using namespace std;
 

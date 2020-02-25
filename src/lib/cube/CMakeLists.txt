@@ -1,8 +1,6 @@
 include_directories(..)
 
-find_package (Threads)
-
-
+find_package(Threads)
 
 set(SRC cube.c 
         chunk.c 
@@ -38,3 +36,10 @@ endif (UNIX)
 target_link_libraries (cube ${CMAKE_THREAD_LIBS_INIT})
 
 set_target_properties(cube PROPERTIES PUBLIC_HEADER "${INCLUDES}")
+
+# install(TARGETS cube
+#     EXPORT cube_Targets
+#     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+#     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+#     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+#     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/cube)

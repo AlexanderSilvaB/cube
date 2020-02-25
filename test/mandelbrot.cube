@@ -1,0 +1,57 @@
+
+// Mandelbrot Fractals implemented in Cube
+import os;
+
+var X_MIN = -2.0;
+var X_MAX = 1.0;
+var Y_MIN = -1.5;
+var Y_MAX = 1.5;
+var WIDTH = os.cols - 1;
+var HEIGHT = os.rows - 5;
+var THRESHOLD = 1000;
+
+func InMandelbrot(x0, y0, n)
+{
+    var x = 0.0;
+    var y = 0.0;
+    var xtemp = 0.0;
+    while(n > 0)
+    {
+        xtemp = x*x - y*y + x0;
+        y = 2.0*x*y + y0;
+        x = xtemp;
+        n = n - 1;
+        if(x*x + y*y > 4.0)
+            return false;
+    }
+    return true;
+}
+
+func Mandel()
+{
+    var dx = (X_MAX - X_MIN)/WIDTH;
+    var dy = (Y_MAX - Y_MIN)/HEIGHT;
+    
+    var y = Y_MAX;
+    var x = 0.0;
+    
+    while(y >= Y_MIN)
+    {
+        x = X_MIN;
+        while(x < X_MAX)
+        {
+            if (InMandelbrot(x, y, THRESHOLD))
+                print("*");
+            else
+                print(".");
+            
+            x = x + dx;
+        }
+        
+        println();
+        y = y - dy;
+    }
+}
+
+if(__name__ == '__main__')
+    Mandel();

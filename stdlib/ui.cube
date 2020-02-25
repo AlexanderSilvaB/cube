@@ -13,6 +13,9 @@ native libs/libui
     list ui_get_property(num, str, str);
     bool ui_set_property(num, str, str, str);
     dict ui_get_obj(num, str);
+    void ui_rm_shape(num, num);
+    num ui_add_shape(num, dict);
+    void ui_update_shape(num, dict);
 }
 
 class UI
@@ -42,6 +45,22 @@ class UI
 
     static func cycle()
     {
+        for(var i = 0; i < len(UI.windows); ++i)
+        {
+            var window = UI.windows[i];
+            if(len(window.shapes) > 0)
+            {
+                for(var j = 0; j < len(window.shapes); ++j)
+                {
+                    var shape = window.shapes[j];
+                    if(shape.updated)
+                    {
+                        ui_update_shape(window.id, shape.dict());
+                        shape.updated = false;
+                    }
+                }
+            }
+        }
         var events = ui_run_cycle();
         for(var i = 0; i < len(events); ++i)
         {
@@ -85,10 +104,134 @@ class UI
     }
 }
 
+// class Text
+// {
+//     var id = none;
+//     var type = "text";
+//     var x = 0;
+//     var y = 0;
+//     var width = 100;
+//     var height = 100;
+//     var text = "Hello World!";
+
+//     func init(text)
+//     {
+//         this.text = text;
+//     }
+
+//     func dict()
+//     {
+//         return {
+//             'id' : this.id, 
+//             'type' : this.type, 
+//             'x' : this.x, 
+//             'y' : this.y, 
+//             'width' : this.width,
+//             'height' : this.height,
+//             'text' : this.text 
+//         };
+//     }
+// }
+
+class Arc
+{
+    var id = none;
+    var type = "arc";
+    var updated = false;
+    var x = 0;
+    var y = 0;
+    var width = 100;
+    var height = 100;
+    var startAngle = 0;
+    var endAngle = 180;
+    var color = "black";
+
+    func init(start, end)
+    {
+        this.startAngle = start;
+        this.endAngle = end;
+    }
+
+    func update()
+    {
+        this.updated = true;
+    }
+
+    func str()
+    {
+        return str(this.dict());
+    }
+
+    func dict()
+    {
+        return {
+            'id' : this.id, 
+            'type' : this.type, 
+            'x' : this.x, 
+            'y' : this.y, 
+            'width' : this.width,
+            'height' : this.height,
+            'color' : this.color,
+            'startAngle' : this.startAngle,
+            'endAngle' : this.endAngle
+        };
+    }
+}
+
+class Rect
+{
+    var id = none;
+    var type = "rect";
+    var updated = false;
+    var x = 0;
+    var y = 0;
+    var width = 100;
+    var height = 100;
+    var color = "black";
+    var background = none;
+
+    func init(x, y, width, height)
+    {
+        if(x is not none)
+            this.x = x;
+        if(y is not none)
+            this.y = y;
+        if(width is not none)
+            this.width = width;
+        if(height is not none)
+            this.height = height;
+    }
+
+    func update()
+    {
+        this.updated = true;
+    }
+
+    func str()
+    {
+        return str(this.dict());
+    }
+
+    func dict()
+    {
+        return {
+            'id' : this.id, 
+            'type' : this.type, 
+            'x' : this.x, 
+            'y' : this.y, 
+            'width' : this.width,
+            'height' : this.height,
+            'color' : this.color,
+            'background' : this.background
+        };
+    }
+}
+
 class Window
 {
     var id = none;
     var actions = {};
+    var shapes = [];
 
     func init(name, width, height)
     {
@@ -128,5 +271,24 @@ class Window
     func set(obj, prop, value)
     {
         return ui_set_property(this.id, obj, prop, value);
+    }
+
+    func clear(shape)
+    {
+        ui_rm_shape(this.id, shape.id);
+    }
+
+    func draw(shape)
+    {
+        if(shape is string)
+        {
+            shape = Text(shape);
+        }
+        var id = ui_add_shape(this.id, shape.dict());
+        if(id == -1)
+            return none;
+        shape.id = id;
+        this.shapes.add(shape);
+        return shape;
     }
 }

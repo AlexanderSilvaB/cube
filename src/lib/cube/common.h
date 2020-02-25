@@ -22,7 +22,7 @@
 // #define DEBUG_LOG_GC
 #define GC_HEAP_GROW_FACTOR 2
 
-#define MAX_THREADS 8
+#define MAX_THREADS 1
 
 #define UINT8_COUNT (UINT8_MAX + 1)
 #define MAX_STRING_INPUT UINT8_COUNT

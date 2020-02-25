@@ -278,6 +278,10 @@ void cube_wait(uint64_t t)
 
 char *getEnv(const char *name)
 {
+	if(strcmp(name, "INDEPENDENT_HOME") == 0)
+	{
+		return getHome();
+	}
 	return getenv(name);
 }
 
@@ -285,6 +289,20 @@ char *getHome()
 {
 #ifdef WIN32
 	char *home = getEnv("UserProfile");
+	if(home == NULL)
+	{
+		char *homeDrive = getEnv("HOMEDRIVE");
+		char *homePath = getEnv("HOMEPATH");
+		if(homeDrive != NULL && homePath != NULL)
+		{
+			home = (char*)malloc(sizeof(char) * (strlen(homeDrive) + strlen(homePath) + 2));
+			home[0] = '\0';
+			strcpy(home, homeDrive);
+			strcat(home, homePath);
+		}
+		
+	}
+	
 #else
 	char *home = getEnv("HOME");
 #endif

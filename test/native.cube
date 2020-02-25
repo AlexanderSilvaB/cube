@@ -7,4 +7,10 @@ native libcalc
 }
 
 var a = add(4, 6);
-print(a);
+var b = sub(4, 6);
+var c = mul(4, 6);
+var d = divi(4, 6);
+println(a);
+println(b);
+println(c);
+println(d);
