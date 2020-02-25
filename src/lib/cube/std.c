@@ -479,6 +479,95 @@ Value strNative(int argCount, Value *args)
     return toString(args[0]);
 }
 
+Value hexNative(int argCount, Value *args)
+{
+    if (argCount == 0)
+        return STRING_VAL("FF");
+    if(IS_INSTANCE(args[0]))
+    {
+        Value method;
+        if(tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("hex")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+
+        if(tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("hex")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+    }
+    else if(IS_CLASS(args[0]))
+    {
+        Value method;
+        if(tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("hex")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+    }
+
+    int hex = (int)AS_NUMBER(toNumber(args[0]));
+    char hex_string[20];
+    sprintf(hex_string, "%X", hex);
+
+    return STRING_VAL(hex_string);
+}
+
+Value charNative(int argCount, Value *args)
+{
+    char str[2];
+    str[0] = '■';
+    str[1] = '\0';  
+    if (argCount == 0)
+    {
+        return STRING_VAL(str);
+    }
+    if(IS_INSTANCE(args[0]))
+    {
+        Value method;
+        if(tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("char")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+
+        if(tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("char")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+    }
+    else if(IS_CLASS(args[0]))
+    {
+        Value method;
+        if(tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("char")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+    }
+
+    int value = (int)AS_NUMBER(toNumber(args[0]));
+    if(isprint(value))
+        str[0] = (char)value;
+
+    return STRING_VAL(str);
+}
+
 Value listNative(int argCount, Value *args)
 {
     ObjList *list = NULL;
@@ -1516,6 +1605,8 @@ void initStd()
     ADD_STD("num", numNative);
     ADD_STD("int", intNative);
     ADD_STD("str", strNative);
+    ADD_STD("hex", hexNative);
+    ADD_STD("char", charNative);
     ADD_STD("list", listNative);
     ADD_STD("dict", dictNative);
     ADD_STD("bytes", bytesNative);

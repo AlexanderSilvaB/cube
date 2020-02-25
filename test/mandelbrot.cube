@@ -8,7 +8,7 @@ var Y_MIN = -1.5;
 var Y_MAX = 1.5;
 var WIDTH = os.cols - 1;
 var HEIGHT = os.rows - 5;
-var THRESHOLD = 1000;
+var THRESHOLD = 110;
 
 func InMandelbrot(x0, y0, n)
 {
@@ -22,9 +22,9 @@ func InMandelbrot(x0, y0, n)
         x = xtemp;
         n = n - 1;
         if(x*x + y*y > 4.0)
-            return false;
+            return n;
     }
-    return true;
+    return 0;
 }
 
 func Mandel()
@@ -34,17 +34,19 @@ func Mandel()
     
     var y = Y_MAX;
     var x = 0.0;
+
+    var ite;
     
     while(y >= Y_MIN)
     {
         x = X_MIN;
         while(x < X_MAX)
         {
-            if (InMandelbrot(x, y, THRESHOLD))
-                print("*");
+            ite = InMandelbrot(x, y, THRESHOLD);
+            if (ite == 0)
+                print(" ");
             else
-                print(".");
-            
+                print(char(ite));
             x = x + dx;
         }
         

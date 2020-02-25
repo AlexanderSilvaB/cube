@@ -41,6 +41,7 @@ class WM
         bool SetProperty(int id, const char *objName, const char *propName, const char *value);
         Dict GetProperties(int id, const char *objName);
 
+        void SetAntialias(int id, bool antialias);
         int AddShape(int id, Dict &values);
         void UpdateShape(int id, Dict &values);
 

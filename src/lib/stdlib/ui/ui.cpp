@@ -199,6 +199,11 @@ extern "C"
     }
 
     // Shapes
+    EXPORTED void ui_antialias(cube_native_var* id, cube_native_var* enabled)
+    {
+        wm->SetAntialias(AS_NATIVE_NUMBER(id), AS_NATIVE_BOOL(enabled));
+    }
+
     EXPORTED void ui_rm_shape(cube_native_var* id, cube_native_var* shape_id)
     {
         wm->RmShape(AS_NATIVE_NUMBER(id), AS_NATIVE_NUMBER(shape_id));

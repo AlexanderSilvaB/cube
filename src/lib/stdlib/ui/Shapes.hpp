@@ -9,11 +9,13 @@ class Shape
 {
     protected:
         int getInt(std::map<std::string, std::string> &values, const std::string &key, int defaultValue);
+        double getDouble(std::map<std::string, std::string> &values, const std::string &key, double defaultValue);
         std::string getString(std::map<std::string, std::string> &values, const std::string &key, const std::string &defaultValue);
     public:
         int id;
         QPen pen;
         QBrush brush;
+        double angle, scale;
 
         Shape();
         virtual ~Shape();
@@ -44,6 +46,41 @@ class Arc : public Shape
 
         Arc();
         ~Arc();
+        void draw(QPainter &painter);
+        void update(std::map<std::string, std::string> &values);
+};
+
+class Text : public Shape
+{
+    public:
+        int x, y;
+        int size;
+        std::string text;
+
+        Text();
+        ~Text();
+        void draw(QPainter &painter);
+        void update(std::map<std::string, std::string> &values);
+};
+
+class Point : public Shape
+{
+    public:
+        int x, y;
+
+        Point();
+        ~Point();
+        void draw(QPainter &painter);
+        void update(std::map<std::string, std::string> &values);
+};
+
+class Line : public Shape
+{
+    public:
+        int x1, y1, x2, y2;
+
+        Line();
+        ~Line();
         void draw(QPainter &painter);
         void update(std::map<std::string, std::string> &values);
 };

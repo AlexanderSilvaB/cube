@@ -17,8 +17,11 @@ private:
     QVector<Shape*> shapes;
 
 public:
+    bool antialias;
+
     WindowWidget(QWidget *parent = 0) : QWidget(parent)
     {
+        antialias = true;
         ids = 0;
         wm = NULL;
         installEventFilter(this);
@@ -86,6 +89,7 @@ public:
         if(layout() == nullptr)
         {
             QPainter painter(this);
+            painter.setRenderHint(QPainter::Antialiasing, antialias);
             for (int i = 0; i < shapes.size(); ++i) 
             {
                 shapes[i]->set(painter);
@@ -125,6 +129,7 @@ int WM::NewWindow(const char *title, int winWidth, int winHeight)
 
     WindowWidget *window = new WindowWidget();
     window->setWM(this);
+    window->setObjectName( QString("%1").arg(id) );
     window->resize(winWidth, winHeight);
     windows[id] = window;
 
@@ -280,6 +285,14 @@ bool WM::RegisterEvent(int id, const char *objName, const char *eventName)
     string onId = sid + ":" + string(objName) + ":" + string(eventName);
     registeredEvents.push_back(onId);
 
+    if(string(objName) == sid)
+    {
+        window->installEventFilter(window);
+        window->setProperty("cube_window_id", id);
+        window->setProperty("cube_event_name", true);
+        return true;
+    }
+
     QList<QWidget *> widgets = window->findChildren<QWidget *>(objName);
     if (widgets.count() > 0)
     {
@@ -303,6 +316,7 @@ bool WM::RegisterEvent(int id, const char *objName, const char *eventName)
             }
         }
     }
+    return true;
 }
 
 Dict WM::createEventDict(QObject *obj, QEvent *event)
@@ -561,6 +575,15 @@ Dict WM::GetProperties(int id, const char *objName)
 
 // Shapes
 
+void WM::SetAntialias(int id, bool antialias)
+{
+    QWidget *window = getWindow(id);
+    if (window == NULL)
+        return;
+
+    ((WindowWidget*)window)->antialias = antialias;
+}
+
 int WM::AddShape(int id, Dict &values)
 {
     QWidget *window = getWindow(id);
@@ -576,10 +599,17 @@ int WM::AddShape(int id, Dict &values)
         shape = new Rect();
     else if(type == "arc")
         shape = new Arc();
+    else if(type == "text")
+        shape = new Text();
+    else if(type == "point")
+        shape = new Point();
+    else if(type == "line")
+        shape = new Line();
     else
         return -1;
     
     shape->update(values);
+    window->repaint();
     return ((WindowWidget*)window)->addShape(shape);
 }
 
@@ -596,7 +626,10 @@ void WM::UpdateShape(int id, Dict &values)
 
     Shape *shape = ((WindowWidget*)window)->getShape(shapeId);
     if(shape != NULL)
+    {
         shape->update(values);
+        window->repaint();
+    }
 }
 
 void WM::RmShape(int id, int shape)

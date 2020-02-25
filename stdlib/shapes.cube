@@ -1,0 +1,238 @@
+class Text
+{
+    var id = none;
+    var type = "text";
+    var updated = false;
+    var scale = 1;
+    var angle = 0;
+    var text = none;
+    var x = 0;
+    var y = 0;
+    var size = 16;
+    var color = "black";
+
+    func init(text)
+    {
+        this.text = text;
+    }
+
+    func update()
+    {
+        this.updated = true;
+    }
+
+    func str()
+    {
+        return str(this.dict());
+    }
+
+    func dict()
+    {
+        return {
+            'id' : this.id, 
+            'type' : this.type, 
+            'scale' : this.scale,
+            'angle' : this.angle,
+            'x' : this.x, 
+            'y' : this.y, 
+            'text' : this.text,
+            'size' : this.size,
+            'color' : this.color
+        };
+    }
+}
+
+class Rect
+{
+    var id = none;
+    var type = "rect";
+    var updated = false;
+    var scale = 1;
+    var angle = 0;
+    var x = 0;
+    var y = 0;
+    var width = 100;
+    var height = 100;
+    var color = "black";
+    var background = none;
+
+    func init(x, y, width, height)
+    {
+        if(x is not none)
+            this.x = x;
+        if(y is not none)
+            this.y = y;
+        if(width is not none)
+            this.width = width;
+        if(height is not none)
+            this.height = height;
+    }
+
+    func update()
+    {
+        this.updated = true;
+    }
+
+    func str()
+    {
+        return str(this.dict());
+    }
+
+    func dict()
+    {
+        return {
+            'id' : this.id, 
+            'type' : this.type, 
+            'scale' : this.scale,
+            'angle' : this.angle,
+            'x' : this.x, 
+            'y' : this.y, 
+            'width' : this.width,
+            'height' : this.height,
+            'color' : this.color,
+            'background' : this.background
+        };
+    }
+}
+
+
+class Arc
+{
+    var id = none;
+    var type = "arc";
+    var updated = false;
+    var scale = 1;
+    var angle = 0;
+    var x = 0;
+    var y = 0;
+    var width = 100;
+    var height = 100;
+    var startAngle = 0;
+    var endAngle = 180;
+    var color = "black";
+
+    func init(start, end)
+    {
+        if(start is not none)
+            this.startAngle = start;
+        if(end is not none)
+            this.endAngle = end;
+    }
+
+    func update()
+    {
+        this.updated = true;
+    }
+
+    func str()
+    {
+        return str(this.dict());
+    }
+
+    func dict()
+    {
+        return {
+            'id' : this.id, 
+            'type' : this.type, 
+            'scale' : this.scale,
+            'angle' : this.angle,
+            'x' : this.x, 
+            'y' : this.y, 
+            'width' : this.width,
+            'height' : this.height,
+            'color' : this.color,
+            'startAngle' : this.startAngle,
+            'endAngle' : this.endAngle
+        };
+    }
+}
+
+class Point
+{
+    var id = none;
+    var type = "point";
+    var updated = false;
+    var scale = 1;
+    var angle = 0;
+    var x = 0;
+    var y = 0;
+    var color = "black";
+
+    func init(x, y)
+    {
+        if(x is not none)
+            this.x = x;
+        if(y is not none)
+            this.y = y;
+    }
+
+    func update()
+    {
+        this.updated = true;
+    }
+
+    func str()
+    {
+        return str(this.dict());
+    }
+
+    func dict()
+    {
+        return {
+            'id' : this.id, 
+            'type' : this.type,
+            'x' : this.x, 
+            'y' : this.y,
+            'color' : this.color
+        };
+    }
+}
+
+class Line
+{
+    var id = none;
+    var type = "line";
+    var updated = false;
+    var scale = 1;
+    var angle = 0;
+    var x1 = 0;
+    var y1 = 0;
+    var x2 = 100;
+    var y2 = 100;
+    var color = "black";
+
+    func init(x1, y1, x2, y2)
+    {
+        if(x1 is not none)
+            this.x1 = x1;
+        if(y1 is not none)
+            this.y1 = y1;
+        if(x2 is not none)
+            this.x2 = x2;
+        if(y2 is not none)
+            this.y2 = y2;
+    }
+
+    func update()
+    {
+        this.updated = true;
+    }
+
+    func str()
+    {
+        return str(this.dict());
+    }
+
+    func dict()
+    {
+        return {
+            'id' : this.id, 
+            'type' : this.type,
+            'x1' : this.x1, 
+            'y1' : this.y1,
+            'x2' : this.x2, 
+            'y2' : this.y2,
+            'color' : this.color
+        };
+    }
+}
