@@ -5,6 +5,9 @@
 #include <string>
 #include <sys/stat.h>
 #include <cstring>
+#if defined _MSC_VER
+#include <direct.h>
+#endif
 
 using namespace std;
 
@@ -24,7 +27,11 @@ static int own_mkdir(const char *dir, int mode)
         {
             *p = 0;
             #ifdef _WIN32
+            #if defined _MSC_VER
+            _mkdir(tmp);
+            #else
             mkdir(tmp);
+            #endif
             #else
             mkdir(tmp, mode);
             #endif
@@ -32,7 +39,11 @@ static int own_mkdir(const char *dir, int mode)
         }
     }
     #ifdef _WIN32
+    #if defined _MSC_VER
+    int rc = _mkdir(tmp);
+    #else
     int rc = mkdir(tmp);
+    #endif
     #else
     int rc = mkdir(tmp, mode);
     #endif

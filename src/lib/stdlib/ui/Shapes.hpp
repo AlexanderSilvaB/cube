@@ -27,60 +27,83 @@ class Shape
         virtual void update(std::map<std::string, std::string> &values);
 };
 
-class Rect : public Shape
+class RectShape : public Shape
 {
     public:
         int x, y, w, h;
 
-        Rect();
-        ~Rect();
+        RectShape();
+        ~RectShape();
         void draw(QPainter &painter);
         void update(std::map<std::string, std::string> &values);
 };
 
-class Arc : public Shape
+class ArcShape : public Shape
 {
     public:
         int x, y, w, h;
         int start, end;
 
-        Arc();
-        ~Arc();
+        ArcShape();
+        ~ArcShape();
         void draw(QPainter &painter);
         void update(std::map<std::string, std::string> &values);
 };
 
-class Text : public Shape
+class TextShape : public Shape
 {
     public:
         int x, y;
         int size;
+        std::string font;
         std::string text;
 
-        Text();
-        ~Text();
+        TextShape();
+        ~TextShape();
         void draw(QPainter &painter);
         void update(std::map<std::string, std::string> &values);
 };
 
-class Point : public Shape
+class PointShape : public Shape
 {
     public:
         int x, y;
 
-        Point();
-        ~Point();
+        PointShape();
+        ~PointShape();
         void draw(QPainter &painter);
         void update(std::map<std::string, std::string> &values);
 };
 
-class Line : public Shape
+class LineShape : public Shape
 {
     public:
         int x1, y1, x2, y2;
 
-        Line();
-        ~Line();
+        LineShape();
+        ~LineShape();
+        void draw(QPainter &painter);
+        void update(std::map<std::string, std::string> &values);
+};
+
+class EllipseShape : public Shape
+{
+    public:
+        int x, y, w, h;
+
+        EllipseShape();
+        ~EllipseShape();
+        void draw(QPainter &painter);
+        void update(std::map<std::string, std::string> &values);
+};
+
+class CircleShape : public EllipseShape
+{
+    public:
+        int r;
+
+        CircleShape();
+        ~CircleShape();
         void draw(QPainter &painter);
         void update(std::map<std::string, std::string> &values);
 };

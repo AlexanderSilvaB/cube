@@ -1,7 +1,7 @@
 #ifndef _MEMPOOL_MEMPOOL_CONFIG_H_
 #define _MEMPOOL_MEMPOOL_CONFIG_H_
 
-#define MP_ENABLED 1
+#define MP_ENABLED 0
 #define MP_VERBOSE 0
 #define MP_OVERLOAD_STD 0
 

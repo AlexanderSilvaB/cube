@@ -46,7 +46,7 @@ string NativeToValue(cube_native_var *var)
 extern "C"
 {
     int argc = 0;
-    char *argv[0];
+    char *argv[1];
     QApplication app(argc, argv);
 
     char *copyStr(const char* str)

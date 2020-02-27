@@ -60,7 +60,7 @@ string Shape::getString(map<string, string> &values, const string &key, const st
     return defaultValue;
 }
 
-Rect::Rect() : Shape()
+RectShape::RectShape() : Shape()
 {
     x = 0;
     y = 0;
@@ -68,18 +68,18 @@ Rect::Rect() : Shape()
     h = 100;
 }
 
-Rect::~Rect()
+RectShape::~RectShape()
 {
 
 }
 
-void Rect::draw(QPainter &painter)
+void RectShape::draw(QPainter &painter)
 {
     Shape::draw(painter);
     painter.drawRect(x, y, w, h);
 }
 
-void Rect::update(map<string, string> &values)
+void RectShape::update(map<string, string> &values)
 {
     Shape::update(values);
     x = getInt(values, "x", x);
@@ -88,7 +88,7 @@ void Rect::update(map<string, string> &values)
     h = getInt(values, "height", h);
 }
 
-Arc::Arc() : Shape()
+ArcShape::ArcShape() : Shape()
 {
     x = 0;
     y = 0;
@@ -98,18 +98,18 @@ Arc::Arc() : Shape()
     end = 180;
 }
 
-Arc::~Arc()
+ArcShape::~ArcShape()
 {
 
 }
 
-void Arc::draw(QPainter &painter)
+void ArcShape::draw(QPainter &painter)
 {
     Shape::draw(painter);
-    painter.drawArc(x, y, w, h, start * 16, end * 16);
+    painter.drawArc(x - w/2, y - w/2, w, h, start * 16, end * 16);
 }
 
-void Arc::update(map<string, string> &values)
+void ArcShape::update(map<string, string> &values)
 {
     Shape::update(values);
     x = getInt(values, "x", x);
@@ -120,59 +120,62 @@ void Arc::update(map<string, string> &values)
     end = getInt(values, "endAngle", end);
 }
 
-Text::Text() : Shape()
+TextShape::TextShape() : Shape()
 {
     x = 0;
     y = 0;
     size = 16;
+    font = "Arial";
     text = "";
 }
 
-Text::~Text()
+TextShape::~TextShape()
 {
 
 }
 
-void Text::draw(QPainter &painter)
+void TextShape::draw(QPainter &painter)
 {
     Shape::draw(painter);
+    painter.setFont(QFont(QString::fromStdString(font), size));
     painter.drawText(x, y, QString::fromStdString(text));
 }
 
-void Text::update(map<string, string> &values)
+void TextShape::update(map<string, string> &values)
 {
     Shape::update(values);
     x = getInt(values, "x", x);
     y = getInt(values, "y", y);
     size = getInt(values, "size", size);
+    font = getString(values, "font", font);
     text = getString(values, "text", text);
 }
 
-Point::Point() : Shape()
+PointShape::PointShape() : Shape()
 {
     x = 0;
     y = 0;
 }
 
-Point::~Point()
+PointShape::~PointShape()
 {
 
 }
 
-void Point::draw(QPainter &painter)
+void PointShape::draw(QPainter &painter)
 {
     Shape::draw(painter);
     painter.drawPoint(x, y);
 }
 
-void Point::update(map<string, string> &values)
+void PointShape::update(map<string, string> &values)
 {
     Shape::update(values);
     x = getInt(values, "x", x);
     y = getInt(values, "y", y);
 }
 
-Line::Line() : Shape()
+LineShape::LineShape() : Shape()
 {
     x1 = 0;
     y1 = 0;
@@ -180,22 +183,74 @@ Line::Line() : Shape()
     y2 = 100;
 }
 
-Line::~Line()
+LineShape::~LineShape()
 {
 
 }
 
-void Line::draw(QPainter &painter)
+void LineShape::draw(QPainter &painter)
 {
     Shape::draw(painter);
     painter.drawLine(x1, y1, x2, y2);
 }
 
-void Line::update(map<string, string> &values)
+void LineShape::update(map<string, string> &values)
 {
     Shape::update(values);
     x1 = getInt(values, "x1", x1);
     y1 = getInt(values, "y1", y1);
     x2 = getInt(values, "x2", x2);
     y2 = getInt(values, "y2", y2);
+}
+
+EllipseShape::EllipseShape() : Shape()
+{
+    x = 0;
+    y = 0;
+    w = 100;
+    h = 100;
+}
+
+EllipseShape::~EllipseShape()
+{
+
+}
+
+void EllipseShape::draw(QPainter &painter)
+{
+    Shape::draw(painter);
+    painter.drawEllipse(x - w/2, y - h/2, w, h);
+}
+
+void EllipseShape::update(map<string, string> &values)
+{
+    Shape::update(values);
+    x = getInt(values, "x", x);
+    y = getInt(values, "y", y);
+    w = getInt(values, "width", w);
+    h = getInt(values, "height", h);
+}
+
+CircleShape::CircleShape() : EllipseShape()
+{
+    x = 0;
+    y = 0;
+    r = 50;
+}
+
+CircleShape::~CircleShape()
+{
+
+}
+
+void CircleShape::draw(QPainter &painter)
+{
+    EllipseShape::draw(painter);
+}
+
+void CircleShape::update(map<string, string> &values)
+{
+    EllipseShape::update(values);
+    r = getInt(values, "radius", r);
+    w = h = r;
 }

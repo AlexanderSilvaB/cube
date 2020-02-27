@@ -596,15 +596,19 @@ int WM::AddShape(int id, Dict &values)
     string type = values["type"];
     Shape *shape = NULL;
     if(type == "rect")
-        shape = new Rect();
+        shape = new RectShape();
     else if(type == "arc")
-        shape = new Arc();
+        shape = new ArcShape();
     else if(type == "text")
-        shape = new Text();
+        shape = new TextShape();
     else if(type == "point")
-        shape = new Point();
+        shape = new PointShape();
     else if(type == "line")
-        shape = new Line();
+        shape = new LineShape();
+    else if(type == "ellipse")
+        shape = new EllipseShape();
+    else if(type == "circle")
+        shape = new CircleShape();
     else
         return -1;
     

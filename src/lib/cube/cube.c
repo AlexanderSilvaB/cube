@@ -135,9 +135,6 @@ int runCube(int argc, const char *argv[])
             printf("\n");
     }
 
-    printf("Capacity: %ld\n", mp_capacity());
-    printf("Allocated: %ld\n", mp_allocated());
-
     return rc;
 }
 

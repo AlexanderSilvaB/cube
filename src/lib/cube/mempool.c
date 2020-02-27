@@ -33,7 +33,7 @@ typedef struct mp_arena_st
 }mp_arena;
 
 static mp_arena fixed_arena;
-static mp_arena *arena;
+static mp_arena *arena = NULL;
 
 int alloc_arena();
 int grow_arena(mp_arena *arena, size_t minimum);
@@ -45,7 +45,7 @@ void mp_free(void* ptr);
 int mp_init()
 {
     #if MP_ENABLED == 0
-    return 0;
+    return 1;
     #endif
 
     #if MP_VERBOSE != 0
@@ -326,7 +326,7 @@ int grow_arena(mp_arena *arena, size_t minimum)
 {
     #if MP_STATIC_POOL != 0
     return 0;
-    #endif
+    #else
 
     #if MP_VERBOSE != 0
     size_t old_size = arena->size;
@@ -353,6 +353,7 @@ int grow_arena(mp_arena *arena, size_t minimum)
     #endif
 
     return 1;
+    #endif
 }
 
 void free_arena(mp_arena *current)

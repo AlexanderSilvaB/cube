@@ -1,0 +1,125 @@
+import ui as default;
+
+var W = 600;
+var H = 480;
+var R = 20;
+var BW = 20;
+var BH = 150;
+var CX = W / 2;
+var CY = H / 2;
+var MinX = 20 + BW;
+var MaxX = W - MinX;
+var MinY = R / 2;
+var MaxY = H - MinY;
+
+seed();
+
+UI.start();
+
+var window = Window('Pong', W, H);
+
+var line = window.draw(shapes.Line(CX, 0, CX, H));
+
+var ball = window.draw(shapes.Circle(CX, CY, R));
+ball.speed = 200;
+ball.left = random() > 0.5;
+ball.up = random() > 0.5;
+
+var bar1 = window.draw(shapes.Rect(MinX - BW - R/2, CY - BH/2, BW, BH));
+bar1.speed = 0;
+var bar2 = window.draw(shapes.Rect(MaxX + R/2, CY - BH/2, BW, BH));
+bar2.speed = 0;
+
+var score1 = window.draw(shapes.Text(0, 48, CX - 80, 60));
+var score2 = window.draw(shapes.Text(0, 48, CX + 40, 60));
+
+window.on(none, 'KeyPress', @(window, target, props)
+{
+    if(props['key'] == '16777235')
+    {
+        if(bar1.speed > 0)
+            bar1.speed = -100;
+        else
+            bar1.speed -= 100;
+    }
+    else if(props['key'] == '16777237')
+    {
+        if(bar1.speed < 0)
+            bar1.speed = 100;
+        else
+            bar1.speed += 100;
+    }
+});
+
+window.onUpdate(@(window, fps, dt, T)
+{
+    // Ball
+    if(ball.left)
+        ball.x -= ball.speed * dt;
+    else
+        ball.x += ball.speed * dt;
+    if(ball.up)
+        ball.y -= ball.speed * dt;
+    else
+        ball.y += ball.speed * dt;
+
+    if(ball.x <= MinX and ball.y >= bar1.y and ball.y <= bar1.y + BH)
+        ball.left = false;
+    else if(ball.x >= MaxX and ball.y >= bar2.y and ball.y <= bar2.y + BH)
+        ball.left = true;
+    else if(ball.x < MinX)
+    {
+        score2.text += 1;
+        score2.update();
+        ball.speed = 200;
+        ball.left = random() > 0.5;
+        ball.up = random() > 0.5;
+        ball.x = CX;
+        ball.y = CY;
+        ball.update();
+        return;
+    }
+    else if(ball.x > MaxX)
+    {
+        score1.text += 1;
+        score1.update();
+        ball.speed = 200;
+        ball.left = random() > 0.5;
+        ball.up = random() > 0.5;
+        ball.x = CX;
+        ball.y = CY;
+        ball.update();
+        return;
+    }
+    if(ball.y <= MinY)
+        ball.up = false;
+    else if(ball.y >= MaxY)
+        ball.up = true;
+
+    ball.speed *= 1.001;
+
+    ball.update();
+
+    // Bars
+    // bar1.speed = (ball.y - BH/2 - bar1.y) * ball.speed * 0.05;
+    bar2.speed = (ball.y - BH/2 - bar2.y) * ball.speed * 0.05;
+    
+
+    bar1.y += bar1.speed * dt;
+    if(bar1.y < 0)
+        bar1.y = 0;
+    else if(bar1.y > H - BH)
+        bar1.y = H - BH;
+    bar2.y += bar2.speed * dt;
+    if(bar2.y < 0)
+        bar2.y = 0;
+    else if(bar2.y > H - BH)
+        bar2.y = H - BH;
+
+    bar1.update();
+    bar2.update();
+});
+
+
+UI.forever();
+UI.stop();

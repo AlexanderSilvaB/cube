@@ -26,6 +26,10 @@
 #include "version.h"
 #include "mempool.h"
 
+#ifndef S_ISDIR
+#define S_ISDIR(mode)  (((mode) & S_IFMT) == S_IFDIR)
+#endif
+
 Value clockNative(int argCount, Value *args)
 {
     return NUMBER_VAL((cube_clock() * 1e-9));
@@ -525,7 +529,7 @@ Value hexNative(int argCount, Value *args)
 Value charNative(int argCount, Value *args)
 {
     char str[2];
-    str[0] = '■';
+    str[0] = 0xFE;
     str[1] = '\0';  
     if (argCount == 0)
     {

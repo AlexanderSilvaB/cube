@@ -14,12 +14,15 @@ install_manifest.txt
 compile_commands.json
 CTestTestfile.cmake
 
-### VSCode ###
+### VS/VSCode ###
 .vscode
+.vs
+CMakeSettings.json
 
 ### build ###
 build/
 build*/
+out/
 libs/
 
 ### Compiled cube files

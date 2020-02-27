@@ -139,6 +139,10 @@ class Window
 
     func init(name, width, height)
     {
+        if(width is none)
+            width = 600;
+        if(height is none)
+            height = 480;
         this.id = ui_create_window(name, width, height);
         UI.addWindow(this);
     }

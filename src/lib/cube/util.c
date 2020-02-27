@@ -2,7 +2,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#ifdef _MSC_VER
+#include <Windows.h>
+#include <io.h>
+#else
 #include <unistd.h>
+#endif
 #include "util.h"
 #include "memory.h"
 #include "vm.h"
@@ -265,12 +270,39 @@ char *getFileDisplayName(char *path)
 
 uint64_t cube_clock()
 {
+#ifdef _MSC_VER
+	LARGE_INTEGER freq;
+	QueryPerformanceFrequency(&freq);
+	double nanoseconds_per_count = 1.0e9 / (double)freq.QuadPart;
+
+	LARGE_INTEGER time1;
+	QueryPerformanceCounter(&time1);
+
+	uint64_t ns = time1.QuadPart * nanoseconds_per_count;
+	return ns;
+#else
 	struct timespec t;
 	clock_gettime(CLOCK_MONOTONIC, &t);
 
 	uint64_t ret = t.tv_sec * 1e9 + t.tv_nsec;
 	return ret;
+#endif
 }
+
+#ifdef _MSC_VER
+void usleep(__int64 usec)
+{
+	HANDLE timer;
+	LARGE_INTEGER ft;
+
+	ft.QuadPart = -(10 * usec); // Convert to 100 nanosecond interval, negative value indicates relative time
+
+	timer = CreateWaitableTimer(NULL, TRUE, NULL);
+	SetWaitableTimer(timer, &ft, 0, NULL, NULL, 0);
+	WaitForSingleObject(timer, INFINITE);
+	CloseHandle(timer);
+}
+#endif
 
 void cube_wait(uint64_t t)
 {
