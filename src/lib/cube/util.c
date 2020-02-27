@@ -6,6 +6,7 @@
 #include "util.h"
 #include "memory.h"
 #include "vm.h"
+#include "mempool.h"
 
 char *readFile(const char *path, bool verbose)
 {
@@ -21,7 +22,7 @@ char *readFile(const char *path, bool verbose)
 	size_t fileSize = ftell(file);
 	rewind(file);
 
-	char *buffer = (char *)malloc(fileSize + 1);
+	char *buffer = (char *)mp_malloc(fileSize + 1);
 	if (buffer == NULL)
 	{
 		if (verbose)
@@ -109,7 +110,7 @@ char *getFolder(const char *path)
 	if (lastSlash == NULL)
 		return NULL;
 	int len = strlen(path) - strlen(lastSlash) + 3;
-	parent = malloc(sizeof(char) * len);
+	parent = mp_malloc(sizeof(char) * len);
 	strncpy(parent, path, len - 2);
 	parent[len - 2] = '\0';
 	len = strlen(parent);
@@ -172,7 +173,7 @@ void replaceStringN(char *str, const char *find, const char *replace, int N)
 
 char *findFile(const char *name)
 {
-	char *strPath = malloc(sizeof(char) * (strlen(name) + 2));
+	char *strPath = mp_malloc(sizeof(char) * (strlen(name) + 2));
 	strcpy(strPath, name);
 
 	FILE *file = fopen(strPath, "r");
@@ -180,8 +181,8 @@ char *findFile(const char *name)
 	while (file == NULL && index < vm.paths->values.count)
 	{
 		char *folder = AS_CSTRING(vm.paths->values.values[index]);
-		free(strPath);
-		strPath = malloc(sizeof(char) * (strlen(folder) + strlen(name) + 2));
+		mp_free(strPath);
+		strPath = mp_malloc(sizeof(char) * (strlen(folder) + strlen(name) + 2));
 		strcpy(strPath, folder);
 		strcat(strPath, name);
 		file = fopen(strPath, "r");
@@ -189,7 +190,7 @@ char *findFile(const char *name)
 	}
 	if (file == NULL)
 	{
-		free(strPath);
+		mp_free(strPath);
 		strPath = NULL;
 	}
 	else
@@ -256,7 +257,7 @@ char *getFileDisplayName(char *path)
 			break;
 		}
 	}
-	char *name = (char *)malloc(sizeof(char) * (end + 1));
+	char *name = (char *)mp_malloc(sizeof(char) * (end + 1));
 	memcpy(name, fileName, end);
 	name[end] = '\0';
 	return name;
@@ -295,7 +296,7 @@ char *getHome()
 		char *homePath = getEnv("HOMEPATH");
 		if(homeDrive != NULL && homePath != NULL)
 		{
-			home = (char*)malloc(sizeof(char) * (strlen(homeDrive) + strlen(homePath) + 2));
+			home = (char*)mp_malloc(sizeof(char) * (strlen(homeDrive) + strlen(homePath) + 2));
 			home[0] = '\0';
 			strcpy(home, homeDrive);
 			strcat(home, homePath);
@@ -312,7 +313,7 @@ char *getHome()
 char *fixPath(const char *path)
 {
 	char *home = getHome();
-	char *pathStr = (char *)malloc(sizeof(char) * 256);
+	char *pathStr = (char *)mp_malloc(sizeof(char) * 256);
 	strcpy(pathStr, path);
 	if (home != NULL)
 	{	

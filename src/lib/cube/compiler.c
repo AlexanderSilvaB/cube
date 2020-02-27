@@ -9,6 +9,7 @@
 #include "scanner.h"
 #include "util.h"
 #include "gc.h"
+#include "mempool.h"
 
 #ifdef DEBUG_PRINT_CODE
 #include "debug.h"
@@ -229,7 +230,7 @@ static int emitJump(uint8_t instruction)
 
 static void emitBreak()
 {
-  BreakPoint *bp = (BreakPoint*)malloc(sizeof(BreakPoint));
+  BreakPoint *bp = (BreakPoint*)mp_malloc(sizeof(BreakPoint));
   bp->point = emitJump(OP_BREAK);
   bp->next = NULL;
   
@@ -292,7 +293,7 @@ static void patchBreak()
   {
     patchJump(currentBreak->point);
     BreakPoint *next = currentBreak->next;
-    free(currentBreak);
+    mp_free(currentBreak);
     currentBreak = next;
   }
 }
@@ -661,17 +662,17 @@ static void call(bool canAssign)
 static void emitPreviousAsString()
 {
   int len = parser.previous.length + 1;
-  char *str = malloc(sizeof(char) * len);
+  char *str = mp_malloc(sizeof(char) * len);
   strncpy(str, parser.previous.start, parser.previous.length);
   str[parser.previous.length] = '\0';
   emitConstant(OBJ_VAL(copyString(str, strlen(str))));
-  free(str);
+  mp_free(str);
 }
 
 static char* getPreviousAsString()
 {
   int len = parser.previous.length + 1;
-  char *str = malloc(sizeof(char) * len);
+  char *str = mp_malloc(sizeof(char) * len);
   strncpy(str, parser.previous.start, parser.previous.length);
   str[parser.previous.length] = '\0';
   return str;
@@ -784,7 +785,7 @@ static void or_(bool canAssign)
 
 static void string(bool canAssign)
 {
-  char *str = malloc(sizeof(char) * parser.previous.length);
+  char *str = mp_malloc(sizeof(char) * parser.previous.length);
   int j = 0;
   for (int i = 1; i < parser.previous.length - 1; i++)
   {
@@ -827,7 +828,7 @@ static void string(bool canAssign)
   str[j] = '\0';
 
   emitConstant(STRING_VAL(str));
-  free(str);
+  mp_free(str);
 }
 
 static void list(bool canAssign)
@@ -1618,11 +1619,11 @@ static void nativeFunc()
 {
   consume(TOKEN_IDENTIFIER, "Expect type name.");
   int len = parser.previous.length + 1;
-  char *str = malloc(sizeof(char) * len);
+  char *str = mp_malloc(sizeof(char) * len);
   strncpy(str, parser.previous.start, parser.previous.length);
   str[parser.previous.length] = '\0';
   emitConstant(OBJ_VAL(copyString(str, strlen(str))));
-  free(str);
+  mp_free(str);
 
   consume(TOKEN_IDENTIFIER, "Expect function name.");
   Token name = parser.previous;
@@ -1634,11 +1635,11 @@ static void nativeFunc()
 
   // consume(TOKEN_IDENTIFIER, "Expect function name.");
   len = parser.previous.length + 1;
-  str = malloc(sizeof(char) * len);
+  str = mp_malloc(sizeof(char) * len);
   strncpy(str, parser.previous.start, parser.previous.length);
   str[parser.previous.length] = '\0';
   emitConstant(OBJ_VAL(copyString(str, strlen(str))));
-  free(str);
+  mp_free(str);
 
   // Compile the parameter list.
   consume(TOKEN_LEFT_PAREN, "Expect '(' after function name.");
@@ -1656,11 +1657,11 @@ static void nativeFunc()
 
       consume(TOKEN_IDENTIFIER, "Expect parameter type.");
       len = parser.previous.length + 1;
-      str = malloc(sizeof(char) * len);
+      str = mp_malloc(sizeof(char) * len);
       strncpy(str, parser.previous.start, parser.previous.length);
       str[parser.previous.length] = '\0';
       emitConstant(OBJ_VAL(copyString(str, strlen(str))));
-      free(str);
+      mp_free(str);
 
     } while (match(TOKEN_COMMA));
   }
@@ -1908,9 +1909,9 @@ static void forStatement()
     {
       if (match(TOKEN_IN))
       {
-        char *str__value = (char*)malloc(sizeof(char) * 32);
-        char *str__index = (char*)malloc(sizeof(char) * 32);
-        char *str__cond = (char*)malloc(sizeof(char) * 32);
+        char *str__value = (char*)mp_malloc(sizeof(char) * 32);
+        char *str__index = (char*)mp_malloc(sizeof(char) * 32);
+        char *str__cond = (char*)mp_malloc(sizeof(char) * 32);
         str__value[0] = str__index[0] = str__cond[0] = '\0';
         sprintf(str__value, "__value%d", loopInCount);
         sprintf(str__index, "__index%d", loopInCount);
@@ -2658,7 +2659,7 @@ bool writeByteCode(FILE *file, Value value)
   // printf("Write: <%s> ", typeName);
   // printValue(value);
   // printf("\n");
-  // free(typeName);
+  // mp_free(typeName);
 
   int i = 0;
   if (fwrite(&type, sizeof(type), 1, file) != 1)

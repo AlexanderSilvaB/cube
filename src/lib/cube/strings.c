@@ -5,6 +5,7 @@
 #include "strings.h"
 #include "memory.h"
 #include "vm.h"
+#include "mempool.h"
 
 static bool splitString(int argCount)
 {
@@ -24,7 +25,7 @@ static bool splitString(int argCount)
 
 	char *delimiter = AS_CSTRING(pop());
 	char *string = AS_CSTRING(pop());
-	char *tmp = malloc(strlen(string) + 1);
+	char *tmp = mp_malloc(strlen(string) + 1);
 	char *tmpFree = tmp;
 	strcpy(tmp, string);
 
@@ -43,7 +44,7 @@ static bool splitString(int argCount)
 		tmp = token + strlen(delimiter);
 	} while (token != NULL);
 
-	free(tmpFree);
+	mp_free(tmpFree);
 	push(OBJ_VAL(list));
 
 	RESTORE_GC;
@@ -68,7 +69,7 @@ Value stringSplit(Value orig, Value del)
 
 	char *delimiter = AS_CSTRING(del);
 	char *string = AS_CSTRING(orig);
-	char *tmp = malloc(strlen(string) + 1);
+	char *tmp = mp_malloc(strlen(string) + 1);
 	char *tmpFree = tmp;
 	strcpy(tmp, string);
 
@@ -87,7 +88,7 @@ Value stringSplit(Value orig, Value del)
 		tmp = token + strlen(delimiter);
 	} while (token != NULL);
 
-	free(tmpFree);
+	mp_free(tmpFree);
 	return OBJ_VAL(list);
 }
 
@@ -107,19 +108,19 @@ static bool containsString(int argCount)
 
 	char *delimiter = AS_CSTRING(pop());
 	char *string = AS_CSTRING(pop());
-	char *tmp = malloc(strlen(string) + 1);
+	char *tmp = mp_malloc(strlen(string) + 1);
 	char *tmpFree = tmp;
 	strcpy(tmp, string);
 
 	if (!strstr(tmp, delimiter))
 	{
 		push(FALSE_VAL);
-		free(tmp);
+		mp_free(tmp);
 		return true;
 	}
 
 	push(TRUE_VAL);
-	free(tmpFree);
+	mp_free(tmpFree);
 	return true;
 }
 
@@ -127,19 +128,19 @@ bool stringContains(Value strinvV, Value delimiterV, Value *result)
 {
 	char *delimiter = AS_CSTRING(delimiterV);
 	char *string = AS_CSTRING(strinvV);
-	char *tmp = malloc(strlen(string) + 1);
+	char *tmp = mp_malloc(strlen(string) + 1);
 	char *tmpFree = tmp;
 	strcpy(tmp, string);
 
 	if (!strstr(tmp, delimiter))
 	{
 		*result = FALSE_VAL;
-		free(tmp);
+		mp_free(tmp);
 		return true;
 	}
 
 	*result = TRUE_VAL;
-	free(tmpFree);
+	mp_free(tmpFree);
 	return true;
 }
 
@@ -173,7 +174,7 @@ static bool findString(int argCount)
 
 	char *substr = AS_CSTRING(pop());
 	char *string = AS_CSTRING(pop());
-	char *tmp = malloc(strlen(string) + 1);
+	char *tmp = mp_malloc(strlen(string) + 1);
 	char *tmpFree = tmp;
 	strcpy(tmp, string);
 
@@ -193,7 +194,7 @@ static bool findString(int argCount)
 	}
 
 	push(NUMBER_VAL(position));
-	free(tmpFree);
+	mp_free(tmpFree);
 	return true;
 }
 
@@ -226,9 +227,9 @@ static bool replaceString(int argCount)
 	size_t len = strlen(to_replace);
 
 	// Make a copy of the string so we do not modify the original
-	char *tmp = malloc(strlen(string) + 1);
+	char *tmp = mp_malloc(strlen(string) + 1);
 	char *tmpFree = tmp;
-	char *tmp1 = malloc(strlen(string) + 1);
+	char *tmp1 = mp_malloc(strlen(string) + 1);
 	char *tmp1Free = tmp1;
 	strcpy(tmp, string);
 	strcpy(tmp1, string);
@@ -239,18 +240,18 @@ static bool replaceString(int argCount)
 		tmp += len;
 	}
 
-	free(tmpFree);
+	mp_free(tmpFree);
 
 	if (count == 0)
 	{
 		push(stringValue);
-		free(tmp1Free); // We're exiting early so remember to free
+		mp_free(tmp1Free); // We're exiting early so remember to free
 		return true;
 	}
 
 	int length = strlen(tmp1) - count * (len - strlen(replace)) + 1;
 	char *pos;
-	char *newStr = malloc(sizeof(char) * length);
+	char *newStr = mp_malloc(sizeof(char) * length);
 
 	for (int i = 0; i < count; ++i)
 	{
@@ -269,8 +270,8 @@ static bool replaceString(int argCount)
 
 	strncat(newStr, tmp1, strlen(tmp1));
 	ObjString *newString = copyString(newStr, length - 1);
-	free(newStr);
-	free(tmp1Free);
+	mp_free(newStr);
+	mp_free(tmp1Free);
 	push(OBJ_VAL(newString));
 	return true;
 }
@@ -299,12 +300,12 @@ static bool substrString(int argCount)
 		length = string->length - start;
 	}
 
-	char *temp = malloc(sizeof(char) * (length + 1));
+	char *temp = mp_malloc(sizeof(char) * (length + 1));
 	strncpy(temp, string->chars + start, length);
 	temp[length] = '\0';
 
 	push(STRING_VAL(temp));
-	free(temp);
+	mp_free(temp);
 	return true;
 }
 
@@ -328,12 +329,12 @@ static bool fromString(int argCount)
 
 	int length = string->length - start;
 
-	char *temp = malloc(sizeof(char) * (length + 1));
+	char *temp = mp_malloc(sizeof(char) * (length + 1));
 	strncpy(temp, string->chars + start, length);
 	temp[length] = '\0';
 
 	push(STRING_VAL(temp));
-	free(temp);
+	mp_free(temp);
 	return true;
 }
 
@@ -347,7 +348,7 @@ static bool lowerString(int argCount)
 
 	ObjString *string = AS_STRING(pop());
 
-	char *temp = malloc(sizeof(char) * (string->length + 1));
+	char *temp = mp_malloc(sizeof(char) * (string->length + 1));
 
 	for (int i = 0; string->chars[i]; i++)
 		temp[i] = tolower(string->chars[i]);
@@ -355,7 +356,7 @@ static bool lowerString(int argCount)
 	temp[string->length] = '\0';
 
 	push(OBJ_VAL(copyString(temp, string->length)));
-	free(temp);
+	mp_free(temp);
 	return true;
 }
 
@@ -369,7 +370,7 @@ static bool upperString(int argCount)
 
 	ObjString *string = AS_STRING(pop());
 
-	char *temp = malloc(sizeof(char) * (string->length + 1));
+	char *temp = mp_malloc(sizeof(char) * (string->length + 1));
 
 	for (int i = 0; string->chars[i]; i++)
 		temp[i] = toupper(string->chars[i]);
@@ -377,7 +378,7 @@ static bool upperString(int argCount)
 	temp[string->length] = '\0';
 
 	push(OBJ_VAL(copyString(temp, string->length)));
-	free(temp);
+	mp_free(temp);
 	return true;
 }
 
@@ -442,7 +443,7 @@ static bool leftStripString(int argCount)
 	bool charSeen = false;
 	int i, count = 0;
 
-	char *temp = malloc(sizeof(char) * (string->length + 1));
+	char *temp = mp_malloc(sizeof(char) * (string->length + 1));
 
 	for (i = 0; i < string->length; ++i)
 	{
@@ -456,7 +457,7 @@ static bool leftStripString(int argCount)
 	}
 	temp[i - count] = '\0';
 	push(OBJ_VAL(copyString(temp, strlen(temp))));
-	free(temp);
+	mp_free(temp);
 	return true;
 }
 
@@ -471,7 +472,7 @@ static bool rightStripString(int argCount)
 
 	int length;
 
-	char *temp = malloc(sizeof(char) * (string->length + 1));
+	char *temp = mp_malloc(sizeof(char) * (string->length + 1));
 
 	for (length = string->length - 1; length > 0; --length)
 		if (!isspace(string->chars[length]))
@@ -480,7 +481,7 @@ static bool rightStripString(int argCount)
 	strncpy(temp, string->chars, length + 1);
 	temp[length + 1] = '\0';
 	push(OBJ_VAL(copyString(temp, strlen(temp))));
-	free(temp);
+	mp_free(temp);
 	return true;
 }
 
@@ -507,7 +508,7 @@ static bool formatString(int argCount)
 	}
 
 	int length = 0;
-	char **replace_strings = malloc((argCount - 1) * sizeof(char *));
+	char **replace_strings = mp_malloc((argCount - 1) * sizeof(char *));
 
 	for (int j = argCount - 2; j >= 0; --j)
 	{
@@ -517,7 +518,7 @@ static bool formatString(int argCount)
 		else
 		{
 			ObjString *strObj = AS_STRING(value);
-			char *str = malloc(strObj->length + 1);
+			char *str = mp_malloc(strObj->length + 1);
 			snprintf(str, strObj->length + 1, "%s", strObj->chars);
 			replace_strings[j] = str;
 		}
@@ -527,7 +528,7 @@ static bool formatString(int argCount)
 
 	char *string = AS_CSTRING(pop());
 
-	char *tmp = malloc(strlen(string) + 1);
+	char *tmp = mp_malloc(strlen(string) + 1);
 	char *tmpFree = tmp;
 	strcpy(tmp, string);
 
@@ -538,26 +539,26 @@ static bool formatString(int argCount)
 		tmp++;
 	}
 
-	free(tmpFree);
+	mp_free(tmpFree);
 
 	if (count != argCount - 1)
 	{
 		runtimeError("format() placeholders do not match arguments");
 
 		for (int i = 0; i < argCount - 1; ++i)
-			free(replace_strings[i]);
+			mp_free(replace_strings[i]);
 
-		free(replace_strings);
+		mp_free(replace_strings);
 
 		return false;
 	}
 
 	int fullLength = strlen(string) - count * 2 + length + 1;
 	char *pos;
-	char *tmp1 = malloc(strlen(string) + 1);
+	char *tmp1 = mp_malloc(strlen(string) + 1);
 	char *tmp1Free = tmp1;
 	strcpy(tmp1, string);
-	char *newStr = malloc(sizeof(char) * fullLength);
+	char *newStr = mp_malloc(sizeof(char) * fullLength);
 
 	for (int i = 0; i < argCount - 1; ++i)
 	{
@@ -573,17 +574,17 @@ static bool formatString(int argCount)
 		strncat(newStr, replace_strings[i], strlen(replace_strings[i]));
 		tmp1 = pos + 2;
 
-		free(replace_strings[i]);
+		mp_free(replace_strings[i]);
 	}
 
-	free(replace_strings);
+	mp_free(replace_strings);
 
 	strncat(newStr, tmp1, strlen(tmp1));
 	ObjString *newString = copyString(newStr, fullLength - 1);
 	push(OBJ_VAL(newString));
 
-	free(newStr);
-	free(tmp1Free);
+	mp_free(newStr);
+	mp_free(tmp1Free);
 
 	return true;
 }

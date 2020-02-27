@@ -12,6 +12,7 @@
 #include "chunk.h"
 #include "debug.h"
 #include "vm.h"
+#include "mempool.h"
 
 extern Value nativeToValue(cube_native_var *var, NativeTypes *nt);
 extern void valueToNative(cube_native_var *var, Value value);
@@ -23,8 +24,14 @@ void start(const char *path, const char *scriptName)
     setlocale(LC_ALL, "");
     setlocale(LC_CTYPE, "UTF-8");
     #endif
+
+    if(!mp_init())
+    {
+        printf("Could not allocate memory. Exiting!");
+        exit(-1);
+    }
     
-    version_string = (char*)malloc(sizeof(char) * 32);
+    version_string = (char*)mp_malloc(sizeof(char) * 32);
     snprintf(version_string, 31, "%d.%d", VERSION_MAJOR, VERSION_MINOR);
 
     char *folder = NULL;
@@ -75,7 +82,8 @@ void start(const char *path, const char *scriptName)
 void stop()
 {
     freeVM();
-    free(version_string);
+    mp_free(version_string);
+    mp_destroy();
 }
 
 void startCube(int argc, const char *argv[])
@@ -126,6 +134,9 @@ int runCube(int argc, const char *argv[])
         if (vm.newLine)
             printf("\n");
     }
+
+    printf("Capacity: %ld\n", mp_capacity());
+    printf("Allocated: %ld\n", mp_allocated());
 
     return rc;
 }
@@ -220,7 +231,7 @@ int repl()
     }
 
     linenoise_save_history(historyPath);
-    free(historyPath);
+    mp_free(historyPath);
 
     return vm.exitCode;
 }
@@ -238,7 +249,7 @@ int runFile(const char *path, bool execute)
         result = interpret(source, path);
     else
         result = compileCode(source, path);
-    free(source);
+    mp_free(source);
 
     if (result == INTERPRET_COMPILE_ERROR)
         return 65;

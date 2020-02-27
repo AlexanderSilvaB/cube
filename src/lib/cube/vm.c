@@ -22,6 +22,7 @@
 #include "native.h"
 #include "gc.h"
 #include "threads.h"
+#include "mempool.h"
 
 VM vm; // [one]
 
@@ -82,8 +83,8 @@ static TaskFrame *createTaskFrame(const char *name)
 {
   ThreadFrame *threadFrame = createThreadFrame();
 
-  TaskFrame *taskFrame = (TaskFrame *)malloc(sizeof(TaskFrame));
-  taskFrame->name = (char *)malloc(sizeof(char) * (strlen(name) + 1));
+  TaskFrame *taskFrame = (TaskFrame *)mp_malloc(sizeof(TaskFrame));
+  taskFrame->name = (char *)mp_malloc(sizeof(char) * (strlen(name) + 1));
   strcpy(taskFrame->name, name);
   taskFrame->next = NULL;
   taskFrame->finished = false;
@@ -157,8 +158,8 @@ static void destroyTaskFrame(const char *name)
     if (strcmp(name, tf->name) == 0)
     {
       threadFrame->taskFrame = tf->next;
-      free(tf->name);
-      free(tf);
+      mp_free(tf->name);
+      mp_free(tf);
       break;
     }
     else
@@ -173,8 +174,8 @@ static void destroyTaskFrame(const char *name)
       if (tf != NULL)
       {
         parent->next = tf->next;
-        free(tf->name);
-        free(tf);
+        mp_free(tf->name);
+        mp_free(tf);
         break;
       }
     }
@@ -185,7 +186,7 @@ static void pushTry(CallFrame *frame, uint16_t offset)
 {
   ThreadFrame *threadFrame = currentThread();
   TryFrame *try
-    = (TryFrame *)malloc(sizeof(TryFrame));
+    = (TryFrame *)mp_malloc(sizeof(TryFrame));
   try
     ->next = threadFrame->ctf->tryFrame;
   try
@@ -203,7 +204,7 @@ static void popTry()
     = threadFrame->ctf->tryFrame;
   threadFrame->ctf->tryFrame = try
     ->next;
-  free(try);
+  mp_free(try);
 }
 
 static void resetStack()
@@ -218,7 +219,7 @@ static void resetStack()
 void runtimeError(const char *format, ...)
 {
   ThreadFrame *threadFrame = currentThread();
-  char *str = (char *)malloc(sizeof(char) * 1024);
+  char *str = (char *)mp_malloc(sizeof(char) * 1024);
   str[0] = '\0';
   for (int i = threadFrame->ctf->frameCount - 1; i >= 0; i--)
   {
@@ -364,7 +365,7 @@ void addPath(const char *path)
     pathStr = (char *)path;
   else
   {
-    pathStr = (char *)malloc(sizeof(char) * 256);
+    pathStr = (char *)mp_malloc(sizeof(char) * 256);
     pathStr[0] = '\0';
     strcpy(pathStr, path);
     replaceString(pathStr, "~", home);
@@ -375,7 +376,7 @@ void addPath(const char *path)
   RESTORE_GC;
 
   if (home == NULL)
-    free(pathStr);
+    mp_free(pathStr);
 }
 
 static int initArgC = 0;
@@ -546,7 +547,7 @@ static bool hasExtension(Value receiver, ObjString *name)
 {
   char *typeStr = valueType(receiver);
   ObjString *type = AS_STRING(STRING_VAL(typeStr));
-  free(typeStr);
+  mp_free(typeStr);
 
   Value value;
   if (!tableGet(&vm.extensions, type, &value))
@@ -579,7 +580,7 @@ static bool callExtension(Value receiver, ObjString *name, int argCount)
 {
   char *typeStr = valueType(receiver);
   ObjString *type = AS_STRING(STRING_VAL(typeStr));
-  free(typeStr);
+  mp_free(typeStr);
 
   Value value;
   if (!tableGet(&vm.extensions, type, &value))
@@ -848,7 +849,7 @@ static bool checkTry(CallFrame *frame)
       push(STRING_VAL(threadFrame->ctf->error));
     }
 
-    free(threadFrame->ctf->error);
+    mp_free(threadFrame->ctf->error);
     threadFrame->ctf->error = NULL;
 
     return true;
@@ -858,7 +859,7 @@ static bool checkTry(CallFrame *frame)
     resetStack();
     fputs(threadFrame->ctf->error, stderr);
     fputs("\n", stderr);
-    free(threadFrame->ctf->error);
+    mp_free(threadFrame->ctf->error);
     threadFrame->ctf->error = NULL;
     vm.repl = NONE_VAL;
     vm.print = true;
@@ -2205,15 +2206,15 @@ InterpretResult run()
       ObjString *fileName = AS_STRING(peek(1));
       char *s = readFile(fileName->chars, false);
 
-      char *strPath = (char *)malloc(sizeof(char) * (fileName->length + 1));
+      char *strPath = (char *)mp_malloc(sizeof(char) * (fileName->length + 1));
       strcpy(strPath, fileName->chars);
 
       int index = 0;
       while (s == NULL && index < vm.paths->values.count)
       {
         ObjString *folder = AS_STRING(vm.paths->values.values[index]);
-        free(strPath);
-        strPath = malloc(sizeof(char) * (folder->length + fileName->length + 2));
+        mp_free(strPath);
+        strPath = mp_malloc(sizeof(char) * (folder->length + fileName->length + 2));
         strcpy(strPath, folder->chars);
         strcat(strPath, fileName->chars);
         s = readFile(strPath, false);
@@ -2221,7 +2222,7 @@ InterpretResult run()
       }
       if (s == NULL)
       {
-        free(strPath);
+        mp_free(strPath);
         runtimeError("Could not load the file \"%s\".", fileName->chars);
         if (!checkTry(frame))
           return INTERPRET_RUNTIME_ERROR;
@@ -2236,7 +2237,7 @@ InterpretResult run()
       {
         if (strcmp(as->chars, "default") != 0)
         {
-          name = (char *)malloc(sizeof(char) * (as->length + 1));
+          name = (char *)mp_malloc(sizeof(char) * (as->length + 1));
           strcpy(name, as->chars);
         }
       }
@@ -2248,10 +2249,10 @@ InterpretResult run()
       ObjFunction *function = compile(s, strPath);
       if (function == NULL)
       {
-        free(s);
+        mp_free(s);
         return INTERPRET_COMPILE_ERROR;
       }
-      free(s);
+      mp_free(s);
       pop();
       pop();
 
@@ -2266,7 +2267,7 @@ InterpretResult run()
         }
         linenoise_add_keyword(name);
         tableSet(&vm.globals, nameStr, OBJ_VAL(package));
-        free(name);
+        mp_free(name);
       }
 
       push(OBJ_VAL(function));
@@ -2303,7 +2304,7 @@ InterpretResult run()
 
       ObjString *fileNameStr = AS_STRING(peek(0));
 
-      char *fileName = (char *)malloc(sizeof(char) * (fileNameStr->length + strlen(vm.extension) + 2));
+      char *fileName = (char *)mp_malloc(sizeof(char) * (fileNameStr->length + strlen(vm.extension) + 2));
       strcpy(fileName, fileNameStr->chars);
       if (strstr(fileName, vm.extension) == NULL)
       {
@@ -2311,7 +2312,7 @@ InterpretResult run()
       }
 
       int len = strlen(fileName);
-      char *strPath = (char *)malloc(sizeof(char) * (len + 1));
+      char *strPath = (char *)mp_malloc(sizeof(char) * (len + 1));
       strcpy(strPath, fileName);
 
       char *s = readFile(fileName, false);
@@ -2319,8 +2320,8 @@ InterpretResult run()
       while (s == NULL && index < vm.paths->values.count)
       {
         ObjString *folder = AS_STRING(vm.paths->values.values[index]);
-        free(strPath);
-        strPath = malloc(sizeof(char) * (folder->length + len + 2));
+        mp_free(strPath);
+        strPath = mp_malloc(sizeof(char) * (folder->length + len + 2));
         strcpy(strPath, folder->chars);
         strcat(strPath, fileName);
 
@@ -2330,8 +2331,8 @@ InterpretResult run()
       if (s == NULL)
       {
         runtimeError("Could not load the file \"%s\".", fileName);
-        free(strPath);
-        free(fileName);
+        mp_free(strPath);
+        mp_free(fileName);
         if (!checkTry(frame))
           return INTERPRET_RUNTIME_ERROR;
         else
@@ -2344,11 +2345,11 @@ InterpretResult run()
       ObjFunction *function = compile(s, strPath);
       if (function == NULL)
       {
-        free(s);
-        free(name);
+        mp_free(s);
+        mp_free(name);
         return INTERPRET_COMPILE_ERROR;
       }
-      free(s);
+      mp_free(s);
       pop();
       pop();
 
@@ -2362,7 +2363,7 @@ InterpretResult run()
       // linenoise_add_keyword(name);
       // tableSet(&vm.globals, nameStr, OBJ_VAL(package));
       if (name != NULL)
-        free(name);
+        mp_free(name);
 
       push(OBJ_VAL(function));
       ObjClosure *closure = newClosure(function);
@@ -2755,7 +2756,7 @@ InterpretResult run()
     }
     case OP_ASYNC:
     {
-      char *name = (char *)malloc(sizeof(char) * 32);
+      char *name = (char *)mp_malloc(sizeof(char) * 32);
       name[0] = '\0';
       sprintf(name, "Task[%d-%d]", thread_id(), threadFrame->tasksCount);
       threadFrame->tasksCount++;
@@ -2764,7 +2765,7 @@ InterpretResult run()
       TaskFrame *tf = createTaskFrame(name);
 
       ObjString *strTaskName = AS_STRING(STRING_VAL(name));
-      free(name);
+      mp_free(name);
 
       ObjTask *task = newTask(strTaskName);
 

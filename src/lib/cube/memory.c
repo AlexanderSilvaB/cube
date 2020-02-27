@@ -6,6 +6,7 @@
 #include "vm.h"
 #include "native.h"
 #include "gc.h"
+#include "mempool.h"
 
 #ifdef DEBUG_LOG_GC
 #include <stdio.h>
@@ -29,11 +30,11 @@ void *reallocate(void *previous, size_t oldSize, size_t newSize)
 
   if (newSize == 0)
   {
-    free(previous);
+    mp_free(previous);
     return NULL;
   }
 
-  return realloc(previous, newSize);
+  return mp_realloc(previous, newSize);
 }
 
 void freeObject(Obj *object)
@@ -176,8 +177,8 @@ void freeObjects()
 
 void freeDictValue(dictItem *dictItem)
 {
-  free(dictItem->key);
-  free(dictItem);
+  mp_free(dictItem->key);
+  mp_free(dictItem);
 }
 
 void freeDict(ObjDict *dict)
@@ -190,8 +191,8 @@ void freeDict(ObjDict *dict)
       freeDictValue(item);
     }
   }
-  free(dict->items);
-  free(dict);
+  mp_free(dict->items);
+  mp_free(dict);
 }
 
 void freeFile(ObjFile *file)

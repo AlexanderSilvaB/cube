@@ -1,5 +1,6 @@
 #include "linkedList.h"
 #include "memory.h"
+#include "mempool.h"
 
 linked_list* linked_list_create()
 {
@@ -13,7 +14,7 @@ void linked_list_destroy_intern(linked_list *llist, bool freeData)
 {
     if(freeData)
     {
-        free(llist->data);
+        mp_free(llist->data);
         llist->data = NULL;
     }
     if(llist->next != NULL)

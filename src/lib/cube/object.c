@@ -8,6 +8,7 @@
 #include "value.h"
 #include "vm.h"
 #include "collections.h"
+#include "mempool.h"
 
 #define ALLOCATE_OBJ(type, objectType) \
 	(type *)allocateObject(sizeof(type), objectType)
@@ -150,7 +151,7 @@ ObjDict *initDict()
 	ObjDict *dict = ALLOCATE_OBJ(ObjDict, OBJ_DICT);
 	dict->capacity = 8;
 	dict->count = 0;
-	dict->items = calloc(dict->capacity, sizeof(*dict->items));
+	dict->items = mp_calloc(dict->capacity, sizeof(*dict->items));
 
 	return dict;
 }
@@ -262,7 +263,7 @@ char *objectToString(Value value, bool literal)
 	{
 		ObjClass *klass = AS_CLASS(value);
 		char *classString =
-			malloc(sizeof(char) * (klass->name->length + 10));
+			mp_malloc(sizeof(char) * (klass->name->length + 10));
 		snprintf(classString, klass->name->length + 9, "<class %s>",
 				 klass->name->chars);
 		return classString;
@@ -272,7 +273,7 @@ char *objectToString(Value value, bool literal)
 	{
 		ObjClass *klass = AS_CLASS(value);
 		char *classString =
-			malloc(sizeof(char) * (klass->name->length + 10));
+			mp_malloc(sizeof(char) * (klass->name->length + 10));
 		snprintf(classString, klass->name->length + 9, "<task %s>",
 				 klass->name->chars);
 		return classString;
@@ -282,7 +283,7 @@ char *objectToString(Value value, bool literal)
 	{
 		ObjPackage *package = AS_PACKAGE(value);
 		char *packageString =
-			malloc(sizeof(char) * (package->name->length + 14));
+			mp_malloc(sizeof(char) * (package->name->length + 14));
 		snprintf(packageString, package->name->length + 13, "<package %s>",
 				 package->name->chars);
 		return packageString;
@@ -291,7 +292,7 @@ char *objectToString(Value value, bool literal)
 	case OBJ_BOUND_METHOD:
 	{
 		ObjBoundMethod *method = AS_BOUND_METHOD(value);
-		char *methodString = malloc(
+		char *methodString = mp_malloc(
 			sizeof(char) * (method->method->function->name->length + 17));
 		char *methodType = method->method->function->staticMethod
 							   ? "<static method %s>"
@@ -312,7 +313,7 @@ char *objectToString(Value value, bool literal)
 		}
 		else
 		{
-			char *nativeString = malloc(sizeof(char) * 30);
+			char *nativeString = mp_malloc(sizeof(char) * 30);
 			snprintf(nativeString, 29, "<fn uninit%ju>", (uintmax_t)(uintptr_t)AS_CLOSURE(value));
 			return nativeString;
 		}
@@ -334,7 +335,7 @@ char *objectToString(Value value, bool literal)
 			nameLen = strlen(nameStr);
 		}
 
-		char *functionString = malloc(sizeof(char) * (nameLen + 8));
+		char *functionString = mp_malloc(sizeof(char) * (nameLen + 8));
 		snprintf(functionString, nameLen + 8, "<func %s>",
 				 nameStr);
 		return functionString;
@@ -343,7 +344,7 @@ char *objectToString(Value value, bool literal)
 	case OBJ_INSTANCE:
 	{
 		ObjInstance *instance = AS_INSTANCE(value);
-		char *instanceString = malloc(sizeof(char) * (instance->klass->name->length + 12));
+		char *instanceString = mp_malloc(sizeof(char) * (instance->klass->name->length + 12));
 		snprintf(instanceString, instance->klass->name->length + 12,
 				 "<%s instance>", instance->klass->name->chars);
 		return instanceString;
@@ -352,7 +353,7 @@ char *objectToString(Value value, bool literal)
 	//case OBJ_NATIVE_VOID:
 	case OBJ_NATIVE:
 	{
-		char *nativeString = malloc(sizeof(char) * 15);
+		char *nativeString = mp_malloc(sizeof(char) * 15);
 		snprintf(nativeString, 14, "%s", "<native func>");
 		return nativeString;
 	}
@@ -360,7 +361,7 @@ char *objectToString(Value value, bool literal)
 	case OBJ_STRING:
 	{
 		ObjString *stringObj = AS_STRING(value);
-		char *string = malloc(sizeof(char) * stringObj->length + 4);
+		char *string = mp_malloc(sizeof(char) * stringObj->length + 4);
 		if (literal)
 			snprintf(string, stringObj->length + 3, "'%s'", stringObj->chars);
 		else
@@ -371,7 +372,7 @@ char *objectToString(Value value, bool literal)
 	case OBJ_FILE:
 	{
 		ObjFile *file = AS_FILE(value);
-		char *fileString = malloc(sizeof(char) * (strlen(file->path) + 10));
+		char *fileString = mp_malloc(sizeof(char) * (strlen(file->path) + 10));
 		snprintf(fileString, strlen(file->path) + 9, "<file %s%s>",
 				 file->path, file->isOpen ? "*" : "");
 		return fileString;
@@ -390,7 +391,7 @@ char *objectToString(Value value, bool literal)
 			len += func->lib->name->length;
 		}
 
-		char *str = malloc(sizeof(char) * len);
+		char *str = mp_malloc(sizeof(char) * len);
 		sprintf(str, "%s %s(", func->returnType->chars, func->name->chars);
 		for (int i = 0; i < func->params.count; i++)
 		{
@@ -414,7 +415,7 @@ char *objectToString(Value value, bool literal)
 
 		int len = 18 + lib->name->length;
 
-		char *str = malloc(sizeof(char) * len);
+		char *str = mp_malloc(sizeof(char) * len);
 		sprintf(str, "<native lib '%s'>", lib->name->chars);
 		return str;
 	}
@@ -422,7 +423,7 @@ char *objectToString(Value value, bool literal)
 	case OBJ_BYTES:
 	{
 		ObjBytes *bytes = AS_BYTES(value);
-		char *bytesString = malloc(sizeof(unsigned char) * 7 * bytes->length);
+		char *bytesString = mp_malloc(sizeof(unsigned char) * 7 * bytes->length);
 		bytesString[0] = '\0';
 		for (int i = 0; i < bytes->length; i++)
 		{
@@ -435,7 +436,7 @@ char *objectToString(Value value, bool literal)
 	{
 		int size = 50;
 		ObjList *list = AS_LIST(value);
-		char *listString = malloc(sizeof(char) * size);
+		char *listString = mp_malloc(sizeof(char) * size);
 		snprintf(listString, 2, "%s", "[");
 
 		int listStringSize;
@@ -454,7 +455,7 @@ char *objectToString(Value value, bool literal)
 				else
 					size *= 2;
 
-				char *newB = realloc(listString, sizeof(char) * size);
+				char *newB = mp_realloc(listString, sizeof(char) * size);
 
 				if (newB == NULL)
 				{
@@ -467,7 +468,7 @@ char *objectToString(Value value, bool literal)
 
 			strncat(listString, element, size - listStringSize - 1);
 
-			free(element);
+			mp_free(element);
 
 			if (i != list->values.count - 1)
 				strncat(listString, ", ", size - listStringSize - 1);
@@ -483,7 +484,7 @@ char *objectToString(Value value, bool literal)
 		int count = 0;
 		int size = 50;
 		ObjDict *dict = AS_DICT(value);
-		char *dictString = malloc(sizeof(char) * size);
+		char *dictString = mp_malloc(sizeof(char) * size);
 		snprintf(dictString, 2, "%s", "{");
 
 		for (int i = 0; i < dict->capacity; ++i)
@@ -504,7 +505,7 @@ char *objectToString(Value value, bool literal)
 				else
 					size *= 2;
 
-				char *newB = realloc(dictString, sizeof(char) * size);
+				char *newB = mp_realloc(dictString, sizeof(char) * size);
 
 				if (newB == NULL)
 				{
@@ -516,12 +517,12 @@ char *objectToString(Value value, bool literal)
 			}
 
 			char *dictKeyString =
-				malloc(sizeof(char) * (strlen(item->key) + 5));
+				mp_malloc(sizeof(char) * (strlen(item->key) + 5));
 			snprintf(dictKeyString, (strlen(item->key) + 5),
 					 "\"%s\": ", item->key);
 
 			strncat(dictString, dictKeyString, size - dictStringSize - 1);
-			free(dictKeyString);
+			mp_free(dictKeyString);
 
 			dictStringSize = strlen(dictString);
 
@@ -535,7 +536,7 @@ char *objectToString(Value value, bool literal)
 				else
 					size *= 2;
 
-				char *newB = realloc(dictString, sizeof(char) * size);
+				char *newB = mp_realloc(dictString, sizeof(char) * size);
 
 				if (newB == NULL)
 				{
@@ -548,7 +549,7 @@ char *objectToString(Value value, bool literal)
 
 			strncat(dictString, element, size - dictStringSize - 1);
 
-			free(element);
+			mp_free(element);
 
 			if (count != dict->count)
 				strncat(dictString, ", ", size - dictStringSize - 1);
@@ -560,13 +561,13 @@ char *objectToString(Value value, bool literal)
 
 	case OBJ_UPVALUE:
 	{
-		char *nativeString = malloc(sizeof(char) * 8);
+		char *nativeString = mp_malloc(sizeof(char) * 8);
 		snprintf(nativeString, 8, "%s", "upvalue");
 		return nativeString;
 	}
 	}
 
-	char *unknown = malloc(sizeof(char) * 9);
+	char *unknown = mp_malloc(sizeof(char) * 9);
 	snprintf(unknown, 8, "%s", "unknown");
 	return unknown;
 }
@@ -579,49 +580,49 @@ char *objectType(Value value)
 	{
 	case OBJ_CLASS:
 	{
-		char *str = malloc(sizeof(char) * 7);
+		char *str = mp_malloc(sizeof(char) * 7);
 		snprintf(str, 6, "class");
 		return str;
 	}
 
 	case OBJ_TASK:
 	{
-		char *str = malloc(sizeof(char) * 7);
+		char *str = mp_malloc(sizeof(char) * 7);
 		snprintf(str, 6, "task");
 		return str;
 	}
 
 	case OBJ_PACKAGE:
 	{
-		char *str = malloc(sizeof(char) * 9);
+		char *str = mp_malloc(sizeof(char) * 9);
 		snprintf(str, 8, "package");
 		return str;
 	}
 
 	case OBJ_BOUND_METHOD:
 	{
-		char *str = malloc(sizeof(char) * 8);
+		char *str = mp_malloc(sizeof(char) * 8);
 		snprintf(str, 7, "method");
 		return str;
 	}
 
 	case OBJ_CLOSURE:
 	{
-		char *str = malloc(sizeof(char) * 6);
+		char *str = mp_malloc(sizeof(char) * 6);
 		snprintf(str, 5, "func");
 		return str;
 	}
 
 	case OBJ_FUNCTION:
 	{
-		char *str = malloc(sizeof(char) * 6);
+		char *str = mp_malloc(sizeof(char) * 6);
 		snprintf(str, 5, "func");
 		return str;
 	}
 
 	case OBJ_INSTANCE:
 	{
-		char *str = malloc(sizeof(char) * 10);
+		char *str = mp_malloc(sizeof(char) * 10);
 		snprintf(str, 9, "instance");
 		return str;
 	}
@@ -629,69 +630,69 @@ char *objectType(Value value)
 	//case OBJ_NATIVE_VOID:
 	case OBJ_NATIVE:
 	{
-		char *str = malloc(sizeof(char) * 8);
+		char *str = mp_malloc(sizeof(char) * 8);
 		snprintf(str, 7, "native");
 		return str;
 	}
 
 	case OBJ_STRING:
 	{
-		char *str = malloc(sizeof(char) * 8);
+		char *str = mp_malloc(sizeof(char) * 8);
 		snprintf(str, 7, "str");
 		return str;
 	}
 
 	case OBJ_FILE:
 	{
-		char *str = malloc(sizeof(char) * 6);
+		char *str = mp_malloc(sizeof(char) * 6);
 		snprintf(str, 5, "file");
 		return str;
 	}
 
 	case OBJ_BYTES:
 	{
-		char *str = malloc(sizeof(char) * 7);
+		char *str = mp_malloc(sizeof(char) * 7);
 		snprintf(str, 6, "bytes");
 		return str;
 	}
 
 	case OBJ_LIST:
 	{
-		char *str = malloc(sizeof(char) * 6);
+		char *str = mp_malloc(sizeof(char) * 6);
 		snprintf(str, 5, "list");
 		return str;
 	}
 
 	case OBJ_DICT:
 	{
-		char *str = malloc(sizeof(char) * 6);
+		char *str = mp_malloc(sizeof(char) * 6);
 		snprintf(str, 5, "dict");
 		return str;
 	}
 
 	case OBJ_UPVALUE:
 	{
-		char *str = malloc(sizeof(char) * 9);
+		char *str = mp_malloc(sizeof(char) * 9);
 		snprintf(str, 8, "upvalue");
 		return str;
 	}
 
 	case OBJ_NATIVE_FUNC:
 	{
-		char *str = malloc(sizeof(char) * 12);
+		char *str = mp_malloc(sizeof(char) * 12);
 		sprintf(str, "nativefunc");
 		return str;
 	}
 
 	case OBJ_NATIVE_LIB:
 	{
-		char *str = malloc(sizeof(char) * 12);
+		char *str = mp_malloc(sizeof(char) * 12);
 		sprintf(str, "nativelib");
 		return str;
 	}
 	}
 
-	char *unknown = malloc(sizeof(char) * 9);
+	char *unknown = mp_malloc(sizeof(char) * 9);
 	snprintf(unknown, 8, "%s", "unknown");
 	return unknown;
 }

@@ -20,7 +20,8 @@ set(SRC cube.c
         linkedList.c
         native.c
         gc.c
-        threads.c)
+        threads.c
+        mempool.c)
 
 set(INCLUDES
     ${CMAKE_CURRENT_SOURCE_DIR}/cube.h

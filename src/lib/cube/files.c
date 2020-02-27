@@ -1,6 +1,7 @@
 #include "files.h"
 #include "memory.h"
 #include "vm.h"
+#include "mempool.h"
 
 ObjFile* openFile(char* fileName, char* mode)
 {
@@ -90,7 +91,7 @@ static bool readFile(int argCount) {
 		fseek(file->file, currentPosition, SEEK_SET);
 	}
 
-	char *buffer = (char *)malloc(fileSize + 1);
+	char *buffer = (char *)mp_malloc(fileSize + 1);
 	if (buffer == NULL) {
 		runtimeError("Not enough memory to read \"%s\".\n", file->path);
 		return false;
@@ -108,7 +109,7 @@ static bool readFile(int argCount) {
 		push(OBJ_VAL(copyString(buffer, strlen(buffer))));
 	else
 		push(BYTES_VAL(buffer, bytesRead));
-	free(buffer);
+	mp_free(buffer);
 	return true;
 }
 
@@ -126,7 +127,7 @@ static bool readFileBytes(int argCount) {
 		return false;
 	}
 
-	char *buffer = (char *)malloc(size + 1);
+	char *buffer = (char *)mp_malloc(size + 1);
 	if (buffer == NULL) {
 		runtimeError("Not enough memory to read %d bytes from \"%s\".\n", size, file->path);
 		return false;
@@ -140,7 +141,7 @@ static bool readFileBytes(int argCount) {
 
 	push(BYTES_VAL(buffer, bytesRead));
 
-	free(buffer);
+	mp_free(buffer);
 	return true;
 }
 

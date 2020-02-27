@@ -7,6 +7,7 @@
 #include "memory.h"
 #include "value.h"
 #include "vm.h"
+#include "mempool.h"
 
 void initValueArray(ValueArray *array)
 {
@@ -88,8 +89,8 @@ void insertDict(ObjDict *dict, char *key, Value value)
 
   if (dict->items[index])
   {
-    free(dict->items[index]->key);
-    free(dict->items[index]);
+    mp_free(dict->items[index]->key);
+    mp_free(dict->items[index]);
     dict->count--;
   }
 
@@ -106,7 +107,7 @@ void resizeDict(ObjDict *dict, bool grow)
   else
     newSize = dict->capacity >> 1; // Shrink by a factor of 2
 
-  dictItem **items = calloc(newSize, sizeof(*dict->items));
+  dictItem **items = mp_calloc(newSize, sizeof(*dict->items));
 
   for (int j = 0; j < dict->capacity; ++j)
   {
@@ -132,7 +133,7 @@ void resizeDict(ObjDict *dict, bool grow)
       freeDictValue(dict->items[j]);
   }
 
-  free(dict->items);
+  mp_free(dict->items);
 
   dict->capacity = newSize;
   dict->items = items;
@@ -189,13 +190,13 @@ char *valueToString(Value value, bool literal)
   if (IS_BOOL(value))
   {
     char *str = AS_BOOL(value) ? "true" : "false";
-    char *boolString = malloc(sizeof(char) * (strlen(str) + 1));
+    char *boolString = mp_malloc(sizeof(char) * (strlen(str) + 1));
     snprintf(boolString, strlen(str) + 1, "%s", str);
     return boolString;
   }
   else if (IS_NONE(value))
   {
-    char *nilString = malloc(sizeof(char) * 5);
+    char *nilString = mp_malloc(sizeof(char) * 5);
     snprintf(nilString, 5, "%s", "none");
     return nilString;
   }
@@ -203,7 +204,7 @@ char *valueToString(Value value, bool literal)
   {
     double number = AS_NUMBER(value);
     int numberStringLength = snprintf(NULL, 0, "%.15g", number) + 1;
-    char *numberString = malloc(sizeof(char) * numberStringLength);
+    char *numberString = mp_malloc(sizeof(char) * numberStringLength);
     snprintf(numberString, numberStringLength, "%.15g", number);
     int l = strlen(numberString);
     for(int i = 0; i < l; i++)
@@ -218,7 +219,7 @@ char *valueToString(Value value, bool literal)
     return objectToString(value, literal);
   }
 
-  char *unknown = malloc(sizeof(char) * 8);
+  char *unknown = mp_malloc(sizeof(char) * 8);
   snprintf(unknown, 8, "%s", "unknown");
   return unknown;
 }
@@ -266,19 +267,19 @@ char *valueType(Value value)
 {
   if (IS_BOOL(value))
   {
-    char *str = malloc(sizeof(char) * 6);
+    char *str = mp_malloc(sizeof(char) * 6);
 		snprintf(str, 5, "bool");
 		return str;
   }
   else if (IS_NONE(value))
   {
-    char *str = malloc(sizeof(char) * 6);
+    char *str = mp_malloc(sizeof(char) * 6);
 		snprintf(str, 5, "none");
 		return str;
   }
   else if (IS_NUMBER(value))
   {
-    char *str = malloc(sizeof(char) * 5);
+    char *str = mp_malloc(sizeof(char) * 5);
 		snprintf(str, 4, "num");
 		return str;
   }
@@ -287,7 +288,7 @@ char *valueType(Value value)
     return objectType(value);
   }
 
-  char *unknown = malloc(sizeof(char) * 8);
+  char *unknown = mp_malloc(sizeof(char) * 8);
   snprintf(unknown, 8, "unknown");
   return unknown;
 }
@@ -296,7 +297,7 @@ void printValue(Value value)
 {
   char *output = valueToString(value, true);
   printf("%s", output);
-  free(output);
+  mp_free(output);
 }
 
 bool valuesEqual(Value a, Value b) 
@@ -387,7 +388,7 @@ Value toString(Value value)
 {
   char *str = valueToString(value, false);
   Value v = STRING_VAL(str);
-  free(str);
+  mp_free(str);
   return v;
 }
 

@@ -24,6 +24,7 @@
 #include "gc.h"
 #include "system.h"
 #include "version.h"
+#include "mempool.h"
 
 Value clockNative(int argCount, Value *args)
 {
@@ -91,7 +92,7 @@ Value throwNative(int argCount, Value *args)
             sz *= 2;
         }
         strcat(error + len, str);
-        free(str);
+        mp_free(str);
         len = strlen(error);
     }
     runtimeError(error);
@@ -434,7 +435,7 @@ Value strNative(int argCount, Value *args)
     if (IS_BYTES(args[0]))
     {
         ObjBytes *bytes = AS_BYTES(args[0]);
-        char *str = malloc(bytes->length + 1);
+        char *str = mp_malloc(bytes->length + 1);
         int j = 0;
         for (int i = 0; i < bytes->length; i++)
         {
@@ -443,7 +444,7 @@ Value strNative(int argCount, Value *args)
         }
         str[j] = '\0';
         Value ret = STRING_VAL(str);
-        free(str);
+        mp_free(str);
         return ret;
     }
     else if(IS_INSTANCE(args[0]))
@@ -604,10 +605,10 @@ Value listNative(int argCount, Value *args)
                     }
 
                     len = strlen(item->key);
-                    char *key = malloc(sizeof(char) * (len + 1));
+                    char *key = mp_malloc(sizeof(char) * (len + 1));
                     strcpy(key, item->key);
                     writeValueArray(&list->values, STRING_VAL(key));
-                    free(key);
+                    mp_free(key);
 
                     writeValueArray(&list->values, copyValue(item->item));
                 }
@@ -921,7 +922,7 @@ static int colorCode(char *color)
 
 Value colorNative(int argCount, Value *args)
 {
-    char *format = malloc(sizeof(char) * 30);
+    char *format = mp_malloc(sizeof(char) * 30);
     strcpy(format, "\033[0;");
 
     int code = 30;
@@ -949,7 +950,7 @@ Value colorNative(int argCount, Value *args)
     sprintf(format + strlen(format), "m");
 
     Value res = STRING_VAL(format);
-    free(format);
+    mp_free(format);
 
     return res;
 }
@@ -1093,7 +1094,7 @@ Value typeNative(int argCount, Value *args)
         return NONE_VAL;
     char *str = valueType(args[0]);
     Value res = STRING_VAL(str);
-    free(str);
+    mp_free(str);
     return res;
 }
 
@@ -1165,7 +1166,7 @@ Value openNative(int argCount, Value *args)
     char *path = fixPath(fileNameString->chars);
 
     ObjFile *file = openFile(path, openTypeString->chars);
-    free(path);
+    mp_free(path);
     if (file == NULL)
     {
         // runtimeError("Unable to open file");
@@ -1227,7 +1228,7 @@ Value lsNative(int argCount, Value *args)
         closedir(d);
     }
 #endif
-    free(path);
+    mp_free(path);
     return OBJ_VAL(list);
 }
 
@@ -1243,10 +1244,10 @@ Value isdirNative(int argCount, Value *args)
     struct stat statbuf;
     if (stat(path, &statbuf) != 0)
     {
-        free(path);
+        mp_free(path);
         return FALSE_VAL;
     }
-    free(path);
+    mp_free(path);
 
     int rc = S_ISDIR(statbuf.st_mode);
     
@@ -1263,7 +1264,7 @@ Value cdNative(int argCount, Value *args)
     char *path = fixPath(str);
 
     int rc = chdir(path);
-    free(path);
+    mp_free(path);
     return BOOL_VAL(rc == 0);
 }
 
@@ -1276,7 +1277,7 @@ Value existsNative(int argCount, Value *args)
     char *str = AS_CSTRING(args[0]);
     char *path = fixPath(str);
     Value ret = BOOL_VAL(existsFile(path));
-    free(path);
+    mp_free(path);
     return ret;
 }
 
@@ -1289,12 +1290,12 @@ Value findNative(int argCount, Value *args)
     char *str = AS_CSTRING(args[0]);
     char *path = fixPath(str);
     char *found = findFile(path);
-    free(path);
+    mp_free(path);
 
     if (found == NULL)
         return NONE_VAL;
     Value ret = STRING_VAL(found);
-    free(found);
+    mp_free(found);
     return ret;
 }
 
@@ -1307,7 +1308,7 @@ Value removeNative(int argCount, Value *args)
     char *str = AS_CSTRING(args[0]);
     char *path = fixPath(str);
     int rc = remove(path);
-    free(path);
+    mp_free(path);
     return BOOL_VAL(rc == 0);
 }
 
@@ -1357,7 +1358,7 @@ Value mkdirNative(int argCount, Value *args)
 
     char *path = fixPath(str);
     int rc = cube_mkdir(path, mode);
-    free(path);
+    mp_free(path);
 
     return BOOL_VAL(rc == 0);
 }
@@ -1422,7 +1423,7 @@ Value memNative(int argCount, Value *args)
     }
 
     int sz = vm.bytesAllocated;
-    char *comp = (char *)malloc(sizeof(char) * 4);
+    char *comp = (char *)mp_malloc(sizeof(char) * 4);
     if (sz > 1024 * 1024 * 1024)
     {
         sz /= (1024 * 1024 * 1024);
@@ -1443,14 +1444,14 @@ Value memNative(int argCount, Value *args)
 
     char *vStr = valueToString(NUMBER_VAL(sz), false);
 
-    char *str = (char *)malloc(sizeof(char) * (strlen(comp) + strlen(vStr) + 1));
+    char *str = (char *)mp_malloc(sizeof(char) * (strlen(comp) + strlen(vStr) + 1));
     strcpy(str, vStr);
     strcat(str, comp);
 
     Value ret = STRING_VAL(str);
-    free(comp);
-    free(vStr);
-    free(str);
+    mp_free(comp);
+    mp_free(vStr);
+    mp_free(str);
 
     return ret;
 }
@@ -1568,7 +1569,7 @@ linked_list *stdFnList;
 
 std_fn *createStdFn(const char *name, NativeFn fn)
 {
-    std_fn *stdFn = (std_fn *)malloc(sizeof(std_fn));
+    std_fn *stdFn = (std_fn *)mp_malloc(sizeof(std_fn));
     stdFn->name = name;
     stdFn->fn = fn;
     return stdFn;

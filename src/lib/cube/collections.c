@@ -1,6 +1,7 @@
 #include "collections.h"
 #include "memory.h"
 #include "vm.h"
+#include "mempool.h"
 
 // This is needed for list deepCopy
 ObjDict *copyDict(ObjDict *oldDict, bool shallow);
@@ -301,7 +302,7 @@ static bool joinList(int argCount)
 	ObjList *list = AS_LIST(pop());
 
 	int size = 50;
-	char *listString = malloc(sizeof(char) * size);
+	char *listString = mp_malloc(sizeof(char) * size);
 	listString[0] = '\0';
 
 	int listStringSize;
@@ -322,7 +323,7 @@ static bool joinList(int argCount)
 			else
 				size *= 2;
 
-			char *newB = realloc(listString, sizeof(char) * size);
+			char *newB = mp_realloc(listString, sizeof(char) * size);
 
 			if (newB == NULL)
 			{
@@ -335,7 +336,7 @@ static bool joinList(int argCount)
 
 		strncat(listString, element, size - listStringSize - 1);
 
-		free(element);
+		mp_free(element);
 
 		if (i != list->values.count - 1)
 			strncat(listString, str->chars, size - listStringSize - 1);
@@ -343,7 +344,7 @@ static bool joinList(int argCount)
 
 	listStringSize = strlen(listString);
 	push(STRING_VAL(listString));
-	free(listString);
+	mp_free(listString);
 
 
 	return true;
@@ -425,10 +426,10 @@ static bool dictKeys(int argCount) {
 		}
 
 		len = strlen(item->key);
-		char *key = malloc(sizeof(char) * (len + 1));
+		char *key = mp_malloc(sizeof(char) * (len + 1));
 		strcpy(key, item->key);
 		writeValueArray(&list->values, STRING_VAL(key));
-		free(key);
+		mp_free(key);
 	}
 
 	push(OBJ_VAL(list));
