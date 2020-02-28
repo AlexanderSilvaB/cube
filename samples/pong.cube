@@ -18,20 +18,20 @@ UI.start();
 
 var window = Window('Pong', W, H);
 
-var line = window.draw(shapes.Line(CX, 0, CX, H));
+var line = window.draw(Line(CX, 0, CX, H));
 
-var ball = window.draw(shapes.Circle(CX, CY, R));
+var ball = window.draw(Circle(CX, CY, R));
 ball.speed = 200;
 ball.left = random() > 0.5;
 ball.up = random() > 0.5;
 
-var bar1 = window.draw(shapes.Rect(MinX - BW - R/2, CY - BH/2, BW, BH));
+var bar1 = window.draw(Rect(MinX - BW - R/2, CY - BH/2, BW, BH));
 bar1.speed = 0;
-var bar2 = window.draw(shapes.Rect(MaxX + R/2, CY - BH/2, BW, BH));
+var bar2 = window.draw(Rect(MaxX + R/2, CY - BH/2, BW, BH));
 bar2.speed = 0;
 
-var score1 = window.draw(shapes.Text(0, 48, CX - 80, 60));
-var score2 = window.draw(shapes.Text(0, 48, CX + 40, 60));
+var score1 = window.draw(Text(0, 48, CX - 80, 60));
+var score2 = window.draw(Text(0, 48, CX + 40, 60));
 
 window.on(none, 'KeyPress', @(window, target, props)
 {

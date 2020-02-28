@@ -34,7 +34,7 @@ for (var row = 0; row < height; ++row)
             ++iteration;
         }
 
-        var point = shapes.Point(col, row);
+        var point = Point(col, row);
         if (iteration < max) 
             point.color = getColor(iteration);
         else 

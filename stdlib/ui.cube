@@ -19,7 +19,7 @@ native libs/libui
     void ui_update_shape(num, dict);
 }
 
-import shapes;
+import shapes as default;
 
 class UI
 {

@@ -2256,7 +2256,7 @@ InterpretResult run()
       pop();
       pop();
 
-      ObjPackage *package = NULL;
+      ObjPackage *package = frame->package;
       if (name != NULL)
       {
         ObjString *nameStr = AS_STRING(STRING_VAL(name));
