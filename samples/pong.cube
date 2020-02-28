@@ -122,4 +122,3 @@ window.onUpdate(@(window, fps, dt, T)
 
 
 UI.forever();
-UI.stop();

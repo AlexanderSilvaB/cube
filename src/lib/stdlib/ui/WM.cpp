@@ -27,6 +27,15 @@ public:
         installEventFilter(this);
     }
 
+    ~WindowWidget()
+    {
+        for(int i = 0; i < shapes.size(); i++)
+        {
+            delete shapes[i];
+        }
+        shapes.clear();
+    }
+
     int addShape(Shape *shape)
     {
         shape->id = ids++;
@@ -121,6 +130,12 @@ void WM::Init()
 
 void WM::Destroy()
 {
+    for(map<int, QWidget*>::iterator it = windows.begin(); it != windows.end(); it++)
+    {
+        QWidget *window = it->second;
+        delete window;
+    }
+    windows.clear();
 }
 
 int WM::NewWindow(const char *title, int winWidth, int winHeight)
@@ -129,7 +144,6 @@ int WM::NewWindow(const char *title, int winWidth, int winHeight)
 
     WindowWidget *window = new WindowWidget();
     window->setWM(this);
-    window->setObjectName( QString("%1").arg(id) );
     window->resize(winWidth, winHeight);
     windows[id] = window;
 

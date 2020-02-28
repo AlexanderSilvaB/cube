@@ -99,7 +99,7 @@ class UI
                 var window = UI.windows[j];
                 if(window.id == id)
                 {
-                    if(num(target) == window.id)
+                    if(isempty(target))
                         target = none;
                     var onId = '{}:{}'.format(obj, event);
                     if(window.actions.exists(onId))
@@ -166,7 +166,7 @@ class Window
     func on(obj, event, action)
     {
         if(obj is none)
-            obj = this.id;
+            obj = '';
         var onId = '{}:{}'.format(obj, event);
         this.actions[onId] = action;
 

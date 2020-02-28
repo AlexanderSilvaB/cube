@@ -28,6 +28,34 @@ VM vm; // [one]
 
 void *threadFn(void *data);
 
+#define READ_BYTE() (*frame->ip++)
+#define READ_SHORT() \
+  (frame->ip += 2, (uint16_t)((frame->ip[-2] << 8) | frame->ip[-1]))
+
+#define READ_CONSTANT() \
+  (frame->closure->function->chunk.constants.values[READ_SHORT()])
+
+#define READ_STRING() AS_STRING(READ_CONSTANT())
+
+#define BINARY_OP(valueType, op)                    \
+  do                                                \
+  {                                                 \
+    if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) \
+    {                                               \
+      runtimeError("Operands must be numbers.");    \
+      if (!checkTry(frame))                         \
+        return INTERPRET_RUNTIME_ERROR;             \
+    }                                               \
+    else                                            \
+    {                                               \
+                                                    \
+      double b = AS_NUMBER(pop());                  \
+      double a = AS_NUMBER(pop());                  \
+      push(valueType(a op b));                      \
+    }                                               \
+  } while (false)
+
+
 #if MAX_THREADS == 1
 ThreadFrame *currentThread()
 {
@@ -834,8 +862,8 @@ static bool checkTry(CallFrame *frame)
       push(OBJ_VAL(closure));
       for (int i = 0; i < closure->upvalueCount; i++)
       {
-        uint8_t isLocal = *frame->ip++;
-        uint8_t index = *frame->ip++;
+        uint8_t isLocal = READ_BYTE();
+        uint16_t index = READ_SHORT();
         if (isLocal)
         {
           closure->upvalues[i] = captureUpvalue(frame->slots + index);
@@ -1409,33 +1437,6 @@ next:
   return true;
 }
 
-#define READ_BYTE() (*frame->ip++)
-#define READ_SHORT() \
-  (frame->ip += 2, (uint16_t)((frame->ip[-2] << 8) | frame->ip[-1]))
-
-#define READ_CONSTANT() \
-  (frame->closure->function->chunk.constants.values[READ_SHORT()])
-
-#define READ_STRING() AS_STRING(READ_CONSTANT())
-
-#define BINARY_OP(valueType, op)                    \
-  do                                                \
-  {                                                 \
-    if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) \
-    {                                               \
-      runtimeError("Operands must be numbers.");    \
-      if (!checkTry(frame))                         \
-        return INTERPRET_RUNTIME_ERROR;             \
-    }                                               \
-    else                                            \
-    {                                               \
-                                                    \
-      double b = AS_NUMBER(pop());                  \
-      double a = AS_NUMBER(pop());                  \
-      push(valueType(a op b));                      \
-    }                                               \
-  } while (false)
-
 InterpretResult run()
 {
   for (;;)
@@ -1586,14 +1587,14 @@ InterpretResult run()
 
     case OP_GET_LOCAL:
     {
-      uint8_t slot = READ_SHORT();
+      uint16_t slot = READ_SHORT();
       push(frame->slots[slot]);
       break;
     }
 
     case OP_SET_LOCAL:
     {
-      uint8_t slot = READ_SHORT();
+      uint16_t slot = READ_SHORT();
       frame->slots[slot] = peek(0);
       break;
     }
@@ -1691,14 +1692,14 @@ InterpretResult run()
 
     case OP_GET_UPVALUE:
     {
-      uint8_t slot = READ_SHORT();
+      uint16_t slot = READ_SHORT();
       push(*frame->closure->upvalues[slot]->location);
       break;
     }
 
     case OP_SET_UPVALUE:
     {
-      uint8_t slot = READ_SHORT();
+      uint16_t slot = READ_SHORT();
       *frame->closure->upvalues[slot]->location = peek(0);
       break;
     }
@@ -2568,7 +2569,7 @@ InterpretResult run()
       for (int i = 0; i < closure->upvalueCount; i++)
       {
         uint8_t isLocal = READ_BYTE();
-        uint8_t index = READ_BYTE();
+        uint16_t index = READ_SHORT();
         if (isLocal)
         {
           closure->upvalues[i] = captureUpvalue(frame->slots + index);

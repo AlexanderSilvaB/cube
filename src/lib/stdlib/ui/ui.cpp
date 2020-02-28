@@ -6,7 +6,7 @@
 
 using namespace std;
 
-static WM *wm;
+static WM *wm = NULL;
 
 string NativeToValue(cube_native_var *var)
 {
@@ -58,14 +58,19 @@ extern "C"
 
     EXPORTED void ui_start()
     {
+        if(wm != NULL)
+            return;
         wm = new WM(&app);
         wm->Init();
     }
 
     EXPORTED void ui_stop()
     {   
+        if(wm == NULL)
+            return;
         wm->Destroy();
         delete wm;
+        wm = NULL;
     }
 
     EXPORTED cube_native_var* ui_create_window(cube_native_var* title, 

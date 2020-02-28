@@ -58,7 +58,7 @@ typedef struct
 
 typedef struct
 {
-  uint8_t index;
+  uint16_t index;
   bool isLocal;
 } Upvalue;
 
@@ -79,9 +79,9 @@ typedef struct Compiler
   ObjFunction *function;
   FunctionType type;
 
-  Local locals[UINT8_COUNT];
+  Local locals[UINT16_COUNT];
   int localCount;
-  Upvalue upvalues[UINT8_COUNT];
+  Upvalue upvalues[UINT16_COUNT];
   int scopeDepth;
   int loopDepth;
 
@@ -426,7 +426,7 @@ static int resolveLocal(Compiler *compiler, Token *name, bool inFunction)
   return -1;
 }
 
-static int addUpvalue(Compiler *compiler, uint8_t index, bool isLocal)
+static int addUpvalue(Compiler *compiler, uint16_t index, bool isLocal)
 {
   int upvalueCount = compiler->function->upvalueCount;
 
@@ -439,7 +439,7 @@ static int addUpvalue(Compiler *compiler, uint8_t index, bool isLocal)
     }
   }
 
-  if (upvalueCount == UINT8_COUNT)
+  if (upvalueCount == UINT16_COUNT)
   {
     error("Too many closure variables in function.");
     return 0;
@@ -459,13 +459,13 @@ static int resolveUpvalue(Compiler *compiler, Token *name)
   if (local != -1)
   {
     compiler->enclosing->locals[local].isCaptured = true;
-    return addUpvalue(compiler, (uint8_t)local, true);
+    return addUpvalue(compiler, (uint16_t)local, true);
   }
 
   int upvalue = resolveUpvalue(compiler->enclosing, name);
   if (upvalue != -1)
   {
-    return addUpvalue(compiler, (uint8_t)upvalue, false);
+    return addUpvalue(compiler, (uint16_t)upvalue, false);
   }
 
   return -1;
@@ -473,7 +473,7 @@ static int resolveUpvalue(Compiler *compiler, Token *name)
 
 static void addLocal(Token name)
 {
-  if (current->localCount == UINT8_COUNT)
+  if (current->localCount == UINT16_COUNT)
   {
     error("Too many local variables in function.");
     return;
@@ -1216,7 +1216,7 @@ static void function(FunctionType type)
   for (int i = 0; i < function->upvalueCount; i++)
   {
     emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
-    emitByte(compiler.upvalues[i].index);
+    emitShortAlone(compiler.upvalues[i].index);
   }
 }
 
@@ -1376,7 +1376,7 @@ static void async(bool canAssign)
   for (int i = 0; i < function->upvalueCount; i++)
   {
     emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
-    emitByte(compiler.upvalues[i].index);
+    emitShortAlone(compiler.upvalues[i].index);
   }
 
   emitByte(OP_ASYNC);

@@ -3,7 +3,7 @@ import ui as default;
 UI.start();
 
 var width = 150;
-var height = 120;
+var height = 150;
 var max = 10;
 var scale = int(255 / max);
 
@@ -44,4 +44,3 @@ for (var row = 0; row < height; ++row)
 }
 
 UI.forever();
-UI.stop();
