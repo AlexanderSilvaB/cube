@@ -1,17 +1,17 @@
 func str.len()
 {
-    return len(this);
+    return len(this)
 }
 
 func num.sig()
 {
     if(this > 0)
-        return 1;
-    return -1;
+        return 1
+    return -1
 }
 
-var s = "ABC";
-println(s,".len() = ", s.len());
+var s = "ABC"
+println(s,".len() = ", s.len())
 
-println(5, ".sig() = ", 5.sig());
-println(-5, ".sig() = ", -5.sig());
+println(5, ".sig() = ", 5.sig())
+println(-5, ".sig() = ", -5.sig())

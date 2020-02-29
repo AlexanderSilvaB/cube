@@ -30,6 +30,7 @@ VM vm; // [one]
 void *threadFn(void *data);
 
 #define READ_BYTE() (*frame->ip++)
+#define SKIP_BYTE() frame->ip++
 #define READ_SHORT() \
   (frame->ip += 2, (uint16_t)((frame->ip[-2] << 8) | frame->ip[-1]))
 
@@ -867,12 +868,12 @@ static bool checkTry(CallFrame *frame)
 
     frame->ip = ip;
 
-    bool hasCatch = (*frame->ip++) == OP_TRUE;
+    bool hasCatch = READ_BYTE() == OP_TRUE;
 
     if (hasCatch)
     {
-      frame->ip++;
-      ObjFunction *function = AS_FUNCTION((frame->closure->function->chunk.constants.values[*frame->ip++]));
+      SKIP_BYTE();
+      ObjFunction *function = AS_FUNCTION(READ_CONSTANT());
       ObjClosure *closure = newClosure(function);
       push(OBJ_VAL(closure));
       for (int i = 0; i < closure->upvalueCount; i++)

@@ -1573,7 +1573,8 @@ static void property(bool isStatic)
   {
     emitByte(OP_NONE);
   }
-  consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
+  // consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
+  match(TOKEN_SEMICOLON);
 
   // emitByte(isLocal ?  OP_TRUE : OP_FALSE);
   emitByte(isStatic ? OP_TRUE : OP_FALSE);
@@ -1655,7 +1656,8 @@ static void nativeFunc()
   }
 
   consume(TOKEN_RIGHT_PAREN, "Expect ')' after parameters.");
-  consume(TOKEN_SEMICOLON, "Expect ';' after native func declaration.");
+  // consume(TOKEN_SEMICOLON, "Expect ';' after native func declaration.");
+  match(TOKEN_SEMICOLON);
 
   emitConstant(NUMBER_VAL(arity));
 
@@ -1835,8 +1837,9 @@ static void globalDeclaration(bool checkEnd)
   {
     emitByte(OP_NONE);
   }
-  if (checkEnd)
-    consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
+  // if (checkEnd)
+  //   consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
+  match(TOKEN_SEMICOLON);
 
   emitShort(OP_DEFINE_GLOBAL_FORCED, global);
 }
@@ -1853,8 +1856,9 @@ static void varDeclaration(bool checkEnd)
   {
     emitByte(OP_NONE);
   }
-  if (checkEnd)
-    consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
+  // if (checkEnd)
+  //   consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
+  match(TOKEN_SEMICOLON);
 
   defineVariable(global);
 }
@@ -1862,7 +1866,8 @@ static void varDeclaration(bool checkEnd)
 static void expressionStatement()
 {
   expression();
-  consume(TOKEN_SEMICOLON, "Expect ';' after expression.");
+  // consume(TOKEN_SEMICOLON, "Expect ';' after expression.");
+  match(TOKEN_SEMICOLON);
   emitByte(OP_REPL_POP);
 }
 
@@ -2133,7 +2138,8 @@ static void returnStatement()
     }
 
     expression();
-    consume(TOKEN_SEMICOLON, "Expect ';' after return value.");
+    // consume(TOKEN_SEMICOLON, "Expect ';' after return value.");
+    match(TOKEN_SEMICOLON);
     emitByte(OP_RETURN);
   }
 }
@@ -2158,7 +2164,8 @@ static void importStatement()
     emitByte(OP_NONE);
   }
 
-  consume(TOKEN_SEMICOLON, "Expect ';' after import.");
+  // consume(TOKEN_SEMICOLON, "Expect ';' after import.");
+  match(TOKEN_SEMICOLON);
 
   emitByte(OP_IMPORT);
 }
@@ -2167,7 +2174,8 @@ static void abortStatement()
 {
   consume(TOKEN_IDENTIFIER, "Expect a function call in abort.");
   getVariable(parser.previous);
-  consume(TOKEN_SEMICOLON, "Expect ';' after abort.");
+  // consume(TOKEN_SEMICOLON, "Expect ';' after abort.");
+  match(TOKEN_SEMICOLON);
   emitByte(OP_ABORT);
 }
 
@@ -2217,7 +2225,8 @@ static void doWhileStatement()
   consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
   expression();
   consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
-  consume(TOKEN_SEMICOLON, "Expected semicolon after 'do while'");
+  // consume(TOKEN_SEMICOLON, "Expected semicolon after 'do while'");
+  match(TOKEN_SEMICOLON);
 
   int exitJump = emitJump(OP_JUMP_IF_FALSE);
 
@@ -2241,7 +2250,8 @@ static void continueStatement()
   if (innermostLoopStart == -1)
     error("Cannot use 'continue' outside of a loop.");
 
-  consume(TOKEN_SEMICOLON, "Expect ';' after 'continue'.");
+  // consume(TOKEN_SEMICOLON, "Expect ';' after 'continue'.");
+  match(TOKEN_SEMICOLON);
 
   // Discard any locals created inside the loop.
   for (int i = current->localCount - 1;
@@ -2260,7 +2270,8 @@ static void breakStatement()
     return;
   }
 
-  consume(TOKEN_SEMICOLON, "Expected semicolon after break");
+  // consume(TOKEN_SEMICOLON, "Expected semicolon after break");
+  match(TOKEN_SEMICOLON);
   emitBreak();
 }
 

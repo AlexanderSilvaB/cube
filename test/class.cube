@@ -4,11 +4,15 @@ class Animal
 
     func init(name)
     {
-        this.name = name;
+        this.name = name
+    }
+
+    func say()
+    {
         if(name == none)
-            println('I am an animal');
+            println('I am an animal')
         else
-            println('I am a ', name);
+            println('I am a ', name)
     }
 }
 
@@ -16,7 +20,7 @@ class Dog : Animal
 {
     func init()
     {
-        super.init('dog');
+        super.init('dog')
     }
 }
 
@@ -24,13 +28,17 @@ class Cat : Animal
 {
     func init()
     {
-        super.init('cat');
+        super.init('cat')
     }
 }
 
 if(__name__ == '__main__')
 {
-    var a = Animal();
-    var b = Dog();
-    var c = Cat();
+    var a = Animal()
+    var b = Dog()
+    var c = Cat()
+
+    a.say()
+    b.say()
+    c.say()
 }
