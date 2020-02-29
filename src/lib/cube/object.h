@@ -27,6 +27,7 @@
 #define IS_NATIVE_LIB(value) isObjType(value, OBJ_NATIVE_LIB)
 #define IS_TASK(value) isObjType(value, OBJ_TASK)
 #define IS_REQUEST(value) isObjType(value, OBJ_REQUEST)
+#define IS_PROCESS(value) isObjType(value, OBJ_PROCESS)
 
 
 #define AS_BOUND_METHOD(value) ((ObjBoundMethod *)AS_OBJ(value))
@@ -47,6 +48,7 @@
 #define AS_NATIVE_LIB(value)          ((ObjNativeLib*)AS_OBJ(value))
 #define AS_TASK(value)          ((ObjTask*)AS_OBJ(value))
 #define AS_REQUEST(value)          ((ObjRequest*)AS_OBJ(value))
+#define AS_PROCESS(value)          ((ObjProcess*)AS_OBJ(value))
 
 #define STRING_VAL(str) (OBJ_VAL(copyString(str, strlen(str))))
 #define BYTES_VAL(data, len) (OBJ_VAL(copyBytes(data, len)))
@@ -71,6 +73,7 @@ typedef enum
   OBJ_NATIVE_LIB,
   OBJ_TASK,
   OBJ_REQUEST,
+  OBJ_PROCESS,
   OBJ_UPVALUE
 } ObjType;
 
@@ -192,6 +195,7 @@ typedef struct sObjClass
   Table methods;
   Table fields;
   Table staticFields;
+  struct sObjClass *super;
 } ObjClass;
 
 typedef struct
@@ -231,6 +235,15 @@ typedef struct
   ObjString *name;
 } ObjTask;
 
+typedef struct
+{
+  Obj obj;
+  ObjString *path;
+  int pid, in, out, status;
+  bool running, closed;
+} ObjProcess;
+
+
 
 ObjBoundMethod *newBoundMethod(Value receiver, ObjClosure *method);
 ObjClass *newClass(ObjString *name);
@@ -250,7 +263,9 @@ ObjDict *initDict();
 ObjFile *initFile();
 ObjBytes *initBytes();
 ObjUpvalue *newUpvalue(Value *slot);
+ObjProcess *newProcess(ObjString *path, int argCount, Value *args);
 
+bool processAlive(ObjProcess *process);
 ObjBytes *copyBytes(const void *bytes, int length);
 void appendBytes(ObjBytes *dest, ObjBytes *src);
 

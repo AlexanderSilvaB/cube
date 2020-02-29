@@ -3,6 +3,8 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #ifdef _WIN32
 #include <direct.h>
@@ -18,6 +20,10 @@
 #define RmDir rmdir
 #endif
 
+int readFd(int fd, int size, char *buff);
+int writeFd(int fd, int size, char *buff);
+int readFileRaw(FILE* fd, int size, char *buff);
+int writeFileRaw(FILE* fd, int size, char *buff);
 char *readFile(const char *path, bool verbose);
 char *getFolder(const char* path);
 int countBytes(const void* raw, int maxSize);

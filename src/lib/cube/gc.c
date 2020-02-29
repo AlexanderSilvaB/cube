@@ -172,6 +172,8 @@ void mark_object(Obj *object)
         {
             ObjClass *klass = (ObjClass *)object;
             mark_object((Obj *)klass->name);
+            mark_object((Obj *)klass->package);
+            mark_object((Obj *)klass->super);
             markTable(&klass->methods);
             markTable(&klass->fields);
             markTable(&klass->staticFields);
@@ -184,6 +186,13 @@ void mark_object(Obj *object)
             ObjPackage *package = (ObjPackage *)object;
             mark_object((Obj *)package->name);
             markTable(&package->symbols);
+            break;
+        }
+
+        case OBJ_PROCESS:
+        {
+            ObjProcess *process = (ObjProcess *)object;
+            mark_object((Obj *)process->path);
             break;
         }
 

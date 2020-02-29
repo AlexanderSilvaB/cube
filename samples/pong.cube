@@ -18,6 +18,10 @@ UI.start();
 
 var window = Window('Pong', W, H);
 
+var bg = window.draw(Rect(0, 0, W, H));
+bg.background = '#FFF';
+bg.update();
+
 var line = window.draw(Line(CX, 0, CX, H));
 
 var ball = window.draw(Circle(CX, CY, R));
@@ -101,7 +105,7 @@ window.onUpdate(@(window, fps, dt, T)
     ball.update();
 
     // Bars
-    // bar1.speed = (ball.y - BH/2 - bar1.y) * ball.speed * 0.05;
+    bar1.speed = (ball.y - BH/2 - bar1.y) * ball.speed * 0.05;
     bar2.speed = (ball.y - BH/2 - bar2.y) * ball.speed * 0.05;
     
 

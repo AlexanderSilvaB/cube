@@ -1,31 +1,21 @@
-class Text
+class Shape
 {
     var id = none;
-    var type = "text";
+    var type = none;
     var updated = false;
     var scale = 1;
     var angle = 0;
-    var text = none;
-    var x = 0;
-    var y = 0;
-    var size = 16;
-    var font = "Arial";
     var color = "black";
+    var background = none;
 
-    func init(text, size, x, y)
+    func init(type)
     {
-        this.text = text;
-        if(size is not none)
-            this.size = size;
-        if(x is not none)
-            this.x = x;
-        if(y is not none)
-            this.y = y;
+        this.type = type;
     }
 
     func update()
     {
-        this.updated = true;
+        updated = true;
     }
 
     func str()
@@ -36,35 +26,26 @@ class Text
     func dict()
     {
         return {
-            'id' : this.id, 
-            'type' : this.type, 
-            'scale' : this.scale,
-            'angle' : this.angle,
-            'x' : this.x, 
-            'y' : this.y, 
-            'text' : this.text,
-            'size' : this.size,
-            'color' : this.color
+            'id' : id, 
+            'type' : type, 
+            'scale' : scale,
+            'angle' : angle,
+            'color' : color,
+            'background' : background
         };
     }
 }
 
-class Rect
+class Rect : Shape
 {
-    var id = none;
-    var type = "rect";
-    var updated = false;
-    var scale = 1;
-    var angle = 0;
     var x = 0;
     var y = 0;
     var width = 100;
     var height = 100;
-    var color = "black";
-    var background = none;
 
     func init(x, y, width, height)
     {
+        super.init('rect');
         if(x is not none)
             this.x = x;
         if(y is not none)
@@ -75,141 +56,112 @@ class Rect
             this.height = height;
     }
 
-    func update()
-    {
-        this.updated = true;
-    }
-
-    func str()
-    {
-        return str(this.dict());
-    }
-
     func dict()
     {
-        return {
-            'id' : this.id, 
-            'type' : this.type, 
-            'scale' : this.scale,
-            'angle' : this.angle,
-            'x' : this.x, 
-            'y' : this.y, 
-            'width' : this.width,
-            'height' : this.height,
-            'color' : this.color,
-            'background' : this.background
-        };
+        var d = super.dict();
+        d['x'] = x;
+        d['y'] = y;
+        d['width'] = width;
+        d['height'] = height;
+        return d;
     }
 }
 
-
-class Arc
+class Text : Shape
 {
-    var id = none;
-    var type = "arc";
-    var updated = false;
-    var scale = 1;
-    var angle = 0;
+    var text = none;
     var x = 0;
     var y = 0;
-    var width = 100;
-    var height = 100;
-    var startAngle = 0;
-    var endAngle = 180;
-    var color = "black";
+    var size = 16;
+    var font = "Arial";
 
-    func init(start, end)
+    func init(text, size, x, y)
     {
-        if(start is not none)
-            this.startAngle = start;
-        if(end is not none)
-            this.endAngle = end;
-    }
-
-    func update()
-    {
-        this.updated = true;
-    }
-
-    func str()
-    {
-        return str(this.dict());
-    }
-
-    func dict()
-    {
-        return {
-            'id' : this.id, 
-            'type' : this.type, 
-            'scale' : this.scale,
-            'angle' : this.angle,
-            'x' : this.x, 
-            'y' : this.y, 
-            'width' : this.width,
-            'height' : this.height,
-            'color' : this.color,
-            'startAngle' : this.startAngle,
-            'endAngle' : this.endAngle
-        };
-    }
-}
-
-class Point
-{
-    var id = none;
-    var type = "point";
-    var updated = false;
-    var scale = 1;
-    var angle = 0;
-    var x = 0;
-    var y = 0;
-    var color = "black";
-
-    func init(x, y)
-    {
+        super.init('text');
+        this.text = text;
+        if(size is not none)
+            this.size = size;
         if(x is not none)
             this.x = x;
         if(y is not none)
             this.y = y;
     }
 
-    func update()
+    func dict()
     {
-        this.updated = true;
+        var d = super.dict();
+        d['x'] = x;
+        d['y'] = y;
+        d['text'] = text;
+        d['size'] = size;
+        return d;
     }
+}
 
-    func str()
+class Arc : Shape
+{
+    var x = 0;
+    var y = 0;
+    var width = 100;
+    var height = 100;
+    var startAngle = 0;
+    var endAngle = 180;
+
+    func init(start, end)
     {
-        return str(this.dict());
+        super.init('arc');
+        if(start is not none)
+            this.startAngle = start;
+        if(end is not none)
+            this.endAngle = end;
     }
 
     func dict()
     {
-        return {
-            'id' : this.id, 
-            'type' : this.type,
-            'x' : this.x, 
-            'y' : this.y,
-            'color' : this.color
-        };
+        var d = super.dict();
+        d['x'] = x;
+        d['y'] = y;
+        d['width'] = width;
+        d['height'] = height;
+        d['startAngle'] = startAngle;
+        d['endAngle'] = endAngle;
+        return d;
     }
 }
 
-class Line
+class Point : Shape
 {
-    var id = none;
-    var type = "line";
-    var updated = false;
-    var scale = 1;
-    var angle = 0;
+    var x = 0;
+    var y = 0;
+
+    func init(x, y)
+    {
+        super.init('point');
+        if(x is not none)
+            this.x = x;
+        if(y is not none)
+            this.y = y;
+    }
+
+    func dict()
+    {
+        var d = super.dict();
+        d['x'] = x;
+        d['y'] = y;
+        return d;
+    }
+}
+
+class Line : Shape
+{
     var x1 = 0;
     var y1 = 0;
     var x2 = 100;
     var y2 = 100;
-    var color = "black";
 
     func init(x1, y1, x2, y2)
     {
+        super.init('line');
         if(x1 is not none)
             this.x1 = x1;
         if(y1 is not none)
@@ -220,46 +172,27 @@ class Line
             this.y2 = y2;
     }
 
-    func update()
-    {
-        this.updated = true;
-    }
-
-    func str()
-    {
-        return str(this.dict());
-    }
-
     func dict()
     {
-        return {
-            'id' : this.id, 
-            'type' : this.type,
-            'x1' : this.x1, 
-            'y1' : this.y1,
-            'x2' : this.x2, 
-            'y2' : this.y2,
-            'color' : this.color
-        };
+        var d = super.dict();
+        d['x1'] = x1;
+        d['y1'] = y1;
+        d['x2'] = x2;
+        d['y2'] = y2;
+        return d;
     }
 }
 
-class Ellipse
+class Ellipse : Shape
 {
-    var id = none;
-    var type = "ellipse";
-    var updated = false;
-    var scale = 1;
-    var angle = 0;
     var x = 0;
     var y = 0;
     var width = 100;
     var height = 100;
-    var color = "black";
-    var background = none;
 
     func init(x, y, width, height)
     {
+        super.init('ellipse');
         if(x is not none)
             this.x = x;
         if(y is not none)
@@ -270,48 +203,26 @@ class Ellipse
             this.height = height;
     }
 
-    func update()
-    {
-        this.updated = true;
-    }
-
-    func str()
-    {
-        return str(this.dict());
-    }
-
     func dict()
     {
-        return {
-            'id' : this.id, 
-            'type' : this.type, 
-            'scale' : this.scale,
-            'angle' : this.angle,
-            'x' : this.x, 
-            'y' : this.y, 
-            'width' : this.width,
-            'height' : this.height,
-            'color' : this.color,
-            'background' : this.background
-        };
+        var d = super.dict();
+        d['x'] = x;
+        d['y'] = y;
+        d['width'] = width;
+        d['height'] = height;
+        return d;
     }
 }
 
-class Circle
+class Circle : Shape
 {
-    var id = none;
-    var type = "circle";
-    var updated = false;
-    var scale = 1;
-    var angle = 0;
     var x = 0;
     var y = 0;
     var radius = 100;
-    var color = "black";
-    var background = none;
 
     func init(x, y, radius)
     {
+        super.init('circle');
         if(x is not none)
             this.x = x;
         if(y is not none)
@@ -320,28 +231,12 @@ class Circle
             this.radius = radius;
     }
 
-    func update()
-    {
-        this.updated = true;
-    }
-
-    func str()
-    {
-        return str(this.dict());
-    }
-
     func dict()
     {
-        return {
-            'id' : this.id, 
-            'type' : this.type, 
-            'scale' : this.scale,
-            'angle' : this.angle,
-            'x' : this.x, 
-            'y' : this.y, 
-            'radius' : this.radius,
-            'color' : this.color,
-            'background' : this.background
-        };
+        var d = super.dict();
+        d['x'] = x;
+        d['y'] = y;
+        d['radius'] = radius;
+        return d;
     }
 }

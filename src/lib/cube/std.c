@@ -11,7 +11,10 @@
 #include <windows.h>
 #else
 #include <sys/ioctl.h>
+#include <sys/wait.h>
 #endif
+
+#include <errno.h>
 
 #include "std.h"
 #include "object.h"
@@ -67,6 +70,7 @@ Value printNative(int argCount, Value *args)
         else
             printValue(value);
     }
+    fflush( stdout );
     vm.print = true;
     vm.newLine = true;
     vm.repl = NONE_VAL;
@@ -143,7 +147,22 @@ Value waitNative(int argCount, Value *args)
     if (argCount == 0)
         wait = NUMBER_VAL(1);
     else
-        wait = toNumber(args[0]);
+    {
+        if(IS_PROCESS(args[0]))
+        {
+            int status = -1;
+            #ifdef _WIN32
+            #else
+            waitpid(AS_PROCESS(args[0])->pid, &status, 0);
+            status = WEXITSTATUS(status);
+            #endif
+            AS_PROCESS(args[0])->status = status;
+            AS_PROCESS(args[0])->running = false;
+            return NUMBER_VAL(status);
+        }
+        else
+            wait = toNumber(args[0]);
+    }
 
     uint64_t current = cube_clock();
     ThreadFrame *threadFrame = currentThread();
@@ -1567,6 +1586,353 @@ Value isspaceNative(int argCount, Value *args)
     return BOOL_VAL((c == ' ' || c == '\n' || c == '\r' || c == '\t'));
 }
 
+Value processNative(int argCount, Value *args)
+{
+    if (argCount == 0)
+    {
+        runtimeError("No process specified.\n");
+        return NONE_VAL;
+    }
+
+    if (!IS_STRING(args[0]))
+    {
+        runtimeError("Invalid process.\n");
+        return NONE_VAL;
+    }
+
+    char *str = AS_CSTRING(args[0]);
+    char *path = fixPath(str);
+    char *found = findFile(path);
+
+    if (found == NULL)
+        found = path;
+    else
+        mp_free(path);
+    
+    ObjProcess *process = newProcess(AS_STRING(STRING_VAL(found)), argCount - 1, args + 1);
+    mp_free(found);
+    if(process == NULL)
+    {
+        runtimeError("Could not start the process.\n");
+        return NONE_VAL;
+    }
+
+    return OBJ_VAL(process);
+}
+
+Value readNative(int argCount, Value *args)
+{
+    int maxSize = MAX_STRING_INPUT;
+    if (argCount == 0)
+    {
+        runtimeError("No source provided.\n");
+        return NONE_VAL;
+    }
+
+    if(argCount == 2 && IS_NUMBER(args[1]))
+    {
+        maxSize = AS_NUMBER(args[1]);
+    }
+    
+    if(IS_PROCESS(args[0]))
+    {
+        ObjProcess *process = AS_PROCESS(args[0]);
+        if(process->closed)
+        {
+            runtimeError("Cannot read from a finished process.\n");
+            return NONE_VAL;
+        }
+        
+        char *buffer = NULL;
+        int size = 0;
+        int rd = maxSize - size;
+        if(rd > 256)
+            rd = 256;
+
+        char buf[256];
+        int rc = readFd(process->in, rd, buf);
+        while(rc > 0 && size <= maxSize)
+        {
+            buffer = mp_realloc(buffer, size + rc + 1);
+            memcpy(buffer + size, buf, rc);
+            size += rc;
+            rd = maxSize - size;
+            if(rd > 256)
+                rd = 256;
+            rc = readFd(process->in, rd, buf);
+        }
+
+        if(rc < 0 && size == 0)
+        {
+            mp_free(buffer);
+            if(errno != EAGAIN)
+                runtimeError("Could not read the process.\n");
+            return NONE_VAL;
+        }
+
+        Value ret;
+        if(buffer == NULL)
+            ret = STRING_VAL("");
+        else
+        {
+            buffer[size] = '\0';
+            ret = STRING_VAL(buffer);
+            mp_free(buffer);
+        }
+        return ret;
+    }
+    else if(IS_FILE(args[0]))
+    {
+        ObjFile *file = AS_FILE(args[0]);
+        if(!file->isOpen)
+        {
+            runtimeError("Cannot read from a closed file.\n");
+            return NONE_VAL;
+        }
+        
+        char *buffer = NULL;
+        int size = 0;
+        int rd = maxSize - size;
+        if(rd > 256)
+            rd = 256;
+
+        char buf[256];
+        int rc = readFileRaw(file->file, rd, buf);
+        while(rc > 0 && size <= maxSize)
+        {
+            buffer = mp_realloc(buffer, size + rc + 1);
+            memcpy(buffer + size, buf, rc);
+            size += rc;
+            rd = maxSize - size;
+            if(rd > 256)
+                rd = 256;
+        }
+
+        if(rc < 0)
+        {
+            mp_free(buffer);
+            runtimeError("Could not read the process.\n");
+            return NONE_VAL;
+        }
+
+        Value ret;
+        if(buffer == NULL)
+            ret = STRING_VAL("");
+        else
+        {
+            buffer[size] = '\0';
+            ret = STRING_VAL(buffer);
+            mp_free(buffer);
+        }
+        return ret;
+    }
+    else if(IS_INSTANCE(args[0]))
+    {
+        Value method;
+        if(tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("read")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+
+        if(tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("read")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+    }
+    else if(IS_CLASS(args[0]))
+    {
+        Value method;
+        if(tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("read")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+    }
+    runtimeError("Invalid source.\n");
+    return NONE_VAL;
+}
+
+Value writeNative(int argCount, Value *args)
+{
+    if (argCount == 0)
+    {
+        runtimeError("No source provided.\n");
+        return NONE_VAL;
+    }
+
+    if(IS_PROCESS(args[0]))
+    {
+        ObjProcess *process = AS_PROCESS(args[0]);
+        if(process->closed)
+        {
+            runtimeError("Cannot write to a finished process.\n");
+            return NONE_VAL;
+        }
+        
+        int size = 0;
+        int rc;
+        for(int i = 1; i < argCount; i++)
+        {
+            if(IS_BYTES(args[i]))
+            {
+                ObjBytes *bytes = AS_BYTES( args[i] );
+                rc = writeFd(process->out, bytes->length, (char*)bytes->bytes);
+            }
+            else
+            {
+                ObjString *str = AS_STRING(toString(args[i]));
+                rc = writeFd(process->out, str->length, str->chars);
+            }
+            if(rc < 0)
+            {
+                char *str = objectToString(args[i], false);
+                runtimeError("Could not write '%s' to the process.\n", str);
+                mp_free(str);
+                return NONE_VAL;
+            }
+            size += rc;
+        }
+        
+        return NUMBER_VAL(size);
+    }
+    else if(IS_FILE(args[0]))
+    {
+        ObjFile *file = AS_FILE(args[0]);
+        if(!file->isOpen)
+        {
+            runtimeError("Cannot write to a closed file.\n");
+            return NONE_VAL;
+        }
+        
+        int size = 0;
+        int rc;
+        for(int i = 1; i < argCount; i++)
+        {
+            ObjString *str = AS_STRING(toString(args[i]));
+            rc = writeFileRaw(file->file, str->length, str->chars);
+            if(rc < 0)
+            {
+                runtimeError("Could not write '%s' to the file.\n", str->chars);
+                return NONE_VAL;
+            }
+            size += rc;
+        }
+        
+        return NUMBER_VAL(size);
+    }
+    else if(IS_INSTANCE(args[0]))
+    {
+        Value method;
+        if(tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("write")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+
+        if(tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("write")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+    }
+    else if(IS_CLASS(args[0]))
+    {
+        Value method;
+        if(tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("write")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+    }
+    runtimeError("Invalid source.\n");
+    return NONE_VAL;
+}
+
+Value closeNative(int argCount, Value *args)
+{
+    if (argCount == 0)
+    {
+        runtimeError("No source provided.\n");
+        return NONE_VAL;
+    }
+
+    if(IS_PROCESS(args[0]))
+    {
+        ObjProcess *process = AS_PROCESS(args[0]);
+        if(process->closed)
+        {
+            return TRUE_VAL;
+        }
+        
+        #ifdef _WIN32
+
+        #else
+        close(process->in);
+        close(process->out);
+        #endif    
+        process->closed = true;
+        return TRUE_VAL;
+    }
+    else if(IS_FILE(args[0]))
+    {
+        ObjFile *file = AS_FILE(args[0]);
+        if(!file->isOpen)
+        {
+            return TRUE_VAL;
+        }
+        
+        fclose(file->file);
+        file->isOpen = false;
+        return TRUE_VAL;
+    }
+    else if(IS_INSTANCE(args[0]))
+    {
+        Value method;
+        if(tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("close")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+
+        if(tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("close")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+    }
+    else if(IS_CLASS(args[0]))
+    {
+        Value method;
+        if(tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("close")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+    }
+    runtimeError("Invalid source.\n");
+    return FALSE_VAL;
+}
+
 // Register
 linked_list *stdFnList;
 #define ADD_STD(name, fn) linked_list_add(stdFnList, createStdFn(name, fn))
@@ -1626,6 +1992,9 @@ void initStd()
     ADD_STD("type", typeNative);
     ADD_STD("vars", varsNative);
     ADD_STD("open", openNative);
+    ADD_STD("read", readNative);
+    ADD_STD("write", writeNative);
+    ADD_STD("close", closeNative);
     ADD_STD("isdir", isdirNative);
     ADD_STD("cd", cdNative);
     ADD_STD("pwd", pwdNative);
@@ -1646,6 +2015,7 @@ void initStd()
     ADD_STD("isdigit", isdigitNative);
     ADD_STD("isspace", isspaceNative);
     ADD_STD("ischar", ischarNative);
+    ADD_STD("process", processNative);
 }
 
 void destroyStd()

@@ -1560,7 +1560,10 @@ static void method(bool isStatic)
 
 static void property(bool isStatic)
 {
-  uint16_t name = parseVariable("Expect variable name.");
+  // uint16_t name = parseVariable("Expect variable name.");
+  consume(TOKEN_IDENTIFIER, "Expect variable name.");
+  uint16_t name = identifierConstant(&parser.previous);
+  // bool isLocal = (current->scopeDepth > 0);
 
   if (match(TOKEN_EQUAL))
   {
@@ -1572,6 +1575,7 @@ static void property(bool isStatic)
   }
   consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
 
+  // emitByte(isLocal ?  OP_TRUE : OP_FALSE);
   emitByte(isStatic ? OP_TRUE : OP_FALSE);
   emitShort(OP_PROPERTY, name);
 }

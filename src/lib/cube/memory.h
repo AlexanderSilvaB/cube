@@ -30,6 +30,7 @@ void freeObject(Obj *object);
 void freeObjects();
 void freeDictValue(dictItem *dictItem);
 void freeFile(ObjFile* file);
+void freeProcess(ObjProcess *process);
 void freeNativeFunc(ObjNativeFunc *func);
 void freeNativeLib(ObjNativeLib *lib);
 

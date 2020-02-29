@@ -8,6 +8,10 @@
 #include "gc.h"
 #include "mempool.h"
 
+#ifndef _WIN32
+#include <unistd.h>
+#endif
+
 #ifdef DEBUG_LOG_GC
 #include <stdio.h>
 #include "debug.h"
@@ -145,6 +149,14 @@ void freeObject(Obj *object)
     break;
   }
 
+  case OBJ_PROCESS:
+  {
+    ObjProcess *process = (ObjProcess *)object;
+    freeProcess(process);
+    FREE(ObjProcess, object);
+    break;
+  }
+
   case OBJ_BYTES:
   {
     ObjBytes *bytes = (ObjBytes *)object;
@@ -202,6 +214,20 @@ void freeFile(ObjFile *file)
     fclose(file->file);
     file->isOpen = false;
   }
+}
+
+void freeProcess(ObjProcess *process)
+{
+  if (!process->closed)
+  {
+    #ifndef _WIN32
+    close(process->in);
+    close(process->out);
+    #else
+    #endif
+    process->closed = true;
+  }
+  process->running = false;
 }
 
 void freeNativeFunc(ObjNativeFunc *func)

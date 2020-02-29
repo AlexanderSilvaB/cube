@@ -2,6 +2,16 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <unistd.h>
+#include <sys/ioctl.h>
+#include <sys/wait.h>
+#include <errno.h>
+#include <fcntl.h>
+#endif
+
 #include "memory.h"
 #include "object.h"
 #include "table.h"
@@ -44,6 +54,7 @@ ObjClass *newClass(ObjString *name)
 	ObjClass *klass = ALLOCATE_OBJ(ObjClass, OBJ_CLASS);
 	klass->name = name;
 	klass->package = NULL;
+	klass->super = NULL;
 	initTable(&klass->methods);
 	initTable(&klass->fields);
 	initTable(&klass->staticFields);
@@ -116,6 +127,106 @@ ObjRequest *newRequest()
 	request->pops = 0;
 	request->fn = NONE_VAL;
 	return request;
+}
+
+ObjProcess *newProcess(ObjString *path, int argCount, Value *args)
+{
+	#ifndef _WIN32
+	
+	ObjProcess *process = ALLOCATE_OBJ(ObjProcess, OBJ_PROCESS);
+	process->path = path;
+	process->running = false;
+	process->status = 0;
+	process->closed = true;
+	int pipe1[2];
+	int pipe2[2];
+	int child;
+
+	// Create two pipes
+	pipe(pipe1);
+	pipe(pipe2);
+
+	if ((child = fork()) == 0)
+	{
+		// In child
+		// // Close current `stdin` and `stdout` file handles
+		close(STDIN_FILENO);
+		close(STDOUT_FILENO);
+
+		// // Duplicate pipes as new `stdin` and `stdout`
+		dup2(pipe1[0], STDIN_FILENO);
+		dup2(pipe2[1], STDOUT_FILENO);
+
+		// // We don't need the other ends of the pipes, so close them
+		close(pipe1[1]);
+		close(pipe2[0]);
+
+		// Construct args
+		char **_args = (char**)malloc(sizeof(char*) * (argCount + 2));
+		_args[0] = path->chars;
+		int i = 1;
+		for(; i <= argCount; i++)
+		{
+			ObjString *str = AS_STRING(toString(args[i - 1]));
+			_args[i] = (char*)malloc(sizeof(char) * (str->length + 1));
+			strcpy(_args[i], str->chars);
+		}
+		_args[i] = NULL;
+
+		// Run the external program
+		execvp(path->chars, _args);
+	}
+	else
+	{
+		if(child < 0)
+			return NULL;
+			
+		// We don't need the read-end of the first pipe (the childs `stdin`)
+		// or the write-end of the second pipe (the childs `stdout`)
+		close(pipe1[0]);
+		close(pipe2[1]);
+		
+		// Now you can write to `pipe1[1]` and it will end up as `stdin` in the child
+		// Read from `pipe2[0]` to read from the childs `stdout`
+
+		process->pid = child;
+		process->in = pipe2[0];
+		process->out = pipe1[1];
+		process->running = true;
+		process->closed = false;
+
+		// fcntl(process->in,  F_SETFL, fcntl(process->in,  F_GETFL) | O_NONBLOCK);
+		// fcntl(process->out, F_SETFL, fcntl(process->out, F_GETFL) | O_NONBLOCK);
+
+		return process;
+	}
+
+	#else
+	return NULL;
+	#endif
+}
+
+bool processAlive(ObjProcess *process)
+{
+	if (!process->running)
+		return false;
+	
+	bool alive = true;
+	#ifdef _WIN32
+	
+	#else
+	int status, rc;
+	rc = waitpid(process->pid, &status, WNOHANG);
+	if(rc != 0 && WIFEXITED(status))
+	{
+		process->status = WEXITSTATUS(status);
+		alive = false;
+	}
+	#endif
+
+	process->running = alive;
+
+	return alive;
 }
 
 static ObjString *allocateString(char *chars, int length,
@@ -378,6 +489,20 @@ char *objectToString(Value value, bool literal)
 		return fileString;
 	}
 
+	case OBJ_PROCESS:
+	{
+		ObjProcess *process = AS_PROCESS(value);
+		char *processString = mp_malloc(sizeof(char) * (process->path->length + 32));
+		snprintf(processString, process->path->length + 31, "<process %s'%s'",
+				 process->running ? "*" : "", process->path->chars);
+		if(process->running)
+			strcat(processString, ">");
+		else
+			sprintf(processString + strlen(processString), "[%d]>", process->status);
+				
+		return processString;
+	}
+
 	case OBJ_NATIVE_FUNC:
 	{
 		ObjNativeFunc *func = AS_NATIVE_FUNC(value);
@@ -589,6 +714,13 @@ char *objectType(Value value)
 	{
 		char *str = mp_malloc(sizeof(char) * 7);
 		snprintf(str, 6, "task");
+		return str;
+	}
+
+	case OBJ_PROCESS:
+	{
+		char *str = mp_malloc(sizeof(char) * 10);
+		snprintf(str, 9, "process");
 		return str;
 	}
 

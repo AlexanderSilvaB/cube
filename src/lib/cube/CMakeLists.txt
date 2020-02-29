@@ -17,6 +17,7 @@ set(SRC cube.c
         strings.c
         collections.c
         files.c
+        processes.c
         linkedList.c
         native.c
         gc.c

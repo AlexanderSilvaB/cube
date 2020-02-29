@@ -7,11 +7,50 @@
 #include <io.h>
 #else
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #endif
 #include "util.h"
 #include "memory.h"
 #include "vm.h"
 #include "mempool.h"
+
+int readFd(int fd, int size, char *buff)
+{
+	#ifdef _MSC_VER
+	return -1;
+	#else
+	return read(fd, buff, size); 
+	#endif
+}
+
+int writeFd(int fd, int size, char *buff)
+{
+	#ifdef _MSC_VER
+	return -1;
+	#else
+	return write(fd, buff, size); 
+	#endif
+}
+
+int readFileRaw(FILE *fd, int size, char *buff)
+{
+	#ifdef _MSC_VER
+	return -1;
+	#else
+	return fread(buff, sizeof(char), size, fd); 
+	#endif
+}
+
+int writeFileRaw(FILE *fd, int size, char *buff)
+{
+	#ifdef _MSC_VER
+	return -1;
+	#else
+	return fwrite(buff, sizeof(char), size, fd); 
+	#endif
+}
 
 char *readFile(const char *path, bool verbose)
 {
