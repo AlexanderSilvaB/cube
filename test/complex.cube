@@ -2,8 +2,7 @@ import math;
 
 class Complex
 {
-    var real = 0;
-    var imag = -1;
+    var real = 0, imag = -1;
 
     func init(r, i)
     {

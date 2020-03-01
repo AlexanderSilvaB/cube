@@ -1558,30 +1558,40 @@ static void method(bool isStatic)
   emitShort(OP_METHOD, constant);
 }
 
-static void property(bool isStatic)
+static void property(bool isStatic, Token *className)
 {
   // uint16_t name = parseVariable("Expect variable name.");
-  consume(TOKEN_IDENTIFIER, "Expect variable name.");
-  uint16_t name = identifierConstant(&parser.previous);
-  // bool isLocal = (current->scopeDepth > 0);
+  uint16_t name;
 
-  if (match(TOKEN_EQUAL))
+  while(true)
   {
-    expression();
+    consume(TOKEN_IDENTIFIER, "Expect variable name.");
+    name = identifierConstant(&parser.previous);
+    // bool isLocal = (current->scopeDepth > 0);
+
+    if (match(TOKEN_EQUAL))
+    {
+      expression();
+    }
+    else
+    {
+      emitByte(OP_NONE);
+    }
+    
+    // emitByte(isLocal ?  OP_TRUE : OP_FALSE);
+    emitByte(isStatic ? OP_TRUE : OP_FALSE);
+    emitShort(OP_PROPERTY, name);
+    if(!match(TOKEN_COMMA))
+      break;
+    else
+      namedVariable(*className, false);
   }
-  else
-  {
-    emitByte(OP_NONE);
-  }
+
   // consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
   match(TOKEN_SEMICOLON);
-
-  // emitByte(isLocal ?  OP_TRUE : OP_FALSE);
-  emitByte(isStatic ? OP_TRUE : OP_FALSE);
-  emitShort(OP_PROPERTY, name);
 }
 
-static void methodOrProperty()
+static void methodOrProperty(Token *className)
 {
   bool isStatic = false;
   if (match(TOKEN_STATIC))
@@ -1596,7 +1606,7 @@ static void methodOrProperty()
   else if (check(TOKEN_VAR))
   {
     consume(TOKEN_VAR, "Expected a variable declaration.");
-    property(isStatic);
+    property(isStatic, className);
   }
   else
   {
@@ -1711,7 +1721,7 @@ static void classDeclaration()
   while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF))
   {
     namedVariable(className, false);
-    methodOrProperty();
+    methodOrProperty(&className);
   }
 
   consume(TOKEN_RIGHT_BRACE, "Expect '}' after class body.");
@@ -1825,42 +1835,56 @@ static void globalDeclaration(bool checkEnd)
 {
   consume(TOKEN_VAR, "Only global variable declaration is valid.");
 
-  consume(TOKEN_IDENTIFIER, "Expect variable name.");
+  uint16_t global;
 
-  uint16_t global = identifierConstant(&parser.previous);
+  while(true)
+  {
+    consume(TOKEN_IDENTIFIER, "Expect variable name.");
+    global = identifierConstant(&parser.previous);
 
-  if (match(TOKEN_EQUAL))
-  {
-    expression();
+    if (match(TOKEN_EQUAL))
+    {
+      expression();
+    }
+    else
+    {
+      emitByte(OP_NONE);
+    }
+
+    emitShort(OP_DEFINE_GLOBAL_FORCED, global);
+    if(!match(TOKEN_COMMA))
+      break;
   }
-  else
-  {
-    emitByte(OP_NONE);
-  }
+
   // if (checkEnd)
   //   consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
   match(TOKEN_SEMICOLON);
-
-  emitShort(OP_DEFINE_GLOBAL_FORCED, global);
 }
 
 static void varDeclaration(bool checkEnd)
 {
-  uint16_t global = parseVariable("Expect variable name.");
+  uint16_t global;
+  
+  while(true)
+  {
+    global = parseVariable("Expect variable name.");
+    if (match(TOKEN_EQUAL))
+    {
+      expression();
+    }
+    else
+    {
+      emitByte(OP_NONE);
+    }
 
-  if (match(TOKEN_EQUAL))
-  {
-    expression();
+    defineVariable(global);
+    if(!match(TOKEN_COMMA))
+      break;
   }
-  else
-  {
-    emitByte(OP_NONE);
-  }
+
   // if (checkEnd)
   //   consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
-  match(TOKEN_SEMICOLON);
-
-  defineVariable(global);
+  match(TOKEN_SEMICOLON);  
 }
 
 static void expressionStatement()
