@@ -12,12 +12,12 @@ class Node
 
     func init()
     {
-        this.name = 'Node' + (++Node.id);
+        name = 'Node' + (++Node.id);
     }
 
     func run()
     {
-        println(this.name);
+        println(name);
         return Status.Success;
     }
 }
@@ -28,13 +28,14 @@ class Sequence : Node
 
     func add(node)
     {
-        this.children.add(node);
+        children.add(node);
     }
 
     func run()
     {
-        var ret;
-        for(var child in this.children)
+        super.run();
+        var ret = Status.Success;
+        for(var child in children)
         {
             ret = child.run();
             if(ret != Status.Success)
@@ -42,6 +43,93 @@ class Sequence : Node
                 return ret;
             }
         }
+        return ret;
+    }
+}
+
+class Selector : Node
+{
+    var children = [];
+
+    func add(node)
+    {
+        children.add(node);
+    }
+
+    func run()
+    {
+        super.run();
+        var ret = Status.Success;
+        for(var child in children)
+        {
+            ret = child.run();
+            if(ret != Status.Failure)
+            {
+                return ret;
+            }
+        }
+        return ret;
+    }
+}
+
+class Condition : Node
+{
+    var fn;
+
+    func init(fn)
+    {
+        super.init();
+        this.fn = fn;
+    }
+
+    func run()
+    {
+        super.run();
+        var ret = fn();
+        if(ret == Status.Success or bool(ret) == true)
+            return Status.Success;
+        else
+            return Status.Failure;
+    }
+}
+
+class Action : Node
+{
+    var fn;
+
+    func init(fn)
+    {
+        super.init();
+        this.fn = fn;
+    }
+
+    func run()
+    {
+        super.run();
+        return fn();
+    }
+}
+
+class Inverter : Node
+{
+    var child;
+
+    func init(child)
+    {
+        super.init();
+        this.child = child;
+    }
+
+    func run()
+    {
+        super.run();
+        var ret = child.run();
+        if(ret == Status.Success)
+            return Status.Failure;
+        else if(ret == Status.Failure)
+            return Status.Success;
+        else
+            return Status.Running;
     }
 }
 
@@ -63,13 +151,14 @@ class BT
     {
         for(var i = 0; i < 1; ++i)
         {
-            this.tick();
-            wait(this.interval);
+            tick();
+            wait(interval);
         }
     }
 
     func tick()
     {
-        this.root.run();
+        var ret = root.run();
+        println(ret);
     }
 }

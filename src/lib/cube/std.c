@@ -816,6 +816,7 @@ Value makeNative(int argCount, Value *args)
     
     ValueType vType = VAL_NONE;
     ObjType oType = OBJ_STRING;
+    bool instance = false;
     if (IS_STRING(args[0]))
     {
         char *name = AS_CSTRING(args[0]);
@@ -844,6 +845,7 @@ Value makeNative(int argCount, Value *args)
         {
             vType = VAL_OBJ;
             oType = OBJ_STRING;
+            instance = true;
         }
     }
     else
@@ -877,7 +879,7 @@ Value makeNative(int argCount, Value *args)
     }
     else if (vType == VAL_OBJ)
     {
-        if (oType == OBJ_STRING)
+        if (oType == OBJ_STRING && !instance)
         {
             return argCount == 1 ? STRING_VAL("") : toString(args[1]);
         }
@@ -917,6 +919,43 @@ Value makeNative(int argCount, Value *args)
             }
 
             return OBJ_VAL(bytes);
+        }
+        else
+        {
+            ObjString *name = AS_STRING(args[0]);
+            int len = name->length + 2 + 32;
+            int cur = 0;
+            char *code = mp_malloc(len);
+            strcpy(code, name->chars);
+            strcat(code, "(");
+            cur = strlen(code);
+            for(int i = 1; i < argCount; i++)
+            {
+                char *arg = valueToString(args[i], true);
+                int l = strlen(arg);
+                if(l + cur + 4 > len)
+                {
+                    len += l * 2 + 4;
+                    code = mp_realloc(code, len);
+                }
+                strcat(code, arg);
+                mp_free(arg);
+                if(i < argCount - 1)
+                    strcat(code, ",");
+            }
+            strcat(code, ")");
+
+            ObjFunction *fn = eval(code);
+            mp_free(code);
+            if (fn == NULL)
+            {    
+                return NONE_VAL;
+            }
+
+            ObjRequest *request = newRequest();
+            request->fn = OBJ_VAL(newClosure(fn));
+            request->pops = argCount;
+            return OBJ_VAL(request);
         }
     }
     return NONE_VAL;
@@ -1107,8 +1146,8 @@ Value lenNative(int argCount, Value *args)
         }
     }
 
-    runtimeError("Unsupported type passed to len()", argCount);
-    return NONE_VAL;
+    // runtimeError("Unsupported type passed to len()", argCount);
+    return NUMBER_VAL(0);
 }
 
 Value typeNative(int argCount, Value *args)
@@ -1933,6 +1972,35 @@ Value closeNative(int argCount, Value *args)
     return FALSE_VAL;
 }
 
+static Value getFieldNative(int argCount, Value* args) 
+{
+    if (argCount != 2) 
+        return FALSE_VAL;
+    if (!IS_INSTANCE(args[0])) 
+        return FALSE_VAL;
+    if (!IS_STRING(args[1])) 
+        return FALSE_VAL;
+
+    ObjInstance* instance = AS_INSTANCE(args[0]);
+    Value value = NONE_VAL;
+    tableGet(&instance->fields, AS_STRING(args[1]), &value);
+    return value;
+}
+
+static Value setFieldNative(int argCount, Value* args) 
+{
+    if (argCount != 3) 
+        return FALSE_VAL;
+    if (!IS_INSTANCE(args[0])) 
+        return FALSE_VAL;
+    if (!IS_STRING(args[1])) 
+        return FALSE_VAL;
+
+    ObjInstance* instance = AS_INSTANCE(args[0]);
+    tableSet(&instance->fields, AS_STRING(args[1]), args[2]);
+    return args[2];
+}
+
 // Register
 linked_list *stdFnList;
 #define ADD_STD(name, fn) linked_list_add(stdFnList, createStdFn(name, fn))
@@ -2016,6 +2084,8 @@ void initStd()
     ADD_STD("isspace", isspaceNative);
     ADD_STD("ischar", ischarNative);
     ADD_STD("process", processNative);
+    ADD_STD("getField", getFieldNative);
+    ADD_STD("setField", setFieldNative);
 }
 
 void destroyStd()

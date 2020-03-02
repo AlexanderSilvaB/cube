@@ -2,8 +2,8 @@ import ui as default;
 
 UI.start();
 
-var width = 200;
-var height = 200;
+var width = 120;
+var height = 120;
 var max = 10;
 var scale = int(255 / max);
 

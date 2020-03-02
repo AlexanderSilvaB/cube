@@ -1805,7 +1805,16 @@ static void funDeclaration()
 {
   uint16_t global;
   uint16_t prop;
-  consume(TOKEN_IDENTIFIER, "Expect function name or type.");
+  if(!match(TOKEN_IDENTIFIER))
+  {
+    if(!match(TOKEN_FUNC))
+    {
+      if(!match(TOKEN_CLASS))
+      {
+        consume(TOKEN_IDENTIFIER, "Expect function name or type.");
+      }
+    }
+  }
   if(parser.current.type == TOKEN_DOT)
   {
     global = identifierConstant(&parser.previous);

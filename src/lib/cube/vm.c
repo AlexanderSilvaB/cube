@@ -499,6 +499,23 @@ static bool call(ObjClosure *closure, int argCount, ObjInstance *instance)
   return true;
 }
 
+static bool findMethod(ObjClass *klass, ObjString *name, Value *method, ObjClass **selected)
+{
+  if (!tableGet(&klass->methods, name, method))
+  {
+    if (!tableGet(&klass->staticFields, name, method) || !IS_CLOSURE(*method))
+    {
+      if (klass->super != NULL)
+        return findMethod(klass->super, name, method, selected);
+
+      return false;
+    }
+  }
+
+  *selected = klass;
+  return true;
+}
+
 static bool callValue(Value callee, int argCount, ObjInstance *instance)
 {
   ThreadFrame *threadFrame = currentThread();
@@ -526,7 +543,8 @@ static bool callValue(Value callee, int argCount, ObjInstance *instance)
       threadFrame->ctf->stackTop[-argCount - 1] = OBJ_VAL(instance);
       // Call the initializer, if there is one.
       Value initializer;
-      if (tableGet(&klass->methods, vm.initString, &initializer))
+      ObjClass *selected;
+      if(findMethod(klass, vm.initString, &initializer, &selected))
       {
         threadFrame->frame->nextPackage = klass->package ? klass->package : threadFrame->frame->package;
         return call(AS_CLOSURE(initializer), argCount, instance);
@@ -633,19 +651,11 @@ static bool invokeFromClass(ObjClass *klass, ObjString *name,
 {
   // Look for the method.
   Value method;
-  if (!tableGet(&klass->methods, name, &method))
+  ObjClass *selected;
+  if(!findMethod(klass, name, &method, &selected))
   {
-    if (!tableGet(&klass->staticFields, name, &method))
-    {
-      if (klass->super != NULL && !tableGet(&klass->super->methods, name, &method))
-      {
-        if (klass->super != NULL && !tableGet(&klass->super->staticFields, name, &method))
-        {
-          runtimeError("Undefined property '%s'.", name->chars);
-          return false;
-        }
-      }
-    }
+    runtimeError("Undefined property '%s'.", name->chars);
+    return false;
   }
 
   ThreadFrame *threadFrame = currentThread();
@@ -659,10 +669,14 @@ static bool invoke(ObjString *name, int argCount)
 
   if (IS_CLASS(receiver))
   {
-    ObjClass *instance = AS_CLASS(receiver);
+    ObjClass *klass = AS_CLASS(receiver);
     Value method;
-    if (!tableGet(&instance->methods, name, &method))
+    if (!tableGet(&klass->methods, name, &method))
     {
+      if(hasExtension(receiver, name))
+      {
+        return callExtension(receiver, name, argCount);
+      }
       runtimeError("Undefined property '%s'.", name->chars);
       return false;
     }
@@ -676,7 +690,7 @@ static bool invoke(ObjString *name, int argCount)
     }
 
     ThreadFrame *threadFrame = currentThread();
-    threadFrame->frame->nextPackage = instance->package ? instance->package : threadFrame->frame->package;
+    threadFrame->frame->nextPackage =  klass->package ? klass->package : threadFrame->frame->package;
     return callValue(method, argCount, NULL);
   }
 
@@ -1386,12 +1400,13 @@ bool instanceOperation(const char *op)
   ObjInstance *instance = AS_INSTANCE(peek(1));
 
   Value method;
-  if (!tableGet(&instance->klass->methods, name, &method))
+  ObjClass *selected;
+  if(!findMethod(instance->klass, name, &method, &selected))
   {
     return false;
   }
 
-  return invokeFromClass(instance->klass, name, 1, instance);
+  return invokeFromClass(selected, name, 1, instance);
 }
 
 bool instanceOperationGet(const char *op)
@@ -1406,12 +1421,13 @@ bool instanceOperationGet(const char *op)
   ObjInstance *instance = AS_INSTANCE(peek(1));
 
   Value method;
-  if (!tableGet(&instance->klass->methods, name, &method))
+  ObjClass *selected;
+  if(!findMethod(instance->klass, name, &method, &selected))
   {
     return false;
   }
 
-  return invokeFromClass(instance->klass, name, 1, instance);
+  return invokeFromClass(selected, name, 1, instance);
 }
 
 bool instanceOperationSet(const char *op)
@@ -1426,12 +1442,13 @@ bool instanceOperationSet(const char *op)
   ObjInstance *instance = AS_INSTANCE(peek(2));
 
   Value method;
-  if (!tableGet(&instance->klass->methods, name, &method))
+  ObjClass *selected;
+  if(!findMethod(instance->klass, name, &method, &selected))
   {
     return false;
   }
 
-  return invokeFromClass(instance->klass, name, 2, instance);
+  return invokeFromClass(selected, name, 2, instance);
 }
 
 static bool nextTask()
