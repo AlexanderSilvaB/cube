@@ -249,7 +249,16 @@ static TokenType identifierType()
     }
     break;
   case 'e':
-    return checkKeyword(1, 3, "lse", TOKEN_ELSE);
+    if (scanner.current - scanner.start > 1)
+    {
+      switch (scanner.start[1])
+      {
+        case 'l':
+          return checkKeyword(2, 2, "se", TOKEN_ELSE);
+        case 'n':
+          return checkKeyword(2, 2, "um", TOKEN_ENUM);
+      }
+    }
     break;
   case 'f':
     if (scanner.current - scanner.start > 1)
@@ -572,9 +581,23 @@ Token scanToken()
   case '=':
     return makeToken(match('=') ? TOKEN_EQUAL_EQUAL : TOKEN_EQUAL);
   case '<':
-    return makeToken(match('=') ? TOKEN_LESS_EQUAL : TOKEN_LESS);
+  {
+    if (match('<'))
+    {
+      return makeToken(TOKEN_SHIFT_LEFT);
+    }
+    else
+      return makeToken(match('=') ? TOKEN_LESS_EQUAL : TOKEN_LESS);
+  }
   case '>':
-    return makeToken(match('=') ? TOKEN_GREATER_EQUAL : TOKEN_GREATER);
+  {
+    if (match('>'))
+    {
+      return makeToken(TOKEN_SHIFT_RIGHT);
+    }
+    else
+      return makeToken(match('=') ? TOKEN_GREATER_EQUAL : TOKEN_GREATER);
+  }
 
   case '@':
     return makeToken(TOKEN_LAMBDA);

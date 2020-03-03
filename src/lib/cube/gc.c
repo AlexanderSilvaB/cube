@@ -181,6 +181,24 @@ void mark_object(Obj *object)
             break;
         }
 
+        case OBJ_ENUM:
+        {
+            ObjEnum *enume = (ObjEnum *)object;
+            mark_object((Obj *)enume->name);
+            markTable(&enume->members);
+
+            break;
+        }
+
+        case OBJ_ENUM_VALUE:
+        {
+            ObjEnumValue *value = (ObjEnumValue *)object;
+            mark_object((Obj *)value->name);
+            mark_value(value->value);
+            mark_object((Obj *)value->enume);
+            break;
+        }
+
         case OBJ_PACKAGE:
         {
             ObjPackage *package = (ObjPackage *)object;

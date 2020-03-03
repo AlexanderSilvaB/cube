@@ -178,6 +178,10 @@ int disassembleInstruction(Chunk *chunk, int offset)
     return simpleInstruction("OP_NOT", offset);
   case OP_NEGATE:
     return simpleInstruction("OP_NEGATE", offset);
+  case OP_SHIFT_LEFT:
+    return simpleInstruction("OP_SHIFT_LEFT", offset);
+  case OP_SHIFT_RIGHT:
+    return simpleInstruction("OP_SHIFT_RIGHT", offset);
   case OP_JUMP:
     return jumpInstruction("OP_JUMP", 1, chunk, offset);
   case OP_JUMP_IF_FALSE:
@@ -224,6 +228,8 @@ int disassembleInstruction(Chunk *chunk, int offset)
     return simpleInstruction("OP_REQUIRE", offset);
   case OP_CLASS:
     return constantInstruction("OP_CLASS", chunk, offset);
+  case OP_ENUM:
+    return constantInstruction("OP_ENUM", chunk, offset);
   case OP_INHERIT:
     return simpleInstruction("OP_INHERIT", offset);
   case OP_METHOD:

@@ -1,20 +1,22 @@
+enum Level
+{
+    Debug, Info, Error, None
+}
+
 class Log
 {
-    static var DEBUG = 1;
-    static var INFO = 2;
-    static var ERROR = 3;
-    static var NONE = 4;
-
-    var level = 0;
+    var level = Level.Debug;
 
     func Log(l)
     {
+        if(l is none)
+            l = Level.Debug;
         this.level = l;
     }
 
     func error()
     {
-        if(this.level > Log.ERROR)
+        if(this.level > Level.Error)
             return false;
 
         print(color('green'), date('dd/MM/YYYY HH:mm:ss: '), color('red'));
@@ -26,7 +28,7 @@ class Log
 
     func info()
     {
-        if(this.level > Log.INFO)
+        if(this.level > Level.Info)
             return false;
 
         print(color('green'), date('dd/MM/YYYY HH:mm:ss: '), color('blue'));
@@ -38,7 +40,7 @@ class Log
 
     func debug()
     {
-        if(this.level > Log.DEBUG)
+        if(this.level > Level.Debug)
             return false;
 
         print(color('green'), date('dd/MM/YYYY HH:mm:ss: '), color());
@@ -53,7 +55,7 @@ class Log
 if(__name__ == "__main__")
 {
     var log = Log();
-    log.debug('This is a log');
+    log.debug('This is a debug');
     log.error('This is an error');
     log.info('This is an info');
 }

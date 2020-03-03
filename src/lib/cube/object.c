@@ -61,6 +61,24 @@ ObjClass *newClass(ObjString *name)
 	return klass;
 }
 
+ObjEnum *newEnum(ObjString *name)
+{
+	ObjEnum *enume = ALLOCATE_OBJ(ObjEnum, OBJ_ENUM);
+	enume->name = name;
+	enume->last = NONE_VAL;
+	initTable(&enume->members);
+	return enume;
+}
+
+ObjEnumValue *newEnumValue(ObjEnum *enume, ObjString *name, Value value)
+{
+	ObjEnumValue *enumValue = ALLOCATE_OBJ(ObjEnumValue, OBJ_ENUM_VALUE);
+	enumValue->name = name;
+	enumValue->value = value;
+	enumValue->enume = enume;
+	return enumValue;
+}
+
 ObjTask *newTask(ObjString *name)
 {
 	ObjTask *task = ALLOCATE_OBJ(ObjTask, OBJ_TASK);
@@ -129,6 +147,21 @@ ObjRequest *newRequest()
 	return request;
 }
 
+ObjProcess *defaultProcess()
+{
+	ObjProcess *process = ALLOCATE_OBJ(ObjProcess, OBJ_PROCESS);
+	process->path = AS_STRING(STRING_VAL("std.io"));
+	process->running = true;
+	process->status = 0;
+	process->closed = false;
+	process->pid = 0;
+	process->in = STDIN_FILENO;
+	process->out = STDOUT_FILENO;
+	process->protected = true;
+
+	return process;
+}
+
 ObjProcess *newProcess(ObjString *path, int argCount, Value *args)
 {
 	#ifndef _WIN32
@@ -138,6 +171,7 @@ ObjProcess *newProcess(ObjString *path, int argCount, Value *args)
 	process->running = false;
 	process->status = 0;
 	process->closed = true;
+	process->protected = false;
 	int pipe1[2];
 	int pipe2[2];
 	int child;
@@ -208,6 +242,8 @@ ObjProcess *newProcess(ObjString *path, int argCount, Value *args)
 
 bool processAlive(ObjProcess *process)
 {
+	if(process->protected)
+    	return true;
 	if (!process->running)
 		return false;
 	
@@ -378,6 +414,29 @@ char *objectToString(Value value, bool literal)
 		snprintf(classString, klass->name->length + 9, "<class %s>",
 				 klass->name->chars);
 		return classString;
+	}
+
+	case OBJ_ENUM:
+	{
+		ObjEnum *enume = AS_ENUM(value);
+		char *enumString =
+			mp_malloc(sizeof(char) * (enume->name->length + 10));
+		snprintf(enumString, enume->name->length + 9, "<enum %s>",
+				 enume->name->chars);
+		return enumString;
+	}
+
+	case OBJ_ENUM_VALUE:
+	{
+		ObjEnumValue *enumValue = AS_ENUM_VALUE(value);
+		int len = enumValue->enume->name->length + 10;
+		len += enumValue->name->length;
+		char *valueStr = valueToString(enumValue->value, false);
+		len += strlen(valueStr);
+		char *enumValueString = mp_malloc(sizeof(char) * len);
+		snprintf(enumValueString, len - 1, "%s.%s<%s>", enumValue->enume->name->chars, enumValue->name->chars, valueStr);
+		mp_free(valueStr);
+		return enumValueString;
 	}
 
 	case OBJ_TASK:
@@ -707,6 +766,21 @@ char *objectType(Value value)
 	{
 		char *str = mp_malloc(sizeof(char) * 7);
 		snprintf(str, 6, "class");
+		return str;
+	}
+
+	case OBJ_ENUM:
+	{
+		char *str = mp_malloc(sizeof(char) * 7);
+		snprintf(str, 6, "enum");
+		return str;
+	}
+
+	case OBJ_ENUM_VALUE:
+	{
+		ObjEnumValue *enumValue = AS_ENUM_VALUE(value);
+		char *str = mp_malloc(sizeof(char) * (7 + enumValue->enume->name->length));
+		snprintf(str, (6 + enumValue->enume->name->length), "enum<%s>", enumValue->enume->name->chars);
 		return str;
 	}
 

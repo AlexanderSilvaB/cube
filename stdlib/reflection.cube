@@ -1,5 +1,6 @@
 class Reflection
 {
+    // Reflection own methods
     static func create(name, arg)
     {
         var code = name + "(";
@@ -19,6 +20,7 @@ class Reflection
         return eval(code);
     }
 
+    // inherit members
     func [](key)
     {
         return getField(this, key);
@@ -27,5 +29,15 @@ class Reflection
     func [=](key, value)
     {
         return setField(this, key, value);
+    }
+
+    func className()
+    {
+        return getClassName(this)
+    }
+
+    func superName()
+    {
+        return getSuperName(this)
     }
 }

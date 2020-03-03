@@ -66,6 +66,21 @@ void freeObject(Obj *object)
     break;
   }
 
+  case OBJ_ENUM:
+  {
+    ObjEnum *enume = (ObjEnum *)object;
+    freeTable(&enume->members);
+    FREE(ObjEnum, object);
+    break;
+  }
+
+  case OBJ_ENUM_VALUE:
+  {
+    ObjEnumValue *value = (ObjEnumValue *)object;
+    FREE(ObjEnumValue, object);
+    break;
+  }
+
   case OBJ_CLOSURE:
   {
     ObjClosure *closure = (ObjClosure *)object;
@@ -218,6 +233,8 @@ void freeFile(ObjFile *file)
 
 void freeProcess(ObjProcess *process)
 {
+  if(process->protected)
+    return;
   if (!process->closed)
   {
     #ifndef _WIN32

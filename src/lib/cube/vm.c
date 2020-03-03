@@ -19,6 +19,7 @@
 #include "collections.h"
 #include "files.h"
 #include "processes.h"
+#include "enums.h"
 #include "scanner.h"
 #include "native.h"
 #include "gc.h"
@@ -292,12 +293,16 @@ void runtimeError(const char *format, ...)
   threadFrame->ctf->error = str;
 }
 
-static void defineNative(const char *name, NativeFn function)
+static void defineNative(const char *name, NativeFn function, ObjPackage *package)
 {
   ThreadFrame *threadFrame = currentThread();
   push(OBJ_VAL(copyString(name, (int)strlen(name))));
   push(OBJ_VAL(newNative(function)));
   tableSet(&vm.globals, AS_STRING(threadFrame->ctf->stack[0]), threadFrame->ctf->stack[1]);
+  if(package != NULL)
+  {
+    tableSet(&package->symbols, AS_STRING(threadFrame->ctf->stack[0]), threadFrame->ctf->stack[1]);
+  }
   pop();
   pop();
 }
@@ -354,17 +359,22 @@ void initVM(const char *path, const char *scriptName)
   threadFrame->ctf->currentScriptName = scriptName;
   vm.argsString = "__args__";
 
+  vm.initString = NULL;
   vm.initString = AS_STRING(STRING_VAL("init"));
   vm.newLine = false;
 
   // STD
   initStd();
+  ObjPackage *stdPackage = newPackage(AS_STRING(STRING_VAL("std")));
+  tableSet(&vm.globals, stdPackage->name, OBJ_VAL(stdPackage));
+  ObjProcess *io = defaultProcess();
+  tableSet(&stdPackage->symbols, AS_STRING(STRING_VAL("io")), OBJ_VAL(io));
   do
   {
     std_fn *stdFn = linked_list_get(stdFnList);
     if (stdFn != NULL)
     {
-      defineNative(stdFn->name, stdFn->fn);
+      defineNative(stdFn->name, stdFn->fn, stdPackage);
       linenoise_add_keyword(stdFn->name);
     }
   } while (linked_list_next(&stdFnList));
@@ -720,6 +730,10 @@ static bool invoke(ObjString *name, int argCount)
     return fileMethods(name->chars, argCount + 1);
   else if(IS_PROCESS(receiver))
     return processesMethods(name->chars, argCount + 1);
+  else if(IS_ENUM(receiver))
+    return enumMethods(name->chars, argCount + 1);
+  else if(IS_ENUM_VALUE(receiver))
+    return enumValueMethods(name->chars, argCount + 1);
 
   if (!IS_INSTANCE(receiver))
   {
@@ -754,6 +768,27 @@ static bool bindMethod(ObjClass *klass, ObjString *name)
   ObjBoundMethod *bound = newBoundMethod(peek(0), AS_CLOSURE(method));
   pop(); // Instance.
   push(OBJ_VAL(bound));
+  return true;
+}
+
+static bool enumContains(Value container, Value item, Value *result)
+{
+  if (!IS_STRING(item))
+  {
+    return false;
+  }
+
+  ObjEnum *enume = AS_ENUM(container);
+  ObjString *name = AS_STRING(item);
+
+  Value value;
+  if (tableGet(&enume->members, name, &value))
+  {
+    *result = TRUE_VAL;
+    return true;
+  }
+
+  *result = FALSE_VAL;
   return true;
 }
 
@@ -950,6 +985,32 @@ static void defineProperty(ObjString *name)
       tableSet(&klass->staticFields, name, value);
     else
       tableSet(&klass->fields, name, value);
+  }
+  else if(IS_ENUM(peek(1)))
+  {
+    ObjEnum *enume = AS_ENUM(peek(1));
+    if(IS_NONE(value))
+    {
+      if(IS_NUMBER(enume->last))
+      {
+        value = NUMBER_VAL(AS_NUMBER(enume->last) + 1);
+        enume->last = value;
+      }
+      else
+      {
+        value = NUMBER_VAL(enume->members.count);
+        enume->last = NONE_VAL;
+      }
+    }
+    else
+    {
+      if(IS_NUMBER(value))
+        enume->last = value;
+      else
+        enume->last = NONE_VAL;
+    }
+    ObjEnumValue *enumValue = newEnumValue(enume, name, value);
+    tableSet(&enume->members, name, OBJ_VAL(enumValue));
   }
   pop();
   pop();
@@ -1232,6 +1293,64 @@ bool subscriptDict(Value dictValue, Value indexValue, Value *result)
   return true;
 }
 
+bool subscriptEnum(Value enumValue, Value indexValue, Value *result)
+{
+  if (!IS_STRING(indexValue) && !IS_NUMBER(indexValue))
+  {
+    runtimeError("Enum key must be a string or a number.");
+    return false;
+  }
+
+  ObjEnum *enume = AS_ENUM(enumValue);
+  char *key = NULL;
+  int i = 0, _index = 0;
+  Entry entry;
+  Table *table = &enume->members;
+
+  if (IS_STRING(indexValue))
+    key = AS_CSTRING(indexValue);
+  else
+  {
+    int index = AS_NUMBER(indexValue);
+    _index = 0;
+    while (iterateTable(table, &entry, &i))
+    {
+        if (entry.key == NULL)
+            continue;
+        
+        if(_index == index)
+        {
+          key = entry.key->chars;
+          break;
+        }
+        _index++;
+    }
+    if (key == NULL)
+    {
+      runtimeError("Invalid index for enum.");
+      return false;
+    }
+    *result = STRING_VAL(key);
+    return true;
+  }
+
+  i = 0;
+  while (iterateTable(table, &entry, &i))
+  {
+      if (entry.key == NULL)
+          continue;
+  
+      if(strcmp(entry.key->chars, key) == 0)
+      {
+        *result = AS_ENUM_VALUE(entry.value)->value;
+        return true;
+      }
+  }
+
+  *result = NONE_VAL;
+  return true;
+}
+
 bool subscript(Value container, Value indexValue, Value *result)
 {
   if (IS_STRING(container))
@@ -1246,6 +1365,11 @@ bool subscript(Value container, Value indexValue, Value *result)
   {
     return subscriptDict(container, indexValue, result);
   }
+  else if (IS_ENUM(container))
+  {
+    return subscriptEnum(container, indexValue, result);
+  }
+  
   runtimeError("Only lists, dicts and string have indexes.");
   return false;
 }
@@ -1777,16 +1901,36 @@ InterpretResult run()
 
     case OP_GET_PROPERTY:
     {
-      if (!IS_INSTANCE(peek(0)) && !IS_CLASS(peek(0)) && !IS_PACKAGE(peek(0)))
+      if (!IS_INSTANCE(peek(0)) && !IS_CLASS(peek(0)) && !IS_PACKAGE(peek(0)) && !IS_ENUM(peek(0)))
       {
-        runtimeError("Only instances, classes and packages have properties.");
+        runtimeError("Only instances, classes, enums and packages have properties.");
         if (!checkTry(frame))
           return INTERPRET_RUNTIME_ERROR;
         else
           break;
       }
 
-      if (IS_CLASS(peek(0)))
+      if (IS_ENUM(peek(0)))
+      {
+        ObjEnum *enume = AS_ENUM(peek(0));
+        ObjString *name = READ_STRING();
+        Value value;
+        if (tableGet(&enume->members, name, &value))
+        {
+          pop(); // enum
+          push(value);
+          break;
+        }
+        else
+        {
+          runtimeError("Member not found on enum.");
+          if (!checkTry(frame))
+            return INTERPRET_RUNTIME_ERROR;
+          else
+            break;
+        }
+      }
+      else if (IS_CLASS(peek(0)))
       {
         ObjClass *klass = AS_CLASS(peek(0));
         ObjString *name = READ_STRING();
@@ -2113,6 +2257,36 @@ InterpretResult run()
       break;
     }
 
+    case OP_SHIFT_LEFT:
+    {
+      if (instanceOperation("<<"))
+      {
+        frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+      }
+      else
+      {
+        double b = AS_NUMBER(pop());
+        double a = AS_NUMBER(pop());
+        push(NUMBER_VAL(((int)a << (int)b)));
+      }
+      break;
+    }
+
+    case OP_SHIFT_RIGHT:
+    {
+      if (instanceOperation(">>"))
+      {
+        frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+      }
+      else
+      {
+        double b = AS_NUMBER(pop());
+        double a = AS_NUMBER(pop());
+        push(NUMBER_VAL(((int)a >> (int)b)));
+      }
+      break;
+    }
+
     case OP_IN:
     {
       Value container = peek(0);
@@ -2167,6 +2341,17 @@ InterpretResult run()
         if (!classContains(container, item, &result))
         {
           runtimeError("Could not search on class");
+          if (!checkTry(frame))
+            return INTERPRET_RUNTIME_ERROR;
+          else
+            break;
+        }
+      }
+      else if (IS_ENUM(container))
+      {
+        if (!enumContains(container, item, &result))
+        {
+          runtimeError("Could not search on enum");
           if (!checkTry(frame))
             return INTERPRET_RUNTIME_ERROR;
           else
@@ -2747,6 +2932,14 @@ InterpretResult run()
       defineExtension(READ_STRING(), READ_STRING());
       break;
 
+    case OP_ENUM:
+    {
+      ObjEnum *enume = newEnum(READ_STRING());
+      vm.repl = OBJ_VAL(enume);
+      push(OBJ_VAL(enume));
+    }
+    break;
+
     case OP_FILE:
     {
       Value openType = pop();
@@ -2967,9 +3160,9 @@ InterpretResult interpret(const char *source, const char *path)
       push(STRING_VAL(initArgV[i]));
     }
     callValue(OBJ_VAL(closure), initArgC - initArgStart, NULL);
-    initArgC = 0;
-    initArgStart = 0;
-    initArgV = NULL;
+    // initArgC = 0;
+    // initArgStart = 0;
+    // initArgV = NULL;
   }
   else
     callValue(OBJ_VAL(closure), 0, NULL);

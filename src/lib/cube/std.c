@@ -637,6 +637,22 @@ Value listNative(int argCount, Value *args)
                 }
             }
         }
+        else if (IS_ENUM(arg))
+        {
+            ObjEnum *enume = AS_ENUM(arg);
+            list = initList();
+
+            int i = 0;
+            Entry entry;
+            Table *table = &enume->members;
+            while (iterateTable(table, &entry, &i))
+            {
+                if (entry.key == NULL)
+                    continue;
+            
+                writeValueArray(&list->values, copyValue(OBJ_VAL(entry.key)));
+            }
+        }
         else if(IS_INSTANCE(arg))
         {
             Value method;
@@ -686,7 +702,25 @@ Value dictNative(int argCount, Value *args)
     {
         if(argCount == 1)
         {
-            if(IS_INSTANCE(args[0]))
+            if (IS_ENUM(args[0]))
+            {
+                ObjEnum *enume = AS_ENUM(args[0]);
+                ObjDict *dict = initDict();
+
+                int i = 0;
+                Entry entry;
+                Table *table = &enume->members;
+                while (iterateTable(table, &entry, &i))
+                {
+                    if (entry.key == NULL)
+                        continue;
+
+                    insertDict(dict, entry.key->chars, copyValue(AS_ENUM_VALUE(entry.value)->value));
+                }
+
+                return OBJ_VAL(dict);
+            }
+            else if(IS_INSTANCE(args[0]))
             {
                 Value method;
                 if(tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("dict")), &method))
@@ -1115,6 +1149,8 @@ Value lenNative(int argCount, Value *args)
         return NUMBER_VAL(AS_LIST(args[0])->values.count);
     else if (IS_DICT(args[0]))
         return NUMBER_VAL(AS_DICT(args[0])->count);
+    else if (IS_ENUM(args[0]))
+        return NUMBER_VAL(AS_ENUM(args[0])->members.count);
     else if(IS_INSTANCE(args[0]))
     {
         Value method;
@@ -1912,6 +1948,11 @@ Value closeNative(int argCount, Value *args)
     if(IS_PROCESS(args[0]))
     {
         ObjProcess *process = AS_PROCESS(args[0]);
+        if(process->protected)
+        {
+            return FALSE_VAL;
+        }
+        
         if(process->closed)
         {
             return TRUE_VAL;
@@ -2001,6 +2042,48 @@ static Value setFieldNative(int argCount, Value* args)
     return args[2];
 }
 
+static Value classNameNative(int argCount, Value* args) 
+{
+    if (argCount == 0) 
+        return NONE_VAL;
+
+    if (IS_INSTANCE(args[0]))
+    {
+        ObjInstance *instance = AS_INSTANCE(args[0]);
+        return STRING_VAL(instance->klass->name->chars);
+    }
+    else if (IS_CLASS(args[0]))
+    {
+        ObjClass *klass = AS_CLASS(args[0]);
+        return STRING_VAL(klass->name->chars);
+    }
+
+    return NONE_VAL;
+}
+
+static Value superNameNative(int argCount, Value* args) 
+{
+    if (argCount == 0) 
+        return NONE_VAL;
+
+    if (IS_INSTANCE(args[0]))
+    {
+        ObjInstance *instance = AS_INSTANCE(args[0]);
+        if(instance->klass->super == NULL)
+            return NONE_VAL;
+        return STRING_VAL(instance->klass->super->name->chars);
+    }
+    else if (IS_CLASS(args[0]))
+    {
+        ObjClass *klass = AS_CLASS(args[0]);
+        if(klass->super == NULL)
+            return NONE_VAL;
+        return STRING_VAL(klass->super->name->chars);
+    }
+
+    return NONE_VAL;
+}
+
 // Register
 linked_list *stdFnList;
 #define ADD_STD(name, fn) linked_list_add(stdFnList, createStdFn(name, fn))
@@ -2086,6 +2169,8 @@ void initStd()
     ADD_STD("process", processNative);
     ADD_STD("getField", getFieldNative);
     ADD_STD("setField", setFieldNative);
+    ADD_STD("getClassName", classNameNative);
+    ADD_STD("getSuperName", superNameNative);
 }
 
 void destroyStd()

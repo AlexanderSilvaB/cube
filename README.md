@@ -16,12 +16,14 @@ Cube has a large set of features, making it a complete programming language. The
 * Primitive variables
 * Lists and dicts
 * Loops and conditions
-* Functions
+* Named and anonymous functions
 * Classes
 * Imports
-* Files
+* Native files support
 * Closure context
-* Asynchronous features
+* Asynchronous execution
+* Types extensions
+* Plug-in system
 * Bytecode VM
 
 ### Modes
@@ -55,4 +57,4 @@ Send a [pull request](https://github.com/AlexanderSilvaB/cube/pulls).
 Email me at [alexander.ti.ufv@gmail.com](mailto:alexander.ti.ufv@gmail.com?subject=[Github]%20Cube).
 
 ### TODO
-* Multithread
+* Fix GC

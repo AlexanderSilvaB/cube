@@ -1,6 +1,6 @@
-import log as default;
+import logger as default;
 
 var log = Log();
-log.debug('This is a log');
+log.debug('This is a debug');
 log.error('This is an error');
 log.info('This is an info');

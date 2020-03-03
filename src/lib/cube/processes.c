@@ -249,6 +249,12 @@ static bool closeProcess(int argCount) {
 
 	ObjProcess *process = AS_PROCESS(pop());
 
+	if(process->protected)
+	{
+		push(FALSE_VAL);
+    	return true;
+	}
+
 	if(!process->closed)
 	{
 		#ifdef _WIN32
@@ -271,6 +277,11 @@ static bool waitProcess(int argCount) {
 	}
 
 	ObjProcess *process = AS_PROCESS(pop());
+	if(process->protected)
+	{
+		push(NUMBER_VAL(0));
+    	return true;
+	}
 
 	if(process->running)
 	{
@@ -295,6 +306,11 @@ static bool statusProcess(int argCount) {
 	}
 
 	ObjProcess *process = AS_PROCESS(pop());
+	if(process->protected)
+	{
+		push(NUMBER_VAL(0));
+    	return true;
+	}
 	processAlive(process);
 	push(NUMBER_VAL(process->status));
 	return true;
@@ -307,6 +323,11 @@ static bool runningProcess(int argCount) {
 	}
 
 	ObjProcess *process = AS_PROCESS(pop());
+	if(process->protected)
+	{
+		push(TRUE_VAL);
+    	return true;
+	}
 	processAlive(process);
 	push(BOOL_VAL(process->running));
 	return true;
@@ -322,6 +343,11 @@ static bool blockProcess(int argCount) {
 	if(argCount == 1)
 	{
 		process = AS_PROCESS(pop());
+		if(process->protected)
+		{
+			push(TRUE_VAL);
+			return true;
+		}
 		bool nonblocking = false;
 		#ifdef _WIN32
 		#else
@@ -334,6 +360,11 @@ static bool blockProcess(int argCount) {
 	bool enable = AS_BOOL(toBool(pop()));
 
 	process = AS_PROCESS(pop());
+	if(process->protected)
+	{
+		push(TRUE_VAL);
+		return true;
+	}
 
 	if(enable)
 	{
@@ -364,6 +395,11 @@ static bool killProcess(int argCount) {
 	}
 
 	ObjProcess *process = AS_PROCESS(pop());
+	if(process->protected)
+	{
+		push(FALSE_VAL);
+		return true;
+	}
 
 	if(process->running)
 	{

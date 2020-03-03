@@ -18,6 +18,7 @@ set(SRC cube.c
         collections.c
         files.c
         processes.c
+        enums.c
         linkedList.c
         native.c
         gc.c

@@ -1,8 +1,6 @@
-class Status
+enum Status
 {
-    static var Success = 0;
-    static var Failure = 1;
-    static var Running = 2;
+    Success, Failure, Running
 }
 
 class Node

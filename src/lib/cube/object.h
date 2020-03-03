@@ -13,6 +13,8 @@
 
 #define IS_BOUND_METHOD(value) isObjType(value, OBJ_BOUND_METHOD)
 #define IS_CLASS(value) isObjType(value, OBJ_CLASS)
+#define IS_ENUM(value) isObjType(value, OBJ_ENUM)
+#define IS_ENUM_VALUE(value) isObjType(value, OBJ_ENUM_VALUE)
 #define IS_PACKAGE(value) isObjType(value, OBJ_PACKAGE)
 #define IS_CLOSURE(value) isObjType(value, OBJ_CLOSURE)
 #define IS_FUNCTION(value) isObjType(value, OBJ_FUNCTION)
@@ -32,6 +34,8 @@
 
 #define AS_BOUND_METHOD(value) ((ObjBoundMethod *)AS_OBJ(value))
 #define AS_CLASS(value) ((ObjClass *)AS_OBJ(value))
+#define AS_ENUM(value) ((ObjEnum *)AS_OBJ(value))
+#define AS_ENUM_VALUE(value) ((ObjEnumValue *)AS_OBJ(value))
 #define AS_PACKAGE(value) ((ObjPackage *)AS_OBJ(value))
 #define AS_CLOSURE(value) ((ObjClosure *)AS_OBJ(value))
 #define AS_FUNCTION(value) ((ObjFunction *)AS_OBJ(value))
@@ -59,6 +63,8 @@ typedef enum
 {
   OBJ_BOUND_METHOD,
   OBJ_CLASS,
+  OBJ_ENUM,
+  OBJ_ENUM_VALUE,
   OBJ_PACKAGE,
   OBJ_CLOSURE,
   OBJ_FUNCTION,
@@ -208,6 +214,22 @@ typedef struct
 typedef struct
 {
   Obj obj;
+  ObjString *name;
+  Value last;
+  Table members;
+} ObjEnum;
+
+typedef struct
+{
+  Obj obj;
+  ObjString *name;
+  Value value;
+  ObjEnum *enume;
+} ObjEnumValue;
+
+typedef struct
+{
+  Obj obj;
   Value receiver;
   ObjClosure *method;
 } ObjBoundMethod;
@@ -240,13 +262,15 @@ typedef struct
   Obj obj;
   ObjString *path;
   int pid, in, out, status;
-  bool running, closed;
+  bool running, closed, protected;
 } ObjProcess;
 
 
 
 ObjBoundMethod *newBoundMethod(Value receiver, ObjClosure *method);
 ObjClass *newClass(ObjString *name);
+ObjEnum *newEnum(ObjString *name);
+ObjEnumValue *newEnumValue(ObjEnum *enume, ObjString *name, Value value);
 ObjTask *newTask(ObjString *name);
 ObjClosure *newClosure(ObjFunction *function);
 ObjFunction *newFunction(bool isStatic);
@@ -263,6 +287,7 @@ ObjDict *initDict();
 ObjFile *initFile();
 ObjBytes *initBytes();
 ObjUpvalue *newUpvalue(Value *slot);
+ObjProcess *defaultProcess();
 ObjProcess *newProcess(ObjString *path, int argCount, Value *args);
 
 bool processAlive(ObjProcess *process);

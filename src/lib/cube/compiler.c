@@ -602,7 +602,7 @@ static void is(bool canAssign)
     emitByte(OP_FALSE);
   }
 
-  if (match(TOKEN_IDENTIFIER) || match(TOKEN_NONE) || match(TOKEN_FUNC) || match(TOKEN_CLASS))
+  if (match(TOKEN_IDENTIFIER) || match(TOKEN_NONE) || match(TOKEN_FUNC) || match(TOKEN_CLASS) || match(TOKEN_ENUM))
   {
     ObjString *str = copyString(parser.previous.start, parser.previous.length);
 
@@ -639,6 +639,12 @@ static void binary(bool canAssign)
     break;
   case TOKEN_LESS_EQUAL:
     emitBytes(OP_GREATER, OP_NOT);
+    break;
+  case TOKEN_SHIFT_LEFT:
+    emitByte(OP_SHIFT_LEFT);
+    break;
+  case TOKEN_SHIFT_RIGHT:
+    emitByte(OP_SHIFT_RIGHT);
     break;
   case TOKEN_PLUS:
     emitByte(OP_ADD);
@@ -1416,6 +1422,8 @@ ParseRule rules[] = {
     {NULL, binary, PREC_COMPARISON}, // TOKEN_GREATER_EQUAL
     {NULL, binary, PREC_COMPARISON}, // TOKEN_LESS
     {NULL, binary, PREC_COMPARISON}, // TOKEN_LESS_EQUAL
+    {NULL, binary, PREC_EQUALITY}, // TOKEN_SHIFT_LEFT
+    {NULL, binary, PREC_EQUALITY}, // TOKEN_SHIFT_RIGHT
     {variable, NULL, PREC_NONE},     // TOKEN_IDENTIFIER
     {string, NULL, PREC_NONE},       // TOKEN_STRING
     {number, NULL, PREC_NONE},       // TOKEN_NUMBER
@@ -1448,6 +1456,7 @@ ParseRule rules[] = {
     {NULL, NULL, PREC_NONE},         // TOKEN_DEFAULT
     {number, NULL, PREC_NONE},       // TOKEN_NAN
     {number, NULL, PREC_NONE},       // TOKEN_INF
+    {NULL, NULL, PREC_NONE},          // TOKEN_ENUM
     {NULL, NULL, PREC_NONE},         // TOKEN_IMPORT
     {require, NULL, PREC_NONE},         // TOKEN_REQUIRE
     {NULL, NULL, PREC_NONE},         // TOKEN_AS
@@ -1734,6 +1743,55 @@ static void classDeclaration()
   currentClass = currentClass->enclosing;
 }
 
+static void enumMember(Token *enumName)
+{
+  uint16_t name;
+
+  while(true)
+  {
+    consume(TOKEN_IDENTIFIER, "Expect member name.");
+    name = identifierConstant(&parser.previous);
+
+    if (match(TOKEN_EQUAL))
+    {
+      expression();
+    }
+    else
+    {
+      emitByte(OP_NONE);
+    }
+    
+    emitByte(OP_FALSE);
+    emitShort(OP_PROPERTY, name);
+    if(!match(TOKEN_COMMA))
+      break;
+    else
+      namedVariable(*enumName, false);
+  }
+  
+  match(TOKEN_SEMICOLON);
+}
+
+static void enumDeclaration()
+{
+  consume(TOKEN_IDENTIFIER, "Expect enum name.");
+  Token enumName = parser.previous;
+  uint16_t nameConstant = identifierConstant(&parser.previous);
+  declareVariable();
+
+  emitShort(OP_ENUM, nameConstant);
+  defineVariable(nameConstant);
+
+  consume(TOKEN_LEFT_BRACE, "Expect '{' before enum body.");
+  while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF))
+  {
+    namedVariable(enumName, false);
+    enumMember(&enumName);
+  }
+
+  consume(TOKEN_RIGHT_BRACE, "Expect '}' after enum body.");
+}
+
 static void pathOrString(const char *extension, const char *errorIdentifier, const char *errorString)
 {
   if (match(TOKEN_IDENTIFIER))
@@ -1811,7 +1869,10 @@ static void funDeclaration()
     {
       if(!match(TOKEN_CLASS))
       {
-        consume(TOKEN_IDENTIFIER, "Expect function name or type.");
+        if(!match(TOKEN_ENUM))
+        {
+          consume(TOKEN_IDENTIFIER, "Expect function name or type.");
+        }
       }
     }
   }
@@ -2427,6 +2488,7 @@ static void synchronize()
     switch (parser.current.type)
     {
     case TOKEN_CLASS:
+    case TOKEN_ENUM:
     case TOKEN_NATIVE:
     case TOKEN_FUNC:
     case TOKEN_STATIC:
@@ -2458,6 +2520,10 @@ static void declaration(bool checkEnd)
   if (match(TOKEN_CLASS))
   {
     classDeclaration();
+  }
+  else if (match(TOKEN_ENUM))
+  {
+    enumDeclaration();
   }
   else if (match(TOKEN_NATIVE))
   {

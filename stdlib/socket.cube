@@ -77,11 +77,11 @@ class Socket
     }
 }
 
-class HTTP
+enum HTTP
 {
-    static var PORT = 80;
-    static var SUCCESS = 201;
-    static var NOT_FOUND = 404;
+    PORT = 80;
+    SUCCESS = 201;
+    NOT_FOUND = 404;
 }
 
 class HTTPServer
