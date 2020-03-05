@@ -1,8 +1,8 @@
-#include <cube/cubeext.h>
 #include "WM.hpp"
+#include <cube/cubeext.h>
 #include <iostream>
-#include <string.h>
 #include <sstream>
+#include <string.h>
 
 using namespace std;
 
@@ -13,27 +13,22 @@ string NativeToValue(cube_native_var *var)
     switch (NATIVE_TYPE(var))
     {
         case TYPE_VOID:
-        case TYPE_NONE:
-        {
+        case TYPE_NONE: {
             return "";
         }
         break;
-        case TYPE_BOOL:
-        {
+        case TYPE_BOOL: {
             return AS_NATIVE_BOOL(var) ? "true" : "false";
         }
         break;
-        case TYPE_NUMBER:
-        {
+        case TYPE_NUMBER: {
             stringstream ss;
             ss << AS_NATIVE_NUMBER(var);
             return ss.str();
         }
         break;
-        case TYPE_STRING:
-        {
+        case TYPE_STRING: {
             return string(AS_NATIVE_STRING(var));
-            
         }
         break;
         default:
@@ -49,53 +44,51 @@ extern "C"
     char *argv[1];
     QApplication app(argc, argv);
 
-    char *copyStr(const char* str)
+    char *copyStr(const char *str)
     {
-        char *s = (char*)malloc(sizeof(char) * (strlen(str) + 1));
+        char *s = (char *)malloc(sizeof(char) * (strlen(str) + 1));
         strcpy(s, str);
         return s;
     }
 
     EXPORTED void ui_start()
     {
-        if(wm != NULL)
+        if (wm != NULL)
             return;
         wm = new WM(&app);
         wm->Init();
     }
 
     EXPORTED void ui_stop()
-    {   
-        if(wm == NULL)
+    {
+        if (wm == NULL)
             return;
         wm->Destroy();
         delete wm;
         wm = NULL;
     }
 
-    EXPORTED cube_native_var* ui_create_window(cube_native_var* title, 
-        cube_native_var* width, 
-        cube_native_var* height)
-    {   
+    EXPORTED cube_native_var *ui_create_window(cube_native_var *title, cube_native_var *width, cube_native_var *height)
+    {
         int id = wm->NewWindow(AS_NATIVE_STRING(title), AS_NATIVE_NUMBER(width), AS_NATIVE_NUMBER(height));
 
-        cube_native_var* ret = NATIVE_NUMBER(id);
+        cube_native_var *ret = NATIVE_NUMBER(id);
         return ret;
     }
 
-    EXPORTED void ui_destroy_window(cube_native_var* id)
-    {   
+    EXPORTED void ui_destroy_window(cube_native_var *id)
+    {
         wm->DestroyWindow(AS_NATIVE_NUMBER(id));
     }
 
-    EXPORTED cube_native_var* ui_run_cycle()
-    {   
+    EXPORTED cube_native_var *ui_run_cycle()
+    {
         vector<string> events = wm->Cycle();
 
-        cube_native_var* list = NATIVE_LIST();
-        for(int i = 0; i < events.size(); i++)
+        cube_native_var *list = NATIVE_LIST();
+        for (int i = 0; i < events.size(); i++)
         {
-            char *str = (char*)malloc(sizeof(char) * (events[i].length() + 1));
+            char *str = (char *)malloc(sizeof(char) * (events[i].length() + 1));
             strcpy(str, events[i].c_str());
             cube_native_var *ev = NATIVE_STRING(str);
             ADD_NATIVE_LIST(list, ev);
@@ -105,37 +98,37 @@ extern "C"
     }
 
     EXPORTED void ui_run_forever()
-    {   
+    {
         wm->Exec();
     }
 
-    EXPORTED cube_native_var* ui_has_quit()
-    {   
-        cube_native_var* ret = NATIVE_BOOL( wm->HasQuit() );
+    EXPORTED cube_native_var *ui_has_quit()
+    {
+        cube_native_var *ret = NATIVE_BOOL(wm->HasQuit());
         return ret;
     }
 
-    EXPORTED cube_native_var* ui_load(cube_native_var* id, cube_native_var* fileName)
-    {   
+    EXPORTED cube_native_var *ui_load(cube_native_var *id, cube_native_var *fileName)
+    {
         bool success = wm->Load(AS_NATIVE_NUMBER(id), AS_NATIVE_STRING(fileName));
-        cube_native_var* ret = NATIVE_BOOL(success);
-        
+        cube_native_var *ret = NATIVE_BOOL(success);
+
         return ret;
     }
 
-    EXPORTED cube_native_var* ui_on_event(cube_native_var* id, cube_native_var* objName, cube_native_var* eventName)
-    {   
+    EXPORTED cube_native_var *ui_on_event(cube_native_var *id, cube_native_var *objName, cube_native_var *eventName)
+    {
         bool success = wm->RegisterEvent(AS_NATIVE_NUMBER(id), AS_NATIVE_STRING(objName), AS_NATIVE_STRING(eventName));
 
-        cube_native_var* ret = NATIVE_BOOL(success);
+        cube_native_var *ret = NATIVE_BOOL(success);
         return ret;
     }
 
-    EXPORTED cube_native_var* ui_get_event_args(cube_native_var *name)
-    {   
+    EXPORTED cube_native_var *ui_get_event_args(cube_native_var *name)
+    {
         Dict args = wm->GetEventArgs(AS_NATIVE_STRING(name));
-        cube_native_var* ret = NATIVE_DICT();
-        for(Dict::iterator it = args.begin(); it != args.end(); it++)
+        cube_native_var *ret = NATIVE_DICT();
+        for (Dict::iterator it = args.begin(); it != args.end(); it++)
         {
             cube_native_var *next = NATIVE_STRING_COPY(it->second.c_str());
             ADD_NATIVE_DICT(ret, copyStr(it->first.c_str()), next);
@@ -144,18 +137,18 @@ extern "C"
         return ret;
     }
 
-    EXPORTED cube_native_var* ui_get_property(cube_native_var* id, cube_native_var* objName, cube_native_var* propName)
-    {   
+    EXPORTED cube_native_var *ui_get_property(cube_native_var *id, cube_native_var *objName, cube_native_var *propName)
+    {
         List list = wm->GetProperty(AS_NATIVE_NUMBER(id), AS_NATIVE_STRING(objName), AS_NATIVE_STRING(propName));
 
-        cube_native_var* ret;
+        cube_native_var *ret;
 
-        if(!list.empty())
+        if (!list.empty())
         {
-            if(list.size() > 1)
+            if (list.size() > 1)
             {
                 ret = NATIVE_LIST();
-                for(int i = 0; i < list.size(); i++)
+                for (int i = 0; i < list.size(); i++)
                 {
                     cube_native_var *prop = NATIVE_STRING_COPY(list[i].c_str());
                     ADD_NATIVE_LIST(ret, prop);
@@ -164,36 +157,38 @@ extern "C"
             else
             {
                 ret = NATIVE_STRING_COPY(list[0].c_str());
-            }   
+            }
         }
         else
         {
             ret = NATIVE_NONE();
         }
-        
+
         return ret;
     }
 
-    EXPORTED cube_native_var* ui_set_property(cube_native_var* id, cube_native_var* objName, cube_native_var* propName, cube_native_var* value)
-    {   
-        bool success = wm->SetProperty(AS_NATIVE_NUMBER(id), AS_NATIVE_STRING(objName), AS_NATIVE_STRING(propName), AS_NATIVE_STRING(value));
+    EXPORTED cube_native_var *ui_set_property(cube_native_var *id, cube_native_var *objName, cube_native_var *propName,
+                                              cube_native_var *value)
+    {
+        bool success = wm->SetProperty(AS_NATIVE_NUMBER(id), AS_NATIVE_STRING(objName), AS_NATIVE_STRING(propName),
+                                       AS_NATIVE_STRING(value));
 
-        cube_native_var* ret = NATIVE_BOOL(success);
+        cube_native_var *ret = NATIVE_BOOL(success);
         return ret;
     }
 
-    EXPORTED cube_native_var* ui_get_obj(cube_native_var* id, cube_native_var* objName)
-    {   
+    EXPORTED cube_native_var *ui_get_obj(cube_native_var *id, cube_native_var *objName)
+    {
         Dict props = wm->GetProperties(AS_NATIVE_NUMBER(id), AS_NATIVE_STRING(objName));
-        cube_native_var* ret;
-        if(props.size() == 0)
+        cube_native_var *ret;
+        if (props.size() == 0)
         {
             ret = NATIVE_NONE();
         }
         else
         {
             ret = NATIVE_DICT();
-            for(Dict::iterator it = props.begin(); it != props.end(); it++)
+            for (Dict::iterator it = props.begin(); it != props.end(); it++)
             {
                 cube_native_var *next = NATIVE_STRING_COPY(it->second.c_str());
                 ADD_NATIVE_DICT(ret, copyStr(it->first.c_str()), next);
@@ -204,20 +199,20 @@ extern "C"
     }
 
     // Shapes
-    EXPORTED void ui_antialias(cube_native_var* id, cube_native_var* enabled)
+    EXPORTED void ui_antialias(cube_native_var *id, cube_native_var *enabled)
     {
         wm->SetAntialias(AS_NATIVE_NUMBER(id), AS_NATIVE_BOOL(enabled));
     }
 
-    EXPORTED void ui_rm_shape(cube_native_var* id, cube_native_var* shape_id)
+    EXPORTED void ui_rm_shape(cube_native_var *id, cube_native_var *shape_id)
     {
         wm->RmShape(AS_NATIVE_NUMBER(id), AS_NATIVE_NUMBER(shape_id));
     }
 
-    EXPORTED cube_native_var* ui_add_shape(cube_native_var* id, cube_native_var* shape)
+    EXPORTED cube_native_var *ui_add_shape(cube_native_var *id, cube_native_var *shape)
     {
         map<string, string> values;
-        for(int i = 0; i < shape->size; i++)
+        for (int i = 0; i < shape->size; i++)
         {
             values[string(shape->dict[i]->key)] = NativeToValue(shape->dict[i]);
         }
@@ -225,14 +220,13 @@ extern "C"
         return NATIVE_NUMBER(shape_id);
     }
 
-    EXPORTED void ui_update_shape(cube_native_var* id, cube_native_var* shape)
+    EXPORTED void ui_update_shape(cube_native_var *id, cube_native_var *shape)
     {
         map<string, string> values;
-        for(int i = 0; i < shape->size; i++)
+        for (int i = 0; i < shape->size; i++)
         {
             values[string(shape->dict[i]->key)] = NativeToValue(shape->dict[i]);
         }
         wm->UpdateShape(AS_NATIVE_NUMBER(id), values);
     }
-    
 }

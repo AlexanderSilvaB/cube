@@ -14,7 +14,7 @@ typedef struct BreakPoint_st
     char *path;
     bool enabled;
     struct BreakPoint_st *next;
-}BreakPoint;
+} BreakPoint;
 
 BreakPoint *breakpoints = NULL;
 BreakPoint *openBreakPoints = NULL;
@@ -25,7 +25,7 @@ void *cube(void *arg);
 
 void init_debugger(int argc, const char *argv[])
 {
-    if(argc > 1)
+    if (argc > 1)
     {
         _argc = 3;
     }
@@ -34,19 +34,19 @@ void init_debugger(int argc, const char *argv[])
         _argc = 2;
     }
 
-    _argv = (char**)malloc(sizeof(char*) * _argc);
-    _argv[0] = (char*)argv[0];
-    if(_argc == 2)
+    _argv = (char **)malloc(sizeof(char *) * _argc);
+    _argv[0] = (char *)argv[0];
+    if (_argc == 2)
     {
         _argv[1] = "-d";
     }
     else
     {
-        _argv[1] = (char*)argv[1];
+        _argv[1] = (char *)argv[1];
         _argv[2] = "-d";
-        if(argc > 2)
+        if (argc > 2)
         {
-            if(strcmp(argv[2], "-s") == 0)
+            if (strcmp(argv[2], "-s") == 0)
             {
                 stopOnInit = true;
             }
@@ -54,11 +54,10 @@ void init_debugger(int argc, const char *argv[])
     }
 
     printf("Start debugging\n");
-    if(stopOnInit)
+    if (stopOnInit)
         printf("Stop on init: true\n");
     else
         printf("Stop on init: false\n");
-    
 
     running = true;
     thread_create(cube, NULL);
@@ -72,8 +71,8 @@ void finish_debugger()
 
 void *cube(void *arg)
 {
-    startCube(_argc, (const char**)_argv);
-    rc = runCube(_argc, (const char**)_argv);
+    startCube(_argc, (const char **)_argv);
+    rc = runCube(_argc, (const char **)_argv);
     stopCube();
     running = false;
     return NULL;
@@ -82,9 +81,9 @@ void *cube(void *arg)
 void addBreakpoint(char *line)
 {
     char *path = NULL;
-    for(int i = 0; i < strlen(line); i++)
+    for (int i = 0; i < strlen(line); i++)
     {
-        if(line[i] == ' ')
+        if (line[i] == ' ')
         {
             line[i] = '\0';
             i++;
@@ -93,7 +92,7 @@ void addBreakpoint(char *line)
         }
     }
 
-    if(line == NULL || path == NULL)
+    if (line == NULL || path == NULL)
         return;
 
     int ln = atoi(line);
@@ -102,9 +101,9 @@ void addBreakpoint(char *line)
 
     BreakPoint *current = breakpoints;
     BreakPoint *parent = NULL;
-    while(current != NULL)
+    while (current != NULL)
     {
-        if(current->line == ln && strcmp(current->path, path) == 0)
+        if (current->line == ln && strcmp(current->path, path) == 0)
         {
             break;
         }
@@ -112,15 +111,15 @@ void addBreakpoint(char *line)
         current = current->next;
     }
 
-    if(current == NULL)
+    if (current == NULL)
     {
-        current = (BreakPoint*)malloc(sizeof(BreakPoint));
+        current = (BreakPoint *)malloc(sizeof(BreakPoint));
         current->line = ln;
-        current->path = (char*)malloc(sizeof(char) * (strlen(path) + 1));
+        current->path = (char *)malloc(sizeof(char) * (strlen(path) + 1));
         strcpy(current->path, path);
         current->enabled = true;
         current->next = NULL;
-        if(parent == NULL)
+        if (parent == NULL)
             breakpoints = current;
         else
             parent->next = current;
@@ -130,9 +129,9 @@ void addBreakpoint(char *line)
 void removeBreakpoint(char *line)
 {
     char *path = NULL;
-    for(int i = 0; i < strlen(line); i++)
+    for (int i = 0; i < strlen(line); i++)
     {
-        if(line[i] == ' ')
+        if (line[i] == ' ')
         {
             line[i] = '\0';
             i++;
@@ -141,7 +140,7 @@ void removeBreakpoint(char *line)
         }
     }
 
-    if(line == NULL || path == NULL)
+    if (line == NULL || path == NULL)
         return;
 
     int ln = atoi(line);
@@ -150,11 +149,11 @@ void removeBreakpoint(char *line)
 
     BreakPoint *current = breakpoints;
     BreakPoint *parent = NULL;
-    while(current != NULL)
+    while (current != NULL)
     {
-        if(current->line == ln && strcmp(current->path, path) == 0)
+        if (current->line == ln && strcmp(current->path, path) == 0)
         {
-            if(parent != NULL)
+            if (parent != NULL)
                 parent->next = current->next;
             free(current->path);
             free(current);
@@ -169,9 +168,9 @@ bool isOpenBreakPoint(int line, const char *path)
 {
     BreakPoint *current = openBreakPoints;
     BreakPoint *parent = NULL;
-    while(current != NULL)
+    while (current != NULL)
     {
-        if(current->line == line && strcmp(current->path, path) == 0)
+        if (current->line == line && strcmp(current->path, path) == 0)
         {
             return true;
         }
@@ -185,9 +184,9 @@ void addOpenBreakPoint(int line, const char *path)
 {
     BreakPoint *current = openBreakPoints;
     BreakPoint *parent = NULL;
-    while(current != NULL)
+    while (current != NULL)
     {
-        if(strcmp(current->path, path) == 0)
+        if (strcmp(current->path, path) == 0)
         {
             current->line = line;
             return;
@@ -195,13 +194,13 @@ void addOpenBreakPoint(int line, const char *path)
         parent = current;
         current = current->next;
     }
-    current = (BreakPoint*)malloc(sizeof(BreakPoint));
+    current = (BreakPoint *)malloc(sizeof(BreakPoint));
     current->line = line;
-    current->path = (char*)malloc(sizeof(char) * (strlen(path) + 1));
+    current->path = (char *)malloc(sizeof(char) * (strlen(path) + 1));
     strcpy(current->path, path);
     current->enabled = true;
     current->next = NULL;
-    if(parent == NULL)
+    if (parent == NULL)
         openBreakPoints = current;
     else
         parent->next = current;
@@ -209,18 +208,18 @@ void addOpenBreakPoint(int line, const char *path)
 
 bool hasBreakPoint(int line, const char *path)
 {
-    if(stopOnInit)
+    if (stopOnInit)
     {
         stopOnInit = false;
         return true;
     }
-    
+
     BreakPoint *current = breakpoints;
-    while(current != NULL)
+    while (current != NULL)
     {
-        if(current->line == line && strcmp(current->path, path) == 0)
+        if (current->line == line && strcmp(current->path, path) == 0)
         {
-            if(isOpenBreakPoint(line, path))
+            if (isOpenBreakPoint(line, path))
             {
                 return false;
             }

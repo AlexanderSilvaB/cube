@@ -1,630 +1,701 @@
 #include "collections.h"
 #include "memory.h"
-#include "vm.h"
 #include "mempool.h"
+#include "vm.h"
 
 // This is needed for list deepCopy
 ObjDict *copyDict(ObjDict *oldDict, bool shallow);
 
-static bool pushListItem(int argCount) {
-	if (argCount != 2) {
-		runtimeError("push() takes 2 arguments (%d given)", argCount);
-		return false;
-	}
+static bool pushListItem(int argCount)
+{
+    if (argCount != 2)
+    {
+        runtimeError("push() takes 2 arguments (%d given)", argCount);
+        return false;
+    }
 
-	Value listItem = pop();
+    Value listItem = pop();
 
-	ObjList *list = AS_LIST(pop());
-	writeValueArray(&list->values, listItem);
-	push(NONE_VAL);
+    ObjList *list = AS_LIST(pop());
+    writeValueArray(&list->values, listItem);
+    push(NONE_VAL);
 
-	return true;
+    return true;
 }
 
-static bool insertListItem(int argCount) {
-	if (argCount != 3) {
-		runtimeError("insert() takes 3 arguments (%d given)", argCount);
-		return false;
-	}
+static bool insertListItem(int argCount)
+{
+    if (argCount != 3)
+    {
+        runtimeError("insert() takes 3 arguments (%d given)", argCount);
+        return false;
+    }
 
-	if (!IS_NUMBER(peek(0))) {
-		runtimeError("insert() third argument must be a number");
-		return false;
-	}
+    if (!IS_NUMBER(peek(0)))
+    {
+        runtimeError("insert() third argument must be a number");
+        return false;
+    }
 
-	int index = AS_NUMBER(pop());
-	Value insertValue = pop();
-	ObjList *list = AS_LIST(pop());
+    int index = AS_NUMBER(pop());
+    Value insertValue = pop();
+    ObjList *list = AS_LIST(pop());
 
-	if (index < 0 || index > list->values.count) {
-		runtimeError(
-			"Index passed to insert() is out of bounds for the list given");
-		return false;
-	}
+    if (index < 0 || index > list->values.count)
+    {
+        runtimeError("Index passed to insert() is out of bounds for the list given");
+        return false;
+    }
 
-	if (list->values.capacity < list->values.count + 1) {
-		int oldCapacity = list->values.capacity;
-		list->values.capacity = GROW_CAPACITY(oldCapacity);
-		list->values.values = GROW_ARRAY(list->values.values, Value, oldCapacity, list->values.capacity);
-	}
+    if (list->values.capacity < list->values.count + 1)
+    {
+        int oldCapacity = list->values.capacity;
+        list->values.capacity = GROW_CAPACITY(oldCapacity);
+        list->values.values = GROW_ARRAY(list->values.values, Value, oldCapacity, list->values.capacity);
+    }
 
-	list->values.count++;
+    list->values.count++;
 
-	for (int i = list->values.count - 1; i > index; --i)
-		list->values.values[i] = list->values.values[i - 1];
+    for (int i = list->values.count - 1; i > index; --i)
+        list->values.values[i] = list->values.values[i - 1];
 
-	list->values.values[index] = insertValue;
-	push(NONE_VAL);
+    list->values.values[index] = insertValue;
+    push(NONE_VAL);
 
-	return true;
+    return true;
 }
 
-static bool popListItem(int argCount) {
-	if (argCount < 1 || argCount > 2) {
-		runtimeError("pop() takes either 1 or 2 arguments (%d  given)", argCount);
-		return false;
-	}
+static bool popListItem(int argCount)
+{
+    if (argCount < 1 || argCount > 2)
+    {
+        runtimeError("pop() takes either 1 or 2 arguments (%d  given)", argCount);
+        return false;
+    }
 
-	ObjList *list;
-	Value last;
+    ObjList *list;
+    Value last;
 
-	if (argCount == 1) {
-		if (!IS_LIST(peek(0))) {
-			runtimeError("pop() only takes a list as an argument");
-			return false;
-		}
+    if (argCount == 1)
+    {
+        if (!IS_LIST(peek(0)))
+        {
+            runtimeError("pop() only takes a list as an argument");
+            return false;
+        }
 
-		list = AS_LIST(pop());
+        list = AS_LIST(pop());
 
-		if (list->values.count == 0) {
-			runtimeError("pop() called on an empty list");
-			return false;
-		}
+        if (list->values.count == 0)
+        {
+            runtimeError("pop() called on an empty list");
+            return false;
+        }
 
-		last = list->values.values[list->values.count - 1];
-	} else {
-		if (!IS_LIST(peek(1))) {
-			runtimeError("pop() only takes a list as an argument");
-			return false;
-		}
+        last = list->values.values[list->values.count - 1];
+    }
+    else
+    {
+        if (!IS_LIST(peek(1)))
+        {
+            runtimeError("pop() only takes a list as an argument");
+            return false;
+        }
 
-		if (!IS_NUMBER(peek(0))) {
-			runtimeError("pop() index argument must be a number");
-			return false;
-		}
+        if (!IS_NUMBER(peek(0)))
+        {
+            runtimeError("pop() index argument must be a number");
+            return false;
+        }
 
-		int index = AS_NUMBER(pop());
-		list = AS_LIST(pop());
+        int index = AS_NUMBER(pop());
+        list = AS_LIST(pop());
 
-		if (list->values.count == 0) {
-			runtimeError("pop() called on an empty list");
-			return false;
-		}
+        if (list->values.count == 0)
+        {
+            runtimeError("pop() called on an empty list");
+            return false;
+        }
 
-		if (index < 0 || index > list->values.count) {
-			runtimeError("Index passed to pop() is out of bounds for the list given");
-			return false;
-		}
+        if (index < 0 || index > list->values.count)
+        {
+            runtimeError("Index passed to pop() is out of bounds for the list given");
+            return false;
+        }
 
-		last = list->values.values[index];
+        last = list->values.values[index];
 
-		for (int i = index; i < list->values.count - 1; ++i)
-			list->values.values[i] = list->values.values[i + 1];
-	}
-	list->values.count--;
-	push(last);
+        for (int i = index; i < list->values.count - 1; ++i)
+            list->values.values[i] = list->values.values[i + 1];
+    }
+    list->values.count--;
+    push(last);
 
-	return true;
+    return true;
 }
 
 static bool removeListItem(int argCount)
 {
-	if (argCount != 2) {
-		runtimeError("remove() takes 2 arguments (%d  given)", argCount);
-		return false;
-	}
+    if (argCount != 2)
+    {
+        runtimeError("remove() takes 2 arguments (%d  given)", argCount);
+        return false;
+    }
 
-	Value search = pop();
-	ObjList *list = AS_LIST(pop());
+    Value search = pop();
+    ObjList *list = AS_LIST(pop());
 
-	int skip = 0;
+    int skip = 0;
 
-	for (int i = 0; i < list->values.capacity; ++i) {
-		#ifndef NAN_TAGGING
-		if (valuesEqual(list->values.values[i], search)) 
-		{
-			skip++;
-		}
-		#else
-		if (!list->values.values[i])
-			continue;
+    for (int i = 0; i < list->values.capacity; ++i)
+    {
+#ifndef NAN_TAGGING
+        if (valuesEqual(list->values.values[i], search))
+        {
+            skip++;
+        }
+#else
+        if (!list->values.values[i])
+            continue;
 
-		if (list->values.values[i] == search) {
-			skip++;
-		}
-		#endif
-		if(skip > 0)
-		{
-			if(i + skip >= list->values.capacity)
-				break;
+        if (list->values.values[i] == search)
+        {
+            skip++;
+        }
+#endif
+        if (skip > 0)
+        {
+            if (i + skip >= list->values.capacity)
+                break;
 
-			list->values.values[i] = list->values.values[i + skip];
-		}
-	}
+            list->values.values[i] = list->values.values[i + skip];
+        }
+    }
 
-	list->values.count -= skip;
-	if(list->values.count < 0)
-		list->values.count = 0;
-	
-	push((skip > 0 ? TRUE_VAL : FALSE_VAL));
-	return true;
+    list->values.count -= skip;
+    if (list->values.count < 0)
+        list->values.count = 0;
+
+    push((skip > 0 ? TRUE_VAL : FALSE_VAL));
+    return true;
 }
 
-static bool containsListItem(int argCount) {
-	if (argCount != 2) {
-		runtimeError("contains() takes 2 arguments (%d  given)", argCount);
-		return false;
-	}
+static bool containsListItem(int argCount)
+{
+    if (argCount != 2)
+    {
+        runtimeError("contains() takes 2 arguments (%d  given)", argCount);
+        return false;
+    }
 
-	Value search = pop();
-	ObjList *list = AS_LIST(pop());
+    Value search = pop();
+    ObjList *list = AS_LIST(pop());
 
-	for (int i = 0; i < list->values.capacity; ++i) {
-		#ifndef NAN_TAGGING
-		if (valuesEqual(list->values.values[i], search)) {
-			push(TRUE_VAL);
-			return true;
-		}
-		#else
-		if (!list->values.values[i])
-			continue;
+    for (int i = 0; i < list->values.capacity; ++i)
+    {
+#ifndef NAN_TAGGING
+        if (valuesEqual(list->values.values[i], search))
+        {
+            push(TRUE_VAL);
+            return true;
+        }
+#else
+        if (!list->values.values[i])
+            continue;
 
-		if (list->values.values[i] == search) {
-			push(TRUE_VAL);
-			return true;
-		}
-		#endif
-	}
+        if (list->values.values[i] == search)
+        {
+            push(TRUE_VAL);
+            return true;
+        }
+#endif
+    }
 
-	push(FALSE_VAL);
-	return true;
+    push(FALSE_VAL);
+    return true;
 }
 
-static bool indexList(int argCount) {
-	if (argCount != 2) {
-		runtimeError("contains() takes 2 arguments (%d  given)", argCount);
-		return false;
-	}
+static bool indexList(int argCount)
+{
+    if (argCount != 2)
+    {
+        runtimeError("contains() takes 2 arguments (%d  given)", argCount);
+        return false;
+    }
 
-	Value search = pop();
-	ObjList *list = AS_LIST(pop());
+    Value search = pop();
+    ObjList *list = AS_LIST(pop());
 
-	int i = 0;
-	for (i = 0; i < list->values.capacity; ++i) {
-		#ifndef NAN_TAGGING
-		if (valuesEqual(list->values.values[i], search)) {
-			break;
-		}
-		#else
-		if (!list->values.values[i])
-			continue;
+    int i = 0;
+    for (i = 0; i < list->values.capacity; ++i)
+    {
+#ifndef NAN_TAGGING
+        if (valuesEqual(list->values.values[i], search))
+        {
+            break;
+        }
+#else
+        if (!list->values.values[i])
+            continue;
 
-		if (list->values.values[i] == search) {
-			break;
-		}
-		#endif
-	}
+        if (list->values.values[i] == search)
+        {
+            break;
+        }
+#endif
+    }
 
-	if(i >= list->values.capacity)
-		i = -1;
+    if (i >= list->values.capacity)
+        i = -1;
 
-	push(NUMBER_VAL(i));
-	return true;
+    push(NUMBER_VAL(i));
+    return true;
 }
 
-bool listContains(Value listV, Value search, Value *result) {
+bool listContains(Value listV, Value search, Value *result)
+{
 
-	ObjList *list = AS_LIST(listV);
+    ObjList *list = AS_LIST(listV);
 
-	for (int i = 0; i < list->values.capacity; ++i) {
-		#ifndef NAN_TAGGING
-		if (valuesEqual(list->values.values[i], search)) {
-			*result = TRUE_VAL;
-			return true;
-		}
-		#else
-		if (!list->values.values[i])
-			continue;
+    for (int i = 0; i < list->values.capacity; ++i)
+    {
+#ifndef NAN_TAGGING
+        if (valuesEqual(list->values.values[i], search))
+        {
+            *result = TRUE_VAL;
+            return true;
+        }
+#else
+        if (!list->values.values[i])
+            continue;
 
-		if (list->values.values[i] == search) {
-			*result = TRUE_VAL;
-			return true;
-		}
-		#endif
-	}
+        if (list->values.values[i] == search)
+        {
+            *result = TRUE_VAL;
+            return true;
+        }
+#endif
+    }
 
-	*result = FALSE_VAL;
-	return true;
+    *result = FALSE_VAL;
+    return true;
 }
 
-ObjList *copyList(ObjList *oldList, bool shallow) {
-	DISABLE_GC;
-	ObjList *newList = initList();
+ObjList *copyList(ObjList *oldList, bool shallow)
+{
+    DISABLE_GC;
+    ObjList *newList = initList();
 
-	for (int i = 0; i < oldList->values.count; ++i) {
-		Value val = oldList->values.values[i];
+    for (int i = 0; i < oldList->values.count; ++i)
+    {
+        Value val = oldList->values.values[i];
 
-		if (!shallow) {
-			if (IS_DICT(val))
-				val = OBJ_VAL(copyDict(AS_DICT(val), false));
-			else if (IS_LIST(val))
-				val = OBJ_VAL(copyList(AS_LIST(val), false));
-		}
+        if (!shallow)
+        {
+            if (IS_DICT(val))
+                val = OBJ_VAL(copyDict(AS_DICT(val), false));
+            else if (IS_LIST(val))
+                val = OBJ_VAL(copyList(AS_LIST(val), false));
+        }
 
-		writeValueArray(&newList->values, val);
-	}
-	RESTORE_GC;
-	return newList;
+        writeValueArray(&newList->values, val);
+    }
+    RESTORE_GC;
+    return newList;
 }
 
-static bool copyListShallow(int argCount) {
-	if (argCount != 1) {
-		runtimeError("copy() takes 1 argument (%d  given)", argCount);
-		return false;
-	}
+static bool copyListShallow(int argCount)
+{
+    if (argCount != 1)
+    {
+        runtimeError("copy() takes 1 argument (%d  given)", argCount);
+        return false;
+    }
 
-	ObjList *oldList = AS_LIST(pop());
-	push(OBJ_VAL(copyList(oldList, true)));
+    ObjList *oldList = AS_LIST(pop());
+    push(OBJ_VAL(copyList(oldList, true)));
 
-	return true;
+    return true;
 }
 
-static bool copyListDeep(int argCount) {
-	if (argCount != 1) {
-		runtimeError("deepCopy() takes 1 argument (%d  given)", argCount);
-		return false;
-	}
+static bool copyListDeep(int argCount)
+{
+    if (argCount != 1)
+    {
+        runtimeError("deepCopy() takes 1 argument (%d  given)", argCount);
+        return false;
+    }
 
-	ObjList *oldList = AS_LIST(pop());
-	push(OBJ_VAL(copyList(oldList, false)));
+    ObjList *oldList = AS_LIST(pop());
+    push(OBJ_VAL(copyList(oldList, false)));
 
-	return true;
+    return true;
 }
 
 static bool joinList(int argCount)
 {
-	if (argCount != 2) {
-		runtimeError("join(str) takes 2 arguments (%d  given)", argCount);
-		return false;
-	}
+    if (argCount != 2)
+    {
+        runtimeError("join(str) takes 2 arguments (%d  given)", argCount);
+        return false;
+    }
 
-	ObjString *str = AS_STRING(toString(pop()));
-	ObjList *list = AS_LIST(pop());
+    ObjString *str = AS_STRING(toString(pop()));
+    ObjList *list = AS_LIST(pop());
 
-	int size = 50;
-	char *listString = mp_malloc(sizeof(char) * size);
-	listString[0] = '\0';
+    int size = 50;
+    char *listString = mp_malloc(sizeof(char) * size);
+    listString[0] = '\0';
 
-	int listStringSize;
+    int listStringSize;
 
-	int delLen = str->length;
+    int delLen = str->length;
 
-	for (int i = 0; i < list->values.count; ++i)
-	{
-		char *element = valueToString(list->values.values[i], false);
+    for (int i = 0; i < list->values.count; ++i)
+    {
+        char *element = valueToString(list->values.values[i], false);
 
-		int elementSize = strlen(element);
-		listStringSize = strlen(listString);
+        int elementSize = strlen(element);
+        listStringSize = strlen(listString);
 
-		if ((elementSize + 2 + delLen) >= (size - listStringSize - 1))
-		{
-			if (elementSize > size * 2)
-				size += elementSize * 2;
-			else
-				size *= 2;
+        if ((elementSize + 2 + delLen) >= (size - listStringSize - 1))
+        {
+            if (elementSize > size * 2)
+                size += elementSize * 2;
+            else
+                size *= 2;
 
-			char *newB = mp_realloc(listString, sizeof(char) * size);
+            char *newB = mp_realloc(listString, sizeof(char) * size);
 
-			if (newB == NULL)
-			{
-				printf("Unable to allocate memory\n");
-				exit(71);
-			}
+            if (newB == NULL)
+            {
+                printf("Unable to allocate memory\n");
+                exit(71);
+            }
 
-			listString = newB;
-		}
+            listString = newB;
+        }
 
-		strncat(listString, element, size - listStringSize - 1);
+        strncat(listString, element, size - listStringSize - 1);
 
-		mp_free(element);
+        mp_free(element);
 
-		if (i != list->values.count - 1)
-			strncat(listString, str->chars, size - listStringSize - 1);
-	}
+        if (i != list->values.count - 1)
+            strncat(listString, str->chars, size - listStringSize - 1);
+    }
 
-	listStringSize = strlen(listString);
-	push(STRING_VAL(listString));
-	mp_free(listString);
+    listStringSize = strlen(listString);
+    push(STRING_VAL(listString));
+    mp_free(listString);
 
-
-	return true;
+    return true;
 }
 
-bool listMethods(char *method, int argCount) {
-	if (strcmp(method, "push") == 0 || strcmp(method, "add") == 0)
-		return pushListItem(argCount);
-	else if (strcmp(method, "remove") == 0)
-		return removeListItem(argCount);
-	else if (strcmp(method, "insert") == 0)
-		return insertListItem(argCount);
-	else if (strcmp(method, "pop") == 0)
-		return popListItem(argCount);
-	else if (strcmp(method, "contains") == 0)
-		return containsListItem(argCount);
-	else if (strcmp(method, "index") == 0)
-		return indexList(argCount);
-	else if (strcmp(method, "copy") == 0)
-		return copyListShallow(argCount);
-	else if (strcmp(method, "deepCopy") == 0)
-		return copyListDeep(argCount);
-	else if (strcmp(method, "join") == 0)
-		return joinList(argCount);
+bool listMethods(char *method, int argCount)
+{
+    if (strcmp(method, "push") == 0 || strcmp(method, "add") == 0)
+        return pushListItem(argCount);
+    else if (strcmp(method, "remove") == 0)
+        return removeListItem(argCount);
+    else if (strcmp(method, "insert") == 0)
+        return insertListItem(argCount);
+    else if (strcmp(method, "pop") == 0)
+        return popListItem(argCount);
+    else if (strcmp(method, "contains") == 0)
+        return containsListItem(argCount);
+    else if (strcmp(method, "index") == 0)
+        return indexList(argCount);
+    else if (strcmp(method, "copy") == 0)
+        return copyListShallow(argCount);
+    else if (strcmp(method, "deepCopy") == 0)
+        return copyListDeep(argCount);
+    else if (strcmp(method, "join") == 0)
+        return joinList(argCount);
 
-	runtimeError("List has no method %s()", method);
-	return false;
+    runtimeError("List has no method %s()", method);
+    return false;
 }
 
-static bool getDictItem(int argCount) {
-	if (argCount != 3) {
-		runtimeError("get() takes 3 arguments (%d  given)", argCount);
-		return false;
-	}
+static bool getDictItem(int argCount)
+{
+    if (argCount != 3)
+    {
+        runtimeError("get() takes 3 arguments (%d  given)", argCount);
+        return false;
+    }
 
-	Value defaultValue = pop();
+    Value defaultValue = pop();
 
-	if (!IS_STRING(peek(0))) {
-		runtimeError("Key passed to get() must be a string");
-		return false;
-	}
+    if (!IS_STRING(peek(0)))
+    {
+        runtimeError("Key passed to get() must be a string");
+        return false;
+    }
 
-	Value key = pop();
-	ObjDict *dict = AS_DICT(pop());
+    Value key = pop();
+    ObjDict *dict = AS_DICT(pop());
 
-	Value ret = searchDict(dict, AS_CSTRING(key));
+    Value ret = searchDict(dict, AS_CSTRING(key));
 
+#ifndef NAN_TAGGING
+    if (valuesEqual(ret, NONE_VAL))
+#else
+    if (ret == NONE_VAL)
+#endif
+        push(defaultValue);
+    else
+        push(ret);
 
-	#ifndef NAN_TAGGING
-	if (valuesEqual(ret, NONE_VAL))
-	#else
-	if (ret == NONE_VAL)
-	#endif
-		push(defaultValue);
-	else
-		push(ret);
-
-	return true;
+    return true;
 }
 
-static bool dictKeys(int argCount) {
-	if (argCount != 1) {
-		runtimeError("get() takes 1 arguments (%d  given)", argCount);
-		return false;
-	}
+static bool dictKeys(int argCount)
+{
+    if (argCount != 1)
+    {
+        runtimeError("get() takes 1 arguments (%d  given)", argCount);
+        return false;
+    }
 
-	ObjDict *dict = AS_DICT(pop());
-	ObjList *list = initList();
+    ObjDict *dict = AS_DICT(pop());
+    ObjList *list = initList();
 
-	int len = 0;
+    int len = 0;
 
-	for (int i = 0; i < dict->capacity; ++i)
-	{
-		dictItem *item = dict->items[i];
+    for (int i = 0; i < dict->capacity; ++i)
+    {
+        dictItem *item = dict->items[i];
 
-		if (!item || item->deleted)
-		{
-			continue;
-		}
+        if (!item || item->deleted)
+        {
+            continue;
+        }
 
-		len = strlen(item->key);
-		char *key = mp_malloc(sizeof(char) * (len + 1));
-		strcpy(key, item->key);
-		writeValueArray(&list->values, STRING_VAL(key));
-		mp_free(key);
-	}
+        len = strlen(item->key);
+        char *key = mp_malloc(sizeof(char) * (len + 1));
+        strcpy(key, item->key);
+        writeValueArray(&list->values, STRING_VAL(key));
+        mp_free(key);
+    }
 
-	push(OBJ_VAL(list));
+    push(OBJ_VAL(list));
 
-	return true;
+    return true;
 }
 
-static bool dictValues(int argCount) {
-	if (argCount != 1) {
-		runtimeError("get() takes 1 arguments (%d  given)", argCount);
-		return false;
-	}
+static bool dictValues(int argCount)
+{
+    if (argCount != 1)
+    {
+        runtimeError("get() takes 1 arguments (%d  given)", argCount);
+        return false;
+    }
 
-	ObjDict *dict = AS_DICT(pop());
-	ObjList *list = initList();
+    ObjDict *dict = AS_DICT(pop());
+    ObjList *list = initList();
 
-	for (int i = 0; i < dict->capacity; ++i)
-	{
-		dictItem *item = dict->items[i];
+    for (int i = 0; i < dict->capacity; ++i)
+    {
+        dictItem *item = dict->items[i];
 
-		if (!item || item->deleted)
-		{
-			continue;
-		}
+        if (!item || item->deleted)
+        {
+            continue;
+        }
 
-		writeValueArray(&list->values, copyValue(item->item));
-	}
+        writeValueArray(&list->values, copyValue(item->item));
+    }
 
-	push(OBJ_VAL(list));
+    push(OBJ_VAL(list));
 
-	return true;
+    return true;
 }
 
-static uint32_t hash(char *str) {
-	uint32_t hash = 5381;
-	int c;
+static uint32_t hash(char *str)
+{
+    uint32_t hash = 5381;
+    int c;
 
-	while ((c = *str++))
-		hash = ((hash << 5) + hash) + c;
+    while ((c = *str++))
+        hash = ((hash << 5) + hash) + c;
 
-	return hash;
+    return hash;
 }
 
-static bool removeDictItem(int argCount) {
-	if (argCount != 2) {
-		runtimeError("remove() takes 2 arguments (%d  given)", argCount);
-		return false;
-	}
+static bool removeDictItem(int argCount)
+{
+    if (argCount != 2)
+    {
+        runtimeError("remove() takes 2 arguments (%d  given)", argCount);
+        return false;
+    }
 
-	if (!IS_STRING(peek(0))) {
-		runtimeError("Key passed to remove() must be a string");
-		return false;
-	}
+    if (!IS_STRING(peek(0)))
+    {
+        runtimeError("Key passed to remove() must be a string");
+        return false;
+    }
 
-	char *key = AS_CSTRING(pop());
-	ObjDict *dict = AS_DICT(pop());
+    char *key = AS_CSTRING(pop());
+    ObjDict *dict = AS_DICT(pop());
 
-	int index = hash(key) % dict->capacity;
+    int index = hash(key) % dict->capacity;
 
-	while (dict->items[index] && strcmp(dict->items[index]->key, key) != 0) {
-		index++;
-		if (index == dict->capacity)
-			index = 0;
-	}
+    while (dict->items[index] && strcmp(dict->items[index]->key, key) != 0)
+    {
+        index++;
+        if (index == dict->capacity)
+            index = 0;
+    }
 
-	if (dict->items[index]) {
-		dict->items[index]->deleted = true;
-		dict->count--;
-		push(NONE_VAL);
+    if (dict->items[index])
+    {
+        dict->items[index]->deleted = true;
+        dict->count--;
+        push(NONE_VAL);
 
-		if (dict->capacity != 8 && dict->count * 100 / dict->capacity <= 35)
-			resizeDict(dict, false);
+        if (dict->capacity != 8 && dict->count * 100 / dict->capacity <= 35)
+            resizeDict(dict, false);
 
-		return true;
-	}
+        return true;
+    }
 
-	runtimeError("Key '%s' passed to remove() does not exist", key);
-	return false;
+    runtimeError("Key '%s' passed to remove() does not exist", key);
+    return false;
 }
 
-static bool dictItemExists(int argCount) {
-	if (argCount != 2) {
-		runtimeError("exists() takes 2 arguments (%d  given)", argCount);
-		return false;
-	}
+static bool dictItemExists(int argCount)
+{
+    if (argCount != 2)
+    {
+        runtimeError("exists() takes 2 arguments (%d  given)", argCount);
+        return false;
+    }
 
-	if (!IS_STRING(peek(0))) {
-		runtimeError("Key passed to exists() must be a string");
-		return false;
-	}
+    if (!IS_STRING(peek(0)))
+    {
+        runtimeError("Key passed to exists() must be a string");
+        return false;
+    }
 
-	char *key = AS_CSTRING(pop());
-	ObjDict *dict = AS_DICT(pop());
+    char *key = AS_CSTRING(pop());
+    ObjDict *dict = AS_DICT(pop());
 
-	for (int i = 0; i < dict->capacity; ++i) {
-		if (!dict->items[i])
-			continue;
+    for (int i = 0; i < dict->capacity; ++i)
+    {
+        if (!dict->items[i])
+            continue;
 
-		if (strcmp(dict->items[i]->key, key) == 0) {
-			push(TRUE_VAL);
-			return true;
-		}
-	}
+        if (strcmp(dict->items[i]->key, key) == 0)
+        {
+            push(TRUE_VAL);
+            return true;
+        }
+    }
 
-	push(FALSE_VAL);
-	return true;
+    push(FALSE_VAL);
+    return true;
 }
 
-bool dictContains(Value dictV, Value keyV, Value *result) {
+bool dictContains(Value dictV, Value keyV, Value *result)
+{
 
-	if (!IS_STRING(keyV)) {
-		runtimeError("Key passed to exists() must be a string");
-		return false;
-	}
+    if (!IS_STRING(keyV))
+    {
+        runtimeError("Key passed to exists() must be a string");
+        return false;
+    }
 
-	char *key = AS_CSTRING(keyV);
-	ObjDict *dict = AS_DICT(dictV);
+    char *key = AS_CSTRING(keyV);
+    ObjDict *dict = AS_DICT(dictV);
 
-	for (int i = 0; i < dict->capacity; ++i) {
-		if (!dict->items[i])
-			continue;
+    for (int i = 0; i < dict->capacity; ++i)
+    {
+        if (!dict->items[i])
+            continue;
 
-		if (strcmp(dict->items[i]->key, key) == 0) {
-			*result = TRUE_VAL;
-			return true;
-		}
-	}
+        if (strcmp(dict->items[i]->key, key) == 0)
+        {
+            *result = TRUE_VAL;
+            return true;
+        }
+    }
 
-	*result = FALSE_VAL;
-	return true;
+    *result = FALSE_VAL;
+    return true;
 }
 
-ObjDict *copyDict(ObjDict *oldDict, bool shallow) {
-	DISABLE_GC;
-	ObjDict *newDict = initDict();
+ObjDict *copyDict(ObjDict *oldDict, bool shallow)
+{
+    DISABLE_GC;
+    ObjDict *newDict = initDict();
 
-	for (int i = 0; i < oldDict->capacity; ++i) {
-		if (oldDict->items[i] == NULL)
-			continue;
+    for (int i = 0; i < oldDict->capacity; ++i)
+    {
+        if (oldDict->items[i] == NULL)
+            continue;
 
-		Value val = oldDict->items[i]->item;
+        Value val = oldDict->items[i]->item;
 
-		if (!shallow) {
-			if (IS_DICT(val))
-				val = OBJ_VAL(copyDict(AS_DICT(val), false));
-			else if (IS_LIST(val))
-				val = OBJ_VAL(copyList(AS_LIST(val), false));
-		}
+        if (!shallow)
+        {
+            if (IS_DICT(val))
+                val = OBJ_VAL(copyDict(AS_DICT(val), false));
+            else if (IS_LIST(val))
+                val = OBJ_VAL(copyList(AS_LIST(val), false));
+        }
 
-		insertDict(newDict, oldDict->items[i]->key, val);
-	}
-	RESTORE_GC;
-	return newDict;
+        insertDict(newDict, oldDict->items[i]->key, val);
+    }
+    RESTORE_GC;
+    return newDict;
 }
 
-static bool copyDictShallow(int argCount) {
-	if (argCount != 1) {
-		runtimeError("copy() takes 1 argument (%d  given)", argCount);
-		return false;
-	}
+static bool copyDictShallow(int argCount)
+{
+    if (argCount != 1)
+    {
+        runtimeError("copy() takes 1 argument (%d  given)", argCount);
+        return false;
+    }
 
-	ObjDict *oldDict = AS_DICT(pop());
-	push(OBJ_VAL(copyDict(oldDict, true)));
+    ObjDict *oldDict = AS_DICT(pop());
+    push(OBJ_VAL(copyDict(oldDict, true)));
 
-	return true;
+    return true;
 }
 
-static bool copyDictDeep(int argCount) {
-	if (argCount != 1) {
-		runtimeError("deepCopy() takes 1 argument (%d  given)", argCount);
-		return false;
-	}
+static bool copyDictDeep(int argCount)
+{
+    if (argCount != 1)
+    {
+        runtimeError("deepCopy() takes 1 argument (%d  given)", argCount);
+        return false;
+    }
 
-	ObjDict *oldDict = AS_DICT(pop());
-	push(OBJ_VAL(copyDict(oldDict, false)));
+    ObjDict *oldDict = AS_DICT(pop());
+    push(OBJ_VAL(copyDict(oldDict, false)));
 
-	return true;
+    return true;
 }
 
-bool dictMethods(char *method, int argCount) {
-	if (strcmp(method, "get") == 0)
-		return getDictItem(argCount);
-	else if (strcmp(method, "keys") == 0)
-		return dictKeys(argCount);
-	else if (strcmp(method, "values") == 0)
-		return dictValues(argCount);
-	else if (strcmp(method, "remove") == 0)
-		return removeDictItem(argCount);
-	else if (strcmp(method, "exists") == 0)
-		return dictItemExists(argCount);
-	else if (strcmp(method, "copy") == 0)
-		return copyDictShallow(argCount);
-	else if (strcmp(method, "deepCopy") == 0)
-		return copyDictDeep(argCount);
+bool dictMethods(char *method, int argCount)
+{
+    if (strcmp(method, "get") == 0)
+        return getDictItem(argCount);
+    else if (strcmp(method, "keys") == 0)
+        return dictKeys(argCount);
+    else if (strcmp(method, "values") == 0)
+        return dictValues(argCount);
+    else if (strcmp(method, "remove") == 0)
+        return removeDictItem(argCount);
+    else if (strcmp(method, "exists") == 0)
+        return dictItemExists(argCount);
+    else if (strcmp(method, "copy") == 0)
+        return copyDictShallow(argCount);
+    else if (strcmp(method, "deepCopy") == 0)
+        return copyDictDeep(argCount);
 
-	runtimeError("Dict has no method %s()", method);
-	return false;
+    runtimeError("Dict has no method %s()", method);
+    return false;
 }

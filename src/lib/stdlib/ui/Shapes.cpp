@@ -16,7 +16,6 @@ Shape::Shape()
 
 Shape::~Shape()
 {
-
 }
 
 void Shape::set(QPainter &painter)
@@ -35,27 +34,27 @@ void Shape::update(map<string, string> &values)
 {
     angle = getDouble(values, "angle", angle);
     scale = getDouble(values, "scale", scale);
-    pen.setBrush( QColor( QString::fromStdString(getString(values, "color", pen.color().name().toStdString() )) ) );
-    brush = QBrush( QColor( QString::fromStdString(getString(values, "background", brush.color().name().toStdString() )) ) );
+    pen.setBrush(QColor(QString::fromStdString(getString(values, "color", pen.color().name().toStdString()))));
+    brush = QBrush(QColor(QString::fromStdString(getString(values, "background", brush.color().name().toStdString()))));
 }
 
 int Shape::getInt(map<string, string> &values, const string &key, int defaultValue)
 {
-    if(values.find(key) != values.end())
+    if (values.find(key) != values.end())
         return atoi(values[key].c_str());
     return defaultValue;
 }
 
 double Shape::getDouble(map<string, string> &values, const string &key, double defaultValue)
 {
-    if(values.find(key) != values.end())
+    if (values.find(key) != values.end())
         return atof(values[key].c_str());
     return defaultValue;
 }
 
 string Shape::getString(map<string, string> &values, const string &key, const string &defaultValue)
 {
-    if(values.find(key) != values.end())
+    if (values.find(key) != values.end())
         return values[key];
     return defaultValue;
 }
@@ -70,7 +69,6 @@ RectShape::RectShape() : Shape()
 
 RectShape::~RectShape()
 {
-
 }
 
 void RectShape::draw(QPainter &painter)
@@ -100,13 +98,12 @@ ArcShape::ArcShape() : Shape()
 
 ArcShape::~ArcShape()
 {
-
 }
 
 void ArcShape::draw(QPainter &painter)
 {
     Shape::draw(painter);
-    painter.drawArc(x - w/2, y - w/2, w, h, start * 16, end * 16);
+    painter.drawArc(x - w / 2, y - w / 2, w, h, start * 16, end * 16);
 }
 
 void ArcShape::update(map<string, string> &values)
@@ -131,7 +128,6 @@ TextShape::TextShape() : Shape()
 
 TextShape::~TextShape()
 {
-
 }
 
 void TextShape::draw(QPainter &painter)
@@ -159,7 +155,6 @@ PointShape::PointShape() : Shape()
 
 PointShape::~PointShape()
 {
-
 }
 
 void PointShape::draw(QPainter &painter)
@@ -185,7 +180,6 @@ LineShape::LineShape() : Shape()
 
 LineShape::~LineShape()
 {
-
 }
 
 void LineShape::draw(QPainter &painter)
@@ -213,13 +207,12 @@ EllipseShape::EllipseShape() : Shape()
 
 EllipseShape::~EllipseShape()
 {
-
 }
 
 void EllipseShape::draw(QPainter &painter)
 {
     Shape::draw(painter);
-    painter.drawEllipse(x - w/2, y - h/2, w, h);
+    painter.drawEllipse(x - w / 2, y - h / 2, w, h);
 }
 
 void EllipseShape::update(map<string, string> &values)
@@ -240,7 +233,6 @@ CircleShape::CircleShape() : EllipseShape()
 
 CircleShape::~CircleShape()
 {
-
 }
 
 void CircleShape::draw(QPainter &painter)

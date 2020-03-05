@@ -5,7 +5,7 @@
 int main(int argc, const char *argv[])
 {
     startCube(argc, argv);
-    
+
     int rc = runCube(argc, argv);
 
     stopCube();

@@ -13,10 +13,10 @@ typedef struct sObjBytes ObjBytes;
 
 typedef enum
 {
-  VAL_BOOL,
-  VAL_NONE, // [user-types]
-  VAL_NUMBER,
-  VAL_OBJ
+    VAL_BOOL,
+    VAL_NONE, // [user-types]
+    VAL_NUMBER,
+    VAL_OBJ
 } ValueType;
 
 #ifdef NAN_TAGGING
@@ -28,7 +28,7 @@ typedef enum
 #define QNAN ((uint64_t)0x7ffc000000000000)
 
 // Tag values for the different singleton values.
-#define TAG_NONE 1   // 01
+#define TAG_NONE 1  // 01
 #define TAG_FALSE 2 // 10
 #define TAG_TRUE 3  // 11
 
@@ -54,28 +54,27 @@ typedef uint64_t Value;
 // 2. (uint64_t)  Pad it up to 64 bits in 32-bit builds.
 // 3. Or in the bits to make a tagged Nan.
 // 4. Cast to a typedef'd value.
-#define OBJ_VAL(obj) \
-  (Value)(SIGN_BIT | QNAN | (uint64_t)(uintptr_t)(obj))
+#define OBJ_VAL(obj) (Value)(SIGN_BIT | QNAN | (uint64_t)(uintptr_t)(obj))
 
 // A union to let us reinterpret a double as raw bits and back.
 typedef union {
-  uint64_t bits64;
-  uint32_t bits32[2];
-  double num;
+    uint64_t bits64;
+    uint32_t bits32[2];
+    double num;
 } DoubleUnion;
 
 static inline double valueToNum(Value value)
 {
-  DoubleUnion data;
-  data.bits64 = value;
-  return data.num;
+    DoubleUnion data;
+    data.bits64 = value;
+    return data.num;
 }
 
 static inline Value numToValue(double num)
 {
-  DoubleUnion data;
-  data.num = num;
-  return data.bits64;
+    DoubleUnion data;
+    data.num = num;
+    return data.bits64;
 }
 
 #else
@@ -85,12 +84,12 @@ static inline Value numToValue(double num)
 
 typedef struct
 {
-  ValueType type;
-  union {
-    BOOL_TYPE boolean;
-    NUMBER_TYPE number;
-    Obj *obj;
-  } as; // [as]
+    ValueType type;
+    union {
+        BOOL_TYPE boolean;
+        NUMBER_TYPE number;
+        Obj *obj;
+    } as; // [as]
 } Value;
 
 #define IS_BOOL(value) ((value).type == VAL_BOOL)
@@ -113,9 +112,9 @@ typedef struct
 
 typedef struct
 {
-  int capacity;
-  int count;
-  Value *values;
+    int capacity;
+    int count;
+    Value *values;
 } ValueArray;
 
 bool valuesEqual(Value a, Value b);
@@ -125,7 +124,7 @@ void writeValueArray(ValueArray *array, Value value);
 void insertDict(ObjDict *dict, char *key, Value value);
 void resizeDict(ObjDict *dict, bool grow);
 Value searchDict(ObjDict *dict, char *key);
-char* searchDictKey(ObjDict *dict, int index);
+char *searchDictKey(ObjDict *dict, int index);
 void freeDict(ObjDict *dict);
 
 void freeValueArray(ValueArray *array);

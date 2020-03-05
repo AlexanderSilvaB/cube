@@ -1,11 +1,11 @@
+#include <ctype.h>
+#include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
-#include <math.h>
-#include <ctype.h>
 #include <sys/stat.h>
+#include <time.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -16,21 +16,21 @@
 
 #include <errno.h>
 
-#include "std.h"
-#include "object.h"
-#include "vm.h"
-#include "files.h"
-#include "memory.h"
-#include "util.h"
 #include "compiler.h"
-#include "strings.h"
+#include "files.h"
 #include "gc.h"
-#include "system.h"
-#include "version.h"
+#include "memory.h"
 #include "mempool.h"
+#include "object.h"
+#include "std.h"
+#include "strings.h"
+#include "system.h"
+#include "util.h"
+#include "version.h"
+#include "vm.h"
 
 #ifndef S_ISDIR
-#define S_ISDIR(mode)  (((mode) & S_IFMT) == S_IFDIR)
+#define S_ISDIR(mode) (((mode)&S_IFMT) == S_IFDIR)
 #endif
 
 Value clockNative(int argCount, Value *args)
@@ -56,7 +56,7 @@ Value exitNative(int argCount, Value *args)
     vm.exitCode = code;
     vm.running = false;
     vm.repl = NUMBER_VAL(code);
-    //exit(code);
+    // exit(code);
     return NONE_VAL;
 }
 
@@ -70,7 +70,7 @@ Value printNative(int argCount, Value *args)
         else
             printValue(value);
     }
-    fflush( stdout );
+    fflush(stdout);
     vm.print = true;
     vm.newLine = true;
     vm.repl = NONE_VAL;
@@ -148,14 +148,14 @@ Value waitNative(int argCount, Value *args)
         wait = NUMBER_VAL(1);
     else
     {
-        if(IS_PROCESS(args[0]))
+        if (IS_PROCESS(args[0]))
         {
             int status = -1;
-            #ifdef _WIN32
-            #else
+#ifdef _WIN32
+#else
             waitpid(AS_PROCESS(args[0])->pid, &status, 0);
             status = WEXITSTATUS(status);
-            #endif
+#endif
             AS_PROCESS(args[0])->status = status;
             AS_PROCESS(args[0])->running = false;
             return NUMBER_VAL(status);
@@ -344,10 +344,10 @@ Value boolNative(int argCount, Value *args)
 {
     if (argCount == 0)
         return BOOL_VAL(false);
-    else if(IS_INSTANCE(args[0]))
+    else if (IS_INSTANCE(args[0]))
     {
         Value method;
-        if(tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("bool")), &method))
+        if (tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("bool")), &method))
         {
             ObjRequest *request = newRequest();
             request->fn = method;
@@ -355,7 +355,7 @@ Value boolNative(int argCount, Value *args)
             return OBJ_VAL(request);
         }
 
-        if(tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("bool")), &method))
+        if (tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("bool")), &method))
         {
             ObjRequest *request = newRequest();
             request->fn = method;
@@ -363,10 +363,10 @@ Value boolNative(int argCount, Value *args)
             return OBJ_VAL(request);
         }
     }
-    else if(IS_CLASS(args[0]))
+    else if (IS_CLASS(args[0]))
     {
         Value method;
-        if(tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("bool")), &method))
+        if (tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("bool")), &method))
         {
             ObjRequest *request = newRequest();
             request->fn = method;
@@ -381,10 +381,10 @@ Value numNative(int argCount, Value *args)
 {
     if (argCount == 0)
         return NUMBER_VAL(0);
-    else if(IS_INSTANCE(args[0]))
+    else if (IS_INSTANCE(args[0]))
     {
         Value method;
-        if(tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("num")), &method))
+        if (tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("num")), &method))
         {
             ObjRequest *request = newRequest();
             request->fn = method;
@@ -392,7 +392,7 @@ Value numNative(int argCount, Value *args)
             return OBJ_VAL(request);
         }
 
-        if(tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("num")), &method))
+        if (tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("num")), &method))
         {
             ObjRequest *request = newRequest();
             request->fn = method;
@@ -400,10 +400,10 @@ Value numNative(int argCount, Value *args)
             return OBJ_VAL(request);
         }
     }
-    else if(IS_CLASS(args[0]))
+    else if (IS_CLASS(args[0]))
     {
         Value method;
-        if(tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("num")), &method))
+        if (tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("num")), &method))
         {
             ObjRequest *request = newRequest();
             request->fn = method;
@@ -418,10 +418,10 @@ Value intNative(int argCount, Value *args)
 {
     if (argCount == 0)
         return NUMBER_VAL(0);
-    else if(IS_INSTANCE(args[0]))
+    else if (IS_INSTANCE(args[0]))
     {
         Value method;
-        if(tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("int")), &method))
+        if (tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("int")), &method))
         {
             ObjRequest *request = newRequest();
             request->fn = method;
@@ -429,7 +429,7 @@ Value intNative(int argCount, Value *args)
             return OBJ_VAL(request);
         }
 
-        if(tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("int")), &method))
+        if (tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("int")), &method))
         {
             ObjRequest *request = newRequest();
             request->fn = method;
@@ -437,10 +437,10 @@ Value intNative(int argCount, Value *args)
             return OBJ_VAL(request);
         }
     }
-    else if(IS_CLASS(args[0]))
+    else if (IS_CLASS(args[0]))
     {
         Value method;
-        if(tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("int")), &method))
+        if (tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("int")), &method))
         {
             ObjRequest *request = newRequest();
             request->fn = method;
@@ -470,10 +470,10 @@ Value strNative(int argCount, Value *args)
         mp_free(str);
         return ret;
     }
-    else if(IS_INSTANCE(args[0]))
+    else if (IS_INSTANCE(args[0]))
     {
         Value method;
-        if(tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("str")), &method))
+        if (tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("str")), &method))
         {
             ObjRequest *request = newRequest();
             request->fn = method;
@@ -481,7 +481,7 @@ Value strNative(int argCount, Value *args)
             return OBJ_VAL(request);
         }
 
-        if(tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("str")), &method))
+        if (tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("str")), &method))
         {
             ObjRequest *request = newRequest();
             request->fn = method;
@@ -489,10 +489,10 @@ Value strNative(int argCount, Value *args)
             return OBJ_VAL(request);
         }
     }
-    else if(IS_CLASS(args[0]))
+    else if (IS_CLASS(args[0]))
     {
         Value method;
-        if(tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("str")), &method))
+        if (tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("str")), &method))
         {
             ObjRequest *request = newRequest();
             request->fn = method;
@@ -507,10 +507,10 @@ Value hexNative(int argCount, Value *args)
 {
     if (argCount == 0)
         return STRING_VAL("FF");
-    if(IS_INSTANCE(args[0]))
+    if (IS_INSTANCE(args[0]))
     {
         Value method;
-        if(tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("hex")), &method))
+        if (tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("hex")), &method))
         {
             ObjRequest *request = newRequest();
             request->fn = method;
@@ -518,7 +518,7 @@ Value hexNative(int argCount, Value *args)
             return OBJ_VAL(request);
         }
 
-        if(tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("hex")), &method))
+        if (tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("hex")), &method))
         {
             ObjRequest *request = newRequest();
             request->fn = method;
@@ -526,10 +526,10 @@ Value hexNative(int argCount, Value *args)
             return OBJ_VAL(request);
         }
     }
-    else if(IS_CLASS(args[0]))
+    else if (IS_CLASS(args[0]))
     {
         Value method;
-        if(tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("hex")), &method))
+        if (tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("hex")), &method))
         {
             ObjRequest *request = newRequest();
             request->fn = method;
@@ -549,15 +549,15 @@ Value charNative(int argCount, Value *args)
 {
     char str[2];
     str[0] = 0xFE;
-    str[1] = '\0';  
+    str[1] = '\0';
     if (argCount == 0)
     {
         return STRING_VAL(str);
     }
-    if(IS_INSTANCE(args[0]))
+    if (IS_INSTANCE(args[0]))
     {
         Value method;
-        if(tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("char")), &method))
+        if (tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("char")), &method))
         {
             ObjRequest *request = newRequest();
             request->fn = method;
@@ -565,7 +565,7 @@ Value charNative(int argCount, Value *args)
             return OBJ_VAL(request);
         }
 
-        if(tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("char")), &method))
+        if (tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("char")), &method))
         {
             ObjRequest *request = newRequest();
             request->fn = method;
@@ -573,10 +573,10 @@ Value charNative(int argCount, Value *args)
             return OBJ_VAL(request);
         }
     }
-    else if(IS_CLASS(args[0]))
+    else if (IS_CLASS(args[0]))
     {
         Value method;
-        if(tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("char")), &method))
+        if (tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("char")), &method))
         {
             ObjRequest *request = newRequest();
             request->fn = method;
@@ -586,7 +586,7 @@ Value charNative(int argCount, Value *args)
     }
 
     int value = (int)AS_NUMBER(toNumber(args[0]));
-    if(isprint(value))
+    if (isprint(value))
         str[0] = (char)value;
 
     return STRING_VAL(str);
@@ -649,14 +649,14 @@ Value listNative(int argCount, Value *args)
             {
                 if (entry.key == NULL)
                     continue;
-            
+
                 writeValueArray(&list->values, copyValue(OBJ_VAL(entry.key)));
             }
         }
-        else if(IS_INSTANCE(arg))
+        else if (IS_INSTANCE(arg))
         {
             Value method;
-            if(tableGet(&AS_INSTANCE(arg)->klass->methods, AS_STRING(STRING_VAL("list")), &method))
+            if (tableGet(&AS_INSTANCE(arg)->klass->methods, AS_STRING(STRING_VAL("list")), &method))
             {
                 ObjRequest *request = newRequest();
                 request->fn = method;
@@ -664,7 +664,7 @@ Value listNative(int argCount, Value *args)
                 return OBJ_VAL(request);
             }
 
-            if(tableGet(&AS_INSTANCE(arg)->klass->staticFields, AS_STRING(STRING_VAL("list")), &method))
+            if (tableGet(&AS_INSTANCE(arg)->klass->staticFields, AS_STRING(STRING_VAL("list")), &method))
             {
                 ObjRequest *request = newRequest();
                 request->fn = method;
@@ -672,10 +672,10 @@ Value listNative(int argCount, Value *args)
                 return OBJ_VAL(request);
             }
         }
-        else if(IS_CLASS(arg))
+        else if (IS_CLASS(arg))
         {
             Value method;
-            if(tableGet(&AS_CLASS(arg)->staticFields, AS_STRING(STRING_VAL("list")), &method))
+            if (tableGet(&AS_CLASS(arg)->staticFields, AS_STRING(STRING_VAL("list")), &method))
             {
                 ObjRequest *request = newRequest();
                 request->fn = method;
@@ -700,7 +700,7 @@ Value dictNative(int argCount, Value *args)
 {
     if (argCount != 3)
     {
-        if(argCount == 1)
+        if (argCount == 1)
         {
             if (IS_ENUM(args[0]))
             {
@@ -720,10 +720,10 @@ Value dictNative(int argCount, Value *args)
 
                 return OBJ_VAL(dict);
             }
-            else if(IS_INSTANCE(args[0]))
+            else if (IS_INSTANCE(args[0]))
             {
                 Value method;
-                if(tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("dict")), &method))
+                if (tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("dict")), &method))
                 {
                     ObjRequest *request = newRequest();
                     request->fn = method;
@@ -731,7 +731,7 @@ Value dictNative(int argCount, Value *args)
                     return OBJ_VAL(request);
                 }
 
-                if(tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("dict")), &method))
+                if (tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("dict")), &method))
                 {
                     ObjRequest *request = newRequest();
                     request->fn = method;
@@ -739,10 +739,10 @@ Value dictNative(int argCount, Value *args)
                     return OBJ_VAL(request);
                 }
             }
-            else if(IS_CLASS(args[0]))
+            else if (IS_CLASS(args[0]))
             {
                 Value method;
-                if(tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("dict")), &method))
+                if (tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("dict")), &method))
                 {
                     ObjRequest *request = newRequest();
                     request->fn = method;
@@ -752,7 +752,9 @@ Value dictNative(int argCount, Value *args)
             }
         }
 
-        runtimeError("dict(str, delimiter, innerDelimiter) takes exactly 3 arguments (%d given).", argCount);
+        runtimeError("dict(str, delimiter, innerDelimiter) takes exactly 3 "
+                     "arguments (%d given).",
+                     argCount);
         return NONE_VAL;
     }
 
@@ -781,7 +783,8 @@ Value dictNative(int argCount, Value *args)
         Value innerV = stringSplit(list->values.values[i], args[2]);
         if (!IS_LIST(innerV))
         {
-            runtimeError("dict(): Failed to split '%s' by '%s'.", AS_CSTRING(list->values.values[i]), AS_CSTRING(args[2]));
+            runtimeError("dict(): Failed to split '%s' by '%s'.", AS_CSTRING(list->values.values[i]),
+                         AS_CSTRING(args[2]));
             return NONE_VAL;
         }
 
@@ -810,10 +813,10 @@ Value bytesNative(int argCount, Value *args)
         char c = 0;
         return BYTES_VAL(&c, 0);
     }
-    else if(IS_INSTANCE(args[0]))
+    else if (IS_INSTANCE(args[0]))
     {
         Value method;
-        if(tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("bytes")), &method))
+        if (tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("bytes")), &method))
         {
             ObjRequest *request = newRequest();
             request->fn = method;
@@ -821,7 +824,7 @@ Value bytesNative(int argCount, Value *args)
             return OBJ_VAL(request);
         }
 
-        if(tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("bytes")), &method))
+        if (tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("bytes")), &method))
         {
             ObjRequest *request = newRequest();
             request->fn = method;
@@ -829,10 +832,10 @@ Value bytesNative(int argCount, Value *args)
             return OBJ_VAL(request);
         }
     }
-    else if(IS_CLASS(args[0]))
+    else if (IS_CLASS(args[0]))
     {
         Value method;
-        if(tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("bytes")), &method))
+        if (tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("bytes")), &method))
         {
             ObjRequest *request = newRequest();
             request->fn = method;
@@ -847,7 +850,7 @@ Value makeNative(int argCount, Value *args)
 {
     if (argCount == 0)
         return NONE_VAL;
-    
+
     ValueType vType = VAL_NONE;
     ObjType oType = OBJ_STRING;
     bool instance = false;
@@ -884,11 +887,11 @@ Value makeNative(int argCount, Value *args)
     }
     else
     {
-        if(IS_NONE(args[0]))
+        if (IS_NONE(args[0]))
             vType = VAL_NONE;
-        else if(IS_BOOL(args[0]))
+        else if (IS_BOOL(args[0]))
             vType = VAL_BOOL;
-        else if(IS_NUMBER(args[0]))
+        else if (IS_NUMBER(args[0]))
             vType = VAL_NUMBER;
         else
             vType = VAL_OBJ;
@@ -963,18 +966,18 @@ Value makeNative(int argCount, Value *args)
             strcpy(code, name->chars);
             strcat(code, "(");
             cur = strlen(code);
-            for(int i = 1; i < argCount; i++)
+            for (int i = 1; i < argCount; i++)
             {
                 char *arg = valueToString(args[i], true);
                 int l = strlen(arg);
-                if(l + cur + 4 > len)
+                if (l + cur + 4 > len)
                 {
                     len += l * 2 + 4;
                     code = mp_realloc(code, len);
                 }
                 strcat(code, arg);
                 mp_free(arg);
-                if(i < argCount - 1)
+                if (i < argCount - 1)
                     strcat(code, ",");
             }
             strcat(code, ")");
@@ -982,7 +985,7 @@ Value makeNative(int argCount, Value *args)
             ObjFunction *fn = eval(code);
             mp_free(code);
             if (fn == NULL)
-            {    
+            {
                 return NONE_VAL;
             }
 
@@ -1151,10 +1154,10 @@ Value lenNative(int argCount, Value *args)
         return NUMBER_VAL(AS_DICT(args[0])->count);
     else if (IS_ENUM(args[0]))
         return NUMBER_VAL(AS_ENUM(args[0])->members.count);
-    else if(IS_INSTANCE(args[0]))
+    else if (IS_INSTANCE(args[0]))
     {
         Value method;
-        if(tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("len")), &method))
+        if (tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("len")), &method))
         {
             ObjRequest *request = newRequest();
             request->fn = method;
@@ -1162,7 +1165,7 @@ Value lenNative(int argCount, Value *args)
             return OBJ_VAL(request);
         }
 
-        if(tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("len")), &method))
+        if (tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("len")), &method))
         {
             ObjRequest *request = newRequest();
             request->fn = method;
@@ -1170,10 +1173,10 @@ Value lenNative(int argCount, Value *args)
             return OBJ_VAL(request);
         }
     }
-    else if(IS_CLASS(args[0]))
+    else if (IS_CLASS(args[0]))
     {
         Value method;
-        if(tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("len")), &method))
+        if (tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("len")), &method))
         {
             ObjRequest *request = newRequest();
             request->fn = method;
@@ -1302,17 +1305,16 @@ Value lsNative(int argCount, Value *args)
 
     char sPath[2048];
     sprintf(sPath, "%s\\*.*", path);
-    if((hFind = FindFirstFile(sPath, &fdFile)) != INVALID_HANDLE_VALUE)
+    if ((hFind = FindFirstFile(sPath, &fdFile)) != INVALID_HANDLE_VALUE)
     {
         do
         {
             writeValueArray(&list->values, STRING_VAL(fdFile.cFileName));
-        }
-        while(FindNextFile(hFind, &fdFile)); //Find the next file.
+        } while (FindNextFile(hFind, &fdFile)); // Find the next file.
 
-        FindClose(hFind); //Always, Always, clean things up!
+        FindClose(hFind); // Always, Always, clean things up!
     }
-    
+
 #else
     DIR *d;
     struct dirent *dir;
@@ -1348,7 +1350,7 @@ Value isdirNative(int argCount, Value *args)
     mp_free(path);
 
     int rc = S_ISDIR(statbuf.st_mode);
-    
+
     return BOOL_VAL(rc != 0);
 }
 
@@ -1410,34 +1412,34 @@ Value removeNative(int argCount, Value *args)
     return BOOL_VAL(rc == 0);
 }
 
-static int cube_mkdir(const char *dir, int mode) 
+static int cube_mkdir(const char *dir, int mode)
 {
     char tmp[256];
     char *p = NULL;
     size_t len;
 
-    snprintf(tmp, sizeof(tmp),"%s",dir);
+    snprintf(tmp, sizeof(tmp), "%s", dir);
     len = strlen(tmp);
-    if(tmp[len - 1] == '/')
+    if (tmp[len - 1] == '/')
         tmp[len - 1] = 0;
-    for(p = tmp + 1; *p; p++)
+    for (p = tmp + 1; *p; p++)
     {
-        if(*p == '/') 
+        if (*p == '/')
         {
             *p = 0;
-            #ifdef _WIN32
+#ifdef _WIN32
             mkdir(tmp);
-            #else
+#else
             mkdir(tmp, mode);
-            #endif
+#endif
             *p = '/';
         }
     }
-    #ifdef _WIN32
+#ifdef _WIN32
     int rc = mkdir(tmp);
-    #else
+#else
     int rc = mkdir(tmp, mode);
-    #endif
+#endif
     return rc;
 }
 
@@ -1578,22 +1580,21 @@ Value systemInfoNative(int argCount, Value *args)
     insertDict(dict, "version", STRING_VAL(version_string));
 
     int columns, rows;
-    
-    #ifdef _WIN32
+
+#ifdef _WIN32
     CONSOLE_SCREEN_BUFFER_INFO csbi;
     GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
     columns = csbi.srWindow.Right - csbi.srWindow.Left + 1;
     rows = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
-    #else
+#else
     struct winsize max;
-    ioctl(0, TIOCGWINSZ , &max);
+    ioctl(0, TIOCGWINSZ, &max);
     rows = max.ws_row;
     columns = max.ws_col;
-    #endif
+#endif
 
     insertDict(dict, "cols", NUMBER_VAL(columns));
     insertDict(dict, "rows", NUMBER_VAL(rows));
-
 
     if ((size_t)-1 > 0xffffffffUL)
         insertDict(dict, "arch", NUMBER_VAL(64));
@@ -1683,10 +1684,10 @@ Value processNative(int argCount, Value *args)
         found = path;
     else
         mp_free(path);
-    
+
     ObjProcess *process = newProcess(AS_STRING(STRING_VAL(found)), argCount - 1, args + 1);
     mp_free(found);
-    if(process == NULL)
+    if (process == NULL)
     {
         runtimeError("Could not start the process.\n");
         return NONE_VAL;
@@ -1704,49 +1705,49 @@ Value readNative(int argCount, Value *args)
         return NONE_VAL;
     }
 
-    if(argCount == 2 && IS_NUMBER(args[1]))
+    if (argCount == 2 && IS_NUMBER(args[1]))
     {
         maxSize = AS_NUMBER(args[1]);
     }
-    
-    if(IS_PROCESS(args[0]))
+
+    if (IS_PROCESS(args[0]))
     {
         ObjProcess *process = AS_PROCESS(args[0]);
-        if(process->closed)
+        if (process->closed)
         {
             runtimeError("Cannot read from a finished process.\n");
             return NONE_VAL;
         }
-        
+
         char *buffer = NULL;
         int size = 0;
         int rd = maxSize - size;
-        if(rd > 256)
+        if (rd > 256)
             rd = 256;
 
         char buf[256];
         int rc = readFd(process->in, rd, buf);
-        while(rc > 0 && size <= maxSize)
+        while (rc > 0 && size <= maxSize)
         {
             buffer = mp_realloc(buffer, size + rc + 1);
             memcpy(buffer + size, buf, rc);
             size += rc;
             rd = maxSize - size;
-            if(rd > 256)
+            if (rd > 256)
                 rd = 256;
             rc = readFd(process->in, rd, buf);
         }
 
-        if(rc < 0 && size == 0)
+        if (rc < 0 && size == 0)
         {
             mp_free(buffer);
-            if(errno != EAGAIN)
+            if (errno != EAGAIN)
                 runtimeError("Could not read the process.\n");
             return NONE_VAL;
         }
 
         Value ret;
-        if(buffer == NULL)
+        if (buffer == NULL)
             ret = STRING_VAL("");
         else
         {
@@ -1756,34 +1757,34 @@ Value readNative(int argCount, Value *args)
         }
         return ret;
     }
-    else if(IS_FILE(args[0]))
+    else if (IS_FILE(args[0]))
     {
         ObjFile *file = AS_FILE(args[0]);
-        if(!file->isOpen)
+        if (!file->isOpen)
         {
             runtimeError("Cannot read from a closed file.\n");
             return NONE_VAL;
         }
-        
+
         char *buffer = NULL;
         int size = 0;
         int rd = maxSize - size;
-        if(rd > 256)
+        if (rd > 256)
             rd = 256;
 
         char buf[256];
         int rc = readFileRaw(file->file, rd, buf);
-        while(rc > 0 && size <= maxSize)
+        while (rc > 0 && size <= maxSize)
         {
             buffer = mp_realloc(buffer, size + rc + 1);
             memcpy(buffer + size, buf, rc);
             size += rc;
             rd = maxSize - size;
-            if(rd > 256)
+            if (rd > 256)
                 rd = 256;
         }
 
-        if(rc < 0)
+        if (rc < 0)
         {
             mp_free(buffer);
             runtimeError("Could not read the process.\n");
@@ -1791,7 +1792,7 @@ Value readNative(int argCount, Value *args)
         }
 
         Value ret;
-        if(buffer == NULL)
+        if (buffer == NULL)
             ret = STRING_VAL("");
         else
         {
@@ -1801,10 +1802,10 @@ Value readNative(int argCount, Value *args)
         }
         return ret;
     }
-    else if(IS_INSTANCE(args[0]))
+    else if (IS_INSTANCE(args[0]))
     {
         Value method;
-        if(tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("read")), &method))
+        if (tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("read")), &method))
         {
             ObjRequest *request = newRequest();
             request->fn = method;
@@ -1812,7 +1813,7 @@ Value readNative(int argCount, Value *args)
             return OBJ_VAL(request);
         }
 
-        if(tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("read")), &method))
+        if (tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("read")), &method))
         {
             ObjRequest *request = newRequest();
             request->fn = method;
@@ -1820,10 +1821,10 @@ Value readNative(int argCount, Value *args)
             return OBJ_VAL(request);
         }
     }
-    else if(IS_CLASS(args[0]))
+    else if (IS_CLASS(args[0]))
     {
         Value method;
-        if(tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("read")), &method))
+        if (tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("read")), &method))
         {
             ObjRequest *request = newRequest();
             request->fn = method;
@@ -1843,30 +1844,30 @@ Value writeNative(int argCount, Value *args)
         return NONE_VAL;
     }
 
-    if(IS_PROCESS(args[0]))
+    if (IS_PROCESS(args[0]))
     {
         ObjProcess *process = AS_PROCESS(args[0]);
-        if(process->closed)
+        if (process->closed)
         {
             runtimeError("Cannot write to a finished process.\n");
             return NONE_VAL;
         }
-        
+
         int size = 0;
         int rc;
-        for(int i = 1; i < argCount; i++)
+        for (int i = 1; i < argCount; i++)
         {
-            if(IS_BYTES(args[i]))
+            if (IS_BYTES(args[i]))
             {
-                ObjBytes *bytes = AS_BYTES( args[i] );
-                rc = writeFd(process->out, bytes->length, (char*)bytes->bytes);
+                ObjBytes *bytes = AS_BYTES(args[i]);
+                rc = writeFd(process->out, bytes->length, (char *)bytes->bytes);
             }
             else
             {
                 ObjString *str = AS_STRING(toString(args[i]));
                 rc = writeFd(process->out, str->length, str->chars);
             }
-            if(rc < 0)
+            if (rc < 0)
             {
                 char *str = objectToString(args[i], false);
                 runtimeError("Could not write '%s' to the process.\n", str);
@@ -1875,38 +1876,38 @@ Value writeNative(int argCount, Value *args)
             }
             size += rc;
         }
-        
+
         return NUMBER_VAL(size);
     }
-    else if(IS_FILE(args[0]))
+    else if (IS_FILE(args[0]))
     {
         ObjFile *file = AS_FILE(args[0]);
-        if(!file->isOpen)
+        if (!file->isOpen)
         {
             runtimeError("Cannot write to a closed file.\n");
             return NONE_VAL;
         }
-        
+
         int size = 0;
         int rc;
-        for(int i = 1; i < argCount; i++)
+        for (int i = 1; i < argCount; i++)
         {
             ObjString *str = AS_STRING(toString(args[i]));
             rc = writeFileRaw(file->file, str->length, str->chars);
-            if(rc < 0)
+            if (rc < 0)
             {
                 runtimeError("Could not write '%s' to the file.\n", str->chars);
                 return NONE_VAL;
             }
             size += rc;
         }
-        
+
         return NUMBER_VAL(size);
     }
-    else if(IS_INSTANCE(args[0]))
+    else if (IS_INSTANCE(args[0]))
     {
         Value method;
-        if(tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("write")), &method))
+        if (tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("write")), &method))
         {
             ObjRequest *request = newRequest();
             request->fn = method;
@@ -1914,7 +1915,7 @@ Value writeNative(int argCount, Value *args)
             return OBJ_VAL(request);
         }
 
-        if(tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("write")), &method))
+        if (tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("write")), &method))
         {
             ObjRequest *request = newRequest();
             request->fn = method;
@@ -1922,10 +1923,10 @@ Value writeNative(int argCount, Value *args)
             return OBJ_VAL(request);
         }
     }
-    else if(IS_CLASS(args[0]))
+    else if (IS_CLASS(args[0]))
     {
         Value method;
-        if(tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("write")), &method))
+        if (tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("write")), &method))
         {
             ObjRequest *request = newRequest();
             request->fn = method;
@@ -1945,44 +1946,44 @@ Value closeNative(int argCount, Value *args)
         return NONE_VAL;
     }
 
-    if(IS_PROCESS(args[0]))
+    if (IS_PROCESS(args[0]))
     {
         ObjProcess *process = AS_PROCESS(args[0]);
-        if(process->protected)
+        if (process->protected)
         {
             return FALSE_VAL;
         }
-        
-        if(process->closed)
+
+        if (process->closed)
         {
             return TRUE_VAL;
         }
-        
-        #ifdef _WIN32
 
-        #else
+#ifdef _WIN32
+
+#else
         close(process->in);
         close(process->out);
-        #endif    
+#endif
         process->closed = true;
         return TRUE_VAL;
     }
-    else if(IS_FILE(args[0]))
+    else if (IS_FILE(args[0]))
     {
         ObjFile *file = AS_FILE(args[0]);
-        if(!file->isOpen)
+        if (!file->isOpen)
         {
             return TRUE_VAL;
         }
-        
+
         fclose(file->file);
         file->isOpen = false;
         return TRUE_VAL;
     }
-    else if(IS_INSTANCE(args[0]))
+    else if (IS_INSTANCE(args[0]))
     {
         Value method;
-        if(tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("close")), &method))
+        if (tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("close")), &method))
         {
             ObjRequest *request = newRequest();
             request->fn = method;
@@ -1990,7 +1991,7 @@ Value closeNative(int argCount, Value *args)
             return OBJ_VAL(request);
         }
 
-        if(tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("close")), &method))
+        if (tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("close")), &method))
         {
             ObjRequest *request = newRequest();
             request->fn = method;
@@ -1998,10 +1999,10 @@ Value closeNative(int argCount, Value *args)
             return OBJ_VAL(request);
         }
     }
-    else if(IS_CLASS(args[0]))
+    else if (IS_CLASS(args[0]))
     {
         Value method;
-        if(tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("close")), &method))
+        if (tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("close")), &method))
         {
             ObjRequest *request = newRequest();
             request->fn = method;
@@ -2013,38 +2014,38 @@ Value closeNative(int argCount, Value *args)
     return FALSE_VAL;
 }
 
-static Value getFieldNative(int argCount, Value* args) 
+static Value getFieldNative(int argCount, Value *args)
 {
-    if (argCount != 2) 
+    if (argCount != 2)
         return FALSE_VAL;
-    if (!IS_INSTANCE(args[0])) 
+    if (!IS_INSTANCE(args[0]))
         return FALSE_VAL;
-    if (!IS_STRING(args[1])) 
+    if (!IS_STRING(args[1]))
         return FALSE_VAL;
 
-    ObjInstance* instance = AS_INSTANCE(args[0]);
+    ObjInstance *instance = AS_INSTANCE(args[0]);
     Value value = NONE_VAL;
     tableGet(&instance->fields, AS_STRING(args[1]), &value);
     return value;
 }
 
-static Value setFieldNative(int argCount, Value* args) 
+static Value setFieldNative(int argCount, Value *args)
 {
-    if (argCount != 3) 
+    if (argCount != 3)
         return FALSE_VAL;
-    if (!IS_INSTANCE(args[0])) 
+    if (!IS_INSTANCE(args[0]))
         return FALSE_VAL;
-    if (!IS_STRING(args[1])) 
+    if (!IS_STRING(args[1]))
         return FALSE_VAL;
 
-    ObjInstance* instance = AS_INSTANCE(args[0]);
+    ObjInstance *instance = AS_INSTANCE(args[0]);
     tableSet(&instance->fields, AS_STRING(args[1]), args[2]);
     return args[2];
 }
 
-static Value classNameNative(int argCount, Value* args) 
+static Value classNameNative(int argCount, Value *args)
 {
-    if (argCount == 0) 
+    if (argCount == 0)
         return NONE_VAL;
 
     if (IS_INSTANCE(args[0]))
@@ -2061,22 +2062,22 @@ static Value classNameNative(int argCount, Value* args)
     return NONE_VAL;
 }
 
-static Value superNameNative(int argCount, Value* args) 
+static Value superNameNative(int argCount, Value *args)
 {
-    if (argCount == 0) 
+    if (argCount == 0)
         return NONE_VAL;
 
     if (IS_INSTANCE(args[0]))
     {
         ObjInstance *instance = AS_INSTANCE(args[0]);
-        if(instance->klass->super == NULL)
+        if (instance->klass->super == NULL)
             return NONE_VAL;
         return STRING_VAL(instance->klass->super->name->chars);
     }
     else if (IS_CLASS(args[0]))
     {
         ObjClass *klass = AS_CLASS(args[0]);
-        if(klass->super == NULL)
+        if (klass->super == NULL)
             return NONE_VAL;
         return STRING_VAL(klass->super->name->chars);
     }

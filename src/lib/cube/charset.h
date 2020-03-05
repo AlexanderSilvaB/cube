@@ -11,7 +11,6 @@
 #define PUTCHAR putwchar
 #define PUTC(c) putwc(c, stdout)
 
-
 #else
 
 #define CHAR char

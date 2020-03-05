@@ -4,8 +4,9 @@
 #include <stdbool.h>
 #include <string.h>
 
-#include "value.h"
 #include "object.h"
+#include "value.h"
+
 
 bool listMethods(char *method, int argCount);
 

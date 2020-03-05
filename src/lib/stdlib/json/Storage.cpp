@@ -1,52 +1,53 @@
 #include "Storage.h"
-#include <fstream>
 #include <cstdlib>
+#include <cstring>
+#include <fstream>
 #include <iostream>
 #include <string>
 #include <sys/stat.h>
-#include <cstring>
+
 #if defined _MSC_VER
 #include <direct.h>
 #endif
 
 using namespace std;
 
-static int own_mkdir(const char *dir, int mode) 
+static int own_mkdir(const char *dir, int mode)
 {
     char tmp[256];
     char *p = NULL;
     size_t len;
 
-    snprintf(tmp, sizeof(tmp),"%s",dir);
+    snprintf(tmp, sizeof(tmp), "%s", dir);
     len = strlen(tmp);
-    if(tmp[len - 1] == '/')
+    if (tmp[len - 1] == '/')
         tmp[len - 1] = 0;
-    for(p = tmp + 1; *p; p++)
+    for (p = tmp + 1; *p; p++)
     {
-        if(*p == '/') 
+        if (*p == '/')
         {
             *p = 0;
-            #ifdef _WIN32
-            #if defined _MSC_VER
+#ifdef _WIN32
+#if defined _MSC_VER
             _mkdir(tmp);
-            #else
+#else
             mkdir(tmp);
-            #endif
-            #else
+#endif
+#else
             mkdir(tmp, mode);
-            #endif
+#endif
             *p = '/';
         }
     }
-    #ifdef _WIN32
-    #if defined _MSC_VER
+#ifdef _WIN32
+#if defined _MSC_VER
     int rc = _mkdir(tmp);
-    #else
+#else
     int rc = mkdir(tmp);
-    #endif
-    #else
+#endif
+#else
     int rc = mkdir(tmp, mode);
-    #endif
+#endif
     return rc;
 }
 
@@ -127,17 +128,17 @@ float Value::Float()
     return floatValue;
 }
 
-string& Value::String()
+string &Value::String()
 {
     return stringValue;
 }
 
-vector<Value>& Value::Array()
+vector<Value> &Value::Array()
 {
     return arrayValue;
 }
 
-map<string, Value>& Value::Object()
+map<string, Value> &Value::Object()
 {
     return objectValue;
 }
@@ -150,11 +151,11 @@ void Value::Add(Value &value)
 
 int Value::Size()
 {
-    if(type == ARRAY)
+    if (type == ARRAY)
         return arrayValue.size();
-    else if(type == OBJECT)
+    else if (type == OBJECT)
         return objectValue.size();
-    else if(type == STRING)
+    else if (type == STRING)
         return stringValue.size();
     return -1;
 }
@@ -162,7 +163,7 @@ int Value::Size()
 bool Value::Parse(string text)
 {
     int i = 0;
-    this->operator=(parse(text, &i));  
+    this->operator=(parse(text, &i));
     return this->valid;
 }
 
@@ -170,12 +171,12 @@ Value Value::parse(string &text, int *j)
 {
     trim(text, j);
     Value value;
-    if(*j >= text.size())
+    if (*j >= text.size())
     {
         value.valid = false;
         return value;
     }
-    switch(text[*j])
+    switch (text[*j])
     {
         case '{':
             value = parseObject(text, j);
@@ -215,11 +216,11 @@ Value Value::parseBool(string &text, int *i)
 {
     trim(text, i);
     Value value;
-    if(text[*i] == 't')
+    if (text[*i] == 't')
     {
-        if(text.size() >= *i + 3)
+        if (text.size() >= *i + 3)
         {
-            if(text[*i+1] == 'r' && text[*i+2] == 'u' && text[*i+3] == 'e')
+            if (text[*i + 1] == 'r' && text[*i + 2] == 'u' && text[*i + 3] == 'e')
                 value = true;
             else
                 value.valid = false;
@@ -230,9 +231,9 @@ Value Value::parseBool(string &text, int *i)
     }
     else
     {
-        if(text.size() >= *i + 4)
+        if (text.size() >= *i + 4)
         {
-            if(text[*i+1] == 'a' && text[*i+2] == 'l' && text[*i+3] == 's' && text[*i+4] == 'e')
+            if (text[*i + 1] == 'a' && text[*i + 2] == 'l' && text[*i + 3] == 's' && text[*i + 4] == 'e')
                 value = false;
             else
                 value.valid = false;
@@ -252,10 +253,10 @@ Value Value::parseString(string &text, int *i)
     *i = *i + 1;
     char c;
     bool found = false;
-    while(*i < text.size())
+    while (*i < text.size())
     {
         c = text[*i];
-        if(c == '"')
+        if (c == '"')
         {
             found = true;
             break;
@@ -263,7 +264,7 @@ Value Value::parseString(string &text, int *i)
         ss << c;
         *i = *i + 1;
     }
-    if(found)
+    if (found)
     {
         *i = *i + 1;
         value = ss.str();
@@ -280,12 +281,12 @@ Value Value::parseNumber(string &text, int *i)
     stringstream ss;
     char c;
     bool found = false, isFloat = false;
-    while(*i < text.size())
+    while (*i < text.size())
     {
         c = text[*i];
-        if(c == '.')
+        if (c == '.')
         {
-            if(!isFloat)
+            if (!isFloat)
             {
                 ss << c;
                 isFloat = true;
@@ -293,11 +294,11 @@ Value Value::parseNumber(string &text, int *i)
             else
                 break;
         }
-        else if((c >= '0' && c <= '9') || (c == '-' || c == '+'))
+        else if ((c >= '0' && c <= '9') || (c == '-' || c == '+'))
         {
             ss << c;
         }
-        else if(c == ' ' || c == ']' || c == '}' || c == ',')
+        else if (c == ' ' || c == ']' || c == '}' || c == ',')
         {
             found = true;
             break;
@@ -306,9 +307,9 @@ Value Value::parseNumber(string &text, int *i)
             break;
         *i = *i + 1;
     }
-    if(found)
+    if (found)
     {
-        if(isFloat)
+        if (isFloat)
         {
             float v;
             ss >> v;
@@ -336,26 +337,26 @@ Value Value::parseArray(string &text, int *i)
     char c;
     bool done = false;
     *i = *i + 1;
-    while(*i < text.size())
+    while (*i < text.size())
     {
         Value v;
         trim(text, i);
-        if(text[*i] != ']')
+        if (text[*i] != ']')
         {
             v = parse(text, i);
-            if(!v.valid)
+            if (!v.valid)
                 break;
             value.Add(v);
             trim(text, i);
         }
-        if(*i >= text.size())
+        if (*i >= text.size())
             break;
-        if(text[*i] == ',')
+        if (text[*i] == ',')
         {
             *i = *i + 1;
             continue;
         }
-        else if(text[*i] == ']')
+        else if (text[*i] == ']')
         {
             *i = *i + 1;
             done = true;
@@ -366,7 +367,7 @@ Value Value::parseArray(string &text, int *i)
             break;
         }
     }
-    if(!done)
+    if (!done)
     {
         value.valid = false;
     }
@@ -381,30 +382,30 @@ Value Value::parseObject(string &text, int *i)
     char c;
     bool done = false;
     *i = *i + 1;
-    while(*i < text.size())
+    while (*i < text.size())
     {
         Value key = parseString(text, i);
-        if(!key.valid)
+        if (!key.valid)
             break;
         trim(text, i);
-        if(*i >= text.size())
+        if (*i >= text.size())
             break;
-        if(text[*i] != ':')
+        if (text[*i] != ':')
             break;
         *i = *i + 1;
         Value v = parse(text, i);
-        if(!v.valid)
+        if (!v.valid)
             break;
         value[key.stringValue] = v;
         trim(text, i);
-        if(*i >= text.size())
+        if (*i >= text.size())
             break;
-        if(text[*i] == ',')
+        if (text[*i] == ',')
         {
             *i = *i + 1;
             continue;
         }
-        else if(text[*i] == '}')
+        else if (text[*i] == '}')
         {
             *i = *i + 1;
             done = true;
@@ -415,7 +416,7 @@ Value Value::parseObject(string &text, int *i)
             break;
         }
     }
-    if(!done)
+    if (!done)
     {
         value.valid = false;
     }
@@ -424,9 +425,9 @@ Value Value::parseObject(string &text, int *i)
 
 void Value::trim(std::string &text, int *i)
 {
-    while(*i < text.size())
+    while (*i < text.size())
     {
-        if(!(text[*i] == ' ' || text[*i] == '\n' || text[*i] == '\t' || text[*i] == '\r' || text[*i] == '\b'))
+        if (!(text[*i] == ' ' || text[*i] == '\n' || text[*i] == '\t' || text[*i] == '\r' || text[*i] == '\b'))
             break;
         *i = *i + 1;
     }
@@ -435,36 +436,34 @@ void Value::trim(std::string &text, int *i)
 string Value::ToString()
 {
     stringstream ss;
-    switch(type)
+    switch (type)
     {
-        case Value::OBJECT:
-        {
+        case Value::OBJECT: {
             ss << "{ ";
             int size = objectValue.size();
             int i = 0;
-            for(map<string, Value>::iterator it = objectValue.begin(); it != objectValue.end(); it++)
+            for (map<string, Value>::iterator it = objectValue.begin(); it != objectValue.end(); it++)
             {
                 ss << "\"" << it->first << "\" : ";
                 ss << it->second.ToString();
-                if(i < size-1)
+                if (i < size - 1)
                     ss << ", ";
                 i++;
             }
             ss << " }";
         }
-            break;
-        case Value::ARRAY:
-        {
+        break;
+        case Value::ARRAY: {
             ss << "[ ";
-            for(int i = 0; i < arrayValue.size(); i++)
+            for (int i = 0; i < arrayValue.size(); i++)
             {
                 ss << arrayValue[i].ToString();
-                if(i < arrayValue.size() - 1)
+                if (i < arrayValue.size() - 1)
                     ss << ", ";
             }
             ss << " ]";
         }
-            break;
+        break;
         case Value::STRING:
             ss << "\"" << stringValue << "\"";
             break;
@@ -484,23 +483,23 @@ string Value::ToString()
     return ss.str();
 }
 
-Value &Value::operator[](const char* key)
+Value &Value::operator[](const char *key)
 {
-    if(type != OBJECT)
+    if (type != OBJECT)
         throw;
     return objectValue[string(key)];
 }
 
 Value &Value::operator[](string key)
 {
-    if(type != OBJECT)
+    if (type != OBJECT)
         throw;
     return objectValue[key];
 }
 
 Value &Value::operator[](int i)
 {
-    if(type != ARRAY)
+    if (type != ARRAY)
         throw;
     return arrayValue[i];
 }
@@ -546,7 +545,7 @@ void Value::operator=(const map<string, Value> &value)
 void Value::operator=(const Value &value)
 {
     type = value.type;
-    switch(type)
+    switch (type)
     {
         case BOOL:
             boolValue = value.boolValue;
@@ -602,38 +601,36 @@ Value::operator std::map<std::string, Value>()
     return objectValue;
 }
 
-ostream& operator<<(ostream& os, Value& value) 
+ostream &operator<<(ostream &os, Value &value)
 {
-    switch(value.Type())
+    switch (value.Type())
     {
-        case Value::OBJECT:
-        {
+        case Value::OBJECT: {
             os << "{ ";
             int size = value.Object().size();
             int i = 0;
-            for(map<string, Value>::iterator it = value.Object().begin(); it != value.Object().end(); it++)
+            for (map<string, Value>::iterator it = value.Object().begin(); it != value.Object().end(); it++)
             {
                 os << "\"" << it->first << "\" : ";
                 os << it->second;
-                if(i < size-1)
+                if (i < size - 1)
                     os << ", ";
                 i++;
             }
             os << " }";
         }
-            break;
-        case Value::ARRAY:
-        {
+        break;
+        case Value::ARRAY: {
             os << "[ ";
-            for(int i = 0; i < value.Array().size(); i++)
+            for (int i = 0; i < value.Array().size(); i++)
             {
                 os << value[i];
-                if(i < value.Array().size() - 1)
+                if (i < value.Array().size() - 1)
                     os << ", ";
             }
             os << " ]";
         }
-            break;
+        break;
         case Value::STRING:
             os << "\"" << value.String() << "\"";
             break;
@@ -656,7 +653,7 @@ ostream& operator<<(ostream& os, Value& value)
 Value tmp;
 Value &Value::Default(bool v)
 {
-    if(type == OBJECT && objectValue.size() == 0)
+    if (type == OBJECT && objectValue.size() == 0)
     {
         tmp = Value(v);
         return tmp;
@@ -666,7 +663,7 @@ Value &Value::Default(bool v)
 
 Value &Value::Default(int v)
 {
-    if(type == OBJECT && objectValue.size() == 0)
+    if (type == OBJECT && objectValue.size() == 0)
     {
         tmp = Value(v);
         return tmp;
@@ -676,7 +673,7 @@ Value &Value::Default(int v)
 
 Value &Value::Default(float v)
 {
-    if(type == OBJECT && objectValue.size() == 0)
+    if (type == OBJECT && objectValue.size() == 0)
     {
         tmp = Value(v);
         return tmp;
@@ -686,7 +683,7 @@ Value &Value::Default(float v)
 
 Value &Value::Default(std::string v)
 {
-    if(type == OBJECT && objectValue.size() == 0)
+    if (type == OBJECT && objectValue.size() == 0)
     {
         tmp = Value(v);
         return tmp;
@@ -696,7 +693,7 @@ Value &Value::Default(std::string v)
 
 Value &Value::Default(std::vector<Value> &v)
 {
-    if(type == OBJECT && objectValue.size() == 0)
+    if (type == OBJECT && objectValue.size() == 0)
     {
         tmp = Value(v);
         return tmp;
@@ -706,7 +703,7 @@ Value &Value::Default(std::vector<Value> &v)
 
 Value &Value::Default(std::map<std::string, Value> &v)
 {
-    if(type == OBJECT && objectValue.size() == 0)
+    if (type == OBJECT && objectValue.size() == 0)
     {
         tmp = Value(v);
         return tmp;
@@ -716,7 +713,7 @@ Value &Value::Default(std::map<std::string, Value> &v)
 
 Value &Value::Default(Value &v)
 {
-    if(type == OBJECT && objectValue.size() == 0)
+    if (type == OBJECT && objectValue.size() == 0)
     {
         return v;
     }
@@ -726,7 +723,6 @@ Value &Value::Default(Value &v)
 // Storage
 Storage::Storage()
 {
-    
 }
 
 Storage::Storage(const string fileName)
@@ -746,24 +742,24 @@ bool Storage::IsOpened()
 
 bool Storage::Open(const string fileName)
 {
-    if(IsOpened())
+    if (IsOpened())
     {
         data = Value();
         isOpened = false;
     }
-    
+
     string path = FixPath(fileName);
 
     stringstream ss;
     string folder = path.substr(0, path.find_last_of("\\/"));
-    if(path.find('/') != string::npos)
+    if (path.find('/') != string::npos)
     {
         own_mkdir(folder.c_str(), 777);
     }
 
     this->fileName = path;
     isOpened = true;
-    
+
     Read();
     return isOpened;
 }
@@ -775,31 +771,31 @@ bool Storage::Open(const string path, const string fileName)
 
 void Storage::Save()
 {
-    if(IsOpened())  
-        Write();   
+    if (IsOpened())
+        Write();
     data = Value();
     isOpened = false;
 }
 
 void Storage::Read()
 {
-    if(!IsOpened())
+    if (!IsOpened())
         return;
 
     std::ifstream file(fileName.c_str());
-    if(!file.is_open())
+    if (!file.is_open())
         return;
 
     std::stringstream buffer;
     buffer << file.rdbuf();
     data.Parse(buffer.str());
-    
+
     file.close();
 }
 
 void Storage::Write()
 {
-    if(!IsOpened())
+    if (!IsOpened())
         return;
 
     std::ofstream file(fileName.c_str());
@@ -822,11 +818,10 @@ Value &Storage::operator[](int i)
     return data[i];
 }
 
-Value &Storage::operator[](const char* key)
+Value &Storage::operator[](const char *key)
 {
     return data[key];
 }
-
 
 Value &Storage::operator[](string key)
 {
@@ -846,7 +841,7 @@ void Storage::operator=(const Storage &storage)
 string Storage::FixPath(string path)
 {
     char *homeEnv = getenv("HOME");
-    if(homeEnv != NULL)
+    if (homeEnv != NULL)
     {
         std::string home = homeEnv;
         size_t found = path.find("~");
@@ -858,7 +853,7 @@ string Storage::FixPath(string path)
     return path;
 }
 
-ostream& operator<<(ostream& os, Storage& value) 
+ostream &operator<<(ostream &os, Storage &value)
 {
     cout << value.Data() << endl;
     return os;

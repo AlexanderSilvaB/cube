@@ -1,12 +1,12 @@
 #include "gc.h"
-#include "vm.h"
 #include "compiler.h"
-#include "table.h"
 #include "memory.h"
+#include "table.h"
+#include "vm.h"
 
 void mark_roots();
 void mark();
-void mark_object(Obj* obj);
+void mark_object(Obj *obj);
 void mark_array(ValueArray *array);
 void sweep();
 
@@ -20,28 +20,27 @@ void gc_maybe_collect()
 
 void gc_collect()
 {
-    #ifdef GC_DISABLED
+#ifdef GC_DISABLED
     return;
-    #endif
-    if(!vm.gc)
+#endif
+    if (!vm.gc)
         return;
 
-    #ifdef DEBUG_LOG_GC
+#ifdef DEBUG_LOG_GC
     printf("-- gc begin\n");
     size_t before = vm.bytesAllocated;
-    #endif
+#endif
 
     mark();
     sweep();
 
     vm.nextGC = vm.bytesAllocated * GC_HEAP_GROW_FACTOR;
 
-    #ifdef DEBUG_LOG_GC
+#ifdef DEBUG_LOG_GC
     printf("-- gc end\n");
-    printf("   collected %ld bytes (from %ld to %ld) next at %ld\n",
-        before - vm.bytesAllocated, before, vm.bytesAllocated,
-        vm.nextGC);
-    #endif
+    printf("   collected %ld bytes (from %ld to %ld) next at %ld\n", before - vm.bytesAllocated, before,
+           vm.bytesAllocated, vm.nextGC);
+#endif
 }
 
 void mark()
@@ -50,7 +49,7 @@ void mark()
 }
 
 void sweep()
-{   
+{
     tableRemoveWhite(&vm.strings);
 
     Obj *previous = NULL;
@@ -85,7 +84,7 @@ void sweep()
 void mark_task_frame(TaskFrame *tf)
 {
     // Mark stack
-    for(Value *v = tf->stack; v < tf->stackTop; v++)
+    for (Value *v = tf->stack; v < tf->stackTop; v++)
     {
         mark_value(*v);
     }
@@ -108,16 +107,15 @@ void mark_task_frame(TaskFrame *tf)
 
 void mark_roots()
 {
-    for(int i = 0; i < MAX_THREADS; i++)
+    for (int i = 0; i < MAX_THREADS; i++)
     {
         TaskFrame *tf = vm.threadFrames[i].taskFrame;
-        while(tf != NULL)
+        while (tf != NULL)
         {
             mark_task_frame(tf);
             tf = tf->next;
         }
     }
-
 
     // TaskFrame *tf = vm.taskFrame;
     // while(tf != NULL)
@@ -134,42 +132,39 @@ void mark_roots()
     mark_value(vm.repl);
 }
 
-
 void mark_value(Value val)
 {
-    if(!IS_OBJ(val))
+    if (!IS_OBJ(val))
         return;
     mark_object(AS_OBJ(val));
 }
 
 void mark_object(Obj *object)
 {
-    if(object == NULL)
+    if (object == NULL)
         return;
 
-    if(object->isMarked)
+    if (object->isMarked)
         return;
 
-    #ifdef DEBUG_LOG_GC
+#ifdef DEBUG_LOG_GC
     printf("%p mark ", (void *)object);
     printValue(OBJ_VAL(object));
     printf("\n");
-    #endif
+#endif
 
     object->isMarked = true;
 
     switch (object->type)
     {
-        case OBJ_BOUND_METHOD:
-        {
+        case OBJ_BOUND_METHOD: {
             ObjBoundMethod *bound = (ObjBoundMethod *)object;
             mark_value(bound->receiver);
             mark_object((Obj *)bound->method);
             break;
         }
 
-        case OBJ_CLASS:
-        {
+        case OBJ_CLASS: {
             ObjClass *klass = (ObjClass *)object;
             mark_object((Obj *)klass->name);
             mark_object((Obj *)klass->package);
@@ -181,8 +176,7 @@ void mark_object(Obj *object)
             break;
         }
 
-        case OBJ_ENUM:
-        {
+        case OBJ_ENUM: {
             ObjEnum *enume = (ObjEnum *)object;
             mark_object((Obj *)enume->name);
             markTable(&enume->members);
@@ -190,8 +184,7 @@ void mark_object(Obj *object)
             break;
         }
 
-        case OBJ_ENUM_VALUE:
-        {
+        case OBJ_ENUM_VALUE: {
             ObjEnumValue *value = (ObjEnumValue *)object;
             mark_object((Obj *)value->name);
             mark_value(value->value);
@@ -199,23 +192,20 @@ void mark_object(Obj *object)
             break;
         }
 
-        case OBJ_PACKAGE:
-        {
+        case OBJ_PACKAGE: {
             ObjPackage *package = (ObjPackage *)object;
             mark_object((Obj *)package->name);
             markTable(&package->symbols);
             break;
         }
 
-        case OBJ_PROCESS:
-        {
+        case OBJ_PROCESS: {
             ObjProcess *process = (ObjProcess *)object;
             mark_object((Obj *)process->path);
             break;
         }
 
-        case OBJ_CLOSURE:
-        {
+        case OBJ_CLOSURE: {
             ObjClosure *closure = (ObjClosure *)object;
             mark_object((Obj *)closure->function);
             for (int i = 0; i < closure->upvalueCount; i++)
@@ -225,38 +215,33 @@ void mark_object(Obj *object)
             break;
         }
 
-        case OBJ_FUNCTION:
-        {
+        case OBJ_FUNCTION: {
             ObjFunction *function = (ObjFunction *)object;
             mark_object((Obj *)function->name);
             mark_array(&function->chunk.constants);
             break;
         }
 
-        case OBJ_REQUEST:
-        {
+        case OBJ_REQUEST: {
             ObjRequest *request = (ObjRequest *)object;
             mark_value(request->fn);
             break;
         }
 
-        case OBJ_INSTANCE:
-        {
+        case OBJ_INSTANCE: {
             ObjInstance *instance = (ObjInstance *)object;
             mark_object((Obj *)instance->klass);
             markTable(&instance->fields);
             break;
         }
 
-        case OBJ_LIST:
-        {
+        case OBJ_LIST: {
             ObjList *list = (ObjList *)object;
             mark_array(&list->values);
             break;
         }
 
-        case OBJ_DICT:
-        {
+        case OBJ_DICT: {
             ObjDict *dict = (ObjDict *)object;
             for (int i = 0; i < dict->capacity; ++i)
             {
@@ -268,8 +253,7 @@ void mark_object(Obj *object)
             break;
         }
 
-        case OBJ_NATIVE_FUNC:
-        {
+        case OBJ_NATIVE_FUNC: {
             ObjNativeFunc *func = (ObjNativeFunc *)object;
             mark_object((Obj *)func->name);
             mark_object((Obj *)func->returnType);
@@ -278,8 +262,7 @@ void mark_object(Obj *object)
             break;
         }
 
-        case OBJ_NATIVE_LIB:
-        {
+        case OBJ_NATIVE_LIB: {
             ObjNativeLib *lib = (ObjNativeLib *)object;
             mark_object((Obj *)lib->name);
             break;

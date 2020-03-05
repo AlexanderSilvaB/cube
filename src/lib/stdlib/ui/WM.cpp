@@ -1,22 +1,22 @@
 #include "WM.hpp"
-#include <iostream>
-#include <cstring>
+#include "Shapes.hpp"
+#include <QQuickWidget>
 #include <QString>
 #include <QUiLoader>
-#include <QQuickWidget>
 #include <QUrl>
-#include "Shapes.hpp"
+#include <cstring>
+#include <iostream>
 
 using namespace std;
 
 class WindowWidget : public QWidget
 {
-private:
+  private:
     int ids;
     WM *wm;
-    QVector<Shape*> shapes;
+    QVector<Shape *> shapes;
 
-public:
+  public:
     bool antialias;
 
     WindowWidget(QWidget *parent = 0) : QWidget(parent)
@@ -29,7 +29,7 @@ public:
 
     ~WindowWidget()
     {
-        for(int i = 0; i < shapes.size(); i++)
+        for (int i = 0; i < shapes.size(); i++)
         {
             delete shapes[i];
         }
@@ -43,18 +43,18 @@ public:
         return shape->id;
     }
 
-    Shape* getShape(int id)
+    Shape *getShape(int id)
     {
         int i = -1;
-        for(i = 0; i < shapes.size(); i++)
+        for (i = 0; i < shapes.size(); i++)
         {
-            if(shapes[i]->id == id)
+            if (shapes[i]->id == id)
             {
                 break;
             }
         }
 
-        if(i >= 0 && i < shapes.size())
+        if (i >= 0 && i < shapes.size())
         {
             return shapes[i];
         }
@@ -65,15 +65,15 @@ public:
     void rmShape(int id)
     {
         int i = -1;
-        for(i = 0; i < shapes.size(); i++)
+        for (i = 0; i < shapes.size(); i++)
         {
-            if(shapes[i]->id == id)
+            if (shapes[i]->id == id)
             {
                 break;
             }
         }
 
-        if(i >= 0 && i < shapes.size())
+        if (i >= 0 && i < shapes.size())
         {
             Shape *s = shapes[i];
             shapes.remove(i);
@@ -95,11 +95,11 @@ public:
 
     void paintEvent(QPaintEvent *event)
     {
-        if(layout() == nullptr)
+        if (layout() == nullptr)
         {
             QPainter painter(this);
             painter.setRenderHint(QPainter::Antialiasing, antialias);
-            for (int i = 0; i < shapes.size(); ++i) 
+            for (int i = 0; i < shapes.size(); ++i)
             {
                 shapes[i]->set(painter);
                 shapes[i]->draw(painter);
@@ -130,7 +130,7 @@ void WM::Init()
 
 void WM::Destroy()
 {
-    for(map<int, QWidget*>::iterator it = windows.begin(); it != windows.end(); it++)
+    for (map<int, QWidget *>::iterator it = windows.begin(); it != windows.end(); it++)
     {
         QWidget *window = it->second;
         delete window;
@@ -207,7 +207,7 @@ bool WM::Load(int id, const char *fileName)
     if (name.endsWith(".ui"))
     {
         QUiLoader loader;
-        //loader.setRoot(window);
+        // loader.setRoot(window);
 
         QFile file(name);
         file.open(QFile::ReadOnly);
@@ -242,19 +242,19 @@ bool WM::Load(int id, const char *fileName)
     return false;
 }
 
-template <typename EnumType>
-QString ToString(const EnumType &enumValue)
+template <typename EnumType> QString ToString(const EnumType &enumValue)
 {
     const char *enumName = qt_getEnumName(enumValue);
     const QMetaObject *metaObject = qt_getEnumMetaObject(enumValue);
     if (metaObject)
     {
         const int enumIndex = metaObject->indexOfEnumerator(enumName);
-        // return QString("%1::%2::%3").arg(metaObject->className(), enumName, metaObject->enumerator(enumIndex).valueToKey(enumValue));
+        // return QString("%1::%2::%3").arg(metaObject->className(), enumName,
+        // metaObject->enumerator(enumIndex).valueToKey(enumValue));
         return QString("%1").arg(metaObject->enumerator(enumIndex).valueToKey(enumValue));
     }
 
-    //return QString("%1::%2").arg(enumName).arg(static_cast<int>(enumValue));
+    // return QString("%1::%2").arg(enumName).arg(static_cast<int>(enumValue));
     return QString("%1").arg(static_cast<int>(enumValue));
 }
 
@@ -299,7 +299,7 @@ bool WM::RegisterEvent(int id, const char *objName, const char *eventName)
     string onId = sid + ":" + string(objName) + ":" + string(eventName);
     registeredEvents.push_back(onId);
 
-    if(string(objName) == sid)
+    if (string(objName) == sid)
     {
         window->installEventFilter(window);
         window->setProperty("cube_window_id", id);
@@ -338,64 +338,59 @@ Dict WM::createEventDict(QObject *obj, QEvent *event)
     Dict dict;
     switch (event->type())
     {
-    case QEvent::Enter:
-    {
-        QEnterEvent *ev = static_cast<QEnterEvent *>(event);
-        dict["x"] = QString::number(ev->x()).toStdString();
-        dict["y"] = QString::number(ev->y()).toStdString();
-        break;
-    }
-    case QEvent::FocusIn:
-    case QEvent::FocusOut:
-    {
-        QFocusEvent *ev = static_cast<QFocusEvent *>(event);
-        dict["got"] = ev->gotFocus() ? "true" : "false";
-        dict["lost"] = ev->lostFocus() ? "true" : "false";
-        break;
-    }
-    case QEvent::Move:
-    {
-        QMoveEvent *ev = static_cast<QMoveEvent *>(event);
-        dict["x"] = QString::number(ev->pos().x()).toStdString();
-        dict["y"] = QString::number(ev->pos().y()).toStdString();
-        dict["oldx"] = QString::number(ev->oldPos().x()).toStdString();
-        dict["oldy"] = QString::number(ev->oldPos().y()).toStdString();
-        break;
-    }
-    case QEvent::NonClientAreaMouseButtonDblClick:
-    case QEvent::NonClientAreaMouseButtonPress:
-    case QEvent::NonClientAreaMouseButtonRelease:
-    case QEvent::NonClientAreaMouseMove:
-    case QEvent::MouseButtonDblClick:
-    case QEvent::MouseButtonPress:
-    case QEvent::MouseButtonRelease:
-    case QEvent::MouseMove:
-    {
-        QMouseEvent *ev = static_cast<QMouseEvent *>(event);
-        dict["x"] = QString::number(ev->x()).toStdString();
-        dict["y"] = QString::number(ev->y()).toStdString();
-        dict["globalx"] = QString::number(ev->globalX()).toStdString();
-        dict["globaly"] = QString::number(ev->globalY()).toStdString();
+        case QEvent::Enter: {
+            QEnterEvent *ev = static_cast<QEnterEvent *>(event);
+            dict["x"] = QString::number(ev->x()).toStdString();
+            dict["y"] = QString::number(ev->y()).toStdString();
+            break;
+        }
+        case QEvent::FocusIn:
+        case QEvent::FocusOut: {
+            QFocusEvent *ev = static_cast<QFocusEvent *>(event);
+            dict["got"] = ev->gotFocus() ? "true" : "false";
+            dict["lost"] = ev->lostFocus() ? "true" : "false";
+            break;
+        }
+        case QEvent::Move: {
+            QMoveEvent *ev = static_cast<QMoveEvent *>(event);
+            dict["x"] = QString::number(ev->pos().x()).toStdString();
+            dict["y"] = QString::number(ev->pos().y()).toStdString();
+            dict["oldx"] = QString::number(ev->oldPos().x()).toStdString();
+            dict["oldy"] = QString::number(ev->oldPos().y()).toStdString();
+            break;
+        }
+        case QEvent::NonClientAreaMouseButtonDblClick:
+        case QEvent::NonClientAreaMouseButtonPress:
+        case QEvent::NonClientAreaMouseButtonRelease:
+        case QEvent::NonClientAreaMouseMove:
+        case QEvent::MouseButtonDblClick:
+        case QEvent::MouseButtonPress:
+        case QEvent::MouseButtonRelease:
+        case QEvent::MouseMove: {
+            QMouseEvent *ev = static_cast<QMouseEvent *>(event);
+            dict["x"] = QString::number(ev->x()).toStdString();
+            dict["y"] = QString::number(ev->y()).toStdString();
+            dict["globalx"] = QString::number(ev->globalX()).toStdString();
+            dict["globaly"] = QString::number(ev->globalY()).toStdString();
 
-        Qt::MouseButtons mouse = ev->buttons();
-        dict["left"] = (mouse & Qt::LeftButton) != 0 ? "true" : "false";
-        dict["right"] = (mouse & Qt::RightButton) != 0 ? "true" : "false";
-        dict["mid"] = (mouse & Qt::MidButton) != 0 ? "true" : "false";
-        dict["back"] = (mouse & Qt::BackButton) != 0 ? "true" : "false";
-        dict["forward"] = (mouse & Qt::ForwardButton) != 0 ? "true" : "false";
-        dict["task"] = (mouse & Qt::TaskButton) != 0 ? "true" : "false";
+            Qt::MouseButtons mouse = ev->buttons();
+            dict["left"] = (mouse & Qt::LeftButton) != 0 ? "true" : "false";
+            dict["right"] = (mouse & Qt::RightButton) != 0 ? "true" : "false";
+            dict["mid"] = (mouse & Qt::MidButton) != 0 ? "true" : "false";
+            dict["back"] = (mouse & Qt::BackButton) != 0 ? "true" : "false";
+            dict["forward"] = (mouse & Qt::ForwardButton) != 0 ? "true" : "false";
+            dict["task"] = (mouse & Qt::TaskButton) != 0 ? "true" : "false";
 
-        break;
-    }
-    case QEvent::KeyPress:
-    case QEvent::KeyRelease:
-    {
-        QKeyEvent *ev = static_cast<QKeyEvent *>(event);
-        dict["count"] = QString::number(ev->count()).toStdString();
-        dict["key"] = QString::number(ev->key()).toStdString();
-        dict["modifiers"] = QString::number(ev->nativeModifiers()).toStdString();
-        break;
-    }
+            break;
+        }
+        case QEvent::KeyPress:
+        case QEvent::KeyRelease: {
+            QKeyEvent *ev = static_cast<QKeyEvent *>(event);
+            dict["count"] = QString::number(ev->count()).toStdString();
+            dict["key"] = QString::number(ev->key()).toStdString();
+            dict["modifiers"] = QString::number(ev->nativeModifiers()).toStdString();
+            break;
+        }
     }
 
     return dict;
@@ -421,10 +416,8 @@ static void dump_props(QObject *o)
         qDebug() << "### Class" << mo->className() << "###";
         std::vector<std::pair<QString, QVariant>> v;
         v.reserve(mo->propertyCount() - mo->propertyOffset());
-        for (int i = mo->propertyOffset(); i < mo->propertyCount();
-             ++i)
-            v.emplace_back(mo->property(i).name(),
-                           mo->property(i).read(o));
+        for (int i = mo->propertyOffset(); i < mo->propertyCount(); ++i)
+            v.emplace_back(mo->property(i).name(), mo->property(i).read(o));
         std::sort(v.begin(), v.end());
         for (auto &i : v)
             qDebug() << i.first << "=>" << i.second;
@@ -438,7 +431,7 @@ static QVariant get_prop(QObject *o, const char *name)
     {
         for (int i = mo->propertyOffset(); i < mo->propertyCount(); ++i)
         {
-            if(strcmp(name, mo->property(i).name()) == 0)
+            if (strcmp(name, mo->property(i).name()) == 0)
             {
                 return mo->property(i).read(o);
             }
@@ -447,7 +440,7 @@ static QVariant get_prop(QObject *o, const char *name)
     return QVariant();
 }
 
-static bool set_prop(QObject *o, const char *name, const char* value)
+static bool set_prop(QObject *o, const char *name, const char *value)
 {
     QVariant val(value);
     auto mo = o->metaObject();
@@ -455,9 +448,9 @@ static bool set_prop(QObject *o, const char *name, const char* value)
     {
         for (int i = mo->propertyOffset(); i < mo->propertyCount(); ++i)
         {
-            if(strcmp(name, mo->property(i).name()) == 0)
+            if (strcmp(name, mo->property(i).name()) == 0)
             {
-                if(mo->property(i).isWritable())
+                if (mo->property(i).isWritable())
                 {
                     return mo->property(i).write(o, val);
                 }
@@ -469,14 +462,14 @@ static bool set_prop(QObject *o, const char *name, const char* value)
     return false;
 }
 
-static void get_props(QObject *o, Dict& dict)
+static void get_props(QObject *o, Dict &dict)
 {
     auto mo = o->metaObject();
     do
     {
         for (int i = mo->propertyOffset(); i < mo->propertyCount(); ++i)
         {
-            if(mo->property(i).isReadable())
+            if (mo->property(i).isReadable())
                 dict[string(mo->property(i).name())] = mo->property(i).read(o).toString().toStdString();
         }
     } while ((mo = mo->superClass()));
@@ -497,7 +490,7 @@ List WM::GetProperty(int id, const char *objName, const char *propName)
         for (int i = 0; i < widgets.count(); ++i)
         {
             QVariant val = get_prop(widgets[i], propName);
-            if(val.isValid())
+            if (val.isValid())
             {
                 list.push_back(val.toString().toStdString());
             }
@@ -511,7 +504,7 @@ List WM::GetProperty(int id, const char *objName, const char *propName)
             if (widgets[i]->inherits(objName))
             {
                 QVariant val = get_prop(widgets[i], propName);
-                if(val.isValid())
+                if (val.isValid())
                 {
                     list.push_back(val.toString().toStdString());
                 }
@@ -595,7 +588,7 @@ void WM::SetAntialias(int id, bool antialias)
     if (window == NULL)
         return;
 
-    ((WindowWidget*)window)->antialias = antialias;
+    ((WindowWidget *)window)->antialias = antialias;
 }
 
 int WM::AddShape(int id, Dict &values)
@@ -603,32 +596,32 @@ int WM::AddShape(int id, Dict &values)
     QWidget *window = getWindow(id);
     if (window == NULL)
         return -1;
-    
-    if(values.find("type") == values.end())
+
+    if (values.find("type") == values.end())
         return -1;
 
     string type = values["type"];
     Shape *shape = NULL;
-    if(type == "rect")
+    if (type == "rect")
         shape = new RectShape();
-    else if(type == "arc")
+    else if (type == "arc")
         shape = new ArcShape();
-    else if(type == "text")
+    else if (type == "text")
         shape = new TextShape();
-    else if(type == "point")
+    else if (type == "point")
         shape = new PointShape();
-    else if(type == "line")
+    else if (type == "line")
         shape = new LineShape();
-    else if(type == "ellipse")
+    else if (type == "ellipse")
         shape = new EllipseShape();
-    else if(type == "circle")
+    else if (type == "circle")
         shape = new CircleShape();
     else
         return -1;
-    
+
     shape->update(values);
     window->repaint();
-    return ((WindowWidget*)window)->addShape(shape);
+    return ((WindowWidget *)window)->addShape(shape);
 }
 
 void WM::UpdateShape(int id, Dict &values)
@@ -637,13 +630,13 @@ void WM::UpdateShape(int id, Dict &values)
     if (window == NULL)
         return;
 
-    if(values.find("id") == values.end())
+    if (values.find("id") == values.end())
         return;
 
     int shapeId = atoi(values["id"].c_str());
 
-    Shape *shape = ((WindowWidget*)window)->getShape(shapeId);
-    if(shape != NULL)
+    Shape *shape = ((WindowWidget *)window)->getShape(shapeId);
+    if (shape != NULL)
     {
         shape->update(values);
         window->repaint();
@@ -656,5 +649,5 @@ void WM::RmShape(int id, int shape)
     if (window == NULL)
         return;
 
-    ((WindowWidget*)window)->rmShape(shape);
+    ((WindowWidget *)window)->rmShape(shape);
 }

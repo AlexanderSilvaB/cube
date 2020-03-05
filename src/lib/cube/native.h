@@ -2,8 +2,9 @@
 #define CUBE_NATIVE_h
 
 #include "common.h"
-#include "object.h"
 #include "cubeext.h"
+#include "object.h"
+
 
 NativeTypes getNativeType(const char *name);
 void closeNativeLib(ObjNativeLib *lib);

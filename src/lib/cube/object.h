@@ -1,13 +1,15 @@
 #ifndef CLOX_object_h
 #define CLOX_object_h
 
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 
-#include "common.h"
+
 #include "chunk.h"
+#include "common.h"
 #include "table.h"
 #include "value.h"
+
 
 #define OBJ_TYPE(value) (AS_OBJ(value)->type)
 
@@ -31,7 +33,6 @@
 #define IS_REQUEST(value) isObjType(value, OBJ_REQUEST)
 #define IS_PROCESS(value) isObjType(value, OBJ_PROCESS)
 
-
 #define AS_BOUND_METHOD(value) ((ObjBoundMethod *)AS_OBJ(value))
 #define AS_CLASS(value) ((ObjClass *)AS_OBJ(value))
 #define AS_ENUM(value) ((ObjEnum *)AS_OBJ(value))
@@ -45,14 +46,14 @@
 #define AS_CSTRING(value) (((ObjString *)AS_OBJ(value))->chars)
 #define AS_LIST(value) ((ObjList *)AS_OBJ(value))
 #define AS_DICT(value) ((ObjDict *)AS_OBJ(value))
-#define AS_FILE(value)          ((ObjFile*)AS_OBJ(value))
-#define AS_BYTES(value)          ((ObjBytes*)AS_OBJ(value))
+#define AS_FILE(value) ((ObjFile *)AS_OBJ(value))
+#define AS_BYTES(value) ((ObjBytes *)AS_OBJ(value))
 #define AS_CBYTES(value) (((ObjBytes *)AS_OBJ(value))->bytes)
-#define AS_NATIVE_FUNC(value)          ((ObjNativeFunc*)AS_OBJ(value))
-#define AS_NATIVE_LIB(value)          ((ObjNativeLib*)AS_OBJ(value))
-#define AS_TASK(value)          ((ObjTask*)AS_OBJ(value))
-#define AS_REQUEST(value)          ((ObjRequest*)AS_OBJ(value))
-#define AS_PROCESS(value)          ((ObjProcess*)AS_OBJ(value))
+#define AS_NATIVE_FUNC(value) ((ObjNativeFunc *)AS_OBJ(value))
+#define AS_NATIVE_LIB(value) ((ObjNativeLib *)AS_OBJ(value))
+#define AS_TASK(value) ((ObjTask *)AS_OBJ(value))
+#define AS_REQUEST(value) ((ObjRequest *)AS_OBJ(value))
+#define AS_PROCESS(value) ((ObjProcess *)AS_OBJ(value))
 
 #define STRING_VAL(str) (OBJ_VAL(copyString(str, strlen(str))))
 #define BYTES_VAL(data, len) (OBJ_VAL(copyBytes(data, len)))
@@ -61,89 +62,89 @@
 
 typedef enum
 {
-  OBJ_BOUND_METHOD,
-  OBJ_CLASS,
-  OBJ_ENUM,
-  OBJ_ENUM_VALUE,
-  OBJ_PACKAGE,
-  OBJ_CLOSURE,
-  OBJ_FUNCTION,
-  OBJ_INSTANCE,
-  OBJ_NATIVE,
-  OBJ_STRING,
-  OBJ_LIST,
-  OBJ_DICT,
-  OBJ_FILE,
-  OBJ_BYTES,
-  OBJ_NATIVE_FUNC,
-  OBJ_NATIVE_LIB,
-  OBJ_TASK,
-  OBJ_REQUEST,
-  OBJ_PROCESS,
-  OBJ_UPVALUE
+    OBJ_BOUND_METHOD,
+    OBJ_CLASS,
+    OBJ_ENUM,
+    OBJ_ENUM_VALUE,
+    OBJ_PACKAGE,
+    OBJ_CLOSURE,
+    OBJ_FUNCTION,
+    OBJ_INSTANCE,
+    OBJ_NATIVE,
+    OBJ_STRING,
+    OBJ_LIST,
+    OBJ_DICT,
+    OBJ_FILE,
+    OBJ_BYTES,
+    OBJ_NATIVE_FUNC,
+    OBJ_NATIVE_LIB,
+    OBJ_TASK,
+    OBJ_REQUEST,
+    OBJ_PROCESS,
+    OBJ_UPVALUE
 } ObjType;
 
 struct sObj
 {
-  ObjType type;
-  bool isMarked;
-  struct sObj *next;
+    ObjType type;
+    bool isMarked;
+    struct sObj *next;
 };
 
 typedef struct
 {
-  Obj obj;
-  int arity;
-  int upvalueCount;
-  Chunk chunk;
-  ObjString *name;
-  bool staticMethod;
-  const char *path;
+    Obj obj;
+    int arity;
+    int upvalueCount;
+    Chunk chunk;
+    ObjString *name;
+    bool staticMethod;
+    const char *path;
 } ObjFunction;
 
 typedef Value (*NativeFn)(int argCount, Value *args);
 
 typedef struct
 {
-  Obj obj;
-  NativeFn function;
+    Obj obj;
+    NativeFn function;
 } ObjNative;
 
 typedef struct
 {
-  Obj obj;
-  Value fn;
-  int pops;
+    Obj obj;
+    Value fn;
+    int pops;
 } ObjRequest;
 
 struct sObjString
 {
-  Obj obj;
-  int length;
-  char *chars;
-  uint32_t hash;
+    Obj obj;
+    int length;
+    char *chars;
+    uint32_t hash;
 };
 
 struct sObjList
 {
-  Obj obj;
-  ValueArray values;
+    Obj obj;
+    ValueArray values;
 };
 
 struct dictItem
 {
-  char *key;
-  Value item;
-  bool deleted;
-  uint32_t hash;
+    char *key;
+    Value item;
+    bool deleted;
+    uint32_t hash;
 };
 
 struct sObjDict
 {
-  Obj obj;
-  int capacity;
-  int count;
-  dictItem **items;
+    Obj obj;
+    int capacity;
+    int count;
+    dictItem **items;
 };
 
 #define FILE_MODE_READ 0x1
@@ -154,7 +155,8 @@ struct sObjDict
 #define FILE_CAN_WRITE(file) ((file->mode & FILE_MODE_WRITE) != 0)
 #define FILE_IS_BINARY(file) ((file->mode & FILE_MODE_BINARY) != 0)
 
-struct sObjFile {
+struct sObjFile
+{
     Obj obj;
     FILE *file;
     char *path;
@@ -164,108 +166,106 @@ struct sObjFile {
 
 struct sObjBytes
 {
-  Obj obj;
-  int length;
-  unsigned char *bytes;
+    Obj obj;
+    int length;
+    unsigned char *bytes;
 };
 
 typedef struct sUpvalue
 {
-  Obj obj;
-  Value *location;
-  Value closed;
-  struct sUpvalue *next;
+    Obj obj;
+    Value *location;
+    Value closed;
+    struct sUpvalue *next;
 } ObjUpvalue;
 
 typedef struct
 {
-  Obj obj;
-  ObjFunction *function;
-  ObjUpvalue **upvalues;
-  int upvalueCount;
+    Obj obj;
+    ObjFunction *function;
+    ObjUpvalue **upvalues;
+    int upvalueCount;
 } ObjClosure;
 
 typedef struct sObjPackage
 {
-  Obj obj;
-  ObjString *name;
-  Table symbols;
-  struct sObjPackage *parent;
+    Obj obj;
+    ObjString *name;
+    Table symbols;
+    struct sObjPackage *parent;
 } ObjPackage;
 
 typedef struct sObjClass
 {
-  Obj obj;
-  ObjString *name;
-  ObjPackage *package;
-  Table methods;
-  Table fields;
-  Table staticFields;
-  struct sObjClass *super;
+    Obj obj;
+    ObjString *name;
+    ObjPackage *package;
+    Table methods;
+    Table fields;
+    Table staticFields;
+    struct sObjClass *super;
 } ObjClass;
 
 typedef struct
 {
-  Obj obj;
-  ObjClass *klass;
-  Table fields;
+    Obj obj;
+    ObjClass *klass;
+    Table fields;
 } ObjInstance;
 
 typedef struct
 {
-  Obj obj;
-  ObjString *name;
-  Value last;
-  Table members;
+    Obj obj;
+    ObjString *name;
+    Value last;
+    Table members;
 } ObjEnum;
 
 typedef struct
 {
-  Obj obj;
-  ObjString *name;
-  Value value;
-  ObjEnum *enume;
+    Obj obj;
+    ObjString *name;
+    Value value;
+    ObjEnum *enume;
 } ObjEnumValue;
 
 typedef struct
 {
-  Obj obj;
-  Value receiver;
-  ObjClosure *method;
+    Obj obj;
+    Value receiver;
+    ObjClosure *method;
 } ObjBoundMethod;
 
 typedef struct
 {
-  Obj obj;
-  ObjString *name;
-  int functions;
-  void *handle;
+    Obj obj;
+    ObjString *name;
+    int functions;
+    void *handle;
 } ObjNativeLib;
 
 typedef struct
 {
-  Obj obj;
-  ObjString *name;
-  ObjString *returnType;
-  ObjNativeLib *lib;
-  ValueArray params;
+    Obj obj;
+    ObjString *name;
+    ObjString *returnType;
+    ObjNativeLib *lib;
+    ValueArray params;
 } ObjNativeFunc;
 
 typedef struct
 {
-  Obj obj;
-  ObjString *name;
+    Obj obj;
+    ObjString *name;
 } ObjTask;
 
 typedef struct
 {
-  Obj obj;
-  ObjString *path;
-  int pid, in, out, status;
-  bool running, closed, protected;
+    Obj obj;
+    ObjString *path;
+    int pid, in, out, status;
+    bool running, closed, protected;
 } ObjProcess;
-
-
 
 ObjBoundMethod *newBoundMethod(Value receiver, ObjClosure *method);
 ObjClass *newClass(ObjString *name);
@@ -296,7 +296,7 @@ void appendBytes(ObjBytes *dest, ObjBytes *src);
 
 char *objectToString(Value value, bool literal);
 char *objectType(Value value);
-ObjBytes* objectToBytes(Value value);
+ObjBytes *objectToBytes(Value value);
 
 bool dictComparison(Value a, Value b);
 bool listComparison(Value a, Value b);
@@ -306,7 +306,7 @@ Value copyObject(Value value);
 
 static inline bool isObjType(Value value, ObjType type)
 {
-  return IS_OBJ(value) && AS_OBJ(value)->type == type;
+    return IS_OBJ(value) && AS_OBJ(value)->type == type;
 }
 
 #endif

@@ -23,7 +23,8 @@ set(SRC cube.c
         native.c
         gc.c
         threads.c
-        mempool.c)
+        mempool.c
+        ansi_escapes.c)
 
 set(INCLUDES
     ${CMAKE_CURRENT_SOURCE_DIR}/cube.h

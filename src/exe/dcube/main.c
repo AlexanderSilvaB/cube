@@ -1,8 +1,9 @@
+#include "debug.h"
 #include <cube/cube.h>
 #include <cube/threads.h>
 #include <cube/util.h>
 #include <stdio.h>
-#include "debug.h"
+
 
 extern int rc;
 extern bool running;
@@ -17,15 +18,15 @@ int main(int argc, const char *argv[])
 
     while (running)
     {
-        if(waitingDebug())
+        if (waitingDebug())
         {
             steps--;
             DebugInfo info = debugInfo();
-            if(hasBreakPoint(info.line, info.path) || steps == 0)
+            if (hasBreakPoint(info.line, info.path) || steps == 0)
             {
                 printf("Step: %s(%d)\n", info.path == NULL ? "NULL" : info.path, info.line);
 
-                getOption:
+            getOption:
                 printf(": ");
                 if (!fgets(line, 1024, stdin))
                 {
@@ -35,38 +36,38 @@ int main(int argc, const char *argv[])
 
                 len = strlen(line);
 
-                for(int i = 0; i < 2; i++)
+                for (int i = 0; i < 2; i++)
                 {
-                    if(len > 0)
+                    if (len > 0)
                     {
-                        if(line[len-1] == '\n' || line[len-1] == '\r')
+                        if (line[len - 1] == '\n' || line[len - 1] == '\r')
                         {
-                            line[len-1] = '\0';
+                            line[len - 1] = '\0';
                             len--;
                         }
                     }
                 }
 
-                if(len == 0)
+                if (len == 0)
                     goto getOption;
-                
-                if(strcmp(line, "c") == 0)
+
+                if (strcmp(line, "c") == 0)
                 {
                     printf("Continue\n");
                     continueDebug();
                     continue;
                 }
-                else if(line[0] == 'b' && line[1] == ' ')
+                else if (line[0] == 'b' && line[1] == ' ')
                 {
                     addBreakpoint(&line[2]);
                 }
-                else if(line[0] == 'r' && line[1] == ' ')
+                else if (line[0] == 'r' && line[1] == ' ')
                 {
                     removeBreakpoint(&line[2]);
                 }
-                else if(line[0] == 's' && line[1] == ' ')
+                else if (line[0] == 's' && line[1] == ' ')
                 {
-                    if(len > 2)
+                    if (len > 2)
                         steps = atoi(&line[2]);
                     else
                         steps = 1;
@@ -78,7 +79,7 @@ int main(int argc, const char *argv[])
                 {
                     printf("Invalid option\n");
                 }
-                
+
                 goto getOption;
             }
             else
@@ -87,7 +88,7 @@ int main(int argc, const char *argv[])
             }
         }
         cube_wait(10);
-    }    
+    }
 
     return 0;
 }

@@ -7,7 +7,7 @@
 
 #define MP_STATIC_POOL 0
 
-#define MP_ARENA_SIZE (1024*1024*10)
+#define MP_ARENA_SIZE (1024 * 1024 * 10)
 #define MP_ALLOW_GROW_ARENA 1
 #define MP_GROW_FACTOR 2
 

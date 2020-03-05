@@ -7,36 +7,31 @@ extern "C"
 {
     EXPORTED void linenoise_init()
     {
-        linenoise::SetCompletionCallback([](const char* editBuffer, std::vector<std::string>& completions) {
+        linenoise::SetCompletionCallback([](const char *editBuffer, std::vector<std::string> &completions) {
             int index = 0;
             int len = strlen(editBuffer);
 
-            for(int i = len-1; i > 0; i--)
+            for (int i = len - 1; i > 0; i--)
             {
-                if(editBuffer[i] == ' ' || 
-                    editBuffer[i] == '[' || 
-                    editBuffer[i] == '(' ||
-                    editBuffer[i] == '=' ||
-                    editBuffer[i] == '<' ||
-                    editBuffer[i] == '>' ||
-                    editBuffer[i] == '/')
+                if (editBuffer[i] == ' ' || editBuffer[i] == '[' || editBuffer[i] == '(' || editBuffer[i] == '=' ||
+                    editBuffer[i] == '<' || editBuffer[i] == '>' || editBuffer[i] == '/')
                 {
                     index = i + 1;
                     break;
                 }
             }
 
-            if(index >= len)
+            if (index >= len)
                 return;
 
             std::string back(editBuffer, index);
             std::string front(editBuffer, index, len);
 
-            for(int i = 0; i < completion_words.size(); i++)
+            for (int i = 0; i < completion_words.size(); i++)
             {
-                if(strncmp(completion_words[i].c_str(), front.c_str(), front.size()) == 0)
+                if (strncmp(completion_words[i].c_str(), front.c_str(), front.size()) == 0)
                 {
-                    completions.push_back(back+completion_words[i]);    
+                    completions.push_back(back + completion_words[i]);
                 }
             }
         });
@@ -71,7 +66,7 @@ extern "C"
     {
         std::string _line;
         bool quit = linenoise::Readline(prompt, _line);
-        if(!quit)
+        if (!quit)
             strcpy(line, _line.c_str());
         return quit;
     }
@@ -83,6 +78,6 @@ extern "C"
 
     EXPORTED void linenoise_add_keyword_2(const char *keyword, const char *property)
     {
-        completion_words.push_back(std::string(keyword)+"."+std::string(property));
+        completion_words.push_back(std::string(keyword) + "." + std::string(property));
     }
 }

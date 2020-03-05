@@ -1,18 +1,22 @@
+#include <locale.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <signal.h>
-#include <locale.h>
+
 
 #include <linenoise/linenoise.h>
 
-#include "cube.h"
-#include "util.h"
-#include "common.h"
 #include "chunk.h"
+#include "common.h"
+#include "cube.h"
 #include "debug.h"
-#include "vm.h"
 #include "mempool.h"
+#include "util.h"
+#include "vm.h"
+
+
+#include "ansi_escapes.h"
 
 extern Value nativeToValue(cube_native_var *var, NativeTypes *nt);
 extern void valueToNative(cube_native_var *var, Value value);
@@ -20,18 +24,20 @@ char *version_string;
 
 void start(const char *path, const char *scriptName)
 {
-    #ifdef UNICODE
+#ifdef UNICODE
     setlocale(LC_ALL, "");
     setlocale(LC_CTYPE, "UTF-8");
-    #endif
+#endif
 
-    if(!mp_init())
+    setupConsole();
+
+    if (!mp_init())
     {
         printf("Could not allocate memory. Exiting!");
         exit(-1);
     }
-    
-    version_string = (char*)mp_malloc(sizeof(char) * 32);
+
+    version_string = (char *)mp_malloc(sizeof(char) * 32);
     snprintf(version_string, 31, "%d.%d", VERSION_MAJOR, VERSION_MINOR);
 
     char *folder = NULL;
@@ -84,6 +90,7 @@ void stop()
     freeVM();
     mp_free(version_string);
     mp_destroy();
+    restoreConsole();
 }
 
 void startCube(int argc, const char *argv[])

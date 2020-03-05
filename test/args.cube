@@ -1,6 +1,6 @@
 println("Args: ", args)
 
-for(var i in args)
+for(var a,i in args)
 {
-    println("Arg ", i)
+    println("Arg (", i, ") = ", a)
 }
