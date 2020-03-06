@@ -70,10 +70,18 @@ static bool writeFile(int argCount, bool newLine)
 
 static bool readFile(int argCount)
 {
-    if (argCount != 1)
+    if (argCount < 1 || argCount > 2)
     {
-        runtimeError("read() takes 1 argument (%d given)", argCount);
+        runtimeError("read(|n|) takes 1 or 2 argument (%d given)", argCount);
         return false;
+    }
+
+    int sz = -1;
+    size_t fileSize = 0;
+    if (argCount > 1)
+    {
+        sz = AS_NUMBER(pop());
+        fileSize = sz;
     }
 
     ObjFile *file = AS_FILE(pop());
@@ -84,16 +92,17 @@ static bool readFile(int argCount)
         return false;
     }
 
-    size_t currentPosition = ftell(file->file);
-    // Calculate file size
-    fseek(file->file, 0L, SEEK_END);
-    size_t fileSize = ftell(file->file);
-    rewind(file->file);
-
-    // Reset cursor position
-    if (currentPosition < fileSize)
+    if (sz < 0)
     {
-        fileSize -= currentPosition;
+        size_t currentPosition = ftell(file->file);
+        // Calculate file size
+        fseek(file->file, 0L, SEEK_END);
+        fileSize = ftell(file->file);
+        rewind(file->file);
+
+        // Reset cursor position
+        if (currentPosition < fileSize)
+            fileSize -= currentPosition;
         fseek(file->file, currentPosition, SEEK_SET);
     }
 
@@ -105,7 +114,7 @@ static bool readFile(int argCount)
     }
 
     size_t bytesRead = fread(buffer, sizeof(char), fileSize, file->file);
-    if (bytesRead < fileSize)
+    if (ferror(file->file))
     {
         runtimeError("Could not read file \"%s\".\n", file->path);
         return false;
@@ -146,7 +155,7 @@ static bool readFileBytes(int argCount)
     }
 
     size_t bytesRead = fread(buffer, sizeof(char), size, file->file);
-    if (bytesRead < size)
+    if (ferror(file->file))
     {
         runtimeError("Could not read %d bytes from file \"%s\".\n", size, file->path);
         return false;
@@ -235,6 +244,56 @@ static bool seekFile(int argCount)
     return true;
 }
 
+static bool eofFile(int argCount)
+{
+    if (argCount != 1)
+    {
+        runtimeError("eof() takes 1 argument (%d given)", argCount);
+        return false;
+    }
+
+    ObjFile *file = AS_FILE(pop());
+
+    bool eof = true;
+
+    if (file->isOpen)
+    {
+        eof = feof(file->file);
+    }
+
+    push(BOOL_VAL(eof));
+    return true;
+}
+
+static bool sizeFile(int argCount)
+{
+    if (argCount != 1)
+    {
+        runtimeError("size() takes 1 argument (%d given)", argCount);
+        return false;
+    }
+
+    ObjFile *file = AS_FILE(pop());
+
+    int sz = -1;
+
+    if (file->isOpen)
+    {
+        size_t currentPosition = ftell(file->file);
+
+        fseek(file->file, 0L, SEEK_END);
+        size_t fileSize = ftell(file->file);
+        rewind(file->file);
+
+        // Reset cursor position
+        fseek(file->file, currentPosition, SEEK_SET);
+        sz = fileSize;
+    }
+
+    push(NUMBER_VAL(sz));
+    return true;
+}
+
 static bool closeFile(int argCount)
 {
     if (argCount != 1)
@@ -271,6 +330,10 @@ bool fileMethods(char *method, int argCount)
         return seekFile(argCount);
     else if (strcmp(method, "close") == 0)
         return closeFile(argCount);
+    else if (strcmp(method, "eof") == 0)
+        return eofFile(argCount);
+    else if (strcmp(method, "size") == 0)
+        return sizeFile(argCount);
 
     runtimeError("File has no method %s()", method);
     return false;

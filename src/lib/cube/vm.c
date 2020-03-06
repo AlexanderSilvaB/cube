@@ -507,6 +507,15 @@ static bool call(ObjClosure *closure, int argCount, ObjInstance *instance)
     }
     threadFrame->ctf->currentArgs = OBJ_VAL(args);
 
+    if (argCount > closure->function->arity)
+    {
+        while (argCount > closure->function->arity)
+        {
+            pop();
+            argCount--;
+        }
+    }
+
     return true;
 }
 

@@ -1,0 +1,35 @@
+func guessingGame()
+{
+    seed();
+    var userInput, tries = 0
+    var guess = int(random() * 10)
+
+    println("Guess the number I've picked!")
+
+    while(true)
+    {
+        userInput = num(input("Input your guess: "))
+        println(userInput)
+        ++tries
+        if (userInput == guess) 
+        {
+            println("Great!")
+            break
+        } 
+        else if (userInput < guess) 
+        {
+            println("Too low!")
+        } 
+        else 
+        {
+            println("Too high!")
+        }
+    }
+    return tries
+}
+
+if(__name__ == '__main__')
+{
+    var tries = guessingGame()
+    println('Tries: ', tries)
+}
