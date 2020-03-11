@@ -16,6 +16,13 @@ typedef enum
     TOKEN_MINUS,
     TOKEN_PLUS,
 
+    TOKEN_DOT_PLUS,
+    TOKEN_DOT_MINUS,
+    TOKEN_DOT_STAR,
+    TOKEN_DOT_SLASH,
+    TOKEN_DOT_POW,
+    TOKEN_DOT_PERCENT,
+
     TOKEN_INC,
     TOKEN_DEC,
     TOKEN_PLUS_EQUALS,
@@ -88,6 +95,7 @@ typedef enum
     TOKEN_TRY,
     TOKEN_CATCH,
 
+    TOKEN_DOC,
     TOKEN_ERROR,
     TOKEN_EOF
 } TokenType;

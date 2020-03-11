@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-
 #include <linenoise/linenoise.h>
 
 #include "chunk.h"
@@ -14,7 +13,6 @@
 #include "mempool.h"
 #include "util.h"
 #include "vm.h"
-
 
 #include "ansi_escapes.h"
 
@@ -128,9 +126,14 @@ int runCube(int argc, const char *argv[])
 
     loadArgs(argc, argv, argStart);
 
-    if (fileName == NULL)
+    if (argc == 1)
     {
         rc = repl();
+    }
+    else if (fileName == NULL)
+    {
+        fprintf(stderr, "Could not open the source file.\n");
+        rc = -1;
     }
     else
     {

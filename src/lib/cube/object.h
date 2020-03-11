@@ -4,12 +4,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-
 #include "chunk.h"
 #include "common.h"
 #include "table.h"
 #include "value.h"
-
 
 #define OBJ_TYPE(value) (AS_OBJ(value)->type)
 
@@ -91,6 +89,14 @@ struct sObj
     struct sObj *next;
 };
 
+typedef struct Documentation_t
+{
+    int id;
+    int line;
+    char *doc;
+    struct Documentation_t *next;
+} Documentation;
+
 typedef struct
 {
     Obj obj;
@@ -100,6 +106,7 @@ typedef struct
     ObjString *name;
     bool staticMethod;
     const char *path;
+    Documentation *doc;
 } ObjFunction;
 
 typedef Value (*NativeFn)(int argCount, Value *args);

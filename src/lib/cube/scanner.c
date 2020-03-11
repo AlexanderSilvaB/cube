@@ -97,7 +97,7 @@ static Token errorToken(const char *message)
     return token;
 }
 
-static void skipWhitespace()
+static void skipWhitespace(Token *doc)
 {
     for (;;)
     {
@@ -127,9 +127,22 @@ static void skipWhitespace()
             case '/':
                 if (peekNext() == '/')
                 {
+                    advance();
+                    advance();
+                    if (peek() == '?')
+                    {
+                        advance();
+                        doc->type = TOKEN_DOC;
+                        doc->start = scanner.current;
+                        doc->line = scanner.line;
+                    }
+
                     // A comment goes until the end of the line.
                     while (peek() != '\n' && !isAtEnd())
                         advance();
+
+                    if (doc->type == TOKEN_DOC)
+                        doc->length = scanner.current - doc->start;
                 }
                 else if (peekNext() == '*')
                 {
@@ -137,12 +150,24 @@ static void skipWhitespace()
                     advance();
                     advance();
 
+                    if (peek() == '?')
+                    {
+                        advance();
+                        doc->type = TOKEN_DOC;
+                        doc->start = scanner.current;
+                        doc->line = scanner.line;
+                    }
+
                     bool done = peek() == '*' && peekNext() == '/';
                     while (!done && !isAtEnd())
                     {
                         advance();
                         done = peek() == '*' && peekNext() == '/';
                     }
+
+                    if (doc->type == TOKEN_DOC)
+                        doc->length = scanner.current - doc->start;
+
                     if (!isAtEnd())
                     {
                         advance();
@@ -484,7 +509,13 @@ void backTrack()
 
 Token scanToken()
 {
-    skipWhitespace();
+    Token doc;
+    doc.type = TOKEN_ERROR;
+    skipWhitespace(&doc);
+    if (doc.type == TOKEN_DOC)
+    {
+        return doc;
+    }
 
     scanner.start = scanner.current;
 
@@ -526,6 +557,18 @@ Token scanToken()
                 else
                     return makeToken(TOKEN_EXPAND_IN);
             }
+            else if (match('+'))
+                return makeToken(TOKEN_DOT_PLUS);
+            else if (match('-'))
+                return makeToken(TOKEN_DOT_MINUS);
+            else if (match('*'))
+                return makeToken(TOKEN_DOT_STAR);
+            else if (match('/'))
+                return makeToken(TOKEN_DOT_SLASH);
+            else if (match('^'))
+                return makeToken(TOKEN_DOT_POW);
+            else if (match('%'))
+                return makeToken(TOKEN_DOT_PERCENT);
             else
                 return makeToken(TOKEN_DOT);
         }

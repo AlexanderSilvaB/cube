@@ -43,7 +43,12 @@ void *threadFn(void *data);
     {                                                                                                                  \
         if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1)))                                                                \
         {                                                                                                              \
-            runtimeError("Operands must be numbers.");                                                                 \
+            if (IS_STRING(peek(0)) && IS_STRING(peek(1)))                                                              \
+            {                                                                                                          \
+                if (compareStrings(#op))                                                                               \
+                    break;                                                                                             \
+            }                                                                                                          \
+            runtimeError("Operands must be numbers or strings.");                                                      \
             if (!checkTry(frame))                                                                                      \
                 return INTERPRET_RUNTIME_ERROR;                                                                        \
         }                                                                                                              \
@@ -519,6 +524,19 @@ static bool call(ObjClosure *closure, int argCount, ObjInstance *instance)
     return true;
 }
 
+static bool findField(ObjInstance *instance, ObjString *name, Value *field)
+{
+    if (!tableGet(&instance->fields, name, field))
+    {
+        if (!tableGet(&instance->klass->staticFields, name, field) || IS_CLOSURE(*field))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 static bool findMethod(ObjClass *klass, ObjString *name, Value *method, ObjClass **selected)
 {
     if (!tableGet(&klass->methods, name, method))
@@ -585,6 +603,9 @@ static bool callValue(Value callee, int argCount, ObjInstance *instance)
                 {
                     ObjRequest *request = AS_REQUEST(result);
                     // threadFrame->ctf->stackTop[-argCount - 1] = value;
+                    ObjInstance *ins = AS_INSTANCE(*(threadFrame->ctf->stackTop - argCount));
+                    if (ins != NULL)
+                        instance = ins;
                     return callValue(request->fn, argCount - request->pops, instance);
                 }
                 else
@@ -1026,6 +1047,48 @@ bool isFalsey(Value value)
     return IS_NONE(value) || (IS_BOOL(value) && !AS_BOOL(value));
 }
 
+static bool compareStrings(const char *op)
+{
+    ObjString *b = AS_STRING(peek(0));
+    ObjString *a = AS_STRING(peek(1));
+    bool valid = false;
+    Value res = FALSE_VAL;
+    int rc = strcmp(a->chars, b->chars);
+
+    if (strcmp(op, "<") == 0)
+    {
+        if (rc < 0)
+            res = TRUE_VAL;
+        valid = true;
+    }
+    else if (strcmp(op, ">") == 0)
+    {
+        if (rc > 0)
+            res = TRUE_VAL;
+        valid = true;
+    }
+    else if (strcmp(op, "<=") == 0)
+    {
+        if (rc <= 0)
+            res = TRUE_VAL;
+        valid = true;
+    }
+    else if (strcmp(op, ">=") == 0)
+    {
+        if (rc >= 0)
+            res = TRUE_VAL;
+        valid = true;
+    }
+
+    if (valid)
+    {
+        pop();
+        pop();
+        push(res);
+    }
+    return valid;
+}
+
 static void concatenate()
 {
     Value second = peek(0);
@@ -1055,6 +1118,30 @@ static void concatenate()
     push(OBJ_VAL(result));
 }
 
+static Value concatenateInplace(Value first, Value second)
+{
+    ObjString *a;
+    if (IS_STRING(first))
+        a = AS_STRING(first);
+    else
+        a = AS_STRING(toString(first));
+
+    ObjString *b;
+    if (IS_STRING(second))
+        b = AS_STRING(second);
+    else
+        b = AS_STRING(toString(second));
+
+    int length = a->length + b->length;
+    char *chars = ALLOCATE(char, length + 1);
+    memcpy(chars, a->chars, a->length);
+    memcpy(chars + a->length, b->chars, b->length);
+    chars[length] = '\0';
+
+    ObjString *result = takeString(chars, length);
+    return OBJ_VAL(result);
+}
+
 static double valueAsDouble(Value v)
 {
     double d;
@@ -1063,6 +1150,140 @@ static double valueAsDouble(Value v)
     else
         d = AS_NUMBER(v);
     return d;
+}
+
+static bool operateValues(Value a, Value b, Value *r, const char *op)
+{
+    if (strcmp(op, "+") == 0)
+    {
+        if (IS_STRING(a) || IS_STRING(b))
+        {
+            *r = concatenateInplace(a, b);
+        }
+        else if (IS_LIST(a) && IS_LIST(b))
+        {
+            ObjList *listToAdd = AS_LIST(b);
+            ObjList *result = initList(copyList(AS_LIST(a), true));
+            stretchList(result, listToAdd);
+            *r = OBJ_VAL(result);
+        }
+        else if (IS_LIST(a))
+        {
+            ObjList *list = copyList(AS_LIST(a), true);
+            addList(list, b);
+            *r = OBJ_VAL(list);
+        }
+        else if (IS_NUMBER(a) && IS_NUMBER(b))
+        {
+            *r = NUMBER_VAL(AS_NUMBER(a) + AS_NUMBER(b));
+        }
+        else
+        {
+            runtimeError("Operands must be numbers or strings.");
+            return false;
+        }
+    }
+    else if (strcmp(op, "-") == 0)
+    {
+        if (IS_LIST(a))
+        {
+            ObjList *list = copyList(AS_LIST(a), true);
+            rmList(list, b);
+            *r = OBJ_VAL(list);
+        }
+        else if (IS_NUMBER(a) && IS_NUMBER(b))
+        {
+            *r = NUMBER_VAL(AS_NUMBER(a) - AS_NUMBER(b));
+        }
+        else
+        {
+            runtimeError("Operands must be numbers or strings.");
+            return false;
+        }
+    }
+    else if (strcmp(op, "*") == 0)
+    {
+        if (IS_LIST(a) && IS_NUMBER(b))
+        {
+            int factor = AS_NUMBER(b);
+
+            ObjList *list = NULL;
+            if (factor == 0)
+                list = initList();
+            else
+            {
+                list = copyList(AS_LIST(a), true);
+                ObjList *clone = copyList(AS_LIST(a), true);
+                for (int i = 1; i < factor; i++)
+                {
+                    stretchList(list, clone);
+                }
+            }
+
+            *r = OBJ_VAL(list);
+        }
+        else if (IS_NUMBER(a) && IS_NUMBER(b))
+        {
+            *r = NUMBER_VAL(AS_NUMBER(a) * AS_NUMBER(b));
+        }
+        else
+        {
+            runtimeError("Operands must be numbers or strings.");
+            return false;
+        }
+    }
+    else if (strcmp(op, "/") == 0)
+    {
+        if (IS_LIST(a) && IS_NUMBER(b))
+        {
+            int factor = AS_NUMBER(b);
+
+            ObjList *list = copyList(AS_LIST(a), true);
+            int num = list->values.count - (list->values.count / factor);
+            shrinkList(list, num);
+
+            *r = OBJ_VAL(list);
+        }
+        else if (IS_NUMBER(a) && IS_NUMBER(b))
+        {
+            *r = NUMBER_VAL(AS_NUMBER(a) / AS_NUMBER(b));
+        }
+        else
+        {
+            runtimeError("Operands must be numbers or strings.");
+            return false;
+        }
+    }
+    else if (strcmp(op, "%") == 0)
+    {
+        if (IS_NUMBER(a) && IS_NUMBER(b))
+        {
+            *r = NUMBER_VAL(fmod(AS_NUMBER(a), AS_NUMBER(b)));
+        }
+        else
+        {
+            runtimeError("Operands must be numbers or strings.");
+            return false;
+        }
+    }
+    else if (strcmp(op, "^") == 0)
+    {
+        if (IS_NUMBER(a) && IS_NUMBER(b))
+        {
+            *r = NUMBER_VAL(pow(AS_NUMBER(a), AS_NUMBER(b)));
+        }
+        else
+        {
+            runtimeError("Operands must be numbers or strings.");
+            return false;
+        }
+    }
+    else
+    {
+        runtimeError("Invalid operator: %s.", op);
+        return false;
+    }
+    return true;
 }
 
 static Value getIncrement(Value a, Value b)
@@ -1131,18 +1352,25 @@ static Value increment(Value start, Value step, Value stop, bool ex)
     return res;
 }
 
-Value envVariable(ObjString *name)
+bool envVariable(ObjString *name, Value *value)
 {
     ThreadFrame *threadFrame = currentThread();
     if (strcmp(name->chars, "__name__") == 0)
     {
-        return STRING_VAL(threadFrame->ctf->currentScriptName);
+        *value = STRING_VAL(threadFrame->ctf->currentScriptName);
+        return true;
     }
     else if (strcmp(name->chars, vm.argsString) == 0)
     {
-        return threadFrame->ctf->currentArgs;
+        *value = threadFrame->ctf->currentArgs;
+        return true;
     }
-    return NONE_VAL;
+    else if (strcmp(name->chars, "__ans__") == 0)
+    {
+        *value = vm.repl;
+        return true;
+    }
+    return false;
 }
 
 bool subscriptString(Value stringValue, Value indexValue, Value *result)
@@ -1679,6 +1907,7 @@ InterpretResult run()
 #endif
 
         uint8_t instruction;
+        bool istrue = false;
         switch (instruction = READ_BYTE())
         {
             case OP_CONSTANT: {
@@ -1762,12 +1991,7 @@ InterpretResult run()
 
                 if (frame->instance != NULL)
                 {
-                    if (tableGet(&frame->instance->fields, name, &value))
-                    {
-                        push(value);
-                        break;
-                    }
-                    else if (tableGet(&frame->instance->klass->staticFields, name, &value))
+                    if (findField(frame->instance, name, &value))
                     {
                         push(value);
                         break;
@@ -1795,8 +2019,7 @@ InterpretResult run()
 
                 if (!tableGet(table, name, &value))
                 {
-                    value = envVariable(name);
-                    if (IS_NONE(value))
+                    if (!envVariable(name, &value))
                     {
                         if (frame->instance != NULL)
                         {
@@ -2106,28 +2329,56 @@ InterpretResult run()
                 break;
             }
             case OP_ADD: {
+                istrue = READ_BYTE() == OP_TRUE;
                 if (IS_STRING(peek(1)) || IS_STRING(peek(0)))
                 {
                     concatenate();
+                }
+                else if (IS_LIST(peek(1)) && istrue)
+                {
+                    Value value = peek(0);
+                    ObjList *list = copyList(AS_LIST(peek(1)), true);
+                    for (int i = 0; i < list->values.count; i++)
+                    {
+                        if (!operateValues(list->values.values[i], value, &list->values.values[i], "+"))
+                        {
+                            if (!checkTry(frame))
+                                return INTERPRET_RUNTIME_ERROR;
+                            else
+                                break;
+                        }
+                    }
+                    pop();
+                    pop();
+                    push(OBJ_VAL(list));
                 }
                 else if (IS_LIST(peek(0)) && IS_LIST(peek(1)))
                 {
                     Value listToAddValue = peek(0);
                     Value listValue = peek(1);
 
-                    ObjList *list = AS_LIST(listValue);
                     ObjList *listToAdd = AS_LIST(listToAddValue);
 
-                    ObjList *result = initList();
-                    for (int i = 0; i < list->values.count; ++i)
-                        writeValueArray(&result->values, list->values.values[i]);
-                    for (int i = 0; i < listToAdd->values.count; ++i)
-                        writeValueArray(&result->values, listToAdd->values.values[i]);
+                    ObjList *result = initList(copyList(AS_LIST(listValue), true));
+                    stretchList(result, listToAdd);
 
                     pop();
                     pop();
 
                     push(OBJ_VAL(result));
+                }
+                else if (IS_LIST(peek(1)))
+                {
+                    Value add = peek(0);
+                    Value listValue = peek(1);
+
+                    ObjList *list = copyList(AS_LIST(listValue), true);
+                    addList(list, add);
+
+                    pop();
+                    pop();
+
+                    push(OBJ_VAL(list));
                 }
                 else if (IS_NUMBER(peek(0)) && IS_NUMBER(peek(1)))
                 {
@@ -2143,7 +2394,7 @@ InterpretResult run()
                     }
                     else
                     {
-                        runtimeError("Operands must be two numbers or two strings.");
+                        runtimeError("Operands must be numbers or strings.");
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
                         else
@@ -2154,9 +2405,41 @@ InterpretResult run()
             }
 
             case OP_SUBTRACT:
+                istrue = READ_BYTE() == OP_TRUE;
                 if (instanceOperation("-"))
                 {
                     frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+                }
+                else if (IS_LIST(peek(1)) && istrue)
+                {
+                    Value value = peek(0);
+                    ObjList *list = copyList(AS_LIST(peek(1)), true);
+                    for (int i = 0; i < list->values.count; i++)
+                    {
+                        if (!operateValues(list->values.values[i], value, &list->values.values[i], "-"))
+                        {
+                            if (!checkTry(frame))
+                                return INTERPRET_RUNTIME_ERROR;
+                            else
+                                break;
+                        }
+                    }
+                    pop();
+                    pop();
+                    push(OBJ_VAL(list));
+                }
+                else if (IS_LIST(peek(1)))
+                {
+                    Value rm = peek(0);
+                    Value listValue = peek(1);
+
+                    ObjList *list = copyList(AS_LIST(listValue), true);
+                    rmList(list, rm);
+
+                    pop();
+                    pop();
+
+                    push(OBJ_VAL(list));
                 }
                 else
                 {
@@ -2190,9 +2473,51 @@ InterpretResult run()
                 break;
             }
             case OP_MULTIPLY:
+                istrue = READ_BYTE() == OP_TRUE;
                 if (instanceOperation("*"))
                 {
                     frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+                }
+                else if (IS_LIST(peek(1)) && istrue)
+                {
+                    Value value = peek(0);
+                    ObjList *list = copyList(AS_LIST(peek(1)), true);
+                    for (int i = 0; i < list->values.count; i++)
+                    {
+                        if (!operateValues(list->values.values[i], value, &list->values.values[i], "*"))
+                        {
+                            if (!checkTry(frame))
+                                return INTERPRET_RUNTIME_ERROR;
+                            else
+                                break;
+                        }
+                    }
+                    pop();
+                    pop();
+                    push(OBJ_VAL(list));
+                }
+                else if (IS_LIST(peek(1)) && IS_NUMBER(peek(0)))
+                {
+                    int factor = AS_NUMBER(peek(0));
+                    Value listValue = peek(1);
+
+                    ObjList *list = NULL;
+                    if (factor == 0)
+                        list = initList();
+                    else
+                    {
+                        list = copyList(AS_LIST(listValue), true);
+                        ObjList *clone = copyList(AS_LIST(listValue), true);
+                        for (int i = 1; i < factor; i++)
+                        {
+                            stretchList(list, clone);
+                        }
+                    }
+
+                    pop();
+                    pop();
+
+                    push(OBJ_VAL(list));
                 }
                 else
                 {
@@ -2200,9 +2525,42 @@ InterpretResult run()
                 }
                 break;
             case OP_DIVIDE:
+                istrue = READ_BYTE() == OP_TRUE;
                 if (instanceOperation("/"))
                 {
                     frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+                }
+                else if (IS_LIST(peek(1)) && istrue)
+                {
+                    Value value = peek(0);
+                    ObjList *list = copyList(AS_LIST(peek(1)), true);
+                    for (int i = 0; i < list->values.count; i++)
+                    {
+                        if (!operateValues(list->values.values[i], value, &list->values.values[i], "/"))
+                        {
+                            if (!checkTry(frame))
+                                return INTERPRET_RUNTIME_ERROR;
+                            else
+                                break;
+                        }
+                    }
+                    pop();
+                    pop();
+                    push(OBJ_VAL(list));
+                }
+                else if (IS_LIST(peek(1)) && IS_NUMBER(peek(0)))
+                {
+                    int factor = AS_NUMBER(peek(0));
+                    Value listValue = peek(1);
+
+                    ObjList *list = copyList(AS_LIST(listValue), true);
+                    int num = list->values.count - (list->values.count / factor);
+                    shrinkList(list, num);
+
+                    pop();
+                    pop();
+
+                    push(OBJ_VAL(list));
                 }
                 else
                 {
@@ -2211,9 +2569,28 @@ InterpretResult run()
                 break;
 
             case OP_MOD: {
+                istrue = READ_BYTE() == OP_TRUE;
                 if (instanceOperation("%"))
                 {
                     frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+                }
+                else if (IS_LIST(peek(1)) && istrue)
+                {
+                    Value value = peek(0);
+                    ObjList *list = copyList(AS_LIST(peek(1)), true);
+                    for (int i = 0; i < list->values.count; i++)
+                    {
+                        if (!operateValues(list->values.values[i], value, &list->values.values[i], "%"))
+                        {
+                            if (!checkTry(frame))
+                                return INTERPRET_RUNTIME_ERROR;
+                            else
+                                break;
+                        }
+                    }
+                    pop();
+                    pop();
+                    push(OBJ_VAL(list));
                 }
                 else
                 {
@@ -2226,9 +2603,28 @@ InterpretResult run()
             }
 
             case OP_POW: {
+                istrue = READ_BYTE() == OP_TRUE;
                 if (instanceOperation("^"))
                 {
                     frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+                }
+                else if (IS_LIST(peek(1)) && istrue)
+                {
+                    Value value = peek(0);
+                    ObjList *list = copyList(AS_LIST(peek(1)), true);
+                    for (int i = 0; i < list->values.count; i++)
+                    {
+                        if (!operateValues(list->values.values[i], value, &list->values.values[i], "^"))
+                        {
+                            if (!checkTry(frame))
+                                return INTERPRET_RUNTIME_ERROR;
+                            else
+                                break;
+                        }
+                    }
+                    pop();
+                    pop();
+                    push(OBJ_VAL(list));
                 }
                 else
                 {

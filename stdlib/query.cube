@@ -1,0 +1,67 @@
+import sorting
+
+class Query
+{
+    var data;
+    
+    func init(data)
+    {
+        if(data is not list)
+            throw("Query data must be a list, '{}' given.".format(type(data)))
+        else
+            this.data = data
+    }
+
+    func [](i)
+    {
+        return data[i];
+    }
+
+    func len()
+    {
+        return len(data);
+    }
+
+    func list()
+    {
+        return this.data;
+    }
+
+    func select(fn)
+    {
+        var ndata = []
+        for(var i in data)
+        {
+            ndata.add(fn(i))
+        }
+        return Query(ndata)
+    }
+
+    func where(fn)
+    {
+        var ndata = []
+        for(var i in data)
+        {
+            if(fn(i))
+                ndata.add(i)
+        }
+        return Query(ndata)
+    }
+
+    func reverse()
+    {
+        var ndata = sorting.reverse(data)
+        return Query(ndata)
+    }
+
+    func sort(fn)
+    {
+        var ndata = sorting.qsort(data, fn)
+        return Query(ndata)
+    }
+}
+
+func from(data)
+{
+    return Query(data)
+}

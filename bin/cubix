@@ -1,9 +1,10 @@
 #!/usr/local/bin/cube
 
 import json;
-import net;
+import socket;
 import os;
 import paths;
+import zip;
 import parser as default;
 
 var parser = Parser('Cubix', 'The cube package manager', '0.1');
@@ -25,7 +26,7 @@ func readWeb(address, request)
 {
     var http = socket.HTTPClient(address, port);
     if(!http.connect())
-        error('Failed to connect [', address, ':', port, ']');
+        throw('Failed to connect [', address, ':', port, ']');
     
      http.get(request);
     var contents = http.receive();
@@ -37,6 +38,24 @@ func install(libs)
 {
     println('Installing: ', libs.join(' '));
 
+    var rm = []
+    for(var lib in libs)
+    {
+        if(lib.endsWith('.zip'))
+        {
+            installFilePackage(lib);
+            rm.add(lib)
+        }
+    }
+
+    for(var lib in rm)
+    {
+        libs.remove(lib)
+    }
+
+    if(len(libs) == 0)
+        return;
+
     var contents = readWeb(address, '{}index.json'.format(base));
     var packages = json.parseJson(contents)['packages'];
 
@@ -44,6 +63,9 @@ func install(libs)
 
     for(var lib in libs)
     {
+        if(lib.endsWith('.zip'))
+            continue;
+
         package = none;
         for(var p in packages)
         {
@@ -54,7 +76,7 @@ func install(libs)
         }
 
         if(package is none)
-            error('Package "', lib, '" not found!');
+            throw('Package "', lib, '" not found!');
 
         if(package.startsWith("libs/"))
             installPackage(lib, '{}/{}{}'.format(address, base, package));
@@ -101,6 +123,112 @@ func listOnlinePackages()
     println('\b\b  ');
 }
 
+func installFilePackage(libFile)
+{
+    println("File: ", libFile)
+    if(!exists(libFile))
+    {
+        println("Invalid package file.")
+        return;
+    }
+    
+    var file = zip.Zip(libFile, 'r')
+    var contents = file.read('package.json')
+    if(contents is none)
+    {
+        println("Not a valid cube package.")
+        return;
+    }
+
+    var package = json.parseJson(str(contents));
+    var lib = package['name']
+    if(lib is none)
+    {
+        println("Not a valid cube package.")
+        return;
+    }
+
+    var current = none;
+    try
+    {
+        var j = json.readJson("{}/{}.json".format(os.allowedLibsPath, lib));
+        current = j['version'];
+    }
+
+    var version = package['version'];
+    if(version is none)
+    {
+        println("Not a valid cube package.")
+        return;
+    }
+
+    println("{} [{} -> {}]\t".format(lib, current, version));
+    if(current == version)
+    {
+        println("Already updated");
+        return;
+    }
+    var data;
+    var name;
+    var path;
+
+    path = os.allowedLibsPath+'/'+lib+'.json';
+
+    with(path, 'w')
+    {
+        file.write(str(contents));
+    }
+
+    for(var f in package['files'])
+    {
+        print('Installing: ', f);
+        data = file.read(f);
+        if(data is none)
+        {
+            println('Failed!');
+            continue;
+        }
+        name = paths.fileName(f);
+        if(package['bin'] is list and name in package['bin'])
+            path = os.allowedBinPath;
+        else   
+            path = os.allowedLibsPath;
+
+        path += '/{}'.format(name);
+        
+        with(path, 'w')
+        {
+            file.write(str(data));
+        }
+
+        println('\rInstalled: ', f, ' ');
+    }
+
+    for(var f in package['native'])
+    {
+        print('Installing: ', f);
+        data = file.read('native/{}/{}/{}{}'.format(os.name, os.arch, f, os.libsExt));
+        if(data is none)
+        {
+            println('Failed!');
+            continue;
+        }
+
+        name = paths.fileName(f);
+        path = os.allowedLibsPath;
+        path += '/{}{}'.format(name, os.libsExt);
+        
+
+        with(path, 'w')
+        {
+            file.write(str(data));
+        }
+
+        println('\rInstalled: ', f, ' ');
+    }
+
+}
+
 func installPackage(lib, url)
 {
     var parts = url.split('/');
@@ -141,7 +269,7 @@ func installPackage(lib, url)
         print('Downloading: ', f);
         data = readWeb(address, '{}/{}'.format(base, f));
         name = paths.fileName(f);
-        if(package['bin'])
+        if(package['bin'] is list and name in package['bin'])
             path = os.allowedBinPath;
         else   
             path = os.allowedLibsPath;
@@ -190,7 +318,7 @@ func uninstallPackage(lib)
     {
         print('Removing: ', f);
         name = paths.fileName(f);
-        if(package['bin'])
+        if(package['bin'] is list and name in package['bin'])
             path = os.allowedBinPath;
         else   
             path = os.allowedLibsPath;

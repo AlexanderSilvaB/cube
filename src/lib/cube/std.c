@@ -1866,7 +1866,10 @@ Value writeNative(int argCount, Value *args)
             {
                 ObjString *str = AS_STRING(toString(args[i]));
                 rc = writeFd(process->out, str->length, str->chars);
+                if (process->out == STDOUT_FILENO)
+                    vm.newLine = str->chars[str->length - 1] != '\n';
             }
+
             if (rc < 0)
             {
                 char *str = objectToString(args[i], false);

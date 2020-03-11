@@ -1,0 +1,52 @@
+func qsort(data, fn)
+{
+    if(fn is none)
+        fn = @(a, b){return a < b}
+    func _partition(arr, low, high)
+    {
+        var i  = low - 1
+        var pivot = arr[high]
+
+        for(var j = low; j < high; ++j)
+        {
+            if(fn(arr[j], pivot))
+            {
+                ++i
+                arr.swap(i, j);
+            }
+        }
+        arr.swap(i + 1, high)
+        return i + 1
+    }
+
+    func _qsort(data, low, high)
+    {
+        if(low < high)
+        {
+            var pi = _partition(data, low, high)
+            _qsort(data, low, pi - 1)
+            _qsort(data, pi + 1, high)
+        }
+    }
+
+    var ndata = copy(data)
+    _qsort(ndata, 0, len(data) - 1)
+    return ndata
+}
+
+func shuffle(data)
+{
+    return qsort(data, @(a, b){return (0.5 - random()) < 0; })
+}
+
+func reverse(data)
+{
+    var M = len(data)
+    var m = int(M / 2)
+    var ndata = copy(data)
+    for(var i = 0; i < m; ++i)
+    {
+        ndata.swap(i, M - i - 1)
+    }
+    return ndata
+}

@@ -109,6 +109,8 @@ Compiler *current = NULL;
 ClassCompiler *currentClass = NULL;
 bool staticMethod = false;
 
+Documentation *currentDoc = NULL;
+
 static char *initString = "<CUBE>";
 static int loopInCount = 0;
 
@@ -309,6 +311,28 @@ static void patchBreak()
         mp_free(currentBreak);
         currentBreak = next;
     }
+}
+
+static void initDoc()
+{
+    currentDoc = NULL;
+}
+
+static void endDoc()
+{
+    Documentation *old;
+    while (currentDoc != NULL)
+    {
+        free(currentDoc->doc);
+        old = currentDoc;
+        currentDoc = old->next;
+        free(old);
+    }
+}
+
+static Documentation *getDoc()
+{
+    return currentDoc;
 }
 
 static void initCompiler(Compiler *compiler, FunctionType type)
@@ -642,22 +666,28 @@ static void binary(bool canAssign)
             emitByte(OP_SHIFT_RIGHT);
             break;
         case TOKEN_PLUS:
-            emitByte(OP_ADD);
+        case TOKEN_DOT_PLUS:
+            emitBytes(OP_ADD, operatorType == TOKEN_DOT_PLUS ? OP_TRUE : OP_FALSE);
             break;
         case TOKEN_MINUS:
-            emitByte(OP_SUBTRACT);
+        case TOKEN_DOT_MINUS:
+            emitBytes(OP_SUBTRACT, operatorType == TOKEN_DOT_MINUS ? OP_TRUE : OP_FALSE);
             break;
         case TOKEN_STAR:
-            emitByte(OP_MULTIPLY);
+        case TOKEN_DOT_STAR:
+            emitBytes(OP_MULTIPLY, operatorType == TOKEN_DOT_STAR ? OP_TRUE : OP_FALSE);
             break;
         case TOKEN_SLASH:
-            emitByte(OP_DIVIDE);
+        case TOKEN_DOT_SLASH:
+            emitBytes(OP_DIVIDE, operatorType == TOKEN_DOT_SLASH ? OP_TRUE : OP_FALSE);
             break;
         case TOKEN_PERCENT:
-            emitByte(OP_MOD);
+        case TOKEN_DOT_PERCENT:
+            emitBytes(OP_MOD, operatorType == TOKEN_DOT_PERCENT ? OP_TRUE : OP_FALSE);
             break;
         case TOKEN_POW:
-            emitByte(OP_POW);
+        case TOKEN_DOT_POW:
+            emitBytes(OP_POW, operatorType == TOKEN_DOT_POW ? OP_TRUE : OP_FALSE);
             break;
         case TOKEN_IN:
             emitByte(OP_IN);
@@ -701,28 +731,28 @@ static void dot(bool canAssign)
     {
         emitShort(OP_GET_PROPERTY_NO_POP, name);
         expression();
-        emitByte(OP_ADD);
+        emitBytes(OP_ADD, OP_FALSE);
         emitShort(OP_SET_PROPERTY, name);
     }
     else if (canAssign && match(TOKEN_MINUS_EQUALS))
     {
         emitShort(OP_GET_PROPERTY_NO_POP, name);
         expression();
-        emitByte(OP_SUBTRACT);
+        emitBytes(OP_SUBTRACT, OP_FALSE);
         emitShort(OP_SET_PROPERTY, name);
     }
     else if (canAssign && match(TOKEN_MULTIPLY_EQUALS))
     {
         emitShort(OP_GET_PROPERTY_NO_POP, name);
         expression();
-        emitByte(OP_MULTIPLY);
+        emitBytes(OP_MULTIPLY, OP_FALSE);
         emitShort(OP_SET_PROPERTY, name);
     }
     else if (canAssign && match(TOKEN_DIVIDE_EQUALS))
     {
         emitShort(OP_GET_PROPERTY_NO_POP, name);
         expression();
-        emitByte(OP_DIVIDE);
+        emitBytes(OP_DIVIDE, OP_FALSE);
         emitShort(OP_SET_PROPERTY, name);
     }
     else if (canAssign && match(TOKEN_EQUAL))
@@ -995,28 +1025,28 @@ static void namedVariable(Token name, bool canAssign)
     {
         namedVariable(name, false);
         expression();
-        emitByte(OP_ADD);
+        emitBytes(OP_ADD, OP_FALSE);
         emitShort(setOp, (uint16_t)arg);
     }
     else if (canAssign && match(TOKEN_MINUS_EQUALS))
     {
         namedVariable(name, false);
         expression();
-        emitByte(OP_SUBTRACT);
+        emitBytes(OP_SUBTRACT, OP_FALSE);
         emitShort(setOp, (uint16_t)arg);
     }
     else if (canAssign && match(TOKEN_MULTIPLY_EQUALS))
     {
         namedVariable(name, false);
         expression();
-        emitByte(OP_MULTIPLY);
+        emitBytes(OP_MULTIPLY, OP_FALSE);
         emitShort(setOp, (uint16_t)arg);
     }
     else if (canAssign && match(TOKEN_DIVIDE_EQUALS))
     {
         namedVariable(name, false);
         expression();
-        emitByte(OP_DIVIDE);
+        emitBytes(OP_DIVIDE, OP_FALSE);
         emitShort(setOp, (uint16_t)arg);
     }
     else if (canAssign && match(TOKEN_EQUAL))
@@ -1396,6 +1426,12 @@ ParseRule rules[] = {
     {NULL, expand, PREC_FACTOR},     // TOKEN_EXPAND_EX
     {unary, binary, PREC_TERM},      // TOKEN_MINUS
     {NULL, binary, PREC_TERM},       // TOKEN_PLUS
+    {NULL, binary, PREC_TERM},       // TOKEN_DOT_PLUS
+    {NULL, binary, PREC_TERM},       // TOKEN_DOT_MINUS
+    {NULL, binary, PREC_TERM},       // TOKEN_DOT_STAR
+    {NULL, binary, PREC_TERM},       // TOKEN_DOT_SLASH
+    {NULL, binary, PREC_TERM},       // TOKEN_DOT_POW
+    {NULL, binary, PREC_TERM},       // TOKEN_DOT_PERCENT
     {prefix, NULL, PREC_NONE},       // TOKEN_INC
     {prefix, NULL, PREC_NONE},       // TOKEN_DEC
     {NULL, NULL, PREC_NONE},         // TOKEN_PLUS_EQUALS
@@ -1462,6 +1498,7 @@ ParseRule rules[] = {
     {NULL, NULL, PREC_NONE},         // TOKEN_ABORT
     {NULL, NULL, PREC_NONE},         // TOKEN_TRY
     {NULL, NULL, PREC_NONE},         // TOKEN_CATCH
+    {NULL, NULL, PREC_NONE},         // TOKEN_DOC
     {NULL, NULL, PREC_NONE},         // TOKEN_ERROR
     {NULL, NULL, PREC_NONE},         // TOKEN_EOF
 };
@@ -1923,6 +1960,21 @@ static void globalDeclaration(bool checkEnd)
     match(TOKEN_SEMICOLON);
 }
 
+static void docDeclaration()
+{
+    Token tdoc = parser.previous;
+    Documentation *doc = (Documentation *)mp_malloc(sizeof(Documentation));
+    doc->id = 0;
+    doc->line = -1;
+    doc->doc = (char *)mp_malloc(sizeof(char) * (tdoc.length + 1));
+    memcpy(doc->doc, tdoc.start, tdoc.length);
+    doc->doc[tdoc.length] = '\0';
+    doc->next = currentDoc;
+    currentDoc = doc;
+    if (doc->next != NULL)
+        doc->id = doc->next->id + 1;
+}
+
 static void varDeclaration(bool checkEnd)
 {
     uint16_t global;
@@ -2112,7 +2164,7 @@ static void forStatement()
         // Increment counter
         getVariable(loopVar);
         emitConstant(NUMBER_VAL(1));
-        emitByte(OP_ADD);
+        emitBytes(OP_ADD, OP_FALSE);
         setVariablePop(loopVar);
         emitByte(OP_POP);
 
@@ -2512,6 +2564,7 @@ static void synchronize()
             case TOKEN_ABORT:
             case TOKEN_TRY:
             case TOKEN_CATCH:
+            case TOKEN_DOC:
                 return;
 
             default:
@@ -2525,6 +2578,9 @@ static void synchronize()
 
 static void declaration(bool checkEnd)
 {
+    if (currentDoc != NULL && currentDoc->line < 0)
+        currentDoc->line = parser.current.line;
+
     if (match(TOKEN_CLASS))
     {
         classDeclaration();
@@ -2548,6 +2604,10 @@ static void declaration(bool checkEnd)
     else if (match(TOKEN_VAR))
     {
         varDeclaration(checkEnd);
+    }
+    else if (match(TOKEN_DOC))
+    {
+        docDeclaration();
     }
     else
     {
@@ -2666,6 +2726,7 @@ ObjFunction *compile(const char *source, const char *path)
         initScanner(source);
         Compiler compiler;
 
+        initDoc();
         initCompiler(&compiler, TYPE_SCRIPT);
         compiler.path = path;
 
@@ -2687,6 +2748,7 @@ ObjFunction *compile(const char *source, const char *path)
         }
 
         function = endCompiler();
+        function->doc = getDoc();
         if (parser.hadError)
             function = NULL;
     }
@@ -2707,6 +2769,7 @@ ObjFunction *eval(const char *source)
     initScanner(code);
     Compiler compiler;
 
+    initDoc();
     initCompiler(&compiler, TYPE_EVAL);
 
     parser.hadError = false;
@@ -2721,6 +2784,7 @@ ObjFunction *eval(const char *source)
     }
 
     function = endCompiler();
+    function->doc = getDoc();
     if (parser.hadError)
         function = NULL;
 
@@ -2869,6 +2933,31 @@ bool writeByteCode(FILE *file, Value value)
             return false;
         if (!writeByteCodeChunk(file, &func->chunk))
             return false;
+
+        Documentation *doc = func->doc;
+        uint32_t sz = 0;
+        if (doc != NULL)
+            sz = doc->id + 1;
+
+        if (fwrite(&sz, sizeof(sz), 1, file) != 1)
+            return false;
+
+        while (doc != NULL)
+        {
+            if (fwrite(&doc->id, sizeof(doc->id), 1, file) != 1)
+                return false;
+            if (fwrite(&doc->line, sizeof(doc->line), 1, file) != 1)
+                return false;
+
+            sz = strlen(doc->doc);
+            if (fwrite(&sz, sizeof(sz), 1, file) != 1)
+                return false;
+
+            if (fwrite(doc->doc, sizeof(char), sz, file) != sz)
+                return false;
+
+            doc = doc->next;
+        }
     }
     else if (IS_CLOSURE(value))
     {
@@ -3124,6 +3213,23 @@ Value loadByteCode(const char *source, uint32_t *pos, uint32_t total)
             func->staticMethod = READ(bool);
             func->upvalueCount = READ(int);
             loadChunk(&func->chunk, source, pos, total);
+
+            uint32_t sz = READ(uint32_t);
+            uint32_t len;
+            while (sz > 0)
+            {
+                Documentation *doc = (Documentation *)mp_malloc(sizeof(Documentation));
+                doc->id = READ(int);
+                doc->line = READ(int);
+                len = READ(uint32_t);
+                doc->doc = (char *)mp_malloc(sizeof(char) * (len + 1));
+                READ_ARRAY(char, doc->doc, len);
+                doc->doc[len] = '\0';
+                doc->next = func->doc;
+                func->doc = doc;
+                sz--;
+            }
+
             value = OBJ_VAL(func);
         }
         else if (objType == OBJ_CLOSURE)

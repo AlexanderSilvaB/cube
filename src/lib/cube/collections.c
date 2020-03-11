@@ -6,6 +6,67 @@
 // This is needed for list deepCopy
 ObjDict *copyDict(ObjDict *oldDict, bool shallow);
 
+void addList(ObjList *list, Value value)
+{
+    writeValueArray(&list->values, value);
+}
+
+void rmList(ObjList *list, Value search)
+{
+    int skip = 0;
+
+    for (int i = 0; i < list->values.capacity; ++i)
+    {
+#ifndef NAN_TAGGING
+        if (valuesEqual(list->values.values[i], search))
+        {
+            skip++;
+        }
+#else
+        if (!list->values.values[i])
+            continue;
+
+        if (list->values.values[i] == search)
+        {
+            skip++;
+        }
+#endif
+        if (skip > 0)
+        {
+            if (i + skip >= list->values.capacity)
+                break;
+
+            list->values.values[i] = list->values.values[i + skip];
+        }
+    }
+
+    list->values.count -= skip;
+    if (list->values.count < 0)
+        list->values.count = 0;
+}
+
+void stretchList(ObjList *list1, ObjList *list2)
+{
+    for (int i = 0; i < list2->values.count; ++i)
+    {
+        Value val = list2->values.values[i];
+
+        if (IS_DICT(val))
+            val = OBJ_VAL(copyDict(AS_DICT(val), false));
+        else if (IS_LIST(val))
+            val = OBJ_VAL(copyList(AS_LIST(val), false));
+
+        writeValueArray(&list1->values, val);
+    }
+}
+
+void shrinkList(ObjList *list, int num)
+{
+    list->values.count -= num;
+    if (list->values.count < 0)
+        list->values.count = 0;
+}
+
 static bool pushListItem(int argCount)
 {
     if (argCount != 2)
@@ -281,6 +342,38 @@ bool listContains(Value listV, Value search, Value *result)
     return true;
 }
 
+static bool swapListItems(int argCount)
+{
+    if (argCount != 3)
+    {
+        runtimeError("swap() takes 3 arguments (%d given)", argCount);
+        return false;
+    }
+
+    if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1)))
+    {
+        runtimeError("swap() arguments must be numbers");
+        return false;
+    }
+
+    int i = AS_NUMBER(pop());
+    int j = AS_NUMBER(pop());
+
+    ObjList *list = AS_LIST(pop());
+
+    if (i < 0 || i > list->values.count || j < 0 || j > list->values.count)
+    {
+        runtimeError("Index passed to swap() is out of bounds for the list given");
+        return false;
+    }
+
+    Value tmp = list->values.values[i];
+    list->values.values[i] = list->values.values[j];
+    list->values.values[j] = tmp;
+    push(OBJ_VAL(list));
+    return true;
+}
+
 ObjList *copyList(ObjList *oldList, bool shallow)
 {
     DISABLE_GC;
@@ -411,6 +504,8 @@ bool listMethods(char *method, int argCount)
         return copyListDeep(argCount);
     else if (strcmp(method, "join") == 0)
         return joinList(argCount);
+    else if (strcmp(method, "swap") == 0)
+        return swapListItems(argCount);
 
     runtimeError("List has no method %s()", method);
     return false;
