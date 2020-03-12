@@ -46,6 +46,16 @@ bool openNativeLib(ObjNativeLib *lib)
 #endif
             return false;
         }
+
+        lib_func fn;
+#ifdef _WIN32
+        fn.f_void = (func_void)GetProcAddress(lib->handle, "cube_init");
+#else
+        fn.f_void = (func_void)dlsym(lib->handle, "cube_init");
+#endif
+
+        if (fn.f_void != NULL)
+            fn.f_void();
     }
     return true;
 }
@@ -54,6 +64,16 @@ void closeNativeLib(ObjNativeLib *lib)
 {
     if (lib->handle != NULL)
     {
+        lib_func fn;
+#ifdef _WIN32
+        fn.f_void = (func_void)GetProcAddress(lib->handle, "cube_release");
+#else
+        fn.f_void = (func_void)dlsym(lib->handle, "cube_release");
+#endif
+
+        if (fn.f_void != NULL)
+            fn.f_void();
+
 #ifdef _WIN32
         FreeLibrary(lib->handle);
 #else
@@ -172,6 +192,10 @@ void valueToNative(cube_native_var *var, Value value)
             valueToNative(next, dict->items[i]->item);
             ADD_NATIVE_DICT(var, dict->items[i]->key, next);
         }
+    }
+    else if (IS_CLOSURE(value))
+    {
+        TO_NATIVE_FUNC(var);
     }
     else
     {
@@ -389,8 +413,13 @@ Value callNative(ObjNativeFunc *func, int argCount, Value *args)
             }
             break;
             case TYPE_LIST:
-            case TYPE_DICT: {
+            case TYPE_DICT:
+            case TYPE_VAR: {
                 valueToNative(values[i], args[i]);
+            }
+            break;
+            case TYPE_FUNC: {
+                TO_NATIVE_FUNC(values[i]);
             }
             break;
             default:
@@ -440,6 +469,10 @@ NativeTypes getNativeType(const char *name)
         return TYPE_LIST;
     else if (strcmp(name, "dict") == 0)
         return TYPE_DICT;
+    else if (strcmp(name, "var") == 0)
+        return TYPE_VAR;
+    else if (strcmp(name, "func") == 0)
+        return TYPE_FUNC;
 
     return TYPE_UNKNOWN;
 }

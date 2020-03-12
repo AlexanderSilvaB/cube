@@ -48,6 +48,8 @@ typedef enum
     TYPE_BYTES,
     TYPE_LIST,
     TYPE_DICT,
+    TYPE_VAR,
+    TYPE_FUNC,
     TYPE_UNKNOWN
 } NativeTypes;
 
@@ -66,10 +68,10 @@ typedef union cube_native_value_t {
 
 typedef struct cube_native_var_t
 {
+    cube_native_value value;
     NativeTypes type;
     bool is_list;
     bool is_dict;
-    cube_native_value value;
     char *key;
     int size;
     int capacity;
@@ -186,6 +188,13 @@ static cube_native_var *NATIVE_DICT()
     return var;
 }
 
+static cube_native_var *NATIVE_FUNC()
+{
+    cube_native_var *var = NATIVE_VAR();
+    var->type = TYPE_FUNC;
+    return var;
+}
+
 static cube_native_var *TO_NATIVE_NONE(cube_native_var *var)
 {
     var->type = TYPE_NONE;
@@ -247,6 +256,12 @@ static cube_native_var *TO_NATIVE_DICT(cube_native_var *var)
     var->size = 0;
     var->capacity = 8;
     var->dict = (cube_native_var **)malloc(sizeof(cube_native_var *) * var->capacity);
+    return var;
+}
+
+static cube_native_var *TO_NATIVE_FUNC(cube_native_var *var)
+{
+    var->type = TYPE_FUNC;
     return var;
 }
 

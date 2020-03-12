@@ -1,0 +1,377 @@
+native libs/libcurl
+{
+    bool download(str, str);
+    bytes get(str);
+    bytes post(str, bytes);
+
+    num easy_init();
+    void easy_cleanup(num);
+    num easy_setopt(num, num, var);
+    num easy_perform(num);
+    var easy_getinfo(num, num);
+    void set_data(num, bytes);
+    bytes get_data(num);
+}
+
+enum Option
+{
+    AutoReferer = 58,
+    BufferSize = 98,
+    CaInfo = 10065,
+    CaPath = 10097,
+    ClosePolicy = 72,
+    ConnectTimeout = 78,
+    Cookie = 10022,
+    CookieFile = 10031,
+    CookieJar = 10082,
+    CookieSession = 96,
+    CRLF = 27,
+    CustomRequest = 10036,
+    DebugData = 10095,
+    DebugFunction = 20094,
+    DnsCacheTimeout = 92,
+    DnsUseGlobalCache = 91,
+    EgdSocket = 10077,
+    NetRcFile = 118,
+    Encoding = 10102,
+    ErrorBuffer = 10010,
+    FailOnError = 45,
+    Filetime = 69,
+    FollowLocation = 52,
+    ForbidReuse = 75,
+    FreshConnect = 74,
+    FtpAccount = 10134,
+    FtpAppend = 50,
+    FtpListOnly = 48,
+    FtpPort = 10017,
+    FtpSslAuth = 129,
+    FtpCreateMissingDirs = 110,
+    FtpResponseTimeout = 112,
+    FtpSsl = 119,
+    FtpUseEprt = 106,
+    FtpUseEpsv = 85,
+    Header = 42,
+    HeaderData = 10029,
+    HeaderFunction = 20079,
+    Http200Aliases = 10104,
+    HttpAuth = 107,
+    HttpGet = 80,
+    HttpHeader = 10023,
+    HttpPost = 10024,
+    HttpProxyTunnel = 61,
+    HttpVersion = 84,
+    IoctlFunction = 20130,
+    IoctlData = 10131,
+    InfileSize = 14,
+    InFileSizeLarge = 30115,
+    Interface = 10062,
+    IpResolve = 113,
+    Krb4Level = 10063,
+    LowSpeedLimit = 19,
+    LowSpeedTime = 20,
+    MaxConnects = 71,
+    MaxFileSize = 114,
+    MaxFileSizeLarge = 30117,
+    MaxRedirs = 68,
+    Netrc = 51,
+    NetrcFile = 10118,
+    NoBody = 44,
+    NoProgress = 43,
+    NoSignal = 99,
+    PasvHost = 126,
+    Port = 3,
+    Post = 47,
+    PostFields = 10015,
+    PostFieldSize = 60,
+    PostFieldSizeLarge = 30120,
+    Postquote = 10039,
+    Prequote = 10093,
+    Private = 10103,
+    ProgressData = 10057,
+    ProgressFunction = 20056,
+    Proxy = 10004,
+    ProxyAuth = 111,
+    ProxyPort = 59,
+    ProxyType = 101,
+    ProxyUserPwd = 10006,
+    Put = 54,
+    Quote = 10028,
+    RandomFile = 10076,
+    Range = 10007,
+    ReadData = 10009,
+    ReadFunction = 20012,
+    Referer = 10016,
+    ResumeFrom = 21,
+    ResumeFromLarge = 30116,
+    Share = 10100,
+    SourceHost = 10122,
+    SourcePath = 10124,
+    SourcePort = 125,
+    SourcePostquote = 10128,
+    SourcePrequote = 10127,
+    SourceQuote = 10133,
+    SourceUrl = 10132,
+    SourceUserpwd = 10123,
+    SslCert = 10025,
+    SslCertPasswd = 10026,
+    SslCertType = 10086,
+    SslEngine = 10089,
+    SslEngineDefault = 90,
+    SslKey = 10087,
+    SslKeyPasswd = 10026,
+    SslKeyType = 10088,
+    SslVersion = 32,
+    SslCipherList = 10083,
+    SslCtxData = 10109,
+    SslCtxFunction = 20108,
+    SslVerifyhost = 81,
+    SslVerifyPeer = 64,
+    Stderr = 10037,
+    TcpNoDelay = 121,
+    IgnoreContentLength = 136,
+    FtpSkipPasvIp = 137,
+    TelnetOptions = 10070,
+    TimeCondition = 33,
+    Timeout = 13,
+    TimeValue = 34,
+    TransferText = 53,
+    UnrestrictedAuth = 105,
+    Upload = 46,
+    Url = 10002,
+    UserAgent = 10018,
+    UserPwd = 10005,
+    Verbose = 41,
+    WriteData = 10001,
+    WriteFunction = 20011,
+    WriteInfo = 10040,
+    TransferEncoding = 207,
+    CloseSocketFunction = 20208,
+    CloseSocketData = 10209,
+    CookieList = 10135,
+    FtpFileMethod = 138,
+    LocalPort = 139,
+    LocalPortRange = 140,
+    ConnectOnly = 141,
+    MaxSendSpeedLarge = 30145,
+    MaxRecvSpeedLarge = 30146,
+    FtpAlternativeToUser = 10147,
+    SockoptFunction = 20148,
+    SockoptData = 149,
+    SslSessionidCache = 150,
+    SshAuthTypes = 151,
+    SshPublicKeyfile = 10152,
+    SshPrivateKeyfile = 10152,
+    TimeoutMs = 155,
+    ConnectTimeoutMs = 156,
+    HttpTransferDecoding = 157,
+    HttpContentDecoding = 158,
+    NewFilePerms = 159,
+    NewDirectoryPerms = 160,
+    PostRedir = 161,
+    SshHostPublicKeyMd5 = 10162,
+    OpenSocketFunction = 20163,
+    OpenSocketData = 10164,
+    CopyPostFields = 10165,
+    ProxyTransferMode = 166,
+    SeekFunction = 20167,
+    SeekData = 10168,
+    CrlFile = 10169,
+    IssuerCert = 10170,
+    AddressScope = 171,
+    CertInfo = 172,
+    Username = 10173,
+    Password = 10174,
+    ProxyUsername = 10175,
+    ProxyPassword = 10176,
+    NoProxy = 10177,
+    TftpBlksize = 178,
+    Socks5GssApiService = 10179,
+    Socks5GssApiNec = 180,
+    Protocols = 181,
+    RedirProtocols = 182,
+    SshKnownHosts = 10183,
+    SshKeyFunction = 20184,
+    SshKeydata = 10185,
+    MailFrom = 10186,
+    MailRcpt = 10187,
+    FtpUsePret = 188,
+    DnsInterface = 10221,
+    DnsLocalIp4 = 10222,
+    DnsLocalIp6 = 10223,
+    LoginOptions = 10224,
+    SslEnableNpn = 225,
+    SslEnableAlpn = 226,
+    Expect100TimeoutMs = 227,
+    ProxyHeader = 228,
+    HeaderOpt = 229,
+    LastEntry = 230
+}
+
+enum Code
+{
+    Ok = 0,
+    AbortedByCallback = 42,
+    BadCallingOrder = 44,
+    BadContentEncoding = 61,
+    BadDownloadResume = 36,
+    BadFunctionArgument = 43,
+    BadPasswordEntered = 46,
+    CouldntConnect = 7,
+    CouldntResolveHost = 6,
+    CouldntResolveProxy = 5,
+    FailedInit = 2,
+    FilesizeExceeded = 63,
+    FileCouldntReadFile = 37,
+    FtpAccessDenied = 9,
+    FtpCantGetHost = 15,
+    FtpCantReconnect = 16,
+    FtpCouldntGetSize = 32,
+    FtpCouldntRetrFile = 19,
+    FtpCouldntSetAscii = 29,
+    FtpCouldntSetBinary = 17,
+    FtpCouldntStorFile = 25,
+    FtpCouldntUseRest = 31,
+    FtpPortFailed = 30,
+    FtpQuoteError = 21,
+    FtpSslFailed = 64,
+    FtpUserPasswordIncorrect = 10,
+    FtpWeird227Format = 14,
+    FtpWeirdPassReply = 11,
+    FtpWeirdPasvReply = 13,
+    FtpWeirdServerReply = 8,
+    FtpWeirdUserReply = 12,
+    FtpWriteError = 20,
+    FunctionNotFound = 41,
+    GotNothing = 52,
+    HttpPostError = 34,
+    HttpRangeError = 33,
+    HttpReturnedError = 22,
+    InterfaceFailed = 45,
+    Last = 67,
+    LdapCannotBind = 38,
+    LdapInvalidUrl = 62,
+    LdapSearchFailed = 39,
+    LibraryNotFound = 40,
+    MalformatUser = 24,
+    Obsolete = 50,
+    OperationTimeouted = 28,
+    OutOfMemory = 27,
+    PartialFile = 18,
+    ReadError = 26,
+    RecvError = 56,
+    SendError = 55,
+    SendFailRewind = 65,
+    ShareInUse = 57,
+    SslCaCert = 60,
+    SslCertProblem = 58,
+    SslCipher = 59,
+    SslConnectError = 35,
+    SslEngineInitFailed = 66,
+    SslEngineNotFound = 53,
+    SslEngineSetFailed = 54,
+    SslPeerCertificate = 51,
+    TelnetOptionSyntax = 49,
+    TooManyRedirects = 47,
+    UnknownTelnetOption = 48,
+    UnsupportedProtocol = 1,
+    UrlMalformat = 3,
+    UrlMalformatUser = 4,
+    WriteError = 23
+}
+
+enum Info
+{
+    ConnectTime = 0x300005,
+    ContentLengthDownload = 0x30000F,
+    ContentLengthUpload = 0x300010,
+    ContentType = 0x100012,
+    EffectiveUrl = 0x100001,
+    Filetime = 0x20000E,
+    HeaderSize = 0x20000B,
+    HttpAuthAvail = 0x200017,
+    HttpConnectCode = 0x200016,
+    LastOne = 0x1C,
+    NameLookupTime = 0x300004,
+    None = 0x0,
+    NumConnects = 0x20001A,
+    OsErrno = 0x200019,
+    PreTransferTime = 0x300006,
+    Private = 0x100015,
+    ProxyAuthAvail = 0x200018,
+    RedirectCount = 0x200014,
+    RedirectTime = 0x300013,
+    RequestSize = 0x20000C,
+    ResponseCode = 0x200002,
+    SizeDownload = 0x300008,
+    SizeUpload = 0x300007,
+    SpeedDownload = 0x300009,
+    SpeedUpload = 0x30000A,
+    SslEngines = 0x40001B,
+    SslVerifyResult = 0x20000D,
+    StartTransferTime = 0x300011,
+    TotalTime = 0x300003
+}
+
+func encode(data)
+{
+    var ret;
+    if(data is not dict)
+        ret = str(data)
+    else
+    {
+        ret = '';
+        var L = len(data) - 1
+        for(var key, i in data)
+        {
+            ret += '{}={}'.format(key, str(data[key]))
+            if(i < L)
+                ret += '&'
+        }
+    }
+    return ret;
+}
+
+class Curl
+{
+    var id = none;
+    func init()
+    {
+        id = easy_init();
+        if(id is none)
+            throw('Could not init curl')
+    }
+
+    func close()
+    {
+        easy_cleanup(id);
+    }
+
+    func setopt(opt, param)
+    {
+        var res = easy_setopt(id, opt, param);
+        var name = Code.name(res);
+        return Code.get(name);
+    }
+
+    func perform()
+    {
+        var res = easy_perform(id);
+        var name = Code.name(res);
+        return Code.get(name);
+    }
+
+    func getinfo(info)
+    {
+        return easy_getinfo(id, info)
+    }
+
+    func setdata(data)
+    {
+        set_data(id, data)
+    }
+
+    func getdata()
+    {
+        return get_data(id)
+    }
+}

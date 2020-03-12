@@ -1,0 +1,10 @@
+import curl as default
+
+var c = Curl()
+c.setopt(Option.Url, 'www.google.com')
+c.perform()
+
+println(c.getinfo(Info.ResponseCode), ' ', c.getinfo(Info.EffectiveUrl))
+println("Time taken: ", c.getinfo(Info.TotalTime))
+
+c.close()

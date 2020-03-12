@@ -1,0 +1,94 @@
+class Mat
+{
+    var data;
+    func init(data)
+    {
+        if(!__validate(data))
+            throw('Invalid data in matrix. Only numeric values allowed')
+        if(data is num)
+            data = [[data]]
+        else if(data is list and len(data) == 0)
+            data = [data]
+        else if(data is list and data[0] is not list)
+            data = [data]
+        
+        for(var i = 0; i < len(data)-1; ++i)
+        {
+            if(len(data[i]) != len(data[i+1]))
+                throw('Matrix dimensions does not match')
+        }
+
+        this.data = data
+        if(dims() > 2)
+            throw('Only bi-dimensional matrix supported')
+    }
+
+    func __validate(value)
+    {
+        if(value is num)
+            return true
+        else if(value is list)
+        {
+            for(var v in value)
+            {
+                if(!__validate(v))
+                    return false
+            }
+            return true
+        }
+        return false
+    }
+
+    func dims()
+    {
+        return __dims(data)
+    }
+
+    func __dims(d)
+    {
+        if(len(d) > 0 and d[0] is list)
+            return __dims(d[0]) + 1
+        return 1
+    }
+
+    func str()
+    {
+        var ret = ''
+        var L = len(data)
+        for(var i = 0; i < L; ++i)
+        {
+            var l = len(data[i])
+            for(var j = 0; j < l; ++j)
+            {
+                ret += data[i][j]
+                if(j < l-1)
+                    ret += ' '
+            }
+            if(i < L-1)
+                ret += '\n'
+        }
+        return ret
+    }
+}
+
+class Vec : Mat
+{
+    func init(data)
+    {
+        super.init(data)
+        if(len(this.data[0]) > 1)
+        {
+            if(len(this.data) > 1)
+                throw('Vec cannot have more than 1 element in one of its dimensions')
+            else
+            {
+                var d = this.data[0]
+                this.data = []
+                for(var i in d)
+                {
+                    this.data.add([i])
+                }
+            }
+        }
+    }
+}

@@ -738,8 +738,8 @@ char *objectType(Value value)
 
         case OBJ_ENUM_VALUE: {
             ObjEnumValue *enumValue = AS_ENUM_VALUE(value);
-            char *str = mp_malloc(sizeof(char) * (7 + enumValue->enume->name->length));
-            snprintf(str, (6 + enumValue->enume->name->length), "enum<%s>", enumValue->enume->name->chars);
+            char *str = mp_malloc(sizeof(char) * (8 + enumValue->enume->name->length));
+            snprintf(str, (7 + enumValue->enume->name->length), "enum<%s>", enumValue->enume->name->chars);
             return str;
         }
 

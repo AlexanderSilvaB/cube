@@ -456,7 +456,7 @@ Value peek(int distance)
     return threadFrame->ctf->stackTop[-1 - distance];
 }
 
-static bool call(ObjClosure *closure, int argCount, ObjInstance *instance)
+static bool call(ObjClosure *closure, int argCount, ObjInstance *instance, ObjClass *klass)
 {
 
     /*if (argCount != closure->function->arity)
@@ -493,9 +493,18 @@ static bool call(ObjClosure *closure, int argCount, ObjInstance *instance)
     frame->nextPackage = NULL;
     frame->require = false;
     frame->instance = instance;
+    frame->klass = klass;
     if (frame->instance == NULL && threadFrame->frame && threadFrame->frame->instance != NULL)
     {
         frame->instance = threadFrame->frame->instance;
+    }
+    if (frame->klass == NULL && frame->instance != NULL)
+    {
+        frame->klass = frame->instance->klass;
+    }
+    if (frame->klass == NULL && threadFrame->frame && threadFrame->frame->klass != NULL)
+    {
+        frame->klass = threadFrame->frame->klass;
     }
     if (threadFrame->frame && threadFrame->frame->nextPackage != NULL)
     {
@@ -554,7 +563,7 @@ static bool findMethod(ObjClass *klass, ObjString *name, Value *method, ObjClass
     return true;
 }
 
-static bool callValue(Value callee, int argCount, ObjInstance *instance)
+static bool callValue(Value callee, int argCount, ObjInstance *instance, ObjClass *klass)
 {
     ThreadFrame *threadFrame = currentThread();
     if (IS_OBJ(callee))
@@ -568,7 +577,7 @@ static bool callValue(Value callee, int argCount, ObjInstance *instance)
                 // right slot when the method is called.
                 threadFrame->ctf->stackTop[-argCount - 1] = bound->receiver;
                 threadFrame->frame->nextPackage = threadFrame->frame->package;
-                return call(bound->method, argCount, instance);
+                return call(bound->method, argCount, instance, klass);
             }
 
             case OBJ_CLASS: {
@@ -583,7 +592,7 @@ static bool callValue(Value callee, int argCount, ObjInstance *instance)
                 if (findMethod(klass, vm.initString, &initializer, &selected))
                 {
                     threadFrame->frame->nextPackage = klass->package ? klass->package : threadFrame->frame->package;
-                    return call(AS_CLOSURE(initializer), argCount, instance);
+                    return call(AS_CLOSURE(initializer), argCount, instance, instance->klass);
                 }
                 else if (argCount != 0)
                 {
@@ -594,7 +603,7 @@ static bool callValue(Value callee, int argCount, ObjInstance *instance)
                 return true;
             }
             case OBJ_CLOSURE:
-                return call(AS_CLOSURE(callee), argCount, instance);
+                return call(AS_CLOSURE(callee), argCount, instance, klass);
 
             case OBJ_NATIVE: {
                 NativeFn native = AS_NATIVE(callee);
@@ -606,7 +615,7 @@ static bool callValue(Value callee, int argCount, ObjInstance *instance)
                     ObjInstance *ins = AS_INSTANCE(*(threadFrame->ctf->stackTop - argCount));
                     if (ins != NULL)
                         instance = ins;
-                    return callValue(request->fn, argCount - request->pops, instance);
+                    return callValue(request->fn, argCount - request->pops, instance, klass);
                 }
                 else
                 {
@@ -680,7 +689,7 @@ static bool callExtension(Value receiver, ObjString *name, int argCount)
     }
 
     Value fn = searchDict(AS_DICT(value), name->chars);
-    return call(AS_CLOSURE(fn), argCount, NULL);
+    return call(AS_CLOSURE(fn), argCount, NULL, NULL);
 }
 
 static bool invokeFromClass(ObjClass *klass, ObjString *name, int argCount, ObjInstance *instance)
@@ -696,7 +705,7 @@ static bool invokeFromClass(ObjClass *klass, ObjString *name, int argCount, ObjI
 
     ThreadFrame *threadFrame = currentThread();
     threadFrame->frame->nextPackage = klass->package ? klass->package : threadFrame->frame->package;
-    return call(AS_CLOSURE(method), argCount, instance);
+    return call(AS_CLOSURE(method), argCount, instance, selected);
 }
 
 static bool invoke(ObjString *name, int argCount)
@@ -727,7 +736,7 @@ static bool invoke(ObjString *name, int argCount)
 
         ThreadFrame *threadFrame = currentThread();
         threadFrame->frame->nextPackage = klass->package ? klass->package : threadFrame->frame->package;
-        return callValue(method, argCount, NULL);
+        return callValue(method, argCount, NULL, klass);
     }
 
     else if (IS_PACKAGE(receiver))
@@ -742,7 +751,7 @@ static bool invoke(ObjString *name, int argCount)
 
         ThreadFrame *threadFrame = currentThread();
         threadFrame->frame->nextPackage = package;
-        return callValue(func, argCount, NULL);
+        return callValue(func, argCount, NULL, NULL);
     }
     else if (hasExtension(receiver, name))
         return callExtension(receiver, name, argCount);
@@ -777,7 +786,7 @@ static bool invoke(ObjString *name, int argCount)
         threadFrame->ctf->stackTop[-argCount - 1] = value;
         threadFrame->frame->nextPackage =
             instance->klass->package ? instance->klass->package : threadFrame->frame->package;
-        return callValue(value, argCount, instance);
+        return callValue(value, argCount, instance, instance->klass);
     }
 
     return invokeFromClass(instance->klass, name, argCount, instance);
@@ -2029,6 +2038,15 @@ InterpretResult run()
                                 break;
                             }
                         }
+                        if (frame->klass != NULL)
+                        {
+                            ObjClass *selected;
+                            if (findMethod(frame->klass, name, &value, &selected))
+                            {
+                                push(value);
+                                break;
+                            }
+                        }
                         runtimeError("Undefined variable '%s'.", name->chars);
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
@@ -2974,7 +2992,10 @@ InterpretResult run()
                 {
                     mp_free(s);
                     mp_free(name);
-                    return INTERPRET_COMPILE_ERROR;
+                    if (!checkTry(frame))
+                        return INTERPRET_COMPILE_ERROR;
+                    else
+                        break;
                 }
                 mp_free(s);
                 pop();
@@ -3119,7 +3140,7 @@ InterpretResult run()
 
             case OP_CALL: {
                 int argCount = READ_BYTE();
-                if (!callValue(peek(argCount), argCount, NULL))
+                if (!callValue(peek(argCount), argCount, NULL, NULL))
                 {
                     if (!checkTry(frame))
                         return INTERPRET_RUNTIME_ERROR;
@@ -3136,7 +3157,7 @@ InterpretResult run()
                     pop();
                     push(OBJ_VAL(closure));
 
-                    if (!callValue(peek(argCount), argCount, NULL))
+                    if (!callValue(peek(argCount), argCount, NULL, NULL))
                     {
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
@@ -3506,13 +3527,13 @@ InterpretResult interpret(const char *source, const char *path)
         {
             push(STRING_VAL(initArgV[i]));
         }
-        callValue(OBJ_VAL(closure), initArgC - initArgStart, NULL);
+        callValue(OBJ_VAL(closure), initArgC - initArgStart, NULL, NULL);
         // initArgC = 0;
         // initArgStart = 0;
         // initArgV = NULL;
     }
     else
-        callValue(OBJ_VAL(closure), 0, NULL);
+        callValue(OBJ_VAL(closure), 0, NULL, NULL);
 
     ThreadFrame *threadFrame = currentThread();
     threadFrame->taskFrame->finished = false;

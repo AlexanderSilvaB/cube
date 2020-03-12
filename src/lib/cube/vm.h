@@ -26,6 +26,7 @@ typedef struct
     uint8_t *ip;
     Value *slots;
     ObjInstance *instance;
+    ObjClass *klass;
     CallFrameType type;
     ObjPackage *package;
     ObjPackage *nextPackage;

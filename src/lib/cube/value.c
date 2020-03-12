@@ -373,11 +373,19 @@ Value toNumber(Value value)
     else if (IS_BYTES(value))
     {
         ObjBytes *bytes = AS_BYTES(value);
-        char b[sizeof(double)];
-        int len = bytes->length > sizeof(double) ? sizeof(double) : bytes->length;
+        char b[sizeof(uint32_t)];
+        int len = bytes->length > sizeof(uint32_t) ? sizeof(uint32_t) : bytes->length;
         memcpy(b, bytes->bytes, len);
-        double value = *((double *)b);
+        uint32_t value = *((uint32_t *)b);
         return NUMBER_VAL(value);
+    }
+    else if (IS_ENUM_VALUE(value) && IS_NUMBER(AS_ENUM_VALUE(value)->value))
+    {
+        return NUMBER_VAL(AS_NUMBER(AS_ENUM_VALUE(value)->value));
+    }
+    else if (IS_ENUM_VALUE(value) && IS_BYTES(AS_ENUM_VALUE(value)->value))
+    {
+        return toNumber(AS_ENUM_VALUE(value)->value);
     }
     return NUMBER_VAL(1);
 }

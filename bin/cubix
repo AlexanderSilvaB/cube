@@ -1,7 +1,7 @@
 #!/usr/local/bin/cube
 
 import json;
-import socket;
+import curl;
 import os;
 import paths;
 import zip;
@@ -12,29 +12,22 @@ parser.add('install', 'i', str, '+', 'selects the package to install');
 parser.add('uninstall', 'u', str, '+', 'selects the package to uninstall');
 parser.add('list', 'l', none, 0, 'list installed packages');
 parser.add('online', 'o', none, 0, 'list online packages');
+parser.add('force', 'f', none, 0, 'force install or uninstall');
 
 parser.parse(args);
 
-// var address = 'raw.githubusercontent.com';
-// var base = 'AlexanderSilvaB/cube-packages/master/';
-// var port = socket.HTTP.PORT;
-var address = '127.0.0.1';
-var base = '';
-var port = 8080;
+var address = 'https://raw.githubusercontent.com/AlexanderSilvaB/cube-packages/master/';
 
-func readWeb(address, request)
+func readWeb(request)
 {
-    var http = socket.HTTPClient(address, port);
-    if(!http.connect())
-        throw('Failed to connect [', address, ':', port, ']');
-    
-     http.get(request);
-    var contents = http.receive();
-    http.disconnect();
-    return contents;
+    var url = address+request;
+    var contents = curl.get(url);
+    if(contents is none)
+        throw('Failed to get [', url, ']');
+    return str(contents);
 }
 
-func install(libs)
+func install(force, libs)
 {
     println('Installing: ', libs.join(' '));
 
@@ -43,7 +36,7 @@ func install(libs)
     {
         if(lib.endsWith('.zip'))
         {
-            installFilePackage(lib);
+            installFilePackage(force, lib);
             rm.add(lib)
         }
     }
@@ -56,7 +49,7 @@ func install(libs)
     if(len(libs) == 0)
         return;
 
-    var contents = readWeb(address, '{}index.json'.format(base));
+    var contents = readWeb('index.json');
     var packages = json.parseJson(contents)['packages'];
 
     var package = none;
@@ -78,20 +71,17 @@ func install(libs)
         if(package is none)
             throw('Package "', lib, '" not found!');
 
-        if(package.startsWith("libs/"))
-            installPackage(lib, '{}/{}{}'.format(address, base, package));
-        else
-            installPackage(lib, package);
+        installPackage(force, lib, package);
     }
 }
 
-func uninstall(libs)
+func uninstall(force, libs)
 {
     println('Uninstalling: ', libs.join(' '));
 
     for(var lib in libs)
     {
-        uninstallPackage(lib);
+        uninstallPackage(force, lib);
     }   
 }
 
@@ -114,7 +104,7 @@ func listPackages()
 
 func listOnlinePackages()
 {
-    var contents = readWeb(address, '{}index.json'.format(base));
+    var contents = readWeb('index.json');
     var packages = json.parseJson(contents)['packages'];
     for(var p in packages)
     {
@@ -123,7 +113,7 @@ func listOnlinePackages()
     println('\b\b  ');
 }
 
-func installFilePackage(libFile)
+func installFilePackage(force, libFile)
 {
     println("File: ", libFile)
     if(!exists(libFile))
@@ -163,7 +153,7 @@ func installFilePackage(libFile)
     }
 
     println("{} [{} -> {}]\t".format(lib, current, version));
-    if(current == version)
+    if(not force and current == version)
     {
         println("Already updated");
         return;
@@ -229,13 +219,9 @@ func installFilePackage(libFile)
 
 }
 
-func installPackage(lib, url)
+func installPackage(force, lib, url)
 {
-    var parts = url.split('/');
-    var address = parts[0];
-    var base = parts[1...len(parts)].join('/');
-
-    var contents = readWeb(address, '{}/package.json'.format(base));
+    var contents = readWeb('{}/package.json'.format(url));
     var package = json.parseJson(contents);
     
     var current = none;
@@ -247,7 +233,7 @@ func installPackage(lib, url)
 
     var version = package['version'];
     println("{} [{} -> {}]\t".format(lib, current, version));
-    if(current == version)
+    if(not force and current == version)
     {
         println("Already updated");
         return;
@@ -267,7 +253,7 @@ func installPackage(lib, url)
     for(var f in package['files'])
     {
         print('Downloading: ', f);
-        data = readWeb(address, '{}/{}'.format(base, f));
+        data = readWeb('{}/{}'.format(url, f));
         name = paths.fileName(f);
         if(package['bin'] is list and name in package['bin'])
             path = os.allowedBinPath;
@@ -287,7 +273,7 @@ func installPackage(lib, url)
     for(var f in package['native'])
     {
         print('Downloading: ', f);
-        data = readWeb(address, '{}/native/{}/{}/{}{}'.format(base, os.name, os.arch, f, os.libsExt));
+        data = readWeb('{}/native/{}/{}/{}{}'.format(url, os.name, os.arch, f, os.libsExt));
         name = paths.fileName(f);
         path = os.allowedLibsPath;
         path += '/{}{}'.format(name, os.libsExt);
@@ -302,7 +288,7 @@ func installPackage(lib, url)
     }
 }
 
-func uninstallPackage(lib)
+func uninstallPackage(force, lib)
 {
     var package = json.readJson("{}/{}.json".format(os.allowedLibsPath, lib));
     if(package == none or len(package) == 0)
@@ -360,11 +346,11 @@ func listPackage(lib)
 
 if(parser.args['install'] is not none and len(parser.args['install']) > 0 )
 {
-    install(parser.args['install']);
+    install(parser.args['force'], parser.args['install']);
 }
 else if( parser.args['uninstall'] is not none and len(parser.args['uninstall']) > 0 )
 {
-    uninstall(parser.args['uninstall']);
+    uninstall(parser.args['force'], parser.args['uninstall']);
 }
 else if( parser.args['list'])
 {

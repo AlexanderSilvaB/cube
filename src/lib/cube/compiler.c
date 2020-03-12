@@ -1655,7 +1655,8 @@ static void methodOrProperty(Token *className)
 
 static void nativeFunc()
 {
-    consume(TOKEN_IDENTIFIER, "Expect type name.");
+    if (!match(TOKEN_VAR))
+        consume(TOKEN_IDENTIFIER, "Expect type name.");
     int len = parser.previous.length + 1;
     char *str = mp_malloc(sizeof(char) * len);
     strncpy(str, parser.previous.start, parser.previous.length);
@@ -1693,7 +1694,11 @@ static void nativeFunc()
                 errorAtCurrent("Cannot have more than 10 parameters.");
             }
 
-            consume(TOKEN_IDENTIFIER, "Expect parameter type.");
+            if (!match(TOKEN_VAR))
+            {
+                if (!match(TOKEN_FUNC))
+                    consume(TOKEN_IDENTIFIER, "Expect parameter type.");
+            }
             len = parser.previous.length + 1;
             str = mp_malloc(sizeof(char) * len);
             strncpy(str, parser.previous.start, parser.previous.length);

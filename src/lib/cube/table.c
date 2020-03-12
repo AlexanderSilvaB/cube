@@ -2,13 +2,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-
 #include "gc.h"
 #include "memory.h"
 #include "object.h"
 #include "table.h"
 #include "value.h"
-
 
 #define TABLE_MAX_LOAD 0.75
 
@@ -63,7 +61,7 @@ bool iterateTable(Table *table, Entry *entry, int *iterator)
     if (table->count == 0)
         return false;
 
-    if (i >= table->capacityMask)
+    if (i > table->capacityMask)
         return false;
 
     Entry *entries = table->entries;
