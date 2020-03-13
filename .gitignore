@@ -15,7 +15,6 @@ compile_commands.json
 CTestTestfile.cmake
 
 ### VS/VSCode ###
-.vscode
 .vs
 CMakeSettings.json
 

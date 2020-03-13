@@ -1758,7 +1758,12 @@ bool instanceOperation(const char *op)
     if (!IS_INSTANCE(peek(0)) || !IS_INSTANCE(peek(1)))
     {
         if (!IS_INSTANCE(peek(1)) || (strcmp(op, "[]") != 0 && strcmp(op, "[]=") != 0))
-            return false;
+        {
+            Value value;
+            if (!IS_INSTANCE(peek(1)) ||
+                !findField(AS_INSTANCE(peek(1)), AS_STRING(STRING_VAL("__allow_insecure_operations")), &value))
+                return false;
+        }
     }
 
     ObjString *name = AS_STRING(STRING_VAL(op));
@@ -2333,9 +2338,17 @@ InterpretResult run()
             }
 
             case OP_EQUAL: {
-                Value b = pop();
-                Value a = pop();
-                push(BOOL_VAL(valuesEqual(a, b)));
+                if (instanceOperation("=="))
+                {
+                    frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+                }
+                else
+                {
+
+                    Value b = pop();
+                    Value a = pop();
+                    push(BOOL_VAL(valuesEqual(a, b)));
+                }
                 break;
             }
 

@@ -133,7 +133,7 @@ Value seedNative(int argCount, Value *args)
 {
     Value seed;
     if (argCount == 0)
-        seed = NUMBER_VAL(time(NULL));
+        seed = NUMBER_VAL(cube_clock());
     else
         seed = toNumber(args[0]);
 

@@ -1,26 +1,284 @@
+native libs/libmatrix_lib
+{
+    num create_matrix(num, num, list);
+    num create_identity(num);
+    num create_zeros(num, num);
+    num create_rand(num, num, num);
+    void delete_matrix(num);
+    void print_matrix(num);
+    str str_matrix(num);
+    list get_matrix(num);
+    num get_matrix_rows(num)
+    num get_matrix_cols(num)
+    num invert_matrix(num);
+    num transpose_matrix(num);
+    num add_matrix_scalar(num, num);
+    num add_matrix(num, num);
+    num subtract_matrix_scalar(num, num);
+    num subtract_matrix(num, num);
+    num multiply_matrix_scalar(num, num);
+    num multiply_matrix(num, num);
+    num divide_matrix_scalar(num, num);
+    num divide_matrix(num, num);
+    bool compare_matrix(num, num);
+    num determinant_matrix(num);
+    list eigenvalues_matrix(num);
+}
+
 class Mat
 {
-    var data;
+    var ptr;
+    var m, n;
+    var __allow_insecure_operations;
+
     func init(data)
     {
-        if(!__validate(data))
-            throw('Invalid data in matrix. Only numeric values allowed')
-        if(data is num)
-            data = [[data]]
-        else if(data is list and len(data) == 0)
-            data = [data]
-        else if(data is list and data[0] is not list)
-            data = [data]
-        
-        for(var i = 0; i < len(data)-1; ++i)
+        if(data is not none)
         {
-            if(len(data[i]) != len(data[i+1]))
-                throw('Matrix dimensions does not match')
-        }
+            if(!__validate(data))
+                throw('Invalid data in matrix. Only numeric values allowed')
+            if(data is num)
+                data = [[data]]
+            else if(data is list and len(data) == 0)
+                data = [data]
+            else if(data is list and data[0] is not list)
+                data = [data]
+            
+            for(var i = 0; i < len(data)-1; ++i)
+            {
+                if(len(data[i]) != len(data[i+1]))
+                    throw('Matrix dimensions does not match')
+            }
 
-        this.data = data
-        if(dims() > 2)
-            throw('Only bi-dimensional matrix supported')
+            if(__dims(data) > 2)
+                throw('Only bi-dimensional matrix supported')
+            
+            m = len(data)
+            n = len(data[0])
+            ptr = create_matrix(m, n, data)
+            if(ptr is none)
+                throw('Could not initialize the matrix')
+        }
+        else
+        {
+            m = 0
+            n = 0
+            ptr = none
+        }
+    }
+
+    func release()
+    {
+        delete_matrix(ptr)
+        ptr = none
+    }
+
+    static func identity(l)
+    {
+        var mat = Mat(none)
+        mat.m = l
+        mat.n = l
+        mat.ptr = create_identity(l)
+        if(mat.ptr is none)
+        {
+            mat = none
+            throw('Could not initialize the matrix')
+        }
+        return mat
+    }
+
+    static func zeros(m, n)
+    {
+        if(m is none)
+            m = 1
+        if(n is none)
+            n = m
+
+        var mat = Mat(none)
+    
+        mat.m = m
+        mat.n = n
+        mat.ptr = create_zeros(m, n)
+        if(mat.ptr is none)
+        {
+            mat = none
+            throw('Could not initialize the matrix')
+        }
+        return mat
+    }
+
+    static func rand(m, n, mod)
+    {
+        if(m is none)
+            m = 1
+        if(n is none)
+            n = m
+        if(mod is none)
+            mod = 100
+
+        var mat = Mat(none)
+    
+        mat.m = m
+        mat.n = n
+        mat.ptr = create_rand(m, n, mod)
+        if(mat.ptr is none)
+        {
+            mat = none
+            throw('Could not initialize the matrix')
+        }
+        return mat
+    }
+
+    func inverse()
+    {
+        var mat = Mat(none)
+        mat.m = m
+        mat.n = n
+        mat.ptr = invert_matrix(ptr)
+        if(mat.ptr is none)
+        {
+            mat = none
+            throw('Could not invert the matrix')
+        }
+        return mat
+    }
+
+    func transpose()
+    {
+        var mat = Mat(none)
+        mat.m = m
+        mat.n = n
+        mat.ptr = transpose_matrix(ptr)
+        if(mat.ptr is none)
+        {
+            mat = none
+            throw('Could not transpose the matrix')
+        }
+        return mat
+    }
+
+    func determinant()
+    {
+        return determinant_matrix(ptr);
+    }
+
+    func eigenvalues()
+    {
+        return eigenvalues_matrix(ptr);
+    }
+
+    func clone()
+    {
+        var mat = Mat(none)
+        mat.m = m
+        mat.n = n
+        mat.ptr = clone_matrix(ptr)
+        if(mat.ptr is none)
+        {
+            mat = none
+            throw('Could not clone the matrix')
+        }
+        return mat
+    }
+
+    func ==(other)
+    {
+        return compare_matrix(ptr, other.ptr);
+    }
+
+    func +(other)
+    {
+        var mat = Mat(none)
+        if(other is num)
+            mat.ptr = add_matrix_scalar(ptr, other)
+        else
+            mat.ptr = add_matrix(ptr, other.ptr)
+        if(mat.ptr is none)
+        {
+            mat = none
+            throw('Could not sum the matrices')
+        }
+        else
+        {
+            mat.m = get_matrix_rows(mat.ptr)
+            mat.n = get_matrix_cols(mat.ptr)
+        }
+        return mat
+    }
+
+    func -(other)
+    {
+        var mat = Mat(none)
+        if(other is num)
+            mat.ptr = subtract_matrix_scalar(ptr, other)
+        else
+            mat.ptr = subtract_matrix(ptr, other.ptr)
+        if(mat.ptr is none)
+        {
+            mat = none
+            throw('Could not subtract the matrices')
+        }
+        else
+        {
+            mat.m = get_matrix_rows(mat.ptr)
+            mat.n = get_matrix_cols(mat.ptr)
+        }
+        return mat
+    }
+
+    func *(other)
+    {
+        var mat = Mat(none)
+        if(other is num)
+            mat.ptr = multiply_matrix_scalar(ptr, other)
+        else
+            mat.ptr = multiply_matrix(ptr, other.ptr)
+        if(mat.ptr is none)
+        {
+            mat = none
+            throw('Could not multiply the matrices')
+        }
+        else
+        {
+            mat.m = get_matrix_rows(mat.ptr)
+            mat.n = get_matrix_cols(mat.ptr)
+        }
+        return mat
+    }
+
+    func /(other)
+    {
+        var mat = Mat(none)
+        if(other is num)
+            mat.ptr = divide_matrix_scalar(ptr, other)
+        else
+            mat.ptr = divide_matrix(ptr, other.ptr)
+        if(mat.ptr is none)
+        {
+            mat = none
+            throw('Could not divide (A*B^-1) the matrices')
+        }
+        else
+        {
+            mat.m = get_matrix_rows(mat.ptr)
+            mat.n = get_matrix_cols(mat.ptr)
+        }
+        return mat
+    }
+
+    func print()
+    {
+        print_matrix(ptr);
+    }
+
+    func getData()
+    {
+        return get_matrix(ptr);
+    }
+
+    func str()
+    {
+        return str_matrix(ptr)
     }
 
     func __validate(value)
@@ -39,35 +297,11 @@ class Mat
         return false
     }
 
-    func dims()
-    {
-        return __dims(data)
-    }
-
     func __dims(d)
     {
         if(len(d) > 0 and d[0] is list)
             return __dims(d[0]) + 1
         return 1
-    }
-
-    func str()
-    {
-        var ret = ''
-        var L = len(data)
-        for(var i = 0; i < L; ++i)
-        {
-            var l = len(data[i])
-            for(var j = 0; j < l; ++j)
-            {
-                ret += data[i][j]
-                if(j < l-1)
-                    ret += ' '
-            }
-            if(i < L-1)
-                ret += '\n'
-        }
-        return ret
     }
 }
 
@@ -76,19 +310,36 @@ class Vec : Mat
     func init(data)
     {
         super.init(data)
-        if(len(this.data[0]) > 1)
+        data = getData();
+        if(len(data[0]) > 1)
         {
-            if(len(this.data) > 1)
+            if(len(data) > 1)
                 throw('Vec cannot have more than 1 element in one of its dimensions')
             else
             {
-                var d = this.data[0]
-                this.data = []
+                var d = data[0]
+                data = []
                 for(var i in d)
                 {
-                    this.data.add([i])
+                    data.add([i])
                 }
+                delete_matrix(ptr);
+                m = len(data)
+                n = len(data[0])
+                ptr = create_matrix(m, n, data)
+                if(ptr is none)
+                    throw('Could not initialize the matrix')
             }
         }
+    }
+
+    static func zeros(m)
+    {
+        return Mat.zeros(m, 1)
+    }
+
+    static func rand(m, mod)
+    {
+        return Mat.rand(m, 1, mod)
     }
 }
