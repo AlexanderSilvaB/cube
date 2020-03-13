@@ -146,12 +146,13 @@ extern "C"
         if (mat2 == NULL)
             return result;
 
-        matrices[id] = mat2;
-        id++;
-
         Matrix *matI = inversion(mat2);
         if (!matI)
+        {
+            destroy_matrix(mat2);
             return result;
+        }
+        destroy_matrix(mat2);
 
         matrices[id] = matI;
         TO_NATIVE_NUMBER(result, id);
@@ -393,6 +394,100 @@ extern "C"
             return result;
         }
         destroy_matrix(matD2);
+
+        matrices[id] = matI;
+        TO_NATIVE_NUMBER(result, id);
+        id++;
+        return result;
+    }
+
+    EXPORTED cube_native_var *exponent_matrix_scalar(cube_native_var *ptr, cube_native_var *n)
+    {
+        cube_native_var *result = NATIVE_NONE();
+        Matrix *mat = getMatrix(ptr);
+        if (mat == NULL)
+            return result;
+
+        Matrix *mat1 = clonemx(mat);
+        if (!mat1)
+            return result;
+
+        int N = AS_NATIVE_NUMBER(n);
+        if (N == 0)
+        {
+            for (int i = 0; i < mat1->rows; i++)
+            {
+                for (int j = 0; j < mat1->columns; j++)
+                {
+                    if (i == j)
+                        mat1->numbers[j][i] = 1;
+                    else
+                        mat1->numbers[j][i] = 0;
+                }
+            }
+            matrices[id] = mat1;
+            TO_NATIVE_NUMBER(result, id);
+            id++;
+            return result;
+        }
+
+        if (N < 0)
+        {
+            Matrix *matI = inversion(mat1);
+            if (!matI)
+            {
+                destroy_matrix(mat1);
+                return result;
+            }
+            destroy_matrix(mat1);
+            mat1 = matI;
+            N *= -1;
+        }
+
+        Matrix *mat2 = clonemx(mat1);
+        if (!mat2)
+        {
+            destroy_matrix(mat1);
+            return result;
+        }
+
+        for (int i = 1; i < N; i++)
+        {
+            Matrix *matI = multiply(mat1, mat2);
+            destroy_matrix(mat1);
+            if (!matI)
+            {
+                destroy_matrix(mat2);
+                return result;
+            }
+            mat1 = matI;
+        }
+
+        matrices[id] = mat1;
+        TO_NATIVE_NUMBER(result, id);
+        id++;
+        return result;
+    }
+
+    EXPORTED cube_native_var *row_swap_matrix(cube_native_var *ptr, cube_native_var *a, cube_native_var *b)
+    {
+        cube_native_var *result = NATIVE_NONE();
+        Matrix *mat = getMatrix(ptr);
+        if (mat == NULL)
+            return result;
+
+        Matrix *matI = clonemx(mat);
+        if (!matI)
+            return result;
+
+        double aI = AS_NATIVE_NUMBER(a);
+        double bI = AS_NATIVE_NUMBER(b);
+
+        if (row_swap(matI, aI, bI) != 1)
+        {
+            destroy_matrix(matI);
+            return result;
+        }
 
         matrices[id] = matI;
         TO_NATIVE_NUMBER(result, id);

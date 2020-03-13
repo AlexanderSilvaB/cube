@@ -104,6 +104,7 @@ char *matrix2str(Matrix *m)
         return NULL;
     for (i = 0; i < m->rows; i++)
     {
+        sprintf(str + strlen(str), "| ");
         for (j = 0; j < m->columns; j++)
         {
             if (strlen(str) + 36 >= len)
@@ -113,7 +114,7 @@ char *matrix2str(Matrix *m)
             }
             sprintf(str + strlen(str), "%f ", m->numbers[j][i]);
         }
-        sprintf(str + strlen(str), "\n");
+        sprintf(str + strlen(str), " |\n");
     }
     return str;
 }
@@ -125,11 +126,12 @@ int print(Matrix *m)
         return FAIL;
     for (i = 0; i < m->rows; i++)
     {
+        printf("| ");
         for (j = 0; j < m->columns; j++)
         {
             printf("%f ", m->numbers[j][i]);
         }
-        printf("\n");
+        printf(" |\n");
     }
     return SUCC;
 }

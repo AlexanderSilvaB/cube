@@ -1,0 +1,24 @@
+{
+    "files.associations": {
+        "cubix": "cube",
+        "xstring": "cpp",
+        "string": "cpp",
+        "complex": "cpp",
+        "bitset": "c",
+        "chrono": "c",
+        "tuple": "c",
+        "stdio.h": "c",
+        "functional": "c",
+        "ratio": "c",
+        "system_error": "c",
+        "array": "c",
+        "type_traits": "c",
+        "utility": "c",
+        "optional": "c",
+        "istream": "c",
+        "ostream": "c",
+        "sstream": "c",
+        "thread": "c"
+    },
+    "editor.formatOnSave": true
+}

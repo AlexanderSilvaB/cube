@@ -2419,7 +2419,11 @@ InterpretResult run()
                 }
                 else
                 {
-                    if (instanceOperation("+"))
+                    if (istrue && instanceOperation(".+"))
+                    {
+                        frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+                    }
+                    else if (instanceOperation("+"))
                     {
                         frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
                     }
@@ -2437,7 +2441,11 @@ InterpretResult run()
 
             case OP_SUBTRACT:
                 istrue = READ_BYTE() == OP_TRUE;
-                if (instanceOperation("-"))
+                if (istrue && instanceOperation(".-"))
+                {
+                    frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+                }
+                else if (instanceOperation("-"))
                 {
                     frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
                 }
@@ -2505,7 +2513,11 @@ InterpretResult run()
             }
             case OP_MULTIPLY:
                 istrue = READ_BYTE() == OP_TRUE;
-                if (instanceOperation("*"))
+                if (istrue && instanceOperation(".*"))
+                {
+                    frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+                }
+                else if (instanceOperation("*"))
                 {
                     frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
                 }
@@ -2557,7 +2569,11 @@ InterpretResult run()
                 break;
             case OP_DIVIDE:
                 istrue = READ_BYTE() == OP_TRUE;
-                if (instanceOperation("/"))
+                if (istrue && instanceOperation("./"))
+                {
+                    frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+                }
+                else if (instanceOperation("/"))
                 {
                     frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
                 }
@@ -2601,7 +2617,11 @@ InterpretResult run()
 
             case OP_MOD: {
                 istrue = READ_BYTE() == OP_TRUE;
-                if (instanceOperation("%"))
+                if (istrue && instanceOperation(".%"))
+                {
+                    frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+                }
+                else if (instanceOperation("%"))
                 {
                     frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
                 }
@@ -2635,7 +2655,11 @@ InterpretResult run()
 
             case OP_POW: {
                 istrue = READ_BYTE() == OP_TRUE;
-                if (instanceOperation("^"))
+                if (istrue && instanceOperation(".^"))
+                {
+                    frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+                }
+                else if (instanceOperation("^"))
                 {
                     frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
                 }
@@ -2863,23 +2887,9 @@ InterpretResult run()
                 }
 
                 ObjString *fileName = AS_STRING(peek(1));
-                char *s = readFile(fileName->chars, false);
-
-                char *strPath = (char *)mp_malloc(sizeof(char) * (fileName->length + 1));
-                strcpy(strPath, fileName->chars);
-
-                int index = 0;
-                while (s == NULL && index < vm.paths->values.count)
-                {
-                    ObjString *folder = AS_STRING(vm.paths->values.values[index]);
-                    mp_free(strPath);
-                    strPath = mp_malloc(sizeof(char) * (folder->length + fileName->length + 2));
-                    strcpy(strPath, folder->chars);
-                    strcat(strPath, fileName->chars);
-                    s = readFile(strPath, false);
-                    index++;
-                }
-                if (s == NULL)
+                char *s;
+                char *strPath;
+                if (!findAndReadFile(fileName->chars, &strPath, &s))
                 {
                     mp_free(strPath);
                     runtimeError("Could not load the file \"%s\".", fileName->chars);
@@ -2970,23 +2980,9 @@ InterpretResult run()
                 }
 
                 int len = strlen(fileName);
-                char *strPath = (char *)mp_malloc(sizeof(char) * (len + 1));
-                strcpy(strPath, fileName);
-
-                char *s = readFile(fileName, false);
-                int index = 0;
-                while (s == NULL && index < vm.paths->values.count)
-                {
-                    ObjString *folder = AS_STRING(vm.paths->values.values[index]);
-                    mp_free(strPath);
-                    strPath = mp_malloc(sizeof(char) * (folder->length + len + 2));
-                    strcpy(strPath, folder->chars);
-                    strcat(strPath, fileName);
-
-                    s = readFile(strPath, false);
-                    index++;
-                }
-                if (s == NULL)
+                char *s;
+                char *strPath;
+                if (!findAndReadFile(fileName, &strPath, &s))
                 {
                     runtimeError("Could not load the file \"%s\".", fileName);
                     mp_free(strPath);

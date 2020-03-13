@@ -113,6 +113,7 @@ Documentation *currentDoc = NULL;
 
 static char *initString = "<CUBE>";
 static int loopInCount = 0;
+static bool compilingToFile = false;
 
 // Used for "continue" statements
 int innermostLoopStart = -1;
@@ -120,6 +121,11 @@ int innermostLoopScopeDepth = 0;
 
 // Used for "break" statements
 BreakPoint *currentBreak = NULL;
+
+void compileToFileMode(bool toFile)
+{
+    compilingToFile = toFile;
+}
 
 static Chunk *currentChunk()
 {

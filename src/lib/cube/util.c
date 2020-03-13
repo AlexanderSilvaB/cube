@@ -17,7 +17,6 @@
 #include "util.h"
 #include "vm.h"
 
-
 int readFd(int fd, int size, char *buff)
 {
 #ifdef _MSC_VER
@@ -390,4 +389,29 @@ char *fixPath(const char *path)
         replaceString(pathStr, "~", home);
     }
     return pathStr;
+}
+
+bool findAndReadFile(const char *fileName, char **path, char **source)
+{
+    char *s = readFile(fileName, false);
+    int len = strlen(fileName);
+
+    char *strPath = (char *)mp_malloc(sizeof(char) * (len + 1));
+    strcpy(strPath, fileName);
+
+    int index = 0;
+    while (s == NULL && index < vm.paths->values.count)
+    {
+        ObjString *folder = AS_STRING(vm.paths->values.values[index]);
+        mp_free(strPath);
+        strPath = mp_malloc(sizeof(char) * (folder->length + len + 2));
+        strcpy(strPath, folder->chars);
+        strcat(strPath, fileName);
+        s = readFile(strPath, false);
+        index++;
+    }
+
+    *source = s;
+    *path = strPath;
+    return s != NULL;
 }

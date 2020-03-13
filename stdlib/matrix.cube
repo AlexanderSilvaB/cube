@@ -20,9 +20,11 @@ native libs/libmatrix_lib
     num multiply_matrix(num, num);
     num divide_matrix_scalar(num, num);
     num divide_matrix(num, num);
+    num  exponent_matrix_scalar(num, num);
     bool compare_matrix(num, num);
     num determinant_matrix(num);
     list eigenvalues_matrix(num);
+    num row_swap_matrix(num, num, num);
 }
 
 class Mat
@@ -73,60 +75,9 @@ class Mat
         ptr = none
     }
 
-    static func identity(l)
+    func size()
     {
-        var mat = Mat(none)
-        mat.m = l
-        mat.n = l
-        mat.ptr = create_identity(l)
-        if(mat.ptr is none)
-        {
-            mat = none
-            throw('Could not initialize the matrix')
-        }
-        return mat
-    }
-
-    static func zeros(m, n)
-    {
-        if(m is none)
-            m = 1
-        if(n is none)
-            n = m
-
-        var mat = Mat(none)
-    
-        mat.m = m
-        mat.n = n
-        mat.ptr = create_zeros(m, n)
-        if(mat.ptr is none)
-        {
-            mat = none
-            throw('Could not initialize the matrix')
-        }
-        return mat
-    }
-
-    static func rand(m, n, mod)
-    {
-        if(m is none)
-            m = 1
-        if(n is none)
-            n = m
-        if(mod is none)
-            mod = 100
-
-        var mat = Mat(none)
-    
-        mat.m = m
-        mat.n = n
-        mat.ptr = create_rand(m, n, mod)
-        if(mat.ptr is none)
-        {
-            mat = none
-            throw('Could not initialize the matrix')
-        }
-        return mat
+        return [m, n]
     }
 
     func inverse()
@@ -162,10 +113,24 @@ class Mat
         return determinant_matrix(ptr);
     }
 
-    func eigenvalues()
+    func eigenValues()
     {
         return eigenvalues_matrix(ptr);
     }
+
+    func rowSwap(a, b)
+    {
+        var mat = Mat(none)
+        mat.m = m
+        mat.n = n
+        mat.ptr = row_swap_matrix(ptr, a, b)
+        if(mat.ptr is none)
+        {
+            mat = none
+            throw('Could not swap the rows in matrix')
+        }
+        return mat
+    } 
 
     func clone()
     {
@@ -266,6 +231,26 @@ class Mat
         return mat
     }
 
+    func ^(n)
+    {
+        if(n is not num)
+            throw('Matrix exponent must be a number')
+
+        var mat = Mat(none)
+        mat.ptr = exponent_matrix_scalar(ptr, n)
+        if(mat.ptr is none)
+        {
+            mat = none
+            throw('Could not exponentiate the matrix')
+        }
+        else
+        {
+            mat.m = get_matrix_rows(mat.ptr)
+            mat.n = get_matrix_cols(mat.ptr)
+        }
+        return mat
+    }
+
     func print()
     {
         print_matrix(ptr);
@@ -279,6 +264,67 @@ class Mat
     func str()
     {
         return str_matrix(ptr)
+    }
+
+    static func identity(l)
+    {
+        var mat = Mat(none)
+        mat.m = l
+        mat.n = l
+        mat.ptr = create_identity(l)
+        if(mat.ptr is none)
+        {
+            mat = none
+            throw('Could not initialize the matrix')
+        }
+        return mat
+    }
+
+    static func zeros(m, n)
+    {
+        if(m is none)
+            m = 1
+        if(n is none)
+            n = m
+
+        var mat = Mat(none)
+    
+        mat.m = m
+        mat.n = n
+        mat.ptr = create_zeros(m, n)
+        if(mat.ptr is none)
+        {
+            mat = none
+            throw('Could not initialize the matrix')
+        }
+        return mat
+    }
+
+    static func rand(m, n, mod)
+    {
+        if(m is none)
+            m = 1
+        if(n is none)
+            n = m
+        if(mod is none)
+            mod = 100
+
+        var mat = Mat(none)
+    
+        mat.m = m
+        mat.n = n
+        mat.ptr = create_rand(m, n, mod)
+        if(mat.ptr is none)
+        {
+            mat = none
+            throw('Could not initialize the matrix')
+        }
+        return mat
+    }
+
+    static func solve(a, b)
+    {
+        return a^-1 * b
     }
 
     func __validate(value)
