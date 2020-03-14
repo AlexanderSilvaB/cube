@@ -2727,6 +2727,34 @@ InterpretResult run()
                 break;
             }
 
+            case OP_BINARY_AND: {
+                if (instanceOperation("&"))
+                {
+                    frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+                }
+                else
+                {
+                    double b = AS_NUMBER(pop());
+                    double a = AS_NUMBER(pop());
+                    push(NUMBER_VAL(((int)a & (int)b)));
+                }
+                break;
+            }
+
+            case OP_BINARY_OR: {
+                if (instanceOperation("|"))
+                {
+                    frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+                }
+                else
+                {
+                    double b = AS_NUMBER(pop());
+                    double a = AS_NUMBER(pop());
+                    push(NUMBER_VAL(((int)a | (int)b)));
+                }
+                break;
+            }
+
             case OP_IN: {
                 Value container = peek(0);
                 Value item = peek(1);

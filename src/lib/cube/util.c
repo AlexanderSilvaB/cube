@@ -157,7 +157,7 @@ char *getFolder(const char *path)
 {
 
     int c;
-    char *lastSlash = NULL;
+    const char *lastSlash = NULL;
     char *parent = NULL;
     lastSlash = cube_strrchr(path, '/', '\\', &c); // you need escape character
     if (lastSlash == NULL)

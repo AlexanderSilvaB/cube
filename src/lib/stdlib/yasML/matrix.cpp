@@ -596,6 +596,34 @@ extern "C"
         return result;
     }
 
+    EXPORTED cube_native_var *set_matrix(cube_native_var *ptr, cube_native_var *values)
+    {
+        cube_native_var *result = NATIVE_BOOL(false);
+        Matrix *mat = getMatrix(ptr);
+        if (mat == NULL)
+            return result;
+
+        if (!IS_NATIVE_LIST(values) || values->size != mat->rows)
+            return result;
+
+        for (int i = 0; i < mat->rows; i++)
+        {
+            if (!IS_NATIVE_LIST(values->list[i]) || values->list[i]->size != mat->columns)
+                return result;
+        }
+
+        for (int i = 0; i < mat->rows; i++)
+        {
+            for (int j = 0; j < mat->columns; j++)
+            {
+                mat->numbers[j][i] = AS_NATIVE_NUMBER(values->list[i]->list[j]);
+            }
+        }
+
+        TO_NATIVE_BOOL(result, true);
+        return result;
+    }
+
     EXPORTED cube_native_var *get_matrix_rows(cube_native_var *ptr)
     {
         cube_native_var *result = NATIVE_NULL();
@@ -615,6 +643,135 @@ extern "C"
             return result;
 
         TO_NATIVE_NUMBER(result, mat->columns);
+        return result;
+    }
+
+    EXPORTED cube_native_var *get_matrix_row(cube_native_var *ptr, cube_native_var *row)
+    {
+        cube_native_var *result = NATIVE_NULL();
+        Matrix *mat = getMatrix(ptr);
+        if (mat == NULL)
+            return result;
+
+        int i = AS_NATIVE_NUMBER(row);
+        if (i < 0 || i >= mat->rows)
+            return result;
+
+        TO_NATIVE_LIST(result);
+        for (int j = 0; j < mat->columns; j++)
+        {
+            cube_native_var *val = NATIVE_NUMBER(mat->numbers[j][i]);
+            ADD_NATIVE_LIST(result, val);
+        }
+
+        return result;
+    }
+
+    EXPORTED cube_native_var *set_matrix_row(cube_native_var *ptr, cube_native_var *row, cube_native_var *values)
+    {
+        cube_native_var *result = NATIVE_BOOL(false);
+        Matrix *mat = getMatrix(ptr);
+        if (mat == NULL)
+            return result;
+
+        int i = AS_NATIVE_NUMBER(row);
+        if (i < 0 || i >= mat->rows)
+            return result;
+
+        if (!IS_NATIVE_LIST(values) || values->size != mat->columns)
+            return result;
+
+        for (int j = 0; j < mat->columns; j++)
+        {
+            mat->numbers[j][i] = AS_NATIVE_NUMBER(values->list[j]);
+        }
+
+        TO_NATIVE_BOOL(result, true);
+        return result;
+    }
+
+    EXPORTED cube_native_var *get_matrix_column(cube_native_var *ptr, cube_native_var *col)
+    {
+        cube_native_var *result = NATIVE_NULL();
+        Matrix *mat = getMatrix(ptr);
+        if (mat == NULL)
+            return result;
+
+        int j = AS_NATIVE_NUMBER(col);
+        if (j < 0 || j >= mat->columns)
+            return result;
+
+        TO_NATIVE_LIST(result);
+        for (int i = 0; i < mat->rows; i++)
+        {
+            cube_native_var *val = NATIVE_NUMBER(mat->numbers[j][i]);
+            ADD_NATIVE_LIST(result, val);
+        }
+
+        return result;
+    }
+
+    EXPORTED cube_native_var *set_matrix_column(cube_native_var *ptr, cube_native_var *col, cube_native_var *values)
+    {
+        cube_native_var *result = NATIVE_BOOL(false);
+        Matrix *mat = getMatrix(ptr);
+        if (mat == NULL)
+            return result;
+
+        int j = AS_NATIVE_NUMBER(col);
+        if (j < 0 || j >= mat->columns)
+            return result;
+
+        if (!IS_NATIVE_LIST(values) || values->size != mat->rows)
+            return result;
+
+        for (int i = 0; i < mat->rows; i++)
+        {
+            mat->numbers[j][i] = AS_NATIVE_NUMBER(values->list[i]);
+        }
+
+        TO_NATIVE_BOOL(result, true);
+        return result;
+    }
+
+    EXPORTED cube_native_var *get_matrix_element(cube_native_var *ptr, cube_native_var *row, cube_native_var *col)
+    {
+        cube_native_var *result = NATIVE_NULL();
+        Matrix *mat = getMatrix(ptr);
+        if (mat == NULL)
+            return result;
+
+        int i = AS_NATIVE_NUMBER(row);
+        if (i < 0 || i >= mat->rows)
+            return result;
+
+        int j = AS_NATIVE_NUMBER(col);
+        if (j < 0 || j >= mat->columns)
+            return result;
+
+        TO_NATIVE_NUMBER(result, mat->numbers[j][i]);
+        return result;
+    }
+
+    EXPORTED cube_native_var *set_matrix_element(cube_native_var *ptr, cube_native_var *row, cube_native_var *col,
+                                                 cube_native_var *value)
+    {
+        cube_native_var *result = NATIVE_BOOL(false);
+        Matrix *mat = getMatrix(ptr);
+        if (mat == NULL)
+            return result;
+
+        int i = AS_NATIVE_NUMBER(row);
+        if (i < 0 || i >= mat->rows)
+            return result;
+
+        int j = AS_NATIVE_NUMBER(col);
+        if (j < 0 || j >= mat->columns)
+            return result;
+
+        mat->numbers[j][i] = AS_NATIVE_NUMBER(value);
+
+        TO_NATIVE_BOOL(result, true);
         return result;
     }
 }

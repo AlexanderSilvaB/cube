@@ -178,6 +178,10 @@ int disassembleInstruction(Chunk *chunk, int offset)
             return simpleInstruction("OP_SHIFT_LEFT", offset);
         case OP_SHIFT_RIGHT:
             return simpleInstruction("OP_SHIFT_RIGHT", offset);
+        case OP_BINARY_AND:
+            return simpleInstruction("OP_BINARY_AND", offset);
+        case OP_BINARY_OR:
+            return simpleInstruction("OP_BINARY_OR", offset);
         case OP_JUMP:
             return jumpInstruction("OP_JUMP", 1, chunk, offset);
         case OP_JUMP_IF_FALSE:

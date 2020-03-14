@@ -671,6 +671,12 @@ static void binary(bool canAssign)
         case TOKEN_SHIFT_RIGHT:
             emitByte(OP_SHIFT_RIGHT);
             break;
+        case TOKEN_BINARY_AND:
+            emitByte(OP_BINARY_AND);
+            break;
+        case TOKEN_BINARY_OR:
+            emitByte(OP_BINARY_OR);
+            break;
         case TOKEN_PLUS:
         case TOKEN_DOT_PLUS:
             emitBytes(OP_ADD, operatorType == TOKEN_DOT_PLUS ? OP_TRUE : OP_FALSE);
@@ -1434,6 +1440,8 @@ ParseRule rules[] = {
     {NULL, binary, PREC_COMPARISON}, // TOKEN_LESS_EQUAL
     {NULL, binary, PREC_EQUALITY},   // TOKEN_SHIFT_LEFT
     {NULL, binary, PREC_EQUALITY},   // TOKEN_SHIFT_RIGHT
+    {NULL, binary, PREC_EQUALITY},   // TOKEN_BINARY_AND
+    {NULL, binary, PREC_EQUALITY},   // TOKEN_BINARY_OR
     {variable, NULL, PREC_NULL},     // TOKEN_IDENTIFIER
     {string, NULL, PREC_NULL},       // TOKEN_STRING
     {number, NULL, PREC_NULL},       // TOKEN_NUMBER

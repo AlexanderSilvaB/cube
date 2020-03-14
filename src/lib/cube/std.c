@@ -1201,31 +1201,42 @@ Value typeNative(int argCount, Value *args)
 
 Value varsNative(int argCount, Value *args)
 {
-    bool showNative = false;
-    if (argCount > 0)
-    {
-        showNative = !isFalsey(args[0]);
-    }
-
     int i = 0;
     Entry entry;
     Table *table = &vm.globals;
+    bool isGlobal = true;
 
     if (IS_PACKAGE(args[0]))
     {
         table = &(AS_PACKAGE(args[0])->symbols);
+        isGlobal = false;
     }
 
     while (iterateTable(table, &entry, &i))
     {
         if (entry.key == NULL)
             continue;
-        if (!showNative && IS_NATIVE(entry.value))
+        if (isGlobal && IS_NATIVE(entry.value))
             continue;
 
         printf("%s : ", entry.key->chars);
         printValue(entry.value);
         printf("\n");
+    }
+
+    if (isGlobal)
+    {
+        i = 0;
+        table = &vm.extensions;
+        while (iterateTable(table, &entry, &i))
+        {
+            if (entry.key == NULL)
+                continue;
+
+            printf("%s : ", entry.key->chars);
+            printValue(entry.value);
+            printf("\n");
+        }
     }
 
     vm.print = true;

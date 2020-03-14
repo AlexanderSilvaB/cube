@@ -8,6 +8,7 @@ native libs/libmatrix_lib
     void print_matrix(num);
     str str_matrix(num);
     list get_matrix(num);
+    bool set_matrix(num, list);
     num get_matrix_rows(num)
     num get_matrix_cols(num)
     num invert_matrix(num);
@@ -25,6 +26,12 @@ native libs/libmatrix_lib
     num determinant_matrix(num);
     list eigenvalues_matrix(num);
     num row_swap_matrix(num, num, num);
+    list get_matrix_row(num, num);
+    bool set_matrix_row(num, num, list);
+    list get_matrix_column(num, num);
+    bool set_matrix_column(num, num, list);
+    num get_matrix_element(num, num, num);
+    bool set_matrix_element(num, num, num, num);
 }
 
 class Mat
@@ -249,6 +256,89 @@ class Mat
             mat.n = get_matrix_cols(mat.ptr)
         }
         return mat
+    }
+
+    func [](i)
+    {
+        return get(i, null)
+    }
+
+    func [=](i, v)
+    {
+        set(i, null, v)
+    }
+
+    func get(i, j)
+    {
+        if(i is not num)
+        {
+            if(i is null)
+            {
+                if(j is null)
+                    return get_matrix(ptr)
+                else
+                {
+                    if(j is not num)
+                        throw('Column must be a number')
+
+                    return get_matrix_column(ptr, j)
+                }
+            }
+            throw('Row must be a number')
+        }
+        
+        if(j is null)
+            return get_matrix_row(ptr, i)
+        else
+        {
+            if(j is not num)
+                throw('Column must be a number')
+            return get_matrix_element(ptr, i, j)
+        }
+    }
+
+    func set(i, j, v)
+    {
+        if(!__validate(v))
+            throw('Invalid values in matrix. Only numeric values allowed')
+
+        if(i is not num)
+        {
+            if(i is null)
+            {
+                if(j is null)
+                {
+                    if(v is not list or len(v) != m or v[0] is not list or len(v[0]) != n)
+                        throw('Invalid matrix dimnsions')
+                    return set_matrix(ptr, v)
+                }
+                else
+                {
+                    if(j is not num)
+                        throw('Column must be a number')
+
+                    if(v is not list or len(v) != m)
+                        throw('Invalid column length')
+
+                    return set_matrix_column(ptr, j, v)
+                }
+            }
+            throw('Row must be a number')
+        }
+        
+        if(j is null)
+        {
+            if(v is not list or len(v) != n)
+                throw('Invalid row length')
+
+            return set_matrix_row(ptr, i, v)
+        }
+        else
+        {
+            if(j is not num)
+                throw('Column must be a number')
+            return set_matrix_element(ptr, i, j, v)
+        }
     }
 
     func print()

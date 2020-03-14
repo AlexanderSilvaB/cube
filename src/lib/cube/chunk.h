@@ -47,6 +47,8 @@ typedef enum
     OP_NEGATE,
     OP_SHIFT_LEFT,
     OP_SHIFT_RIGHT,
+    OP_BINARY_AND,
+    OP_BINARY_OR,
     OP_JUMP,
     OP_JUMP_IF_FALSE,
     OP_LOOP,

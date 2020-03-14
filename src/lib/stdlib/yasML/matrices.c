@@ -112,9 +112,9 @@ char *matrix2str(Matrix *m)
                 len += 1024;
                 str = realloc(str, len);
             }
-            sprintf(str + strlen(str), "%f ", m->numbers[j][i]);
+            sprintf(str + strlen(str), "%.15g ", m->numbers[j][i]);
         }
-        sprintf(str + strlen(str), " |\n");
+        sprintf(str + strlen(str), "|\n");
     }
     return str;
 }
@@ -129,9 +129,9 @@ int print(Matrix *m)
         printf("| ");
         for (j = 0; j < m->columns; j++)
         {
-            printf("%f ", m->numbers[j][i]);
+            printf("%.15g ", m->numbers[j][i]);
         }
-        printf(" |\n");
+        printf("|\n");
     }
     return SUCC;
 }

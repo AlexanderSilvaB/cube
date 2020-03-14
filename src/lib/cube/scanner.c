@@ -626,6 +626,20 @@ Token scanToken()
         case '@':
             return makeToken(TOKEN_LAMBDA);
 
+        case '&': {
+            if (match('&'))
+                return makeToken(TOKEN_AND);
+            else
+                return makeToken(TOKEN_BINARY_AND);
+        }
+
+        case '|': {
+            if (match('|'))
+                return makeToken(TOKEN_OR);
+            else
+                return makeToken(TOKEN_BINARY_OR);
+        }
+
         case '"':
         case '\'':
             return string(c);
@@ -638,5 +652,6 @@ bool isOperator(TokenType type)
 {
     return type == TOKEN_MINUS || type == TOKEN_PLUS || type == TOKEN_SLASH || type == TOKEN_STAR ||
            type == TOKEN_POW || type == TOKEN_BANG || type == TOKEN_BANG_EQUAL || type == TOKEN_EQUAL_EQUAL ||
-           type == TOKEN_LESS || type == TOKEN_GREATER || type == TOKEN_LESS_EQUAL || type == TOKEN_GREATER_EQUAL;
+           type == TOKEN_LESS || type == TOKEN_GREATER || type == TOKEN_LESS_EQUAL || type == TOKEN_GREATER_EQUAL ||
+           type == TOKEN_SHIFT_LEFT || type == TOKEN_SHIFT_RIGHT || type == TOKEN_BINARY_AND || type == TOKEN_BINARY_OR;
 }

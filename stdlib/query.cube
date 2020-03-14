@@ -1,4 +1,5 @@
 import sorting
+import each as default
 
 class Query
 {
