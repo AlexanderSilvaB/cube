@@ -1336,32 +1336,6 @@ static void prefix(bool canAssign)
     }
 }
 
-static void let(bool canAssign)
-{
-    beginScope();
-
-    consume(TOKEN_LEFT_PAREN, "Expect '(' after 'let'.");
-
-    while (!check(TOKEN_RIGHT_PAREN) && !check(TOKEN_EOF))
-    {
-        expression();
-        if (check(TOKEN_COMMA))
-            consume(TOKEN_COMMA, "Expect ',' between 'let' expressions.");
-    }
-
-    consume(TOKEN_RIGHT_PAREN, "Expect ')' after 'let' expressions.");
-
-    consume(TOKEN_LEFT_BRACE, "Expect '{' before 'let' body.");
-    while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF))
-    {
-        declaration(true);
-    }
-
-    consume(TOKEN_RIGHT_BRACE, "Expect '}' after 'let' body.");
-    endScope();
-    emitByte(OP_NONE);
-}
-
 static void static_(bool canAssign)
 {
     if (currentClass == NULL)
@@ -1497,7 +1471,6 @@ ParseRule rules[] = {
     {require, NULL, PREC_NONE},      // TOKEN_REQUIRE
     {NULL, NULL, PREC_NONE},         // TOKEN_AS
     {NULL, NULL, PREC_NONE},         // TOKEN_NATIVE
-    {let, NULL, PREC_NONE},          // TOKEN_LET
     {NULL, NULL, PREC_NONE},         // TOKEN_WITH
     {async, NULL, PREC_NONE},        // TOKEN_ASYNC
     {await, NULL, PREC_NONE},        // TOKEN_AWAIT

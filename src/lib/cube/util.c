@@ -224,8 +224,12 @@ void replaceStringN(char *str, const char *find, const char *replace, int N)
     FREE_ARRAY(char, tmp, lenS);
 }
 
-char *findFile(const char *name)
+char *findFile(const char *nameOrig)
 {
+    char *name = fixPath(nameOrig);
+    if (name == NULL)
+        return NULL;
+
     char *strPath = mp_malloc(sizeof(char) * (strlen(name) + 2));
     strcpy(strPath, name);
 
@@ -248,6 +252,7 @@ char *findFile(const char *name)
     }
     else
         fclose(file);
+    mp_free(name);
     return strPath;
 }
 
@@ -391,8 +396,12 @@ char *fixPath(const char *path)
     return pathStr;
 }
 
-bool findAndReadFile(const char *fileName, char **path, char **source)
+bool findAndReadFile(const char *fileNameS, char **path, char **source)
 {
+    char *fileName = fixPath(fileNameS);
+    if (fileName == NULL)
+        return false;
+
     char *s = readFile(fileName, false);
     int len = strlen(fileName);
 
@@ -411,6 +420,7 @@ bool findAndReadFile(const char *fileName, char **path, char **source)
         index++;
     }
 
+    mp_free(fileName);
     *source = s;
     *path = strPath;
     return s != NULL;

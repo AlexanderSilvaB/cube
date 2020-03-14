@@ -320,8 +320,6 @@ static TokenType identifierType()
                         return checkKeyword(2, 4, "port", TOKEN_IMPORT);
                 }
             break;
-        case 'l':
-            return checkKeyword(1, 2, "et", TOKEN_LET);
         case 'n':
             if (scanner.current - scanner.start > 1)
             {

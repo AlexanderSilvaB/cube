@@ -87,7 +87,6 @@ typedef enum
     TOKEN_REQUIRE,
     TOKEN_AS,
     TOKEN_NATIVE,
-    TOKEN_LET,
     TOKEN_WITH,
     TOKEN_ASYNC,
     TOKEN_AWAIT,

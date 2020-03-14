@@ -2931,7 +2931,8 @@ InterpretResult run()
                     char *line = mp_malloc(sizeof(char) * 1024);
                     for (int i = 0; i < size; i++)
                     {
-                        if (files[i][0] != '.' && stringEndsWith(files[i], ".cube"))
+                        if (strcmp(files[i], ".") != 0 && strcmp(files[i], "..") != 0 &&
+                            stringEndsWith(files[i], ".cube"))
                         {
                             snprintf(line, 1023, "import '%s/%s';\n", strPath, files[i]);
                             if (strlen(s) + strlen(line) >= sLen)
@@ -3083,7 +3084,8 @@ InterpretResult run()
                     char *line = mp_malloc(sizeof(char) * 1024);
                     for (int i = 0; i < size; i++)
                     {
-                        if (files[i][0] != '.' && stringEndsWith(files[i], ".cube"))
+                        if (strcmp(files[i], ".") != 0 && strcmp(files[i], "..") != 0 &&
+                            stringEndsWith(files[i], ".cube"))
                         {
                             snprintf(line, 1023, "import '%s/%s';\n", strPath, files[i]);
                             if (strlen(s) + strlen(line) >= sLen)
