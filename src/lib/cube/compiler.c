@@ -114,6 +114,7 @@ Documentation *currentDoc = NULL;
 static char *initString = "<CUBE>";
 static int loopInCount = 0;
 static bool compilingToFile = false;
+static int tempId = 0;
 
 // Used for "continue" statements
 int innermostLoopStart = -1;
@@ -2294,6 +2295,9 @@ static void returnStatement()
 static void importStatement()
 {
     pathOrString(vm.extension, "Expect an identifier after slash in import.", "Expect string after import.");
+    bool forClause = false;
+    Token module;
+    char *str = NULL;
 
     if (match(TOKEN_AS))
     {
@@ -2306,6 +2310,28 @@ static void importStatement()
             consume(TOKEN_IDENTIFIER, "Expect identifier after as.");
         }
     }
+    else if (match(TOKEN_FOR))
+    {
+        forClause = true;
+        str = mp_malloc(sizeof(char) * 64);
+        sprintf(str, "__temp_package_%d", tempId++);
+        emitConstant(OBJ_VAL(copyString(str, strlen(str))));
+        emitByte(OP_IMPORT);
+
+        module = syntheticToken(str);
+
+        do
+        {
+            if (match(TOKEN_IDENTIFIER) || match(TOKEN_STAR))
+            {
+                getVariable(module);
+                emitPreviousAsString();
+                emitByte(OP_FROM_PACKAGE);
+            }
+            else
+                errorAtCurrent("Variable name expected.");
+        } while (match(TOKEN_COMMA));
+    }
     else
     {
         emitByte(OP_NULL);
@@ -2313,8 +2339,14 @@ static void importStatement()
 
     // consume(TOKEN_SEMICOLON, "Expect ';' after import.");
     match(TOKEN_SEMICOLON);
-
-    emitByte(OP_IMPORT);
+    if (!forClause)
+        emitByte(OP_IMPORT);
+    else
+    {
+        emitConstant(OBJ_VAL(copyString(str, strlen(str))));
+        emitByte(OP_REMOVE_VAR);
+        mp_free(str);
+    }
 }
 
 static void abortStatement()

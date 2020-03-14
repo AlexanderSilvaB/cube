@@ -3049,6 +3049,89 @@ InterpretResult run()
                 break;
             }
 
+            case OP_FROM_PACKAGE: {
+                if (!IS_STRING(peek(0)))
+                {
+                    runtimeError("Variable name required to import from package");
+                    if (!checkTry(frame))
+                        return INTERPRET_RUNTIME_ERROR;
+                    else
+                        break;
+                }
+                if (!IS_PACKAGE(peek(1)))
+                {
+                    runtimeError("Package name required to import variables");
+                    if (!checkTry(frame))
+                        return INTERPRET_RUNTIME_ERROR;
+                    else
+                        break;
+                }
+
+                ObjString *name = AS_STRING(peek(0));
+                ObjPackage *package = AS_PACKAGE(peek(1));
+
+                if (strcmp(name->chars, "*") == 0)
+                {
+                    Entry entry;
+                    int i = 0;
+                    while (iterateTable(&package->symbols, &entry, &i))
+                    {
+                        if (entry.key == NULL)
+                            continue;
+
+                        if (frame->package == NULL)
+                            tableSet(&vm.globals, entry.key, entry.value);
+                        else
+                            tableSet(&frame->package->symbols, entry.key, entry.value);
+                    }
+                }
+                else
+                {
+                    Value value;
+                    if (!tableGet(&package->symbols, name, &value))
+                    {
+                        runtimeError("'%s' does not exists.", name->chars);
+                        if (!checkTry(frame))
+                            return INTERPRET_RUNTIME_ERROR;
+                        else
+                            break;
+                    }
+
+                    if (frame->package == NULL)
+                        tableSet(&vm.globals, name, value);
+                    else
+                        tableSet(&frame->package->symbols, name, value);
+                }
+
+                pop();
+                pop();
+                break;
+            }
+
+            case OP_REMOVE_VAR: {
+                if (!IS_STRING(peek(0)))
+                {
+                    runtimeError("Variable name must be a string");
+                    if (!checkTry(frame))
+                        return INTERPRET_RUNTIME_ERROR;
+                    else
+                        break;
+                }
+
+                ObjString *name = AS_STRING(peek(0));
+                bool success = false;
+
+                if (frame->package == NULL)
+                    success = tableDelete(&vm.globals, name);
+                else
+                    success = tableDelete(&frame->package->symbols, name);
+
+                // linenoise_remove_keyword(name);
+
+                pop();
+                break;
+            }
+
             case OP_REQUIRE: {
                 if (!IS_STRING(peek(0)))
                 {
