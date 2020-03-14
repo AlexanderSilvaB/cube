@@ -415,3 +415,48 @@ bool findAndReadFile(const char *fileName, char **path, char **source)
     *path = strPath;
     return s != NULL;
 }
+
+char **listFiles(const char *pathRaw, int *size)
+{
+    char *path = fixPath(pathRaw);
+    char **list = NULL;
+    int N = 0;
+#ifdef _WIN32
+    WIN32_FIND_DATA fdFile;
+    HANDLE hFind = NULL;
+
+    char sPath[2048];
+    sprintf(sPath, "%s\\*.*", path);
+    if ((hFind = FindFirstFile(sPath, &fdFile)) != INVALID_HANDLE_VALUE)
+    {
+        do
+        {
+            list = mp_realloc(list, sizeof(char *) * (N + 1));
+            list[N] = mp_malloc(sizeof(char) * (strlen(fdFile.cFileName) + 1));
+            strcpy(list[N], fdFile.cFileName);
+            N++;
+        } while (FindNextFile(hFind, &fdFile)); // Find the next file.
+
+        FindClose(hFind); // Always, Always, clean things up!
+    }
+
+#else
+    DIR *d;
+    struct dirent *dir;
+    d = opendir(path);
+    if (d)
+    {
+        while ((dir = readdir(d)) != NULL)
+        {
+            list = mp_realloc(list, sizeof(char *) * (N + 1));
+            list[N] = mp_malloc(sizeof(char) * (strlen(dir->d_name) + 1));
+            strcpy(list[N], dir->d_name);
+            N++;
+        }
+        closedir(d);
+    }
+#endif
+    mp_free(path);
+    *size = N;
+    return list;
+}

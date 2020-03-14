@@ -41,5 +41,6 @@ char *getEnv(const char *name);
 char *getHome();
 char *fixPath(const char *path);
 bool findAndReadFile(const char *fileName, char **path, char **source);
+char **listFiles(const char *pathRaw, int *size);
 
 #endif

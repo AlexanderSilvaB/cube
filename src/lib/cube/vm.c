@@ -48,6 +48,14 @@ void *threadFn(void *data);
                 if (compareStrings(#op))                                                                               \
                     break;                                                                                             \
             }                                                                                                          \
+            else if (IS_ENUM_VALUE(peek(0)) && IS_ENUM_VALUE(peek(1)) && IS_NUMBER(AS_ENUM_VALUE(peek(0))->value) &&   \
+                     IS_NUMBER(AS_ENUM_VALUE(peek(1))->value))                                                         \
+            {                                                                                                          \
+                double b = AS_NUMBER(AS_ENUM_VALUE(pop())->value);                                                     \
+                double a = AS_NUMBER(AS_ENUM_VALUE(pop())->value);                                                     \
+                push(valueType(a op b));                                                                               \
+                break;                                                                                                 \
+            }                                                                                                          \
             runtimeError("Operands must be numbers or strings.");                                                      \
             if (!checkTry(frame))                                                                                      \
                 return INTERPRET_RUNTIME_ERROR;                                                                        \
@@ -2887,9 +2895,58 @@ InterpretResult run()
                 }
 
                 ObjString *fileName = AS_STRING(peek(1));
-                char *s;
+                char *s = NULL;
                 char *strPath;
-                if (!findAndReadFile(fileName->chars, &strPath, &s))
+                if (stringEndsWith(fileName->chars, "\\*") || stringEndsWith(fileName->chars, "/*"))
+                {
+                    char *strFileName = mp_malloc(sizeof(char) * (fileName->length + 1));
+                    strcpy(strFileName, fileName->chars);
+                    strFileName[fileName->length - 2] = '\0';
+                    fileName = AS_STRING(STRING_VAL(strFileName));
+                    mp_free(strFileName);
+                    strPath = findFile(fileName->chars);
+                    if (strPath == NULL)
+                    {
+                        runtimeError("Could not load the folder \"%s\".", fileName->chars);
+                        if (!checkTry(frame))
+                            return INTERPRET_RUNTIME_ERROR;
+                        else
+                            break;
+                    }
+
+                    int size;
+                    char **files = listFiles(strPath, &size);
+                    if (size == 0 || files == NULL)
+                    {
+                        mp_free(strPath);
+                        runtimeError("Could not load the folder \"%s\".", fileName->chars);
+                        if (!checkTry(frame))
+                            return INTERPRET_RUNTIME_ERROR;
+                        else
+                            break;
+                    }
+                    int sLen = 1024;
+                    s = mp_malloc(sizeof(char) * sLen);
+                    s[0] = '\0';
+                    char *line = mp_malloc(sizeof(char) * 1024);
+                    for (int i = 0; i < size; i++)
+                    {
+                        if (files[i][0] != '.' && stringEndsWith(files[i], ".cube"))
+                        {
+                            snprintf(line, 1023, "import '%s/%s';\n", strPath, files[i]);
+                            if (strlen(s) + strlen(line) >= sLen)
+                            {
+                                sLen += 1024;
+                                s = mp_realloc(s, sizeof(char) * sLen);
+                            }
+                            strcat(s, line);
+                        }
+                        mp_free(files[i]);
+                    }
+                    mp_free(files);
+                    mp_free(line);
+                }
+                else if (!findAndReadFile(fileName->chars, &strPath, &s))
                 {
                     mp_free(strPath);
                     runtimeError("Could not load the file \"%s\".", fileName->chars);
@@ -2935,7 +2992,10 @@ InterpretResult run()
                         package->parent = frame->package;
                     }
                     linenoise_add_keyword(name);
-                    tableSet(&vm.globals, nameStr, OBJ_VAL(package));
+                    if (frame->package == NULL)
+                        tableSet(&vm.globals, nameStr, OBJ_VAL(package));
+                    else
+                        tableSet(&frame->package->symbols, nameStr, OBJ_VAL(package));
                     mp_free(name);
                 }
 
@@ -2974,15 +3034,71 @@ InterpretResult run()
 
                 char *fileName = (char *)mp_malloc(sizeof(char) * (fileNameStr->length + strlen(vm.extension) + 2));
                 strcpy(fileName, fileNameStr->chars);
-                if (strstr(fileName, vm.extension) == NULL)
+                if (strstr(fileName, vm.extension) == NULL &&
+                    (!stringEndsWith(fileName, "\\*") && !stringEndsWith(fileName, "/*")))
                 {
                     strcat(fileName, vm.extension);
                 }
 
                 int len = strlen(fileName);
-                char *s;
+                char *s = NULL;
                 char *strPath;
-                if (!findAndReadFile(fileName, &strPath, &s))
+                if (stringEndsWith(fileNameStr->chars, "\\*") || stringEndsWith(fileNameStr->chars, "/*"))
+                {
+                    char *strFileName = mp_malloc(sizeof(char) * (fileNameStr->length + 1));
+                    strcpy(strFileName, fileNameStr->chars);
+                    strFileName[fileNameStr->length - 2] = '\0';
+                    fileNameStr = AS_STRING(STRING_VAL(strFileName));
+                    mp_free(strFileName);
+                    strPath = findFile(fileNameStr->chars);
+                    mp_free(fileName);
+
+                    if (strPath == NULL)
+                    {
+                        runtimeError("Could not load the folder \"%s\".", fileNameStr->chars);
+                        if (!checkTry(frame))
+                            return INTERPRET_RUNTIME_ERROR;
+                        else
+                            break;
+                    }
+
+                    fileName = (char *)mp_malloc(sizeof(char) * (strlen(strPath) + 1));
+                    strcpy(fileName, strPath);
+
+                    int size;
+                    char **files = listFiles(strPath, &size);
+                    if (size == 0 || files == NULL)
+                    {
+                        mp_free(fileName);
+                        mp_free(strPath);
+                        runtimeError("Could not load the folder \"%s\".", fileNameStr->chars);
+                        if (!checkTry(frame))
+                            return INTERPRET_RUNTIME_ERROR;
+                        else
+                            break;
+                    }
+                    int sLen = 1024;
+                    s = mp_malloc(sizeof(char) * sLen);
+                    s[0] = '\0';
+                    char *line = mp_malloc(sizeof(char) * 1024);
+                    for (int i = 0; i < size; i++)
+                    {
+                        if (files[i][0] != '.' && stringEndsWith(files[i], ".cube"))
+                        {
+                            snprintf(line, 1023, "import '%s/%s';\n", strPath, files[i]);
+                            if (strlen(s) + strlen(line) >= sLen)
+                            {
+                                sLen += 1024;
+                                s = mp_realloc(s, sizeof(char) * sLen);
+                            }
+                            strcat(s, line);
+                        }
+                        mp_free(files[i]);
+                    }
+                    mp_free(files);
+                    mp_free(line);
+                }
+                else if (!findAndReadFile(fileName, &strPath, &s))
                 {
                     runtimeError("Could not load the file \"%s\".", fileName);
                     mp_free(strPath);

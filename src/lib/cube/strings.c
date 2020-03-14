@@ -2,12 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-
 #include "memory.h"
 #include "mempool.h"
 #include "strings.h"
 #include "vm.h"
-
 
 static bool splitString(int argCount)
 {
@@ -429,6 +427,16 @@ static bool endsWithString(int argCount)
 
     push(BOOL_VAL(strcmp(string->chars + (string->length - suffix->length), suffix->chars) == 0));
     return true;
+}
+
+bool stringEndsWith(const char *string, const char *suffix)
+{
+    int stringLen = strlen(string);
+    int suffixLen = strlen(suffix);
+    if (stringLen < suffixLen)
+        return false;
+
+    return strcmp(string + (stringLen - suffixLen), suffix) == 0;
 }
 
 static bool leftStripString(int argCount)

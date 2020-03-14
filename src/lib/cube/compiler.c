@@ -1344,7 +1344,7 @@ static void let(bool canAssign)
 
     while (!check(TOKEN_RIGHT_PAREN) && !check(TOKEN_EOF))
     {
-        declaration(false);
+        expression();
         if (check(TOKEN_COMMA))
             consume(TOKEN_COMMA, "Expect ',' between 'let' expressions.");
     }

@@ -1,9 +1,17 @@
-let(var a = 10, var b = a ^ 3)
+let(a = 10, b = a ^ 3)
 {
     var x = a + b;
     println(x);
 };
 
 
-// Expected to fail as x is valid only inside 'let' context
-print(x);
+try
+{
+    // Expected to fail as x is valid only inside 'let' context
+    print(x);
+}
+catch(e)
+{
+    println('This error occurs because x exists only in let context.')
+    println(e)
+}
