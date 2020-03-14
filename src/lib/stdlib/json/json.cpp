@@ -86,7 +86,7 @@ Value NativeToValue(cube_native_var *var)
         switch (NATIVE_TYPE(var))
         {
             case TYPE_VOID:
-            case TYPE_NONE: {
+            case TYPE_NULL: {
             }
             break;
             case TYPE_BOOL: {
@@ -113,7 +113,7 @@ extern "C"
 {
     EXPORTED cube_native_var *json_native_parse(cube_native_var *str)
     {
-        cube_native_var *ret = NATIVE_NONE();
+        cube_native_var *ret = NATIVE_NULL();
 
         Value value;
         if (value.Parse(string(AS_NATIVE_STRING(str))))
@@ -126,7 +126,7 @@ extern "C"
 
     EXPORTED cube_native_var *json_native_read(cube_native_var *fileName)
     {
-        cube_native_var *ret = NATIVE_NONE();
+        cube_native_var *ret = NATIVE_NULL();
 
         Storage storage(string(AS_NATIVE_STRING(fileName)));
         if (storage.IsOpened())

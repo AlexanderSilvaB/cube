@@ -333,11 +333,11 @@ func encode(data)
 
 class Curl
 {
-    var id = none;
+    var id = null;
     func init()
     {
         id = easy_init();
-        if(id is none)
+        if(id is null)
             throw('Could not init curl')
     }
 

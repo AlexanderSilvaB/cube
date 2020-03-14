@@ -35,7 +35,7 @@ class Mat
 
     func init(data)
     {
-        if(data is not none)
+        if(data is not null)
         {
             if(!__validate(data))
                 throw('Invalid data in matrix. Only numeric values allowed')
@@ -58,21 +58,21 @@ class Mat
             m = len(data)
             n = len(data[0])
             ptr = create_matrix(m, n, data)
-            if(ptr is none)
+            if(ptr is null)
                 throw('Could not initialize the matrix')
         }
         else
         {
             m = 0
             n = 0
-            ptr = none
+            ptr = null
         }
     }
 
     func release()
     {
         delete_matrix(ptr)
-        ptr = none
+        ptr = null
     }
 
     func size()
@@ -82,13 +82,13 @@ class Mat
 
     func inverse()
     {
-        var mat = Mat(none)
+        var mat = Mat(null)
         mat.m = m
         mat.n = n
         mat.ptr = invert_matrix(ptr)
-        if(mat.ptr is none)
+        if(mat.ptr is null)
         {
-            mat = none
+            mat = null
             throw('Could not invert the matrix')
         }
         return mat
@@ -96,13 +96,13 @@ class Mat
 
     func transpose()
     {
-        var mat = Mat(none)
+        var mat = Mat(null)
         mat.m = m
         mat.n = n
         mat.ptr = transpose_matrix(ptr)
-        if(mat.ptr is none)
+        if(mat.ptr is null)
         {
-            mat = none
+            mat = null
             throw('Could not transpose the matrix')
         }
         return mat
@@ -120,13 +120,13 @@ class Mat
 
     func rowSwap(a, b)
     {
-        var mat = Mat(none)
+        var mat = Mat(null)
         mat.m = m
         mat.n = n
         mat.ptr = row_swap_matrix(ptr, a, b)
-        if(mat.ptr is none)
+        if(mat.ptr is null)
         {
-            mat = none
+            mat = null
             throw('Could not swap the rows in matrix')
         }
         return mat
@@ -134,13 +134,13 @@ class Mat
 
     func clone()
     {
-        var mat = Mat(none)
+        var mat = Mat(null)
         mat.m = m
         mat.n = n
         mat.ptr = clone_matrix(ptr)
-        if(mat.ptr is none)
+        if(mat.ptr is null)
         {
-            mat = none
+            mat = null
             throw('Could not clone the matrix')
         }
         return mat
@@ -153,14 +153,14 @@ class Mat
 
     func +(other)
     {
-        var mat = Mat(none)
+        var mat = Mat(null)
         if(other is num)
             mat.ptr = add_matrix_scalar(ptr, other)
         else
             mat.ptr = add_matrix(ptr, other.ptr)
-        if(mat.ptr is none)
+        if(mat.ptr is null)
         {
-            mat = none
+            mat = null
             throw('Could not sum the matrices')
         }
         else
@@ -173,14 +173,14 @@ class Mat
 
     func -(other)
     {
-        var mat = Mat(none)
+        var mat = Mat(null)
         if(other is num)
             mat.ptr = subtract_matrix_scalar(ptr, other)
         else
             mat.ptr = subtract_matrix(ptr, other.ptr)
-        if(mat.ptr is none)
+        if(mat.ptr is null)
         {
-            mat = none
+            mat = null
             throw('Could not subtract the matrices')
         }
         else
@@ -193,14 +193,14 @@ class Mat
 
     func *(other)
     {
-        var mat = Mat(none)
+        var mat = Mat(null)
         if(other is num)
             mat.ptr = multiply_matrix_scalar(ptr, other)
         else
             mat.ptr = multiply_matrix(ptr, other.ptr)
-        if(mat.ptr is none)
+        if(mat.ptr is null)
         {
-            mat = none
+            mat = null
             throw('Could not multiply the matrices')
         }
         else
@@ -213,14 +213,14 @@ class Mat
 
     func /(other)
     {
-        var mat = Mat(none)
+        var mat = Mat(null)
         if(other is num)
             mat.ptr = divide_matrix_scalar(ptr, other)
         else
             mat.ptr = divide_matrix(ptr, other.ptr)
-        if(mat.ptr is none)
+        if(mat.ptr is null)
         {
-            mat = none
+            mat = null
             throw('Could not divide (A*B^-1) the matrices')
         }
         else
@@ -236,11 +236,11 @@ class Mat
         if(n is not num)
             throw('Matrix exponent must be a number')
 
-        var mat = Mat(none)
+        var mat = Mat(null)
         mat.ptr = exponent_matrix_scalar(ptr, n)
-        if(mat.ptr is none)
+        if(mat.ptr is null)
         {
-            mat = none
+            mat = null
             throw('Could not exponentiate the matrix')
         }
         else
@@ -268,13 +268,13 @@ class Mat
 
     static func identity(l)
     {
-        var mat = Mat(none)
+        var mat = Mat(null)
         mat.m = l
         mat.n = l
         mat.ptr = create_identity(l)
-        if(mat.ptr is none)
+        if(mat.ptr is null)
         {
-            mat = none
+            mat = null
             throw('Could not initialize the matrix')
         }
         return mat
@@ -282,19 +282,19 @@ class Mat
 
     static func zeros(m, n)
     {
-        if(m is none)
+        if(m is null)
             m = 1
-        if(n is none)
+        if(n is null)
             n = m
 
-        var mat = Mat(none)
+        var mat = Mat(null)
     
         mat.m = m
         mat.n = n
         mat.ptr = create_zeros(m, n)
-        if(mat.ptr is none)
+        if(mat.ptr is null)
         {
-            mat = none
+            mat = null
             throw('Could not initialize the matrix')
         }
         return mat
@@ -302,21 +302,21 @@ class Mat
 
     static func rand(m, n, mod)
     {
-        if(m is none)
+        if(m is null)
             m = 1
-        if(n is none)
+        if(n is null)
             n = m
-        if(mod is none)
+        if(mod is null)
             mod = 100
 
-        var mat = Mat(none)
+        var mat = Mat(null)
     
         mat.m = m
         mat.n = n
         mat.ptr = create_rand(m, n, mod)
-        if(mat.ptr is none)
+        if(mat.ptr is null)
         {
-            mat = none
+            mat = null
             throw('Could not initialize the matrix')
         }
         return mat
@@ -373,7 +373,7 @@ class Vec : Mat
                 m = len(data)
                 n = len(data[0])
                 ptr = create_matrix(m, n, data)
-                if(ptr is none)
+                if(ptr is null)
                     throw('Could not initialize the matrix')
             }
         }

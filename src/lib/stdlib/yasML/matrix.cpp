@@ -50,7 +50,7 @@ extern "C"
 
     EXPORTED cube_native_var *create_matrix(cube_native_var *m, cube_native_var *n, cube_native_var *data)
     {
-        cube_native_var *result = NATIVE_NONE();
+        cube_native_var *result = NATIVE_NULL();
         if (!IS_NATIVE_LIST(data))
             return result;
 
@@ -86,7 +86,7 @@ extern "C"
 
     EXPORTED cube_native_var *create_identity(cube_native_var *l)
     {
-        cube_native_var *result = NATIVE_NONE();
+        cube_native_var *result = NATIVE_NULL();
         uint32_t len = AS_NATIVE_NUMBER(l);
 
         Matrix *mat;
@@ -102,7 +102,7 @@ extern "C"
 
     EXPORTED cube_native_var *create_zeros(cube_native_var *m, cube_native_var *n)
     {
-        cube_native_var *result = NATIVE_NONE();
+        cube_native_var *result = NATIVE_NULL();
         uint32_t cols = AS_NATIVE_NUMBER(n);
         uint32_t rows = AS_NATIVE_NUMBER(m);
 
@@ -119,7 +119,7 @@ extern "C"
 
     EXPORTED cube_native_var *create_rand(cube_native_var *m, cube_native_var *n, cube_native_var *mod)
     {
-        cube_native_var *result = NATIVE_NONE();
+        cube_native_var *result = NATIVE_NULL();
         uint32_t cols = AS_NATIVE_NUMBER(n);
         uint32_t rows = AS_NATIVE_NUMBER(m);
         uint32_t modulo = AS_NATIVE_NUMBER(mod);
@@ -137,7 +137,7 @@ extern "C"
 
     EXPORTED cube_native_var *invert_matrix(cube_native_var *ptr)
     {
-        cube_native_var *result = NATIVE_NONE();
+        cube_native_var *result = NATIVE_NULL();
         Matrix *mat = getMatrix(ptr);
         if (mat == NULL)
             return result;
@@ -162,7 +162,7 @@ extern "C"
 
     EXPORTED cube_native_var *transpose_matrix(cube_native_var *ptr)
     {
-        cube_native_var *result = NATIVE_NONE();
+        cube_native_var *result = NATIVE_NULL();
         Matrix *mat = getMatrix(ptr);
         if (mat == NULL)
             return result;
@@ -179,7 +179,7 @@ extern "C"
 
     EXPORTED cube_native_var *clone_matrix(cube_native_var *ptr)
     {
-        cube_native_var *result = NATIVE_NONE();
+        cube_native_var *result = NATIVE_NULL();
         Matrix *mat = getMatrix(ptr);
         if (mat == NULL)
             return result;
@@ -196,7 +196,7 @@ extern "C"
 
     EXPORTED cube_native_var *add_matrix_scalar(cube_native_var *ptr, cube_native_var *f)
     {
-        cube_native_var *result = NATIVE_NONE();
+        cube_native_var *result = NATIVE_NULL();
         Matrix *mat = getMatrix(ptr);
         if (mat == NULL)
             return result;
@@ -223,7 +223,7 @@ extern "C"
 
     EXPORTED cube_native_var *add_matrix(cube_native_var *ptr1, cube_native_var *ptr2)
     {
-        cube_native_var *result = NATIVE_NONE();
+        cube_native_var *result = NATIVE_NULL();
         Matrix *mat1 = getMatrix(ptr1);
         if (mat1 == NULL)
             return result;
@@ -247,7 +247,7 @@ extern "C"
 
     EXPORTED cube_native_var *subtract_matrix_scalar(cube_native_var *ptr, cube_native_var *f)
     {
-        cube_native_var *result = NATIVE_NONE();
+        cube_native_var *result = NATIVE_NULL();
         Matrix *mat = getMatrix(ptr);
         if (mat == NULL)
             return result;
@@ -274,7 +274,7 @@ extern "C"
 
     EXPORTED cube_native_var *subtract_matrix(cube_native_var *ptr1, cube_native_var *ptr2)
     {
-        cube_native_var *result = NATIVE_NONE();
+        cube_native_var *result = NATIVE_NULL();
         Matrix *mat1 = getMatrix(ptr1);
         if (mat1 == NULL)
             return result;
@@ -298,7 +298,7 @@ extern "C"
 
     EXPORTED cube_native_var *multiply_matrix_scalar(cube_native_var *ptr, cube_native_var *f)
     {
-        cube_native_var *result = NATIVE_NONE();
+        cube_native_var *result = NATIVE_NULL();
         Matrix *mat = getMatrix(ptr);
         if (mat == NULL)
             return result;
@@ -318,7 +318,7 @@ extern "C"
 
     EXPORTED cube_native_var *multiply_matrix(cube_native_var *ptr1, cube_native_var *ptr2)
     {
-        cube_native_var *result = NATIVE_NONE();
+        cube_native_var *result = NATIVE_NULL();
         Matrix *mat1 = getMatrix(ptr1);
         if (mat1 == NULL)
             return result;
@@ -339,7 +339,7 @@ extern "C"
 
     EXPORTED cube_native_var *divide_matrix_scalar(cube_native_var *ptr, cube_native_var *f)
     {
-        cube_native_var *result = NATIVE_NONE();
+        cube_native_var *result = NATIVE_NULL();
         Matrix *mat = getMatrix(ptr);
         if (mat == NULL)
             return result;
@@ -366,7 +366,7 @@ extern "C"
 
     EXPORTED cube_native_var *divide_matrix(cube_native_var *ptr1, cube_native_var *ptr2)
     {
-        cube_native_var *result = NATIVE_NONE();
+        cube_native_var *result = NATIVE_NULL();
         Matrix *mat1 = getMatrix(ptr1);
         if (mat1 == NULL)
             return result;
@@ -403,7 +403,7 @@ extern "C"
 
     EXPORTED cube_native_var *exponent_matrix_scalar(cube_native_var *ptr, cube_native_var *n)
     {
-        cube_native_var *result = NATIVE_NONE();
+        cube_native_var *result = NATIVE_NULL();
         Matrix *mat = getMatrix(ptr);
         if (mat == NULL)
             return result;
@@ -471,7 +471,7 @@ extern "C"
 
     EXPORTED cube_native_var *row_swap_matrix(cube_native_var *ptr, cube_native_var *a, cube_native_var *b)
     {
-        cube_native_var *result = NATIVE_NONE();
+        cube_native_var *result = NATIVE_NULL();
         Matrix *mat = getMatrix(ptr);
         if (mat == NULL)
             return result;
@@ -497,7 +497,7 @@ extern "C"
 
     EXPORTED cube_native_var *compare_matrix(cube_native_var *ptr1, cube_native_var *ptr2)
     {
-        cube_native_var *result = NATIVE_NONE();
+        cube_native_var *result = NATIVE_NULL();
         Matrix *mat1 = getMatrix(ptr1);
         if (mat1 == NULL)
             return result;
@@ -513,7 +513,7 @@ extern "C"
 
     EXPORTED cube_native_var *determinant_matrix(cube_native_var *ptr)
     {
-        cube_native_var *result = NATIVE_NONE();
+        cube_native_var *result = NATIVE_NULL();
         Matrix *mat = getMatrix(ptr);
         if (mat == NULL)
             return result;
@@ -524,7 +524,7 @@ extern "C"
 
     EXPORTED cube_native_var *eigenvalues_matrix(cube_native_var *ptr)
     {
-        cube_native_var *result = NATIVE_NONE();
+        cube_native_var *result = NATIVE_NULL();
         Matrix *mat = getMatrix(ptr);
         if (mat == NULL)
             return result;
@@ -560,7 +560,7 @@ extern "C"
 
     EXPORTED cube_native_var *str_matrix(cube_native_var *ptr)
     {
-        cube_native_var *result = NATIVE_NONE();
+        cube_native_var *result = NATIVE_NULL();
         Matrix *mat = getMatrix(ptr);
         if (mat == NULL)
             return result;
@@ -575,7 +575,7 @@ extern "C"
 
     EXPORTED cube_native_var *get_matrix(cube_native_var *ptr)
     {
-        cube_native_var *result = NATIVE_NONE();
+        cube_native_var *result = NATIVE_NULL();
         Matrix *mat = getMatrix(ptr);
         if (mat == NULL)
             return result;
@@ -598,7 +598,7 @@ extern "C"
 
     EXPORTED cube_native_var *get_matrix_rows(cube_native_var *ptr)
     {
-        cube_native_var *result = NATIVE_NONE();
+        cube_native_var *result = NATIVE_NULL();
         Matrix *mat = getMatrix(ptr);
         if (mat == NULL)
             return result;
@@ -609,7 +609,7 @@ extern "C"
 
     EXPORTED cube_native_var *get_matrix_cols(cube_native_var *ptr)
     {
-        cube_native_var *result = NATIVE_NONE();
+        cube_native_var *result = NATIVE_NULL();
         Matrix *mat = getMatrix(ptr);
         if (mat == NULL)
             return result;

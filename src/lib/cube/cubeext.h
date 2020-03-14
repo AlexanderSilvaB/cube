@@ -41,7 +41,7 @@ typedef struct
 typedef enum
 {
     TYPE_VOID,
-    TYPE_NONE,
+    TYPE_NULL,
     TYPE_BOOL,
     TYPE_NUMBER,
     TYPE_STRING,
@@ -108,10 +108,10 @@ static cube_native_var *NATIVE_VAR()
     return var;
 }
 
-static cube_native_var *NATIVE_NONE()
+static cube_native_var *NATIVE_NULL()
 {
     cube_native_var *var = NATIVE_VAR();
-    var->type = TYPE_NONE;
+    var->type = TYPE_NULL;
     return var;
 }
 
@@ -195,9 +195,9 @@ static cube_native_var *NATIVE_FUNC()
     return var;
 }
 
-static cube_native_var *TO_NATIVE_NONE(cube_native_var *var)
+static cube_native_var *TO_NATIVE_NULL(cube_native_var *var)
 {
-    var->type = TYPE_NONE;
+    var->type = TYPE_NULL;
     return var;
 }
 

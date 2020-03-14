@@ -22,7 +22,7 @@ func writeJson(fileName, data)
 
 class JSON
 {
-    var fileName = none;
+    var fileName = null;
     var data = {};
     func init(fileName)
     {
@@ -33,7 +33,7 @@ class JSON
     func load()
     {
         this.data = readJson(this.fileName);
-        if(this.data is none)
+        if(this.data is null)
         {
             this.data = {};
             return false;

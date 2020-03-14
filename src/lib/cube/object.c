@@ -64,7 +64,7 @@ ObjEnum *newEnum(ObjString *name)
 {
     ObjEnum *enume = ALLOCATE_OBJ(ObjEnum, OBJ_ENUM);
     enume->name = name;
-    enume->last = NONE_VAL;
+    enume->last = NULL_VAL;
     initTable(&enume->members);
     return enume;
 }
@@ -143,7 +143,7 @@ ObjRequest *newRequest()
 {
     ObjRequest *request = ALLOCATE_OBJ(ObjRequest, OBJ_REQUEST);
     request->pops = 0;
-    request->fn = NONE_VAL;
+    request->fn = NULL_VAL;
     return request;
 }
 
@@ -272,7 +272,7 @@ static ObjString *allocateString(char *chars, int length, uint32_t hash)
     string->chars = chars;
     string->hash = hash;
     push(OBJ_VAL(string));
-    tableSet(&vm.strings, string, NONE_VAL);
+    tableSet(&vm.strings, string, NULL_VAL);
     pop();
     return string;
 }
@@ -380,7 +380,7 @@ ObjBytes *copyBytes(const void *bytes, int length)
 ObjUpvalue *newUpvalue(Value *slot)
 {
     ObjUpvalue *upvalue = ALLOCATE_OBJ(ObjUpvalue, OBJ_UPVALUE);
-    upvalue->closed = NONE_VAL;
+    upvalue->closed = NULL_VAL;
     upvalue->location = slot;
     upvalue->next = NULL;
     return upvalue;

@@ -1,7 +1,7 @@
 import ui as default;
 
 var uiFile = find("samples/ui/calculator.ui");
-if(uiFile is none)
+if(uiFile is null)
 {
     println("UI file not found!");
     exit(-1);

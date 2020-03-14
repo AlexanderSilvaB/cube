@@ -269,7 +269,7 @@ bool existsFile(const char *name)
 
 bool isValidType(const char *name)
 {
-    if (strcmp(name, "none") == 0 || strcmp(name, "bool") == 0 || strcmp(name, "num") == 0 ||
+    if (strcmp(name, "null") == 0 || strcmp(name, "bool") == 0 || strcmp(name, "num") == 0 ||
         strcmp(name, "class") == 0 || strcmp(name, "package") == 0 || strcmp(name, "method") == 0 ||
         strcmp(name, "func") == 0 || strcmp(name, "instance") == 0 || strcmp(name, "native") == 0 ||
         strcmp(name, "str") == 0 || strcmp(name, "file") == 0 || strcmp(name, "bytes") == 0 ||

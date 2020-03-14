@@ -168,7 +168,7 @@ int repl()
     linenoise_add_keyword("else");
     linenoise_add_keyword("true");
     linenoise_add_keyword("false");
-    linenoise_add_keyword("none");
+    linenoise_add_keyword("null");
     linenoise_add_keyword("class");
     linenoise_add_keyword("func");
     linenoise_add_keyword("static");
@@ -226,12 +226,12 @@ int repl()
             printf("\n");
             vm.newLine = false;
         }
-        if (vm.print == false || !IS_NONE(vm.repl))
+        if (vm.print == false || !IS_NULL(vm.repl))
         {
             printValue(vm.repl);
             printf("\n");
         }
-        vm.repl = NONE_VAL;
+        vm.repl = NULL_VAL;
         vm.print = false;
         if (!vm.running)
             break;
@@ -279,7 +279,7 @@ cube_native_var *getGlobal(const char *name)
 {
     if (!vm.ready)
         return NULL;
-    cube_native_var *var = NATIVE_NONE();
+    cube_native_var *var = NATIVE_NULL();
     Value val;
     if (tableGet(&vm.globals, AS_STRING(STRING_VAL(name)), &val))
     {

@@ -3,7 +3,6 @@
 #include "mempool.h"
 #include "vm.h"
 
-
 static bool getNameEnum(int argCount)
 {
     if (argCount != 2)
@@ -32,7 +31,7 @@ static bool getNameEnum(int argCount)
         }
     }
 
-    push(NONE_VAL);
+    push(NULL_VAL);
     return true;
 }
 
@@ -71,7 +70,7 @@ static bool getValueEnum(int argCount)
         }
     }
 
-    push(NONE_VAL);
+    push(NULL_VAL);
     return true;
 }
 
@@ -110,7 +109,7 @@ static bool getEnum(int argCount)
         }
     }
 
-    push(NONE_VAL);
+    push(NULL_VAL);
     return true;
 }
 

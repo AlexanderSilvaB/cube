@@ -27,7 +27,7 @@ typedef struct
 
 typedef enum
 {
-    PREC_NONE,
+    PREC_NULL,
     PREC_ASSIGNMENT, // =
     PREC_OR,         // or
     PREC_AND,        // and
@@ -272,7 +272,7 @@ static void emitReturn()
     }
     else
     {
-        emitByte(OP_NONE);
+        emitByte(OP_NULL);
     }
 
     emitByte(OP_RETURN);
@@ -353,7 +353,7 @@ static void initCompiler(Compiler *compiler, FunctionType type)
     if (current != NULL)
         compiler->path = current->path;
     else
-        compiler->path = "<none>";
+        compiler->path = "<null>";
     current = compiler;
 
     if (type != TYPE_SCRIPT && type != TYPE_EVAL)
@@ -627,7 +627,7 @@ static void is(bool canAssign)
         emitByte(OP_FALSE);
     }
 
-    if (match(TOKEN_IDENTIFIER) || match(TOKEN_NONE) || match(TOKEN_FUNC) || match(TOKEN_CLASS) || match(TOKEN_ENUM))
+    if (match(TOKEN_IDENTIFIER) || match(TOKEN_NULL) || match(TOKEN_FUNC) || match(TOKEN_CLASS) || match(TOKEN_ENUM))
     {
         ObjString *str = copyString(parser.previous.start, parser.previous.length);
 
@@ -785,8 +785,8 @@ static void literal(bool canAssign)
         case TOKEN_FALSE:
             emitByte(OP_FALSE);
             break;
-        case TOKEN_NONE:
-            emitByte(OP_NONE);
+        case TOKEN_NULL:
+            emitByte(OP_NULL);
             break;
         case TOKEN_TRUE:
             emitByte(OP_TRUE);
@@ -1276,7 +1276,7 @@ static void expand(bool canAssign)
     }
     else
     {
-        emitByte(OP_NONE);
+        emitByte(OP_NULL);
     }
 
     emitByte(ex ? OP_TRUE : OP_FALSE);
@@ -1395,12 +1395,12 @@ static void async(bool canAssign)
 
 ParseRule rules[] = {
     {grouping, call, PREC_CALL},     // TOKEN_LEFT_PAREN
-    {NULL, NULL, PREC_NONE},         // TOKEN_RIGHT_PAREN
-    {dict, NULL, PREC_NONE},         // TOKEN_LEFT_BRACE [big]
-    {NULL, NULL, PREC_NONE},         // TOKEN_RIGHT_BRACE
+    {NULL, NULL, PREC_NULL},         // TOKEN_RIGHT_PAREN
+    {dict, NULL, PREC_NULL},         // TOKEN_LEFT_BRACE [big]
+    {NULL, NULL, PREC_NULL},         // TOKEN_RIGHT_BRACE
     {list, subscript, PREC_CALL},    // TOKEN_LEFT_BRACKET
-    {NULL, NULL, PREC_NONE},         // TOKEN_RIGHT_BRACKET
-    {NULL, NULL, PREC_NONE},         // TOKEN_COMMA
+    {NULL, NULL, PREC_NULL},         // TOKEN_RIGHT_BRACKET
+    {NULL, NULL, PREC_NULL},         // TOKEN_COMMA
     {NULL, dot, PREC_CALL},          // TOKEN_DOT
     {NULL, expand, PREC_FACTOR},     // TOKEN_EXPAND_IN
     {NULL, expand, PREC_FACTOR},     // TOKEN_EXPAND_EX
@@ -1412,21 +1412,21 @@ ParseRule rules[] = {
     {NULL, binary, PREC_TERM},       // TOKEN_DOT_SLASH
     {NULL, binary, PREC_TERM},       // TOKEN_DOT_POW
     {NULL, binary, PREC_TERM},       // TOKEN_DOT_PERCENT
-    {prefix, NULL, PREC_NONE},       // TOKEN_INC
-    {prefix, NULL, PREC_NONE},       // TOKEN_DEC
-    {NULL, NULL, PREC_NONE},         // TOKEN_PLUS_EQUALS
-    {NULL, NULL, PREC_NONE},         // TOKEN_MINUS_EQUALS
-    {NULL, NULL, PREC_NONE},         // TOKEN_MULTIPLY_EQUALS
-    {NULL, NULL, PREC_NONE},         // TOKEN_DIVIDE_EQUALS
-    {NULL, NULL, PREC_NONE},         // TOKEN_SEMICOLON
-    {NULL, NULL, PREC_NONE},         // TOKEN_COLON
+    {prefix, NULL, PREC_NULL},       // TOKEN_INC
+    {prefix, NULL, PREC_NULL},       // TOKEN_DEC
+    {NULL, NULL, PREC_NULL},         // TOKEN_PLUS_EQUALS
+    {NULL, NULL, PREC_NULL},         // TOKEN_MINUS_EQUALS
+    {NULL, NULL, PREC_NULL},         // TOKEN_MULTIPLY_EQUALS
+    {NULL, NULL, PREC_NULL},         // TOKEN_DIVIDE_EQUALS
+    {NULL, NULL, PREC_NULL},         // TOKEN_SEMICOLON
+    {NULL, NULL, PREC_NULL},         // TOKEN_COLON
     {NULL, binary, PREC_FACTOR},     // TOKEN_SLASH
     {NULL, binary, PREC_FACTOR},     // TOKEN_STAR
     {NULL, binary, PREC_FACTOR},     // TOKEN_PERCENT
     {NULL, binary, PREC_FACTOR},     // TOKEN_POW
-    {unary, NULL, PREC_NONE},        // TOKEN_BANG
+    {unary, NULL, PREC_NULL},        // TOKEN_BANG
     {NULL, binary, PREC_EQUALITY},   // TOKEN_BANG_EQUAL
-    {NULL, NULL, PREC_NONE},         // TOKEN_EQUAL
+    {NULL, NULL, PREC_NULL},         // TOKEN_EQUAL
     {NULL, binary, PREC_EQUALITY},   // TOKEN_EQUAL_EQUAL
     {NULL, binary, PREC_COMPARISON}, // TOKEN_GREATER
     {NULL, binary, PREC_COMPARISON}, // TOKEN_GREATER_EQUAL
@@ -1434,52 +1434,52 @@ ParseRule rules[] = {
     {NULL, binary, PREC_COMPARISON}, // TOKEN_LESS_EQUAL
     {NULL, binary, PREC_EQUALITY},   // TOKEN_SHIFT_LEFT
     {NULL, binary, PREC_EQUALITY},   // TOKEN_SHIFT_RIGHT
-    {variable, NULL, PREC_NONE},     // TOKEN_IDENTIFIER
-    {string, NULL, PREC_NONE},       // TOKEN_STRING
-    {number, NULL, PREC_NONE},       // TOKEN_NUMBER
-    {byte, NULL, PREC_NONE},         // TOKEN_BYTE
+    {variable, NULL, PREC_NULL},     // TOKEN_IDENTIFIER
+    {string, NULL, PREC_NULL},       // TOKEN_STRING
+    {number, NULL, PREC_NULL},       // TOKEN_NUMBER
+    {byte, NULL, PREC_NULL},         // TOKEN_BYTE
     {NULL, and_, PREC_AND},          // TOKEN_AND
-    {NULL, NULL, PREC_NONE},         // TOKEN_CLASS
-    {static_, NULL, PREC_NONE},      // TOKEN_STATIC
-    {NULL, NULL, PREC_NONE},         // TOKEN_ELSE
-    {literal, NULL, PREC_NONE},      // TOKEN_FALSE
-    {NULL, NULL, PREC_NONE},         // TOKEN_FOR
-    {NULL, NULL, PREC_NONE},         // TOKEN_FUNC
-    {lambda, NULL, PREC_NONE},       // TOKEN_LAMBDA
-    {NULL, NULL, PREC_NONE},         // TOKEN_IF
-    {literal, NULL, PREC_NONE},      // TOKEN_NONE
+    {NULL, NULL, PREC_NULL},         // TOKEN_CLASS
+    {static_, NULL, PREC_NULL},      // TOKEN_STATIC
+    {NULL, NULL, PREC_NULL},         // TOKEN_ELSE
+    {literal, NULL, PREC_NULL},      // TOKEN_FALSE
+    {NULL, NULL, PREC_NULL},         // TOKEN_FOR
+    {NULL, NULL, PREC_NULL},         // TOKEN_FUNC
+    {lambda, NULL, PREC_NULL},       // TOKEN_LAMBDA
+    {NULL, NULL, PREC_NULL},         // TOKEN_IF
+    {literal, NULL, PREC_NULL},      // TOKEN_NULL
     {NULL, or_, PREC_OR},            // TOKEN_OR
-    {NULL, NULL, PREC_NONE},         // TOKEN_RETURN
-    {super_, NULL, PREC_NONE},       // TOKEN_SUPER
-    {this_, NULL, PREC_NONE},        // TOKEN_THIS
-    {literal, NULL, PREC_NONE},      // TOKEN_TRUE
-    {NULL, NULL, PREC_NONE},         // TOKEN_VAR
-    {NULL, NULL, PREC_NONE},         // TOKEN_GLOBAL
-    {NULL, NULL, PREC_NONE},         // TOKEN_WHILE
-    {NULL, NULL, PREC_NONE},         // TOKEN_DO
+    {NULL, NULL, PREC_NULL},         // TOKEN_RETURN
+    {super_, NULL, PREC_NULL},       // TOKEN_SUPER
+    {this_, NULL, PREC_NULL},        // TOKEN_THIS
+    {literal, NULL, PREC_NULL},      // TOKEN_TRUE
+    {NULL, NULL, PREC_NULL},         // TOKEN_VAR
+    {NULL, NULL, PREC_NULL},         // TOKEN_GLOBAL
+    {NULL, NULL, PREC_NULL},         // TOKEN_WHILE
+    {NULL, NULL, PREC_NULL},         // TOKEN_DO
     {NULL, binary, PREC_TERM},       // TOKEN_IN
     {NULL, is, PREC_TERM},           // TOKEN_IS
-    {NULL, NULL, PREC_NONE},         // TOKEN_CONTINUE
-    {NULL, NULL, PREC_NONE},         // TOKEN_BREAK
-    {NULL, NULL, PREC_NONE},         // TOKEN_SWITCH
-    {NULL, NULL, PREC_NONE},         // TOKEN_CASE
-    {NULL, NULL, PREC_NONE},         // TOKEN_DEFAULT
-    {number, NULL, PREC_NONE},       // TOKEN_NAN
-    {number, NULL, PREC_NONE},       // TOKEN_INF
-    {NULL, NULL, PREC_NONE},         // TOKEN_ENUM
-    {NULL, NULL, PREC_NONE},         // TOKEN_IMPORT
-    {require, NULL, PREC_NONE},      // TOKEN_REQUIRE
-    {NULL, NULL, PREC_NONE},         // TOKEN_AS
-    {NULL, NULL, PREC_NONE},         // TOKEN_NATIVE
-    {NULL, NULL, PREC_NONE},         // TOKEN_WITH
-    {async, NULL, PREC_NONE},        // TOKEN_ASYNC
-    {await, NULL, PREC_NONE},        // TOKEN_AWAIT
-    {NULL, NULL, PREC_NONE},         // TOKEN_ABORT
-    {NULL, NULL, PREC_NONE},         // TOKEN_TRY
-    {NULL, NULL, PREC_NONE},         // TOKEN_CATCH
-    {NULL, NULL, PREC_NONE},         // TOKEN_DOC
-    {NULL, NULL, PREC_NONE},         // TOKEN_ERROR
-    {NULL, NULL, PREC_NONE},         // TOKEN_EOF
+    {NULL, NULL, PREC_NULL},         // TOKEN_CONTINUE
+    {NULL, NULL, PREC_NULL},         // TOKEN_BREAK
+    {NULL, NULL, PREC_NULL},         // TOKEN_SWITCH
+    {NULL, NULL, PREC_NULL},         // TOKEN_CASE
+    {NULL, NULL, PREC_NULL},         // TOKEN_DEFAULT
+    {number, NULL, PREC_NULL},       // TOKEN_NAN
+    {number, NULL, PREC_NULL},       // TOKEN_INF
+    {NULL, NULL, PREC_NULL},         // TOKEN_ENUM
+    {NULL, NULL, PREC_NULL},         // TOKEN_IMPORT
+    {require, NULL, PREC_NULL},      // TOKEN_REQUIRE
+    {NULL, NULL, PREC_NULL},         // TOKEN_AS
+    {NULL, NULL, PREC_NULL},         // TOKEN_NATIVE
+    {NULL, NULL, PREC_NULL},         // TOKEN_WITH
+    {async, NULL, PREC_NULL},        // TOKEN_ASYNC
+    {await, NULL, PREC_NULL},        // TOKEN_AWAIT
+    {NULL, NULL, PREC_NULL},         // TOKEN_ABORT
+    {NULL, NULL, PREC_NULL},         // TOKEN_TRY
+    {NULL, NULL, PREC_NULL},         // TOKEN_CATCH
+    {NULL, NULL, PREC_NULL},         // TOKEN_DOC
+    {NULL, NULL, PREC_NULL},         // TOKEN_ERROR
+    {NULL, NULL, PREC_NULL},         // TOKEN_EOF
 };
 
 static void parsePrecedence(Precedence precedence)
@@ -1593,7 +1593,7 @@ static void property(bool isStatic, Token *className)
         }
         else
         {
-            emitByte(OP_NONE);
+            emitByte(OP_NULL);
         }
 
         // emitByte(isLocal ?  OP_TRUE : OP_FALSE);
@@ -1694,7 +1694,7 @@ static void nativeFunc()
 
     emitConstant(NUMBER_VAL(arity));
 
-    emitByte(OP_NONE);
+    emitByte(OP_NULL);
     defineVariable(nameConstant);
 
     emitByte(OP_NATIVE_FUNC);
@@ -1772,7 +1772,7 @@ static void enumMember(Token *enumName)
         }
         else
         {
-            emitByte(OP_NONE);
+            emitByte(OP_NULL);
         }
 
         emitByte(OP_FALSE);
@@ -1931,7 +1931,7 @@ static void globalDeclaration(bool checkEnd)
         }
         else
         {
-            emitByte(OP_NONE);
+            emitByte(OP_NULL);
         }
 
         emitShort(OP_DEFINE_GLOBAL_FORCED, global);
@@ -1972,7 +1972,7 @@ static void varDeclaration(bool checkEnd)
         }
         else
         {
-            emitByte(OP_NONE);
+            emitByte(OP_NULL);
         }
 
         defineVariable(global);
@@ -2041,11 +2041,11 @@ static void forStatement()
                 sprintf(str__cond, "__cond%d", loopInCount);
                 loopInCount++;
 
-                emitByte(OP_NONE);
+                emitByte(OP_NULL);
                 defineVariable(name);
 
                 var = createSyntheticVariable(str__value, &valVar);
-                emitByte(OP_NONE);
+                emitByte(OP_NULL);
                 defineVariable(var);
 
                 expression();
@@ -2061,14 +2061,14 @@ static void forStatement()
                     else
                         it = identifierConstant(&loopVar);
                 }
-                emitByte(OP_NONE);
+                emitByte(OP_NULL);
                 defineVariable(it);
 
                 emitConstant(NUMBER_VAL(0));
                 setVariablePop(loopVar);
 
                 cond = createSyntheticVariable(str__cond, &condVar);
-                emitByte(OP_NONE);
+                emitByte(OP_NULL);
                 defineVariable(cond);
 
                 emitConstant(NUMBER_VAL(0));
@@ -2084,7 +2084,7 @@ static void forStatement()
                 in = true;
             }
             else
-                emitByte(OP_NONE);
+                emitByte(OP_NULL);
         }
 
         if (!in)
@@ -2300,7 +2300,7 @@ static void importStatement()
     }
     else
     {
-        emitByte(OP_NONE);
+        emitByte(OP_NULL);
     }
 
     // consume(TOKEN_SEMICOLON, "Expect ';' after import.");
@@ -3104,7 +3104,7 @@ void loadChunk(Chunk *chunk, const char *source, uint32_t *pos, uint32_t total);
 
 Value loadByteCode(const char *source, uint32_t *pos, uint32_t total)
 {
-    Value value = NONE_VAL;
+    Value value = NULL_VAL;
 
 #ifndef NAN_TAGGING
     uint32_t type = READ(uint32_t);
@@ -3113,9 +3113,9 @@ Value loadByteCode(const char *source, uint32_t *pos, uint32_t total)
 
     int i = 0;
 
-    if (type == VAL_NONE)
+    if (type == VAL_NULL)
     {
-        // None
+        // null
     }
     else if (type == VAL_BOOL)
     {

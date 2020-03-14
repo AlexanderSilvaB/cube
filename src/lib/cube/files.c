@@ -240,7 +240,7 @@ static bool seekFile(int argCount)
     ObjFile *file = AS_FILE(pop());
     fseek(file->file, offset, seekType);
 
-    push(NONE_VAL);
+    push(NULL_VAL);
     return true;
 }
 
@@ -310,7 +310,7 @@ static bool closeFile(int argCount)
         file->isOpen = false;
     }
 
-    push(NONE_VAL);
+    push(NULL_VAL);
     return true;
 }
 

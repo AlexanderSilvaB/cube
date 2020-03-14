@@ -95,7 +95,7 @@ EXPORTED cube_native_var *cube_zip_open(cube_native_var *name, cube_native_var *
 
     struct zip_t *z = zip_open(AS_NATIVE_STRING(name), ZIP_DEFAULT_COMPRESSION_LEVEL, AS_NATIVE_STRING(mode)[0]);
     if (z == NULL)
-        return NATIVE_NONE();
+        return NATIVE_NULL();
 
     zip_file *zip = alloc_zip_file();
     zip->name = COPY_STR(AS_NATIVE_STRING(name));
@@ -116,7 +116,7 @@ EXPORTED cube_native_var *cube_zip_add(cube_native_var *id, cube_native_var *nam
 {
     zip_file *zip = get_zip_file(AS_NATIVE_NUMBER(id));
     if (zip == NULL)
-        return NATIVE_NONE();
+        return NATIVE_NULL();
 
     int len = 0;
     zip_entry_open(zip->zip, AS_NATIVE_STRING(name));
@@ -134,7 +134,7 @@ EXPORTED cube_native_var *cube_zip_add_file(cube_native_var *id, cube_native_var
 {
     zip_file *zip = get_zip_file(AS_NATIVE_NUMBER(id));
     if (zip == NULL)
-        return NATIVE_NONE();
+        return NATIVE_NULL();
 
     int len = 0;
     zip_entry_open(zip->zip, AS_NATIVE_STRING(name));
@@ -151,12 +151,12 @@ EXPORTED cube_native_var *cube_zip_extract(cube_native_var *id, cube_native_var 
 {
     zip_file *zip = get_zip_file(AS_NATIVE_NUMBER(id));
     if (zip == NULL)
-        return NATIVE_NONE();
+        return NATIVE_NULL();
 
     zip->arg = 0;
     int rc = zip_extract(zip->name, AS_NATIVE_STRING(path), on_extract_entry, (void *)zip);
     if (rc != 0)
-        return NATIVE_NONE();
+        return NATIVE_NULL();
     return NATIVE_NUMBER(zip->arg);
 }
 
@@ -164,16 +164,16 @@ EXPORTED cube_native_var *cube_zip_read(cube_native_var *id, cube_native_var *na
 {
     zip_file *zip = get_zip_file(AS_NATIVE_NUMBER(id));
     if (zip == NULL)
-        return NATIVE_NONE();
+        return NATIVE_NULL();
 
     if (zip_entry_open(zip->zip, AS_NATIVE_STRING(name)) != 0)
-        return NATIVE_NONE();
+        return NATIVE_NULL();
 
     void *buf;
     size_t len;
 
     if (zip_entry_read(zip->zip, &buf, &len) < 0)
-        return NATIVE_NONE();
+        return NATIVE_NULL();
 
     zip_entry_close(zip->zip);
 
@@ -184,7 +184,7 @@ EXPORTED cube_native_var *cube_zip_extract_file(cube_native_var *id, cube_native
 {
     zip_file *zip = get_zip_file(AS_NATIVE_NUMBER(id));
     if (zip == NULL)
-        return NATIVE_NONE();
+        return NATIVE_NULL();
 
     if (zip_entry_open(zip->zip, AS_NATIVE_STRING(name)) != 0)
         return NATIVE_BOOL(false);
@@ -201,7 +201,7 @@ EXPORTED cube_native_var *cube_zip_list(cube_native_var *id)
 {
     zip_file *zip = get_zip_file(AS_NATIVE_NUMBER(id));
     if (zip == NULL)
-        return NATIVE_NONE();
+        return NATIVE_NULL();
 
     cube_native_var *list = NATIVE_LIST();
     int i, n = zip_total_entries(zip->zip);
@@ -229,7 +229,7 @@ EXPORTED cube_native_var *cube_zip_details(cube_native_var *id)
 {
     zip_file *zip = get_zip_file(AS_NATIVE_NUMBER(id));
     if (zip == NULL)
-        return NATIVE_NONE();
+        return NATIVE_NULL();
 
     cube_native_var *dict = NATIVE_DICT();
     int i, n = zip_total_entries(zip->zip);
@@ -261,7 +261,7 @@ EXPORTED cube_native_var *cube_zip_read_all(cube_native_var *id)
 {
     zip_file *zip = get_zip_file(AS_NATIVE_NUMBER(id));
     if (zip == NULL)
-        return NATIVE_NONE();
+        return NATIVE_NULL();
 
     cube_native_var *dict = NATIVE_DICT();
     int i, n = zip_total_entries(zip->zip);
@@ -281,7 +281,7 @@ EXPORTED cube_native_var *cube_zip_read_all(cube_native_var *id)
 
             cube_native_var *val;
             if (zip_entry_read(zip->zip, &buf, &len) < 0)
-                val = NATIVE_NONE();
+                val = NATIVE_NULL();
             else
                 val = NATIVE_BYTES_ARG(len, buf);
 

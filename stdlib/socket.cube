@@ -22,7 +22,7 @@ class Socket
     var isServer = false;
     var timeout = 1000;
 
-    var pointer = none;
+    var pointer = null;
 
     func open()
     {
@@ -34,7 +34,7 @@ class Socket
                                                 this.isServer,
                                                 this.timeout);
 
-        return this.pointer != none;
+        return this.pointer != null;
     }
 
     func close()
@@ -94,7 +94,7 @@ class HTTPServer
     {
         var response = '';
         var f = open(request, "rb");
-        if(f is none)
+        if(f is null)
             server.setCode(HTTP.NOT_FOUND);
         else
         {
@@ -107,7 +107,7 @@ class HTTPServer
     {
         var response = '';
         var f = open(request, "rb");
-        if(f is none)
+        if(f is null)
             server.setCode(HTTP.NOT_FOUND);
         else
         {
@@ -145,10 +145,10 @@ class HTTPServer
 
             var client = socket.client();
             var received = str(socket.receive());
-            var mode = none;
-            var request = none;
-            var response = none;
-            var data = {'mode' : 'GET', 'request' : none};
+            var mode = null;
+            var request = null;
+            var response = null;
+            var data = {'mode' : 'GET', 'request' : null};
 
             var lines = received.split('\r\n');
             for(var i = 0; i < len(lines); ++i)
@@ -198,19 +198,19 @@ class HTTPServer
 
             // println(mode, ' - ', request);
 
-            if(mode == 'GET' and request is not none and this.onGet is func)
+            if(mode == 'GET' and request is not null and this.onGet is func)
             // if(mode == 'GET' and this.onGet is func)
             {
                 response = this.onGet(this, client, request, data);
             }
 
-            if(mode == 'POST' and request is not none and this.onPost is func)
+            if(mode == 'POST' and request is not null and this.onPost is func)
             // if(mode == 'POST' and this.onPost is func)
             {
                 response = this.onPost(this, client, request, data);
             }
 
-            if(response != none)
+            if(response != null)
             {
                 var codeStr = str(this.code);
                 if(this.code == HTTP.SUCCESS)
@@ -294,9 +294,9 @@ class HTTPServer
 class HTTPClient
 {
     var address = "127.0.0.1";
-    var host = none;
+    var host = null;
     var port = 8080;
-    var socket = none;
+    var socket = null;
     var waitTime = 10;
 
     func init(address, port)
@@ -307,7 +307,7 @@ class HTTPClient
 
     func connect()
     {
-        if(this.socket is not none)
+        if(this.socket is not null)
             return true;
 
         this.host = this.address.replace('https://', '');
@@ -321,19 +321,19 @@ class HTTPClient
 
     func disconnect()
     {
-        if(this.socket is none)
+        if(this.socket is null)
             return true;
         
         var ret = this.socket.disconnect();
         if(ret)
-            this.socket = none;
+            this.socket = null;
         return ret;
     }
 
     func get(request)
     {
-        if(this.socket is none)
-            return none;
+        if(this.socket is null)
+            return null;
 
         // var data = 'GET /{} HTTP/1.1\r\nHost: {}\r\nConnection: keep-alive\r\nCache-Control: max-age=0\r\nUpgrade-Insecure-Requests: 0\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130 Safari/537.36 Edg/79.0.309.71\r\nAccept: */*'.format(request, this.host);
         var data = 'GET /{} HTTP/1.1\r\nHost: {}\r\n'.format(request, this.host);
@@ -344,8 +344,8 @@ class HTTPClient
 
     func post(request)
     {
-        if(this.socket is none)
-            return none;
+        if(this.socket is null)
+            return null;
 
         var data = 'POST {} HTTP/1.1\r\nHost: {}\r\nConnection: keep-alive\r\nCache-Control: max-age=0\r\nUpgrade-Insecure-Requests: 0\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130 Safari/537.36 Edg/79.0.309.71\r\nAccept: */*'.format(request, this.gost);
         var ret =  this.socket.send(data);
@@ -355,10 +355,10 @@ class HTTPClient
 
     func receive()
     {
-        if(this.socket is none)
-            return none;
+        if(this.socket is null)
+            return null;
 
-        var contents = none;
+        var contents = null;
         var data = str(this.socket.receive());
         var pos = data.find('\n\n');
         if(pos < 0)

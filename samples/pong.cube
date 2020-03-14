@@ -37,7 +37,7 @@ bar2.speed = 0;
 var score1 = window.draw(Text(0, 48, CX - 80, 60));
 var score2 = window.draw(Text(0, 48, CX + 40, 60));
 
-window.on(none, 'KeyPress', @(window, target, props)
+window.on(null, 'KeyPress', @(window, target, props)
 {
     if(props['key'] == '16777235')
     {

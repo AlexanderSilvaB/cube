@@ -62,7 +62,7 @@ typedef enum
     TOKEN_FUNC,
     TOKEN_LAMBDA,
     TOKEN_IF,
-    TOKEN_NONE,
+    TOKEN_NULL,
     TOKEN_OR,
     TOKEN_RETURN,
     TOKEN_SUPER,

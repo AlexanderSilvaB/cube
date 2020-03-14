@@ -24,7 +24,7 @@ void writeValueArray(ValueArray *array, Value value)
         array->capacity = GROW_CAPACITY(oldCapacity);
         array->values = GROW_ARRAY(array->values, Value, oldCapacity, array->capacity);
         for (int i = oldCapacity; i < array->capacity; i++)
-            array->values[i] = NONE_VAL;
+            array->values[i] = NULL_VAL;
     }
 
     array->values[array->count] = value;
@@ -142,7 +142,7 @@ Value searchDict(ObjDict *dict, char *key)
     int index = hash(key) % dict->capacity;
 
     if (!dict->items[index])
-        return NONE_VAL;
+        return NULL_VAL;
 
     while (index < dict->capacity && dict->items[index] && !dict->items[index]->deleted &&
            strcmp(dict->items[index]->key, key) != 0)
@@ -159,7 +159,7 @@ Value searchDict(ObjDict *dict, char *key)
         return dict->items[index]->item;
     }
 
-    return NONE_VAL;
+    return NULL_VAL;
 }
 
 char *searchDictKey(ObjDict *dict, int index)
@@ -191,10 +191,10 @@ char *valueToString(Value value, bool literal)
         snprintf(boolString, strlen(str) + 1, "%s", str);
         return boolString;
     }
-    else if (IS_NONE(value))
+    else if (IS_NULL(value))
     {
         char *nilString = mp_malloc(sizeof(char) * 5);
-        snprintf(nilString, 5, "%s", "none");
+        snprintf(nilString, 5, "%s", "null");
         return nilString;
     }
     else if (IS_NUMBER(value))
@@ -226,7 +226,7 @@ Value toBytes(Value value)
     ObjBytes *bytes = NULL;
     char c = 0xFF;
 #ifdef NAN_TAGGING
-    if (IS_NONE(value))
+    if (IS_NULL(value))
         bytes = copyBytes(&c, 1);
     else if (IS_BOOL(value))
     {
@@ -243,7 +243,7 @@ Value toBytes(Value value)
         bytes = objectToBytes(value);
     }
 #else
-    if (IS_NONE(value))
+    if (IS_NULL(value))
         bytes = copyBytes(&c, 1);
     else if (IS_BOOL(value))
         bytes = copyBytes(&value.as.boolean, sizeof(value.as.boolean));
@@ -268,10 +268,10 @@ char *valueType(Value value)
         snprintf(str, 5, "bool");
         return str;
     }
-    else if (IS_NONE(value))
+    else if (IS_NULL(value))
     {
         char *str = mp_malloc(sizeof(char) * 6);
-        snprintf(str, 5, "none");
+        snprintf(str, 5, "null");
         return str;
     }
     else if (IS_NUMBER(value))
@@ -314,7 +314,7 @@ bool valuesEqual(Value a, Value b)
     {
         case VAL_BOOL:
             return AS_BOOL(a) == AS_BOOL(b);
-        case VAL_NONE:
+        case VAL_NULL:
             return true;
         case VAL_NUMBER:
             return AS_NUMBER(a) == AS_NUMBER(b);
@@ -328,7 +328,7 @@ bool valuesEqual(Value a, Value b)
 
 Value toBool(Value value)
 {
-    if (IS_NONE(value))
+    if (IS_NULL(value))
         return BOOL_VAL(false);
     else if (IS_BOOL(value))
         return BOOL_VAL(AS_BOOL(value));
@@ -356,7 +356,7 @@ Value toBool(Value value)
 
 Value toNumber(Value value)
 {
-    if (IS_NONE(value))
+    if (IS_NULL(value))
         return NUMBER_VAL(0);
     else if (IS_BOOL(value))
         return NUMBER_VAL(AS_BOOL(value) ? 1 : 0);

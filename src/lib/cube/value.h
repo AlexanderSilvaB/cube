@@ -14,7 +14,7 @@ typedef struct sObjBytes ObjBytes;
 typedef enum
 {
     VAL_BOOL,
-    VAL_NONE, // [user-types]
+    VAL_NULL, // [user-types]
     VAL_NUMBER,
     VAL_OBJ
 } ValueType;
@@ -28,14 +28,14 @@ typedef enum
 #define QNAN ((uint64_t)0x7ffc000000000000)
 
 // Tag values for the different singleton values.
-#define TAG_NONE 1  // 01
+#define TAG_NULL 1  // 01
 #define TAG_FALSE 2 // 10
 #define TAG_TRUE 3  // 11
 
 typedef uint64_t Value;
 
 #define IS_BOOL(v) (((v) & (QNAN | TAG_FALSE)) == (QNAN | TAG_FALSE))
-#define IS_NONE(v) ((v) == NONE_VAL)
+#define IS_NULL(v) ((v) == NULL_VAL)
 // If the NaN bits are set, it's not a number.
 #define IS_NUMBER(v) (((v)&QNAN) != QNAN)
 #define IS_OBJ(v) (((v) & (QNAN | SIGN_BIT)) == (QNAN | SIGN_BIT))
@@ -47,7 +47,7 @@ typedef uint64_t Value;
 #define BOOL_VAL(boolean) ((boolean) ? TRUE_VAL : FALSE_VAL)
 #define FALSE_VAL ((Value)(uint64_t)(QNAN | TAG_FALSE))
 #define TRUE_VAL ((Value)(uint64_t)(QNAN | TAG_TRUE))
-#define NONE_VAL ((Value)(uint64_t)(QNAN | TAG_NONE))
+#define NULL_VAL ((Value)(uint64_t)(QNAN | TAG_NULL))
 #define NUMBER_VAL(num) numToValue(num)
 // The triple casting is necessary here to satisfy some compilers:
 // 1. (uintptr_t) Convert the pointer to a number of the right size.
@@ -93,7 +93,7 @@ typedef struct
 } Value;
 
 #define IS_BOOL(value) ((value).type == VAL_BOOL)
-#define IS_NONE(value) ((value).type == VAL_NONE)
+#define IS_NULL(value) ((value).type == VAL_NULL)
 #define IS_NUMBER(value) ((value).type == VAL_NUMBER)
 #define IS_OBJ(value) ((value).type == VAL_OBJ)
 
@@ -102,7 +102,7 @@ typedef struct
 #define AS_NUMBER(value) ((value).as.number)
 
 #define BOOL_VAL(value) ((Value){VAL_BOOL, {.boolean = value}})
-#define NONE_VAL ((Value){VAL_NONE, {.number = 0}})
+#define NULL_VAL ((Value){VAL_NULL, {.number = 0}})
 #define FALSE_VAL ((Value){VAL_BOOL, {.boolean = false}})
 #define TRUE_VAL ((Value){VAL_BOOL, {.boolean = true}})
 #define NUMBER_VAL(value) ((Value){VAL_NUMBER, {.number = value}})

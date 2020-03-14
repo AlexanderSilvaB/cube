@@ -85,7 +85,7 @@ void closeNativeLib(ObjNativeLib *lib)
 
 Value nativeToValue(cube_native_var *var, NativeTypes *nt)
 {
-    Value result = NONE_VAL;
+    Value result = NULL_VAL;
     if (IS_NATIVE_LIST(var))
     {
         ObjList *list = initList();
@@ -116,8 +116,8 @@ Value nativeToValue(cube_native_var *var, NativeTypes *nt)
         switch (NATIVE_TYPE(var))
         {
             case TYPE_VOID:
-            case TYPE_NONE: {
-                result = NONE_VAL;
+            case TYPE_NULL: {
+                result = NULL_VAL;
             }
             break;
             case TYPE_BOOL: {
@@ -146,9 +146,9 @@ Value nativeToValue(cube_native_var *var, NativeTypes *nt)
 
 void valueToNative(cube_native_var *var, Value value)
 {
-    if (IS_NONE(value))
+    if (IS_NULL(value))
     {
-        TO_NATIVE_NONE(var);
+        TO_NATIVE_NULL(var);
     }
     else if (IS_BOOL(value))
     {
@@ -252,7 +252,7 @@ void freeVarNative(cube_native_var *var)
 
 Value callNativeFn(lib_func func, NativeTypes ret, int count, cube_native_var **values)
 {
-    Value result = NONE_VAL;
+    Value result = NULL_VAL;
     cube_native_var *res = NULL;
     if (ret == TYPE_VOID)
     {
@@ -348,7 +348,7 @@ Value callNativeFn(lib_func func, NativeTypes ret, int count, cube_native_var **
         // {
         //     freeNativeVar(res, false, false);
         //     runtimeError("Native function returned an inconsistent type");
-        //     return NONE_VAL;
+        //     return NULL_VAL;
         // }
 
         freeNativeVar(res, false, false);
@@ -359,7 +359,7 @@ Value callNativeFn(lib_func func, NativeTypes ret, int count, cube_native_var **
 Value callNative(ObjNativeFunc *func, int argCount, Value *args)
 {
     if (!openNativeLib(func->lib))
-        return NONE_VAL;
+        return NULL_VAL;
 
     lib_func fn;
 #ifdef _WIN32
@@ -371,16 +371,16 @@ Value callNative(ObjNativeFunc *func, int argCount, Value *args)
     if (fn.f_void == NULL)
     {
         runtimeError("Unable to find native func: '%s'", func->name->chars);
-        return NONE_VAL;
+        return NULL_VAL;
     }
 
     if (func->params.count != argCount)
     {
         runtimeError("Invalid number of arguments: required '%d'", func->params.count);
-        return NONE_VAL;
+        return NULL_VAL;
     }
 
-    Value result = NONE_VAL;
+    Value result = NULL_VAL;
     cube_native_var **values = (cube_native_var **)malloc(sizeof(cube_native_var *) * 10);
     for (int i = 0; i < 10; i++)
         values[i] = NULL;
@@ -390,13 +390,13 @@ Value callNative(ObjNativeFunc *func, int argCount, Value *args)
         if (type == TYPE_UNKNOWN || type == TYPE_VOID)
         {
             runtimeError("Invalid argument type in %s: '%s'", func->name->chars, AS_CSTRING(func->params.values[i]));
-            return NONE_VAL;
+            return NULL_VAL;
         }
         values[i] = NATIVE_VAR();
         switch (type)
         {
-            case TYPE_NONE:
-                TO_NATIVE_NONE(values[i]);
+            case TYPE_NULL:
+                TO_NATIVE_NULL(values[i]);
                 break;
             case TYPE_BOOL:
                 TO_NATIVE_BOOL(values[i], AS_BOOL(toBool(args[i])));
@@ -438,7 +438,7 @@ Value callNative(ObjNativeFunc *func, int argCount, Value *args)
         }
         free(values);
         runtimeError("Invalid return type in %s: '%s'", func->name->chars, func->returnType->chars);
-        return NONE_VAL;
+        return NULL_VAL;
     }
     result = callNativeFn(fn, retType, argCount, values);
 
@@ -455,8 +455,8 @@ NativeTypes getNativeType(const char *name)
 {
     if (strcmp(name, "void") == 0)
         return TYPE_VOID;
-    else if (strcmp(name, "none") == 0)
-        return TYPE_NONE;
+    else if (strcmp(name, "null") == 0)
+        return TYPE_NULL;
     else if (strcmp(name, "bool") == 0)
         return TYPE_BOOL;
     else if (strcmp(name, "num") == 0)

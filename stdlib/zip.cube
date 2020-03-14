@@ -20,7 +20,7 @@ class Zip
 
     func init(fileName, mode)
     {
-        if(mode is none or mode is not str)
+        if(mode is null or mode is not str)
         {
             if(exists(fileName))
                 mode = 'a';
@@ -36,10 +36,10 @@ class Zip
 
     func open(mode)
     {
-        if(mode is none or mode is not str)
+        if(mode is null or mode is not str)
             mode = this.mode;
         this.id = cube_zip_open(this.path, mode);
-        return this.id is not none;
+        return this.id is not null;
     }
 
     func close()
@@ -52,7 +52,7 @@ class Zip
         this.open();
         var wc = cube_zip_add(this.id, name, data);
         this.close();
-        return (wc is not none and wc >= 0);
+        return (wc is not null and wc >= 0);
     }
 
     func addFile(name, path)
@@ -60,7 +60,7 @@ class Zip
         this.open();
         var wc = cube_zip_add_file(this.id, name, path);
         this.close();
-        return (wc is not none and wc >= 0);
+        return (wc is not null and wc >= 0);
     }
 
     func extract(path)

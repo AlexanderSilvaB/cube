@@ -1,6 +1,6 @@
 class Animal
 {
-    var name = none;
+    var name = null;
 
     func init(name)
     {
@@ -9,7 +9,7 @@ class Animal
 
     func say()
     {
-        if(name == none)
+        if(name == null)
             println('I am an animal')
         else
             println('I am a ', name)

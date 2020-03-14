@@ -325,13 +325,13 @@ static TokenType identifierType()
             {
                 switch (scanner.start[1])
                 {
+                    case 'u':
+                        return checkKeyword(2, 2, "ll", TOKEN_NULL);
                     case 'o': {
                         if (scanner.current - scanner.start > 2)
                         {
                             switch (scanner.start[2])
                             {
-                                case 'n':
-                                    return checkKeyword(3, 1, "e", TOKEN_NONE);
                                 case 't':
                                     return checkKeyword(3, 0, "", TOKEN_BANG);
                             }

@@ -24,7 +24,7 @@ class Parser
         {
             if(key == '--'+rule[0])
                 return true;
-            if(rule[1] is not none and key == '-'+rule[1])
+            if(rule[1] is not null and key == '-'+rule[1])
                 return true;
         }
         return false;
@@ -32,7 +32,7 @@ class Parser
 
     func setArg(key, value)
     {
-        var rule = none;
+        var rule = null;
         for(var r in this.rules)
         {
             if(key == r[0])
@@ -41,7 +41,7 @@ class Parser
             }
         }
         
-        if(rule is none or rule[3] is not func)
+        if(rule is null or rule[3] is not func)
             this.args[key] = value;
         else 
         {
@@ -68,7 +68,7 @@ class Parser
 
         for(var rule in this.rules)
         {
-            this.args[rule[0]] = none;
+            this.args[rule[0]] = null;
         }
 
         var i = 0;
@@ -76,12 +76,12 @@ class Parser
         for(var rule in this.rules)
         {
             i = data.index('--'+rule[0]);
-            if(i < 0 and rule[1] is not none)
+            if(i < 0 and rule[1] is not null)
                 i = data.index('-'+rule[1]);
             
             if(i >= 0)
             {
-                if(rule[2] is none or rule[3] == 0)
+                if(rule[2] is null or rule[3] == 0)
                     this.args[rule[0]] = true;
                 else if(rule[3] == '?' or rule[3] == '+' or rule[3] is num)
                 {
@@ -123,9 +123,9 @@ class Parser
         for(var rule in this.rules)
         {
             print('[--', rule[0],']');
-            if(rule[1] is not none)
+            if(rule[1] is not null)
                 print('[-', rule[1],']');
-            if(rule[3] is not none)
+            if(rule[3] is not null)
                 println(' ',rule[4]);
         }
     }

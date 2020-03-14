@@ -100,11 +100,11 @@ class UI
                 if(window.id == id)
                 {
                     if(isempty(target))
-                        target = none;
+                        target = null;
                     var onId = '{}:{}'.format(obj, event);
                     if(window.actions.exists(onId))
                     {
-                        var action = window.actions.get(onId, none);
+                        var action = window.actions.get(onId, null);
                         var evArgs = ui_get_event_args(ev);
                         action(window, target, evArgs);
                     }
@@ -132,16 +132,16 @@ class UI
 
 class Window
 {
-    var id = none;
-    var update = none;
+    var id = null;
+    var update = null;
     var actions = {};
     var shapes = [];
 
     func init(name, width, height)
     {
-        if(width is none)
+        if(width is null)
             width = 600;
-        if(height is none)
+        if(height is null)
             height = 480;
         this.id = ui_create_window(name, width, height);
         UI.addWindow(this);
@@ -165,7 +165,7 @@ class Window
 
     func on(obj, event, action)
     {
-        if(obj is none)
+        if(obj is null)
             obj = '';
         var onId = '{}:{}'.format(obj, event);
         this.actions[onId] = action;
@@ -206,7 +206,7 @@ class Window
         }
         var id = ui_add_shape(this.id, shape.dict());
         if(id == -1)
-            return none;
+            return null;
         shape.id = id;
         this.shapes.add(shape);
         return shape;

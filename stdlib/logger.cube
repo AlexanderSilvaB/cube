@@ -9,7 +9,7 @@ class Log
 
     func Log(l)
     {
-        if(l is none)
+        if(l is null)
             l = Level.Debug;
         this.level = l;
     }

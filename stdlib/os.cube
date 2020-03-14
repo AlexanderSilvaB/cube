@@ -3,13 +3,13 @@ var sysInfo = systemInfo();
 var rows = sysInfo['rows'];
 var cols = sysInfo['cols'];
 
-var installPath = none;
-var libsExt = none;
-var binExt = none;
+var installPath = null;
+var libsExt = null;
+var binExt = null;
 var arch = sysInfo['arch'];
 var name = sysInfo['os'];
 var userHome = env('INDEPENDENT_HOME');
-if(userHome == none)
+if(userHome == null)
     userHome = '';
 var userDir = '{}/.cube'.format(userHome);
 

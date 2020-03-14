@@ -79,7 +79,7 @@ static bool pushListItem(int argCount)
 
     ObjList *list = AS_LIST(pop());
     writeValueArray(&list->values, listItem);
-    push(NONE_VAL);
+    push(NULL_VAL);
 
     return true;
 }
@@ -121,7 +121,7 @@ static bool insertListItem(int argCount)
         list->values.values[i] = list->values.values[i - 1];
 
     list->values.values[index] = insertValue;
-    push(NONE_VAL);
+    push(NULL_VAL);
 
     return true;
 }
@@ -533,9 +533,9 @@ static bool getDictItem(int argCount)
     Value ret = searchDict(dict, AS_CSTRING(key));
 
 #ifndef NAN_TAGGING
-    if (valuesEqual(ret, NONE_VAL))
+    if (valuesEqual(ret, NULL_VAL))
 #else
-    if (ret == NONE_VAL)
+    if (ret == NULL_VAL)
 #endif
         push(defaultValue);
     else
@@ -647,7 +647,7 @@ static bool removeDictItem(int argCount)
     {
         dict->items[index]->deleted = true;
         dict->count--;
-        push(NONE_VAL);
+        push(NULL_VAL);
 
         if (dict->capacity != 8 && dict->count * 100 / dict->capacity <= 35)
             resizeDict(dict, false);

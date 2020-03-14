@@ -10,9 +10,9 @@ import parser as default;
 var parser = Parser('Cubix', 'The cube package manager', '0.1');
 parser.add('install', 'i', str, '+', 'selects the package to install');
 parser.add('uninstall', 'u', str, '+', 'selects the package to uninstall');
-parser.add('list', 'l', none, 0, 'list installed packages');
-parser.add('online', 'o', none, 0, 'list online packages');
-parser.add('force', 'f', none, 0, 'force install or uninstall');
+parser.add('list', 'l', null, 0, 'list installed packages');
+parser.add('online', 'o', null, 0, 'list online packages');
+parser.add('force', 'f', null, 0, 'force install or uninstall');
 
 parser.parse(args);
 
@@ -22,7 +22,7 @@ func readWeb(request)
 {
     var url = address+request;
     var contents = curl.get(url);
-    if(contents is none)
+    if(contents is null)
         throw('Failed to get [', url, ']');
     return str(contents);
 }
@@ -52,14 +52,14 @@ func install(force, libs)
     var contents = readWeb('index.json');
     var packages = json.parseJson(contents)['packages'];
 
-    var package = none;
+    var package = null;
 
     for(var lib in libs)
     {
         if(lib.endsWith('.zip'))
             continue;
 
-        package = none;
+        package = null;
         for(var p in packages)
         {
             if(p.endsWith('/{}'.format(lib)))
@@ -68,7 +68,7 @@ func install(force, libs)
             }
         }
 
-        if(package is none)
+        if(package is null)
             throw('Package "', lib, '" not found!');
 
         installPackage(force, lib, package);
@@ -124,7 +124,7 @@ func installFilePackage(force, libFile)
     
     var file = zip.Zip(libFile, 'r')
     var contents = file.read('package.json')
-    if(contents is none)
+    if(contents is null)
     {
         println("Not a valid cube package.")
         return;
@@ -132,13 +132,13 @@ func installFilePackage(force, libFile)
 
     var package = json.parseJson(str(contents));
     var lib = package['name']
-    if(lib is none)
+    if(lib is null)
     {
         println("Not a valid cube package.")
         return;
     }
 
-    var current = none;
+    var current = null;
     try
     {
         var j = json.readJson("{}/{}.json".format(os.allowedLibsPath, lib));
@@ -146,7 +146,7 @@ func installFilePackage(force, libFile)
     }
 
     var version = package['version'];
-    if(version is none)
+    if(version is null)
     {
         println("Not a valid cube package.")
         return;
@@ -173,7 +173,7 @@ func installFilePackage(force, libFile)
     {
         print('Installing: ', f);
         data = file.read(f);
-        if(data is none)
+        if(data is null)
         {
             println('Failed!');
             continue;
@@ -198,7 +198,7 @@ func installFilePackage(force, libFile)
     {
         print('Installing: ', f);
         data = file.read('native/{}/{}/{}{}'.format(os.name, os.arch, f, os.libsExt));
-        if(data is none)
+        if(data is null)
         {
             println('Failed!');
             continue;
@@ -224,7 +224,7 @@ func installPackage(force, lib, url)
     var contents = readWeb('{}/package.json'.format(url));
     var package = json.parseJson(contents);
     
-    var current = none;
+    var current = null;
     try
     {
         var j = json.readJson("{}/{}.json".format(os.allowedLibsPath, lib));
@@ -291,7 +291,7 @@ func installPackage(force, lib, url)
 func uninstallPackage(force, lib)
 {
     var package = json.readJson("{}/{}.json".format(os.allowedLibsPath, lib));
-    if(package == none or len(package) == 0)
+    if(package == null or len(package) == 0)
     {
         println("Not found!");
         return;
@@ -337,18 +337,18 @@ func listPackage(lib)
 {
     var path = '{}/{}'.format(os.allowedLibsPath, lib);
     var package = json.readJson(path);
-    if(package is none or len(package) == 0)
+    if(package is null or len(package) == 0)
         return false;
 
     println(package['name'], ':', package['version'], '  [', package['description'], ']');
     return true;
 }
 
-if(parser.args['install'] is not none and len(parser.args['install']) > 0 )
+if(parser.args['install'] is not null and len(parser.args['install']) > 0 )
 {
     install(parser.args['force'], parser.args['install']);
 }
-else if( parser.args['uninstall'] is not none and len(parser.args['uninstall']) > 0 )
+else if( parser.args['uninstall'] is not null and len(parser.args['uninstall']) > 0 )
 {
     uninstall(parser.args['force'], parser.args['uninstall']);
 }

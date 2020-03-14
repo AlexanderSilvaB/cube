@@ -13,7 +13,7 @@ string NativeToValue(cube_native_var *var)
     switch (NATIVE_TYPE(var))
     {
         case TYPE_VOID:
-        case TYPE_NONE: {
+        case TYPE_NULL: {
             return "";
         }
         break;
@@ -161,7 +161,7 @@ extern "C"
         }
         else
         {
-            ret = NATIVE_NONE();
+            ret = NATIVE_NULL();
         }
 
         return ret;
@@ -183,7 +183,7 @@ extern "C"
         cube_native_var *ret;
         if (props.size() == 0)
         {
-            ret = NATIVE_NONE();
+            ret = NATIVE_NULL();
         }
         else
         {

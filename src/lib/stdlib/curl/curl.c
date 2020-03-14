@@ -163,7 +163,7 @@ EXPORTED cube_native_var *download(cube_native_var *url, cube_native_var *path)
 
 EXPORTED cube_native_var *get(cube_native_var *url)
 {
-    cube_native_var *result = NATIVE_NONE();
+    cube_native_var *result = NATIVE_NULL();
     CURL *curl_handle = curl_easy_init();
     curl_easy_setopt(curl_handle, CURLOPT_URL, AS_NATIVE_STRING(url));
     curl_easy_setopt(curl_handle, CURLOPT_VERBOSE, VERBOSE);
@@ -183,7 +183,7 @@ EXPORTED cube_native_var *get(cube_native_var *url)
 
 EXPORTED cube_native_var *post(cube_native_var *url, cube_native_var *data_var)
 {
-    cube_native_var *result = NATIVE_NONE();
+    cube_native_var *result = NATIVE_NULL();
     CURL *curl_handle = curl_easy_init();
     curl_easy_setopt(curl_handle, CURLOPT_URL, AS_NATIVE_STRING(url));
     curl_easy_setopt(curl_handle, CURLOPT_POST, 1L);
@@ -215,7 +215,7 @@ EXPORTED cube_native_var *easy_init()
 {
     Session *session = create_session();
     if (!session)
-        return NATIVE_NONE();
+        return NATIVE_NULL();
     return NATIVE_NUMBER(session->id);
 }
 
@@ -232,7 +232,7 @@ EXPORTED cube_native_var *easy_setopt(cube_native_var *id, cube_native_var *opti
 {
     Session *session = get_session(AS_NATIVE_NUMBER(id));
     if (session == NULL)
-        return NATIVE_NONE();
+        return NATIVE_NULL();
 
     CURLcode res;
     long opt = (long)AS_NATIVE_NUMBER(option);
@@ -243,9 +243,9 @@ EXPORTED cube_native_var *easy_setopt(cube_native_var *id, cube_native_var *opti
     else if (parameter->type == TYPE_STRING)
         res = curl_easy_setopt(session->curl, opt, AS_NATIVE_STRING(parameter));
     else if (parameter->type == TYPE_FUNC)
-        return NATIVE_NONE();
+        return NATIVE_NULL();
     else
-        return NATIVE_NONE();
+        return NATIVE_NULL();
     return NATIVE_NUMBER(res);
 }
 
@@ -253,7 +253,7 @@ EXPORTED cube_native_var *easy_perform(cube_native_var *id)
 {
     Session *session = get_session(AS_NATIVE_NUMBER(id));
     if (session == NULL)
-        return NATIVE_NONE();
+        return NATIVE_NULL();
 
     session->write_bytes.bytes = realloc(session->write_bytes.bytes, 0);
     session->write_bytes.length = 0;
@@ -270,7 +270,7 @@ EXPORTED cube_native_var *easy_perform(cube_native_var *id)
 
 EXPORTED cube_native_var *easy_getinfo(cube_native_var *sid, cube_native_var *info)
 {
-    cube_native_var *ret = NATIVE_NONE();
+    cube_native_var *ret = NATIVE_NULL();
     Session *session = get_session(AS_NATIVE_NUMBER(sid));
     if (session == NULL)
         return ret;
@@ -335,7 +335,7 @@ EXPORTED cube_native_var *get_data(cube_native_var *id)
 {
     Session *session = get_session(AS_NATIVE_NUMBER(id));
     if (session == NULL)
-        return NATIVE_NONE();
+        return NATIVE_NULL();
 
     cube_native_bytes bytes;
     bytes.length = session->write_bytes.length;

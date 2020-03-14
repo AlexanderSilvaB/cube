@@ -57,7 +57,7 @@ Value exitNative(int argCount, Value *args)
     vm.running = false;
     vm.repl = NUMBER_VAL(code);
     // exit(code);
-    return NONE_VAL;
+    return NULL_VAL;
 }
 
 Value printNative(int argCount, Value *args)
@@ -73,8 +73,8 @@ Value printNative(int argCount, Value *args)
     fflush(stdout);
     vm.print = true;
     vm.newLine = true;
-    vm.repl = NONE_VAL;
-    return NONE_VAL;
+    vm.repl = NULL_VAL;
+    return NULL_VAL;
 }
 
 Value printlnNative(int argCount, Value *args)
@@ -82,7 +82,7 @@ Value printlnNative(int argCount, Value *args)
     printNative(argCount, args);
     printf("\n");
     vm.newLine = false;
-    return NONE_VAL;
+    return NULL_VAL;
 }
 
 Value throwNative(int argCount, Value *args)
@@ -105,7 +105,7 @@ Value throwNative(int argCount, Value *args)
     }
     runtimeError(error);
     FREE_ARRAY(char, error, sz);
-    return NONE_VAL;
+    return NULL_VAL;
 }
 
 Value inputNative(int argCount, Value *args)
@@ -316,7 +316,7 @@ Value isemptyNative(int argCount, Value *args)
     if (argCount == 0)
         return BOOL_VAL(false);
     Value arg = args[0];
-    if (IS_NONE(arg))
+    if (IS_NULL(arg))
     {
         return TRUE_VAL;
     }
@@ -755,7 +755,7 @@ Value dictNative(int argCount, Value *args)
         runtimeError("dict(str, delimiter, innerDelimiter) takes exactly 3 "
                      "arguments (%d given).",
                      argCount);
-        return NONE_VAL;
+        return NULL_VAL;
     }
 
     for (int i = 0; i < argCount; i++)
@@ -763,7 +763,7 @@ Value dictNative(int argCount, Value *args)
         if (!IS_STRING(args[i]))
         {
             runtimeError("'dict' argument must be a string.");
-            return NONE_VAL;
+            return NULL_VAL;
         }
     }
 
@@ -771,7 +771,7 @@ Value dictNative(int argCount, Value *args)
     if (!IS_LIST(listV))
     {
         runtimeError("dict(): Failed to split '%s' by '%s'.", AS_CSTRING(args[0]), AS_CSTRING(args[1]));
-        return NONE_VAL;
+        return NULL_VAL;
     }
 
     ObjList *list = AS_LIST(listV);
@@ -785,7 +785,7 @@ Value dictNative(int argCount, Value *args)
         {
             runtimeError("dict(): Failed to split '%s' by '%s'.", AS_CSTRING(list->values.values[i]),
                          AS_CSTRING(args[2]));
-            return NONE_VAL;
+            return NULL_VAL;
         }
 
         ObjList *inner = AS_LIST(innerV);
@@ -849,16 +849,16 @@ Value bytesNative(int argCount, Value *args)
 Value makeNative(int argCount, Value *args)
 {
     if (argCount == 0)
-        return NONE_VAL;
+        return NULL_VAL;
 
-    ValueType vType = VAL_NONE;
+    ValueType vType = VAL_NULL;
     ObjType oType = OBJ_STRING;
     bool instance = false;
     if (IS_STRING(args[0]))
     {
         char *name = AS_CSTRING(args[0]);
-        if (strcmp(name, "none") == 0)
-            vType = VAL_NONE;
+        if (strcmp(name, "null") == 0)
+            vType = VAL_NULL;
         else if (strcmp(name, "bool") == 0)
             vType = VAL_BOOL;
         else if (strcmp(name, "num") == 0)
@@ -887,8 +887,8 @@ Value makeNative(int argCount, Value *args)
     }
     else
     {
-        if (IS_NONE(args[0]))
-            vType = VAL_NONE;
+        if (IS_NULL(args[0]))
+            vType = VAL_NULL;
         else if (IS_BOOL(args[0]))
             vType = VAL_BOOL;
         else if (IS_NUMBER(args[0]))
@@ -904,8 +904,8 @@ Value makeNative(int argCount, Value *args)
         }
     }
 
-    if (vType == VAL_NONE)
-        return NONE_VAL;
+    if (vType == VAL_NULL)
+        return NULL_VAL;
     else if (vType == VAL_BOOL)
     {
         return argCount == 1 ? FALSE_VAL : toBool(args[1]);
@@ -926,7 +926,7 @@ Value makeNative(int argCount, Value *args)
                 return OBJ_VAL(initList());
 
             int sz = (int)AS_NUMBER(toNumber(args[1]));
-            Value def = NONE_VAL;
+            Value def = NULL_VAL;
             if (argCount > 2)
                 def = args[2];
 
@@ -986,7 +986,7 @@ Value makeNative(int argCount, Value *args)
             mp_free(code);
             if (fn == NULL)
             {
-                return NONE_VAL;
+                return NULL_VAL;
             }
 
             ObjRequest *request = newRequest();
@@ -995,7 +995,7 @@ Value makeNative(int argCount, Value *args)
             return OBJ_VAL(request);
         }
     }
-    return NONE_VAL;
+    return NULL_VAL;
 }
 
 static int colorCode(char *color)
@@ -1143,7 +1143,7 @@ Value lenNative(int argCount, Value *args)
     if (argCount != 1)
     {
         runtimeError("len() takes exactly 1 argument (%d given).", argCount);
-        return NONE_VAL;
+        return NULL_VAL;
     }
 
     if (IS_STRING(args[0]))
@@ -1192,7 +1192,7 @@ Value lenNative(int argCount, Value *args)
 Value typeNative(int argCount, Value *args)
 {
     if (argCount == 0)
-        return NONE_VAL;
+        return NULL_VAL;
     char *str = valueType(args[0]);
     Value res = STRING_VAL(str);
     mp_free(str);
@@ -1230,8 +1230,8 @@ Value varsNative(int argCount, Value *args)
 
     vm.print = true;
     vm.newLine = false;
-    vm.repl = NONE_VAL;
-    return NONE_VAL;
+    vm.repl = NULL_VAL;
+    return NULL_VAL;
 }
 
 Value openNative(int argCount, Value *args)
@@ -1239,7 +1239,7 @@ Value openNative(int argCount, Value *args)
     if (argCount == 0)
     {
         runtimeError("open requires at least a file name");
-        return NONE_VAL;
+        return NULL_VAL;
     }
 
     Value fileName = args[0];
@@ -1252,13 +1252,13 @@ Value openNative(int argCount, Value *args)
     if (!IS_STRING(openType))
     {
         runtimeError("File open type must be a string");
-        return NONE_VAL;
+        return NULL_VAL;
     }
 
     if (!IS_STRING(fileName))
     {
         runtimeError("Filename must be a string");
-        return NONE_VAL;
+        return NULL_VAL;
     }
 
     ObjString *openTypeString = AS_STRING(openType);
@@ -1271,7 +1271,7 @@ Value openNative(int argCount, Value *args)
     if (file == NULL)
     {
         // runtimeError("Unable to open file");
-        return NONE_VAL;
+        return NULL_VAL;
     }
 
     return OBJ_VAL(file);
@@ -1280,7 +1280,7 @@ Value openNative(int argCount, Value *args)
 Value pwdNative(int argCount, Value *args)
 {
     char cCurrentPath[FILENAME_MAX];
-    Value ret = NONE_VAL;
+    Value ret = NULL_VAL;
     if (GetCurrentDir(cCurrentPath, sizeof(cCurrentPath)))
     {
         cCurrentPath[sizeof(cCurrentPath) - 1] = '\0';
@@ -1335,9 +1335,9 @@ Value lsNative(int argCount, Value *args)
 Value isdirNative(int argCount, Value *args)
 {
     if (argCount == 0)
-        return NONE_VAL;
+        return NULL_VAL;
     if (!IS_STRING(args[0]))
-        return NONE_VAL;
+        return NULL_VAL;
     char *str = AS_CSTRING(args[0]);
     char *path = fixPath(str);
 
@@ -1357,9 +1357,9 @@ Value isdirNative(int argCount, Value *args)
 Value cdNative(int argCount, Value *args)
 {
     if (argCount == 0)
-        return NONE_VAL;
+        return NULL_VAL;
     if (!IS_STRING(args[0]))
-        return NONE_VAL;
+        return NULL_VAL;
     char *str = AS_CSTRING(args[0]);
     char *path = fixPath(str);
 
@@ -1371,9 +1371,9 @@ Value cdNative(int argCount, Value *args)
 Value existsNative(int argCount, Value *args)
 {
     if (argCount == 0)
-        return NONE_VAL;
+        return NULL_VAL;
     if (!IS_STRING(args[0]))
-        return NONE_VAL;
+        return NULL_VAL;
     char *str = AS_CSTRING(args[0]);
     char *path = fixPath(str);
     Value ret = BOOL_VAL(existsFile(path));
@@ -1384,16 +1384,16 @@ Value existsNative(int argCount, Value *args)
 Value findNative(int argCount, Value *args)
 {
     if (argCount == 0)
-        return NONE_VAL;
+        return NULL_VAL;
     if (!IS_STRING(args[0]))
-        return NONE_VAL;
+        return NULL_VAL;
     char *str = AS_CSTRING(args[0]);
     char *path = fixPath(str);
     char *found = findFile(path);
     mp_free(path);
 
     if (found == NULL)
-        return NONE_VAL;
+        return NULL_VAL;
     Value ret = STRING_VAL(found);
     mp_free(found);
     return ret;
@@ -1402,9 +1402,9 @@ Value findNative(int argCount, Value *args)
 Value removeNative(int argCount, Value *args)
 {
     if (argCount == 0)
-        return NONE_VAL;
+        return NULL_VAL;
     if (!IS_STRING(args[0]))
-        return NONE_VAL;
+        return NULL_VAL;
     char *str = AS_CSTRING(args[0]);
     char *path = fixPath(str);
     int rc = remove(path);
@@ -1446,9 +1446,9 @@ static int cube_mkdir(const char *dir, int mode)
 Value mkdirNative(int argCount, Value *args)
 {
     if (argCount == 0)
-        return NONE_VAL;
+        return NULL_VAL;
     if (!IS_STRING(args[0]))
-        return NONE_VAL;
+        return NULL_VAL;
     char *str = AS_CSTRING(args[0]);
     int mode = 0777;
     if (argCount > 1 && IS_NUMBER(args[1]))
@@ -1466,33 +1466,33 @@ Value mkdirNative(int argCount, Value *args)
 Value envNative(int argCount, Value *args)
 {
     if (argCount == 0)
-        return NONE_VAL;
+        return NULL_VAL;
     if (!IS_STRING(args[0]))
-        return NONE_VAL;
+        return NULL_VAL;
     char *str = AS_CSTRING(args[0]);
     char *env = getEnv(str);
     if (env == NULL)
-        return NONE_VAL;
+        return NULL_VAL;
     return STRING_VAL(env);
 }
 
 Value copyNative(int argCount, Value *args)
 {
     if (argCount == 0)
-        return NONE_VAL;
+        return NULL_VAL;
     return copyValue(args[0]);
 }
 
 Value evalNative(int argCount, Value *args)
 {
     if (argCount == 0)
-        return NONE_VAL;
+        return NULL_VAL;
 
     Value arg = args[0];
     if (!IS_STRING(arg))
     {
         runtimeError("'eval' requires a string parameter\n");
-        return NONE_VAL;
+        return NULL_VAL;
     }
 
     ObjString *str = AS_STRING(arg);
@@ -1501,7 +1501,7 @@ Value evalNative(int argCount, Value *args)
     if (function == NULL)
     {
         runtimeError("Failed to evaluate.\n");
-        return NONE_VAL;
+        return NULL_VAL;
     }
 
     ThreadFrame *threadFrame = currentThread();
@@ -1616,8 +1616,8 @@ Value printStackNative(int argCount, Value *args)
 
     vm.newLine = true;
     vm.print = true;
-    vm.repl = NONE_VAL;
-    return NONE_VAL;
+    vm.repl = NULL_VAL;
+    return NULL_VAL;
 }
 
 Value isdigitNative(int argCount, Value *args)
@@ -1667,13 +1667,13 @@ Value processNative(int argCount, Value *args)
     if (argCount == 0)
     {
         runtimeError("No process specified.\n");
-        return NONE_VAL;
+        return NULL_VAL;
     }
 
     if (!IS_STRING(args[0]))
     {
         runtimeError("Invalid process.\n");
-        return NONE_VAL;
+        return NULL_VAL;
     }
 
     char *str = AS_CSTRING(args[0]);
@@ -1690,7 +1690,7 @@ Value processNative(int argCount, Value *args)
     if (process == NULL)
     {
         runtimeError("Could not start the process.\n");
-        return NONE_VAL;
+        return NULL_VAL;
     }
 
     return OBJ_VAL(process);
@@ -1702,7 +1702,7 @@ Value readNative(int argCount, Value *args)
     if (argCount == 0)
     {
         runtimeError("No source provided.\n");
-        return NONE_VAL;
+        return NULL_VAL;
     }
 
     if (argCount == 2 && IS_NUMBER(args[1]))
@@ -1716,7 +1716,7 @@ Value readNative(int argCount, Value *args)
         if (process->closed)
         {
             runtimeError("Cannot read from a finished process.\n");
-            return NONE_VAL;
+            return NULL_VAL;
         }
 
         char *buffer = NULL;
@@ -1743,7 +1743,7 @@ Value readNative(int argCount, Value *args)
             mp_free(buffer);
             if (errno != EAGAIN)
                 runtimeError("Could not read the process.\n");
-            return NONE_VAL;
+            return NULL_VAL;
         }
 
         Value ret;
@@ -1763,7 +1763,7 @@ Value readNative(int argCount, Value *args)
         if (!file->isOpen)
         {
             runtimeError("Cannot read from a closed file.\n");
-            return NONE_VAL;
+            return NULL_VAL;
         }
 
         char *buffer = NULL;
@@ -1788,7 +1788,7 @@ Value readNative(int argCount, Value *args)
         {
             mp_free(buffer);
             runtimeError("Could not read the process.\n");
-            return NONE_VAL;
+            return NULL_VAL;
         }
 
         Value ret;
@@ -1833,7 +1833,7 @@ Value readNative(int argCount, Value *args)
         }
     }
     runtimeError("Invalid source.\n");
-    return NONE_VAL;
+    return NULL_VAL;
 }
 
 Value writeNative(int argCount, Value *args)
@@ -1841,7 +1841,7 @@ Value writeNative(int argCount, Value *args)
     if (argCount == 0)
     {
         runtimeError("No source provided.\n");
-        return NONE_VAL;
+        return NULL_VAL;
     }
 
     if (IS_PROCESS(args[0]))
@@ -1850,7 +1850,7 @@ Value writeNative(int argCount, Value *args)
         if (process->closed)
         {
             runtimeError("Cannot write to a finished process.\n");
-            return NONE_VAL;
+            return NULL_VAL;
         }
 
         int size = 0;
@@ -1875,7 +1875,7 @@ Value writeNative(int argCount, Value *args)
                 char *str = objectToString(args[i], false);
                 runtimeError("Could not write '%s' to the process.\n", str);
                 mp_free(str);
-                return NONE_VAL;
+                return NULL_VAL;
             }
             size += rc;
         }
@@ -1888,7 +1888,7 @@ Value writeNative(int argCount, Value *args)
         if (!file->isOpen)
         {
             runtimeError("Cannot write to a closed file.\n");
-            return NONE_VAL;
+            return NULL_VAL;
         }
 
         int size = 0;
@@ -1900,7 +1900,7 @@ Value writeNative(int argCount, Value *args)
             if (rc < 0)
             {
                 runtimeError("Could not write '%s' to the file.\n", str->chars);
-                return NONE_VAL;
+                return NULL_VAL;
             }
             size += rc;
         }
@@ -1938,7 +1938,7 @@ Value writeNative(int argCount, Value *args)
         }
     }
     runtimeError("Invalid source.\n");
-    return NONE_VAL;
+    return NULL_VAL;
 }
 
 Value closeNative(int argCount, Value *args)
@@ -1946,7 +1946,7 @@ Value closeNative(int argCount, Value *args)
     if (argCount == 0)
     {
         runtimeError("No source provided.\n");
-        return NONE_VAL;
+        return NULL_VAL;
     }
 
     if (IS_PROCESS(args[0]))
@@ -2027,7 +2027,7 @@ static Value getFieldNative(int argCount, Value *args)
         return FALSE_VAL;
 
     ObjInstance *instance = AS_INSTANCE(args[0]);
-    Value value = NONE_VAL;
+    Value value = NULL_VAL;
     tableGet(&instance->fields, AS_STRING(args[1]), &value);
     return value;
 }
@@ -2049,7 +2049,7 @@ static Value setFieldNative(int argCount, Value *args)
 static Value classNameNative(int argCount, Value *args)
 {
     if (argCount == 0)
-        return NONE_VAL;
+        return NULL_VAL;
 
     if (IS_INSTANCE(args[0]))
     {
@@ -2062,30 +2062,30 @@ static Value classNameNative(int argCount, Value *args)
         return STRING_VAL(klass->name->chars);
     }
 
-    return NONE_VAL;
+    return NULL_VAL;
 }
 
 static Value superNameNative(int argCount, Value *args)
 {
     if (argCount == 0)
-        return NONE_VAL;
+        return NULL_VAL;
 
     if (IS_INSTANCE(args[0]))
     {
         ObjInstance *instance = AS_INSTANCE(args[0]);
         if (instance->klass->super == NULL)
-            return NONE_VAL;
+            return NULL_VAL;
         return STRING_VAL(instance->klass->super->name->chars);
     }
     else if (IS_CLASS(args[0]))
     {
         ObjClass *klass = AS_CLASS(args[0]);
         if (klass->super == NULL)
-            return NONE_VAL;
+            return NULL_VAL;
         return STRING_VAL(klass->super->name->chars);
     }
 
-    return NONE_VAL;
+    return NULL_VAL;
 }
 
 // Register

@@ -4,7 +4,6 @@
 #include "util.h"
 #include "vm.h"
 
-
 #include <errno.h>
 #include <signal.h>
 
@@ -107,7 +106,7 @@ static bool readProcess(int argCount)
             runtimeError("Could not read the process.\n");
             return false;
         }
-        push(NONE_VAL);
+        push(NULL_VAL);
         return true;
     }
 
@@ -176,7 +175,7 @@ static bool readProcessBytes(int argCount)
             runtimeError("Could not read the process.\n");
             return false;
         }
-        push(NONE_VAL);
+        push(NULL_VAL);
         return true;
     }
 
@@ -236,7 +235,7 @@ static bool readLineProcess(int argCount)
             runtimeError("Could not read the process.\n");
             return false;
         }
-        push(NONE_VAL);
+        push(NULL_VAL);
         return true;
     }
 

@@ -129,7 +129,7 @@ static TaskFrame *createTaskFrame(const char *name)
     strcpy(taskFrame->name, name);
     taskFrame->next = NULL;
     taskFrame->finished = false;
-    taskFrame->result = NONE_VAL;
+    taskFrame->result = NULL_VAL;
     taskFrame->eval = false;
     taskFrame->stackTop = taskFrame->stack;
     taskFrame->frameCount = 0;
@@ -139,7 +139,7 @@ static TaskFrame *createTaskFrame(const char *name)
     taskFrame->endTime = 0;
     taskFrame->tryFrame = NULL;
     taskFrame->error = NULL;
-    taskFrame->currentArgs = NONE_VAL;
+    taskFrame->currentArgs = NULL_VAL;
     taskFrame->threadFrame = threadFrame;
 
     TaskFrame *tf = threadFrame->taskFrame;
@@ -332,7 +332,7 @@ void initVM(const char *path, const char *scriptName)
     vm.debugInfo.path = "";
     // threadFrame->taskFrame = NULL;
     vm.running = true;
-    vm.repl = NONE_VAL;
+    vm.repl = NULL_VAL;
     vm.print = false;
 
     memset(vm.threadFrames, '\0', sizeof(ThreadFrame) * MAX_THREADS);
@@ -481,7 +481,7 @@ static bool call(ObjClosure *closure, int argCount, ObjInstance *instance, ObjCl
         // return false;
         while (argCount < closure->function->arity)
         {
-            push(NONE_VAL);
+            push(NULL_VAL);
             argCount++;
         }
     }
@@ -997,7 +997,7 @@ static bool checkTry(CallFrame *frame)
         fputs("\n", stderr);
         mp_free(threadFrame->ctf->error);
         threadFrame->ctf->error = NULL;
-        vm.repl = NONE_VAL;
+        vm.repl = NULL_VAL;
         vm.print = true;
     }
 
@@ -1032,7 +1032,7 @@ static void defineProperty(ObjString *name)
     else if (IS_ENUM(peek(1)))
     {
         ObjEnum *enume = AS_ENUM(peek(1));
-        if (IS_NONE(value))
+        if (IS_NULL(value))
         {
             if (IS_NUMBER(enume->last))
             {
@@ -1042,7 +1042,7 @@ static void defineProperty(ObjString *name)
             else
             {
                 value = NUMBER_VAL(enume->members.count);
-                enume->last = NONE_VAL;
+                enume->last = NULL_VAL;
             }
         }
         else
@@ -1050,7 +1050,7 @@ static void defineProperty(ObjString *name)
             if (IS_NUMBER(value))
                 enume->last = value;
             else
-                enume->last = NONE_VAL;
+                enume->last = NULL_VAL;
         }
         ObjEnumValue *enumValue = newEnumValue(enume, name, value);
         tableSet(&enume->members, name, OBJ_VAL(enumValue));
@@ -1061,7 +1061,7 @@ static void defineProperty(ObjString *name)
 
 bool isFalsey(Value value)
 {
-    return IS_NONE(value) || (IS_BOOL(value) && !AS_BOOL(value));
+    return IS_NULL(value) || (IS_BOOL(value) && !AS_BOOL(value));
 }
 
 static bool compareStrings(const char *op)
@@ -1307,7 +1307,7 @@ static Value getIncrement(Value a, Value b)
 {
     if (!IS_INCREMENTAL(a) || !IS_INCREMENTAL(b))
     {
-        return NONE_VAL;
+        return NULL_VAL;
     }
 
     double a_ = valueAsDouble(a);
@@ -1323,7 +1323,7 @@ static Value increment(Value start, Value step, Value stop, bool ex)
 {
     double inc = valueAsDouble(step);
 
-    Value res = NONE_VAL;
+    Value res = NULL_VAL;
     if (IS_STRING(start))
     {
         char strS[2];
@@ -1344,12 +1344,12 @@ static Value increment(Value start, Value step, Value stop, bool ex)
         if (ex)
         {
             if (res_ >= stop_)
-                res = NONE_VAL;
+                res = NULL_VAL;
         }
         else
         {
             if (res_ > stop_)
-                res = NONE_VAL;
+                res = NULL_VAL;
         }
     }
     else
@@ -1357,12 +1357,12 @@ static Value increment(Value start, Value step, Value stop, bool ex)
         if (ex)
         {
             if (res_ <= stop_)
-                res = NONE_VAL;
+                res = NULL_VAL;
         }
         else
         {
             if (res_ < stop_)
-                res = NONE_VAL;
+                res = NULL_VAL;
         }
     }
 
@@ -1597,7 +1597,7 @@ bool subscriptEnum(Value enumValue, Value indexValue, Value *result)
         }
     }
 
-    *result = NONE_VAL;
+    *result = NULL_VAL;
     return true;
 }
 
@@ -1938,8 +1938,8 @@ InterpretResult run()
                 break;
             }
 
-            case OP_NONE:
-                push(NONE_VAL);
+            case OP_NULL:
+                push(NULL_VAL);
                 break;
             case OP_TRUE:
                 push(BOOL_VAL(true));
@@ -1952,13 +1952,13 @@ InterpretResult run()
                 Value stop = pop();
                 Value step = pop();
                 Value start = pop();
-                if (IS_NONE(stop))
+                if (IS_NULL(stop))
                 {
                     stop = step;
-                    step = NONE_VAL;
+                    step = NULL_VAL;
                 }
 
-                if (IS_NONE(step))
+                if (IS_NULL(step))
                 {
                     step = getIncrement(start, stop);
                 }
@@ -1975,7 +1975,7 @@ InterpretResult run()
                 ObjList *list = initList();
                 push(OBJ_VAL(list));
 
-                while (!IS_NONE(start))
+                while (!IS_NULL(start))
                 {
                     writeValueArray(&list->values, start);
                     start = increment(start, step, stop, AS_BOOL(ex));
@@ -3250,7 +3250,7 @@ InterpretResult run()
                         pop();
                         pop();
                         pop();
-                        push(NONE_VAL);
+                        push(NULL_VAL);
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
                         else
@@ -3260,7 +3260,7 @@ InterpretResult run()
                     pop();
                     pop();
                     pop();
-                    push(NONE_VAL);
+                    push(NULL_VAL);
                 }
                 break;
             }
@@ -3578,7 +3578,7 @@ InterpretResult run()
                 TaskFrame *tf = findTaskFrame(task->name->chars);
                 if (tf == NULL)
                 {
-                    push(NONE_VAL);
+                    push(NULL_VAL);
                 }
                 else
                 {

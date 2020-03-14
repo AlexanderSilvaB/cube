@@ -24,7 +24,7 @@ func abs(x)
 func min()
 {
     if(len(args) == 0)
-        return none;
+        return null;
 
     var m = args[0];
     for(var a in args)
@@ -38,7 +38,7 @@ func min()
 func max(a, b)
 {
     if(len(args) == 0)
-        return none;
+        return null;
 
     var m = args[0];
     for(var a in args)

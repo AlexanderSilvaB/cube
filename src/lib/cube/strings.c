@@ -58,13 +58,13 @@ Value stringSplit(Value orig, Value del)
     if (!IS_STRING(orig))
     {
         printf("Argument passed to split() must be a string\n");
-        return NONE_VAL;
+        return NULL_VAL;
     }
 
     if (!IS_STRING(del))
     {
         printf("Argument passed to split() must be a string\n");
-        return NONE_VAL;
+        return NULL_VAL;
     }
 
     char *delimiter = AS_CSTRING(del);

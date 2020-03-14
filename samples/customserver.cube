@@ -14,7 +14,7 @@ func get(server, client, request, data)
     else
     {
         var f = open(request, "rb");
-        if(f is none)
+        if(f is null)
         {
             println("Sending error: Not found");
             server.setCode(HTTP.NOT_FOUND);

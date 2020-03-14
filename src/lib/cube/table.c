@@ -33,7 +33,7 @@ static Entry *findEntry(Entry *entries, int capacityMask, ObjString *key)
         Entry *entry = &entries[index];
         if (entry->key == NULL)
         {
-            if (IS_NONE(entry->value))
+            if (IS_NULL(entry->value))
             {
                 // Empty entry.
                 return tombstone != NULL ? tombstone : entry;
@@ -91,7 +91,7 @@ static void adjustCapacity(Table *table, int capacityMask)
     for (int i = 0; i <= capacityMask; i++)
     {
         entries[i].key = NULL;
-        entries[i].value = NONE_VAL;
+        entries[i].value = NULL_VAL;
     }
     table->count = 0;
     for (int i = 0; i <= table->capacityMask; i++)
@@ -122,7 +122,7 @@ bool tableSet(Table *table, ObjString *key, Value value)
     Entry *entry = findEntry(table->entries, table->capacityMask, key);
     bool isNewKey = entry->key == NULL;
 
-    if (isNewKey && IS_NONE(entry->value))
+    if (isNewKey && IS_NULL(entry->value))
         table->count++;
 
     entry->key = key;
@@ -172,7 +172,7 @@ ObjString *tableFindString(Table *table, const char *chars, int length, uint32_t
         if (entry->key == NULL)
         {
             // Stop if we find an empty non-tombstone entry.
-            if (IS_NONE(entry->value))
+            if (IS_NULL(entry->value))
                 return NULL;
         }
         else if (entry->key->length == length && entry->key->hash == hash &&

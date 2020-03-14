@@ -42,7 +42,7 @@ func back(path)
 func expand(p)
 {
     var home = env("HOME");
-    if(home is none)
+    if(home is null)
         return p;
 
     return p.replace('~', home);

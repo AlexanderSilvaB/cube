@@ -38,7 +38,7 @@ extern "C"
                                                 AS_NATIVE_BOOL(broadcast), AS_NATIVE_BOOL(reusesock),
                                                 AS_NATIVE_BOOL(isServer), AS_NATIVE_NUMBER(timeout));
 
-        cube_native_var *ret = NATIVE_NONE();
+        cube_native_var *ret = NATIVE_NULL();
 
         if (AS_NATIVE_BOOL(isServer) || socket->isConnected())
         {
@@ -116,7 +116,7 @@ extern "C"
         int rec = socket->receive(buffer, BUFFER_SIZE);
         if (rec < 0)
         {
-            TO_NATIVE_NONE(ret);
+            TO_NATIVE_NULL(ret);
             return ret;
         }
         AS_NATIVE_BYTES(ret).bytes = (uint8_t *)malloc(sizeof(uint8_t) * rec);

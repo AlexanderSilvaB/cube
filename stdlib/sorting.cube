@@ -1,6 +1,6 @@
 func qsort(data, fn)
 {
-    if(fn is none)
+    if(fn is null)
         fn = @(a, b){return a < b}
     func _partition(arr, low, high)
     {
