@@ -1947,6 +1947,38 @@ InterpretResult run()
             case OP_FALSE:
                 push(BOOL_VAL(false));
                 break;
+
+            case OP_STRING: {
+                Value constant = READ_CONSTANT();
+                if(!IS_STRING(constant))
+                {
+                    runtimeError("Only strings allowed");
+                    if (!checkTry(frame))
+                        return INTERPRET_RUNTIME_ERROR;
+                    else
+                        break;
+                }
+
+                ObjString *strObj = AS_STRING(constant);
+                int len = strObj->length + 1024;
+                char *str = mp_malloc(sizeof(char) * len);
+                strcpy(str, strObj->chars);
+                char *ptr = strstr(str, "${}");
+                while(ptr != NULL)
+                {
+                    ObjString *paste = AS_STRING(toString(pop()));
+                    if(strlen(str) + paste->length > len)
+                    {
+                        len += 1024 + paste->length;
+                        str = mp_realloc(str, len);
+                    }
+                    memcpy(ptr + 3 + paste->length, ptr + 3, )
+                }
+
+                push(constant);
+                break;
+            }
+            
             case OP_EXPAND: {
                 Value ex = pop();
                 Value stop = pop();

@@ -10,6 +10,7 @@ typedef enum
     OP_NULL,
     OP_TRUE,
     OP_FALSE,
+    OP_STRING,
     OP_EXPAND,
     OP_NEW_LIST,
     OP_ADD_LIST,

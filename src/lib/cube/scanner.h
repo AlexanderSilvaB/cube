@@ -113,5 +113,7 @@ void initScanner(const char *source);
 void backTrack();
 Token scanToken();
 bool isOperator(TokenType type);
+bool isAlpha(char c);
+bool isDigit(char c);
 
 #endif

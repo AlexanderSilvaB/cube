@@ -512,6 +512,173 @@ static void addLocal(Token name)
     local->isCaptured = false;
 }
 
+static uint16_t setVariablePop(Token name)
+{
+    uint8_t getOp, setOp;
+    int arg = resolveLocal(current, &name, false);
+    if (arg != -1)
+    {
+        getOp = OP_GET_LOCAL;
+        setOp = OP_SET_LOCAL;
+    }
+    else if ((arg = resolveUpvalue(current, &name)) != -1)
+    {
+        getOp = OP_GET_UPVALUE;
+        setOp = OP_SET_UPVALUE;
+    }
+    else
+    {
+        arg = identifierConstant(&name);
+        getOp = OP_GET_GLOBAL;
+        setOp = OP_SET_GLOBAL;
+    }
+
+    emitShort(setOp, (uint16_t)arg);
+    return (uint16_t)arg;
+}
+
+static uint16_t setVariable(Token name, Value value)
+{
+    uint8_t getOp, setOp;
+    int arg = resolveLocal(current, &name, false);
+    if (arg != -1)
+    {
+        getOp = OP_GET_LOCAL;
+        setOp = OP_SET_LOCAL;
+    }
+    else if ((arg = resolveUpvalue(current, &name)) != -1)
+    {
+        getOp = OP_GET_UPVALUE;
+        setOp = OP_SET_UPVALUE;
+    }
+    else
+    {
+        arg = identifierConstant(&name);
+        getOp = OP_GET_GLOBAL;
+        setOp = OP_SET_GLOBAL;
+    }
+
+    emitConstant(value);
+    emitShort(setOp, (uint16_t)arg);
+    return (uint16_t)arg;
+}
+
+static uint16_t getVariable(Token name)
+{
+    uint8_t getOp, setOp;
+    int arg = resolveLocal(current, &name, false);
+    if (arg != -1)
+    {
+        getOp = OP_GET_LOCAL;
+        setOp = OP_SET_LOCAL;
+    }
+    else if ((arg = resolveUpvalue(current, &name)) != -1)
+    {
+        getOp = OP_GET_UPVALUE;
+        setOp = OP_SET_UPVALUE;
+    }
+    else
+    {
+        arg = identifierConstant(&name);
+        getOp = OP_GET_GLOBAL;
+        setOp = OP_SET_GLOBAL;
+    }
+
+    emitShort(getOp, (uint16_t)arg);
+    return (uint16_t)arg;
+}
+
+static void namedVariable(Token name, bool canAssign)
+{
+    uint8_t getOp, setOp;
+    int arg = resolveLocal(current, &name, false);
+    if (arg != -1)
+    {
+        getOp = OP_GET_LOCAL;
+        setOp = OP_SET_LOCAL;
+    }
+    else if ((arg = resolveUpvalue(current, &name)) != -1)
+    {
+        getOp = OP_GET_UPVALUE;
+        setOp = OP_SET_UPVALUE;
+    }
+    else
+    {
+        arg = identifierConstant(&name);
+        getOp = OP_GET_GLOBAL;
+        setOp = OP_SET_GLOBAL;
+    }
+
+    if (canAssign && match(TOKEN_PLUS_EQUALS))
+    {
+        namedVariable(name, false);
+        expression();
+        emitBytes(OP_ADD, OP_FALSE);
+        emitShort(setOp, (uint16_t)arg);
+    }
+    else if (canAssign && match(TOKEN_MINUS_EQUALS))
+    {
+        namedVariable(name, false);
+        expression();
+        emitBytes(OP_SUBTRACT, OP_FALSE);
+        emitShort(setOp, (uint16_t)arg);
+    }
+    else if (canAssign && match(TOKEN_MULTIPLY_EQUALS))
+    {
+        namedVariable(name, false);
+        expression();
+        emitBytes(OP_MULTIPLY, OP_FALSE);
+        emitShort(setOp, (uint16_t)arg);
+    }
+    else if (canAssign && match(TOKEN_DIVIDE_EQUALS))
+    {
+        namedVariable(name, false);
+        expression();
+        emitBytes(OP_DIVIDE, OP_FALSE);
+        emitShort(setOp, (uint16_t)arg);
+    }
+    else if (canAssign && match(TOKEN_EQUAL))
+    {
+        expression();
+        emitShort(setOp, (uint16_t)arg);
+    }
+    else
+    {
+        emitShort(getOp, (uint16_t)arg);
+    }
+}
+
+static void variable(bool canAssign)
+{
+    namedVariable(parser.previous, canAssign);
+}
+
+static Token syntheticToken(const char *text)
+{
+    Token token;
+    token.start = text;
+    token.length = (int)strlen(text);
+    return token;
+}
+
+static void beginSyntheticCall(const char *name)
+{
+    Token tok = syntheticToken(name);
+    getVariable(tok);
+}
+
+static void endSyntheticCall(uint8_t len)
+{
+    emitBytes(OP_CALL, len);
+}
+
+static void syntheticCall(const char *name, Value value)
+{
+    beginSyntheticCall(name);
+    emitConstant(value);
+    endSyntheticCall(1);
+}
+
 static void declareVariable()
 {
     if (current->scopeDepth == 0)
@@ -842,6 +1009,7 @@ static void or_(bool canAssign)
 
 static void string(bool canAssign)
 {
+    int num_id = 0; 
     char *str = mp_malloc(sizeof(char) * parser.previous.length);
     int j = 0;
     for (int i = 1; i < parser.previous.length - 1; i++)
@@ -878,13 +1046,61 @@ static void string(bool canAssign)
                 str[j++] == '\\';
             }
         }
+        else if(parser.previous.start[i] == '$' && i < parser.previous.length - 4 && parser.previous.start[i + 1] == '{')
+        {
+            str[j++] = parser.previous.start[i++];
+            str[j++] = parser.previous.start[i++];
+            int s = i;
+            int n = 0;
+            while(parser.previous.start[i] != '}' && i < parser.previous.length)
+            {
+                if(n == 0)
+                {
+                    if(!isAlpha(parser.previous.start[i]))
+                    {
+                        errorAtCurrent("Invalid identifier in string.");
+                        return;
+                    }
+                }
+                else
+                {
+                    if(!isAlpha(parser.previous.start[i]) && !isDigit(parser.previous.start[i]))
+                    {
+                        errorAtCurrent("Invalid identifier in string.");
+                        return;
+                    }
+                }
+                
+                i++;
+                n++;
+            }
+            if(i == parser.previous.length)
+            {
+                errorAtCurrent("Invalid identifier end in string.");
+                return;
+            }
+            char *id = mp_malloc(sizeof(char) * (n + 1));
+            memcpy(id ,&parser.previous.start[s], n);
+            id[n] = '\0';
+
+            j += sprintf(str + j, "}");
+            num_id++;
+
+            getVariable(syntheticToken(id));
+
+            mp_free(id);
+        }
         else
             str[j++] = parser.previous.start[i];
     }
 
     str[j] = '\0';
 
-    emitConstant(STRING_VAL(str));
+    if(num_id == 0)
+        emitConstant(STRING_VAL(str));
+    else
+        emitShort(OP_STRING, makeConstant(STRING_VAL(str)));
+    
     mp_free(str);
 }
 
@@ -935,173 +1151,6 @@ static void subscript(bool canAssign)
     }
     else
         emitByte(OP_SUBSCRIPT);
-}
-
-static uint16_t setVariablePop(Token name)
-{
-    uint8_t getOp, setOp;
-    int arg = resolveLocal(current, &name, false);
-    if (arg != -1)
-    {
-        getOp = OP_GET_LOCAL;
-        setOp = OP_SET_LOCAL;
-    }
-    else if ((arg = resolveUpvalue(current, &name)) != -1)
-    {
-        getOp = OP_GET_UPVALUE;
-        setOp = OP_SET_UPVALUE;
-    }
-    else
-    {
-        arg = identifierConstant(&name);
-        getOp = OP_GET_GLOBAL;
-        setOp = OP_SET_GLOBAL;
-    }
-
-    emitShort(setOp, (uint16_t)arg);
-    return (uint16_t)arg;
-}
-
-static uint16_t setVariable(Token name, Value value)
-{
-    uint8_t getOp, setOp;
-    int arg = resolveLocal(current, &name, false);
-    if (arg != -1)
-    {
-        getOp = OP_GET_LOCAL;
-        setOp = OP_SET_LOCAL;
-    }
-    else if ((arg = resolveUpvalue(current, &name)) != -1)
-    {
-        getOp = OP_GET_UPVALUE;
-        setOp = OP_SET_UPVALUE;
-    }
-    else
-    {
-        arg = identifierConstant(&name);
-        getOp = OP_GET_GLOBAL;
-        setOp = OP_SET_GLOBAL;
-    }
-
-    emitConstant(value);
-    emitShort(setOp, (uint16_t)arg);
-    return (uint16_t)arg;
-}
-
-static uint16_t getVariable(Token name)
-{
-    uint8_t getOp, setOp;
-    int arg = resolveLocal(current, &name, false);
-    if (arg != -1)
-    {
-        getOp = OP_GET_LOCAL;
-        setOp = OP_SET_LOCAL;
-    }
-    else if ((arg = resolveUpvalue(current, &name)) != -1)
-    {
-        getOp = OP_GET_UPVALUE;
-        setOp = OP_SET_UPVALUE;
-    }
-    else
-    {
-        arg = identifierConstant(&name);
-        getOp = OP_GET_GLOBAL;
-        setOp = OP_SET_GLOBAL;
-    }
-
-    emitShort(getOp, (uint16_t)arg);
-    return (uint16_t)arg;
-}
-
-static void namedVariable(Token name, bool canAssign)
-{
-    uint8_t getOp, setOp;
-    int arg = resolveLocal(current, &name, false);
-    if (arg != -1)
-    {
-        getOp = OP_GET_LOCAL;
-        setOp = OP_SET_LOCAL;
-    }
-    else if ((arg = resolveUpvalue(current, &name)) != -1)
-    {
-        getOp = OP_GET_UPVALUE;
-        setOp = OP_SET_UPVALUE;
-    }
-    else
-    {
-        arg = identifierConstant(&name);
-        getOp = OP_GET_GLOBAL;
-        setOp = OP_SET_GLOBAL;
-    }
-
-    if (canAssign && match(TOKEN_PLUS_EQUALS))
-    {
-        namedVariable(name, false);
-        expression();
-        emitBytes(OP_ADD, OP_FALSE);
-        emitShort(setOp, (uint16_t)arg);
-    }
-    else if (canAssign && match(TOKEN_MINUS_EQUALS))
-    {
-        namedVariable(name, false);
-        expression();
-        emitBytes(OP_SUBTRACT, OP_FALSE);
-        emitShort(setOp, (uint16_t)arg);
-    }
-    else if (canAssign && match(TOKEN_MULTIPLY_EQUALS))
-    {
-        namedVariable(name, false);
-        expression();
-        emitBytes(OP_MULTIPLY, OP_FALSE);
-        emitShort(setOp, (uint16_t)arg);
-    }
-    else if (canAssign && match(TOKEN_DIVIDE_EQUALS))
-    {
-        namedVariable(name, false);
-        expression();
-        emitBytes(OP_DIVIDE, OP_FALSE);
-        emitShort(setOp, (uint16_t)arg);
-    }
-    else if (canAssign && match(TOKEN_EQUAL))
-    {
-        expression();
-        emitShort(setOp, (uint16_t)arg);
-    }
-    else
-    {
-        emitShort(getOp, (uint16_t)arg);
-    }
-}
-
-static void variable(bool canAssign)
-{
-    namedVariable(parser.previous, canAssign);
-}
-
-static Token syntheticToken(const char *text)
-{
-    Token token;
-    token.start = text;
-    token.length = (int)strlen(text);
-    return token;
-}
-
-static void beginSyntheticCall(const char *name)
-{
-    Token tok = syntheticToken(name);
-    getVariable(tok);
-}
-
-static void endSyntheticCall(uint8_t len)
-{
-    emitBytes(OP_CALL, len);
-}
-
-static void syntheticCall(const char *name, Value value)
-{
-    beginSyntheticCall(name);
-    emitConstant(value);
-    endSyntheticCall(1);
 }
 
 static void pushSuperclass()
