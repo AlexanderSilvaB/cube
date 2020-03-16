@@ -42,5 +42,6 @@ char *getHome();
 char *fixPath(const char *path);
 bool findAndReadFile(const char *fileName, char **path, char **source);
 char **listFiles(const char *pathRaw, int *size);
+char *cube_strrstr(const char *s, const char *m);
 
 #endif

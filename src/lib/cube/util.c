@@ -153,6 +153,21 @@ const char *cube_strrchr(const char *s, int c1, int c2, int *c)
     return NULL;
 }
 
+char *cube_strrstr(const char *s, const char *m)
+{
+    char *last = NULL;
+    size_t n = strlen(m);
+
+    while ((s = strchr(s, *m)) != NULL)
+    {
+        if (!strncmp(s, m, n))
+            last = (char *)s;
+        if (*s++ == '\0')
+            break;
+    }
+    return last;
+}
+
 char *getFolder(const char *path)
 {
 

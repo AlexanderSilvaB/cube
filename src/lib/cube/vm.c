@@ -1950,7 +1950,7 @@ InterpretResult run()
 
             case OP_STRING: {
                 Value constant = READ_CONSTANT();
-                if(!IS_STRING(constant))
+                if (!IS_STRING(constant))
                 {
                     runtimeError("Only strings allowed");
                     if (!checkTry(frame))
@@ -1959,26 +1959,44 @@ InterpretResult run()
                         break;
                 }
 
+                int num = AS_NUMBER(pop());
+                char find[64];
+
                 ObjString *strObj = AS_STRING(constant);
                 int len = strObj->length + 1024;
+                int l, L, i, I, M;
                 char *str = mp_malloc(sizeof(char) * len);
                 strcpy(str, strObj->chars);
-                char *ptr = strstr(str, "${}");
-                while(ptr != NULL)
+                L = strlen(str);
+                sprintf(find, "${__%d__}", num - 1);
+                char *ptr = cube_strrstr(str, find);
+                while (ptr != NULL && num > 0)
                 {
                     ObjString *paste = AS_STRING(toString(pop()));
-                    if(strlen(str) + paste->length > len)
+                    if (strlen(str) + paste->length > len)
                     {
                         len += 1024 + paste->length;
                         str = mp_realloc(str, len);
                     }
-                    memcpy(ptr + 3 + paste->length, ptr + 3, )
+                    i = ptr - str;
+                    I = i + strlen(find);
+                    l = L - I;
+                    M = L - strlen(find) + paste->length;
+                    memcpy(str + i + paste->length, str + I, l);
+                    memcpy(str + i, paste->chars, paste->length);
+                    str[M] = '\0';
+
+                    num--;
+                    sprintf(find, "${__%d__}", num - 1);
+                    ptr = cube_strrstr(str, find);
+                    L = strlen(str);
                 }
 
-                push(constant);
+                push(STRING_VAL(str));
+                mp_free(str);
                 break;
             }
-            
+
             case OP_EXPAND: {
                 Value ex = pop();
                 Value stop = pop();

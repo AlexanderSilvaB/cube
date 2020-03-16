@@ -1009,7 +1009,7 @@ static void or_(bool canAssign)
 
 static void string(bool canAssign)
 {
-    int num_id = 0; 
+    int num_id = 0;
     char *str = mp_malloc(sizeof(char) * parser.previous.length);
     int j = 0;
     for (int i = 1; i < parser.previous.length - 1; i++)
@@ -1041,22 +1041,31 @@ static void string(bool canAssign)
                 i++;
                 str[j++] = '\v';
             }
+            else if (parser.previous.start[i + 1] == '$' && i < parser.previous.length - 3 &&
+                     parser.previous.start[i + 2] == '{')
+            {
+                i++;
+                str[j++] = '$';
+                i++;
+                str[j++] = '{';
+            }
             else
             {
                 str[j++] == '\\';
             }
         }
-        else if(parser.previous.start[i] == '$' && i < parser.previous.length - 4 && parser.previous.start[i + 1] == '{')
+        else if (parser.previous.start[i] == '$' && i < parser.previous.length - 4 &&
+                 parser.previous.start[i + 1] == '{')
         {
             str[j++] = parser.previous.start[i++];
             str[j++] = parser.previous.start[i++];
             int s = i;
             int n = 0;
-            while(parser.previous.start[i] != '}' && i < parser.previous.length)
+            while (parser.previous.start[i] != '}' && i < parser.previous.length)
             {
-                if(n == 0)
+                if (n == 0)
                 {
-                    if(!isAlpha(parser.previous.start[i]))
+                    if (!isAlpha(parser.previous.start[i]))
                     {
                         errorAtCurrent("Invalid identifier in string.");
                         return;
@@ -1064,27 +1073,26 @@ static void string(bool canAssign)
                 }
                 else
                 {
-                    if(!isAlpha(parser.previous.start[i]) && !isDigit(parser.previous.start[i]))
+                    if (!isAlpha(parser.previous.start[i]) && !isDigit(parser.previous.start[i]))
                     {
                         errorAtCurrent("Invalid identifier in string.");
                         return;
                     }
                 }
-                
+
                 i++;
                 n++;
             }
-            if(i == parser.previous.length)
+            if (i == parser.previous.length)
             {
                 errorAtCurrent("Invalid identifier end in string.");
                 return;
             }
             char *id = mp_malloc(sizeof(char) * (n + 1));
-            memcpy(id ,&parser.previous.start[s], n);
+            memcpy(id, &parser.previous.start[s], n);
             id[n] = '\0';
 
-            j += sprintf(str + j, "}");
-            num_id++;
+            j += sprintf(str + j, "__%d__}", num_id++);
 
             getVariable(syntheticToken(id));
 
@@ -1096,11 +1104,14 @@ static void string(bool canAssign)
 
     str[j] = '\0';
 
-    if(num_id == 0)
+    if (num_id == 0)
         emitConstant(STRING_VAL(str));
     else
+    {
+        emitConstant(NUMBER_VAL(num_id));
         emitShort(OP_STRING, makeConstant(STRING_VAL(str)));
-    
+    }
+
     mp_free(str);
 }
 
