@@ -129,7 +129,9 @@ void mark_roots()
     markCompilerRoots();
     mark_object((Obj *)vm.initString);
     mark_object((Obj *)vm.paths);
+    mark_object((Obj *)vm.packages);
     mark_value(vm.repl);
+    mark_object((Obj *)vm.stdPackage);
 }
 
 void mark_value(Value val)

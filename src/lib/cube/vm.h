@@ -56,6 +56,7 @@ typedef struct TaskFrame_t
     const char *currentScriptName;
     Value result;
     bool finished;
+    bool waiting;
     char *error;
     uint64_t endTime;
     uint64_t startTime;
@@ -97,6 +98,8 @@ typedef struct
     Table extensions;
     ObjString *initString;
     ObjList *paths;
+    ObjPackage *stdPackage;
+    ObjList *packages;
 
     const char *argsString;
     const char *extension;
@@ -105,6 +108,7 @@ typedef struct
 
     bool gc;
     bool autoGC;
+    bool nodeTaskMode;
 
     size_t bytesAllocated;
     size_t nextGC;

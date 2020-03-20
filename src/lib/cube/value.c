@@ -236,7 +236,11 @@ Value toBytes(Value value)
     else if (IS_NUMBER(value))
     {
         double v = AS_NUMBER(value);
-        bytes = copyBytes(&v, sizeof(v));
+        uint32_t i = (uint32_t)v;
+        if ((double)i == v)
+            bytes = copyBytes(&i, sizeof(i));
+        else
+            bytes = copyBytes(&v, sizeof(v));
     }
     else if (IS_OBJ(value))
     {
@@ -248,7 +252,14 @@ Value toBytes(Value value)
     else if (IS_BOOL(value))
         bytes = copyBytes(&value.as.boolean, sizeof(value.as.boolean));
     else if (IS_NUMBER(value))
-        bytes = copyBytes(&value.as.number, sizeof(value.as.number));
+    {
+        double v = AS_NUMBER(value);
+        uint32_t i = (uint32_t)v;
+        if ((double)i == v)
+            bytes = copyBytes(&i, sizeof(i));
+        else
+            bytes = copyBytes(&v, sizeof(v));
+    }
     else if (IS_OBJ(value))
     {
         bytes = objectToBytes(value);

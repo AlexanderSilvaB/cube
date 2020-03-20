@@ -642,6 +642,22 @@ static void namedVariable(Token name, bool canAssign)
         expression();
         emitShort(setOp, (uint16_t)arg);
     }
+    else if (canAssign && match(TOKEN_INC))
+    {
+        namedVariable(name, false);
+        emitByte(OP_INC);
+        emitShort(setOp, (uint16_t)arg);
+        emitConstant(NUMBER_VAL(1));
+        emitBytes(OP_SUBTRACT, OP_FALSE);
+    }
+    else if (canAssign && match(TOKEN_DEC))
+    {
+        namedVariable(name, false);
+        emitByte(OP_DEC);
+        emitShort(setOp, (uint16_t)arg);
+        emitConstant(NUMBER_VAL(1));
+        emitBytes(OP_ADD, OP_FALSE);
+    }
     else
     {
         emitShort(getOp, (uint16_t)arg);
@@ -990,9 +1006,54 @@ static void number(bool canAssign)
 
 static void byte(bool canAssign)
 {
-    int value = strtol(parser.previous.start, NULL, 0);
-    int sz = countBytes(&value, sizeof(int));
-    emitConstant(BYTES_VAL(&value, sz));
+    char *string = NULL;
+
+    size_t slength = parser.previous.length - 2;
+    if ((slength % 2) != 0) // must be even
+    {
+        string = mp_malloc(slength + 1);
+        memcpy(string, parser.previous.start + 2, slength);
+        string[slength] = string[slength - 1];
+        string[slength - 1] = '0';
+        slength++;
+    }
+    else
+    {
+        string = mp_malloc(slength);
+        memcpy(string, parser.previous.start + 2, slength);
+    }
+
+    size_t dlength = slength / 2;
+
+    uint8_t *data = mp_malloc(dlength);
+    memset(data, 0, dlength);
+
+    size_t index = 0;
+    while (index < slength)
+    {
+        char c = string[index];
+        int value = 0;
+        if (c >= '0' && c <= '9')
+            value = (c - '0');
+        else if (c >= 'A' && c <= 'F')
+            value = (10 + (c - 'A'));
+        else if (c >= 'a' && c <= 'f')
+            value = (10 + (c - 'a'));
+        else
+        {
+            errorAtCurrent("Invalid hex characters.");
+            break;
+        }
+
+        data[(index / 2)] += value << (((index + 1) % 2) * 4);
+        index++;
+    }
+
+    emitConstant(BYTES_VAL(data, dlength));
+    mp_free(data);
+    mp_free(string);
+    // return data;
+    // emitConstant(BYTES_VAL(parser.previous.start, parser.previous.length));
 }
 
 static void or_(bool canAssign)
@@ -1304,8 +1365,19 @@ static void function(FunctionType type)
     setVariablePop(argsToken);
 
     // The body.
-    consume(TOKEN_LEFT_BRACE, "Expect '{' before function body.");
-    block();
+    if (match(TOKEN_EQUAL))
+    {
+        if (!match(TOKEN_GREATER))
+            errorAtCurrent("Only scoped '{}' and short '=>' functions allowed.");
+        expression();
+        match(TOKEN_SEMICOLON);
+        emitByte(OP_RETURN);
+    }
+    else
+    {
+        consume(TOKEN_LEFT_BRACE, "Expect '{' before function body.");
+        block();
+    }
 
     // Check this out
     // endScope();

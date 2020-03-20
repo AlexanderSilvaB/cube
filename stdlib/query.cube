@@ -41,9 +41,11 @@ class Query
     func where(fn)
     {
         var ndata = []
+        var res;
         for(var i in data)
         {
-            if(fn(i))
+            res = fn(i)
+            if(res)
                 ndata.add(i)
         }
         return Query(ndata)

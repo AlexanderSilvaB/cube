@@ -15,6 +15,7 @@ set(SRC cube.c
         std.c 
         util.c 
         strings.c
+        bytes.c
         collections.c
         files.c
         processes.c

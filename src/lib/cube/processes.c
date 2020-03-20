@@ -94,6 +94,8 @@ static bool readProcess(int argCount)
         rd = maxSize - size;
         if (rd > 256)
             rd = 256;
+        if (process->in == STDIN_FILENO)
+            break;
         rc = readFd(process->in, rd, buf);
     }
 
@@ -163,6 +165,8 @@ static bool readProcessBytes(int argCount)
         rd = maxSize - size;
         if (rd > 256)
             rd = 256;
+        if (process->in == STDIN_FILENO)
+            break;
         rc = readFd(process->in, rd, buf);
     }
 
@@ -194,7 +198,7 @@ static bool readLineProcess(int argCount)
 {
     if (argCount == 0 || argCount > 2)
     {
-        runtimeError("read() takes 1 argument (%d given)", argCount);
+        runtimeError("readLine() takes 1 argument (%d given)", argCount);
         return false;
     }
     int maxSize = MAX_STRING_INPUT;
@@ -207,7 +211,7 @@ static bool readLineProcess(int argCount)
     }
 
     int bufsize = 256;
-    char *buffer = mp_realloc(buffer, bufsize);
+    char *buffer = mp_malloc(bufsize);
     int size = 0;
 
     char buf[1];

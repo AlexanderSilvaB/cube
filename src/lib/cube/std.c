@@ -1148,6 +1148,8 @@ Value lenNative(int argCount, Value *args)
 
     if (IS_STRING(args[0]))
         return NUMBER_VAL(AS_STRING(args[0])->length);
+    else if (IS_BYTES(args[0]))
+        return NUMBER_VAL(AS_BYTES(args[0])->length);
     else if (IS_LIST(args[0]))
         return NUMBER_VAL(AS_LIST(args[0])->values.count);
     else if (IS_DICT(args[0]))
@@ -1203,34 +1205,62 @@ Value varsNative(int argCount, Value *args)
 {
     int i = 0;
     Entry entry;
-    Table *table = &vm.globals;
-    bool isGlobal = true;
+    int K = 0;
+    Table *tables[10];
+    char *titles[10];
+    Table *table;
+    bool isGlobal = false;
 
-    if (IS_PACKAGE(args[0]))
+    if (argCount > 0 && IS_PACKAGE(args[0]))
     {
-        table = &(AS_PACKAGE(args[0])->symbols);
-        isGlobal = false;
+        tables[K++] = &(AS_PACKAGE(args[0])->symbols);
+        titles[K - 1] = "Symbols";
+    }
+    else if (argCount > 0 && IS_CLASS(args[0]))
+    {
+        tables[K++] = &(AS_CLASS(args[0])->staticFields);
+        titles[K - 1] = "Static fields";
+        tables[K++] = &(AS_CLASS(args[0])->fields);
+        titles[K - 1] = "Fields";
+        tables[K++] = &(AS_CLASS(args[0])->methods);
+        titles[K - 1] = "Methods";
+    }
+    else if (argCount > 0 && IS_INSTANCE(args[0]))
+    {
+        tables[K++] = &(AS_INSTANCE(args[0])->fields);
+        titles[K - 1] = "Fields";
+        tables[K++] = &(AS_INSTANCE(args[0])->klass->staticFields);
+        titles[K - 1] = "Static fields";
+        tables[K++] = &(AS_INSTANCE(args[0])->klass->methods);
+        titles[K - 1] = "Methods";
+    }
+    else if (argCount > 0 && IS_ENUM(args[0]))
+    {
+        tables[K++] = &(AS_ENUM(args[0])->members);
+        titles[K - 1] = "Members";
+    }
+    else
+    {
+        isGlobal = true;
+        tables[K++] = &vm.globals;
+        titles[K - 1] = "Variables";
+        tables[K++] = &vm.extensions;
+        titles[K - 1] = "Extensions";
     }
 
-    while (iterateTable(table, &entry, &i))
+    for (int k = 0; k < K; k++)
     {
-        if (entry.key == NULL)
-            continue;
-        if (isGlobal && IS_NATIVE(entry.value))
-            continue;
-
-        printf("%s : ", entry.key->chars);
-        printValue(entry.value);
-        printf("\n");
-    }
-
-    if (isGlobal)
-    {
+        table = tables[k];
         i = 0;
-        table = &vm.extensions;
+        if (table->count <= 0)
+            continue;
+        printf("-----------------\n%s\n-----------------\n", titles[k]);
+
         while (iterateTable(table, &entry, &i))
         {
             if (entry.key == NULL)
+                continue;
+            if (isGlobal && IS_NATIVE(entry.value))
                 continue;
 
             printf("%s : ", entry.key->chars);
@@ -1746,6 +1776,8 @@ Value readNative(int argCount, Value *args)
             rd = maxSize - size;
             if (rd > 256)
                 rd = 256;
+            if (process->in == STDIN_FILENO)
+                break;
             rc = readFd(process->in, rd, buf);
         }
 
@@ -2031,11 +2063,11 @@ Value closeNative(int argCount, Value *args)
 static Value getFieldNative(int argCount, Value *args)
 {
     if (argCount != 2)
-        return FALSE_VAL;
+        return NULL_VAL;
     if (!IS_INSTANCE(args[0]))
-        return FALSE_VAL;
+        return NULL_VAL;
     if (!IS_STRING(args[1]))
-        return FALSE_VAL;
+        return NULL_VAL;
 
     ObjInstance *instance = AS_INSTANCE(args[0]);
     Value value = NULL_VAL;
@@ -2097,6 +2129,40 @@ static Value superNameNative(int argCount, Value *args)
     }
 
     return NULL_VAL;
+}
+
+static Value getFieldsNative(int argCount, Value *args)
+{
+    ObjList *list = initList();
+    if (argCount != 0)
+    {
+        if (IS_INSTANCE(args[0]))
+        {
+            ObjInstance *instance = AS_INSTANCE(args[0]);
+            int i = 0;
+            Entry entry;
+            Table *table = &instance->fields;
+            while (iterateTable(table, &entry, &i))
+            {
+                if (entry.key == NULL)
+                    continue;
+
+                writeValueArray(&list->values, STRING_VAL(entry.key->chars));
+            }
+        }
+    }
+
+    return OBJ_VAL(list);
+}
+
+static Value taskModeNodeNative(int argCount, Value *args)
+{
+    if (argCount > 0)
+    {
+        bool v = AS_BOOL(toBool(args[0]));
+        vm.nodeTaskMode = v;
+    }
+    return BOOL_VAL(vm.nodeTaskMode);
 }
 
 // Register
@@ -2186,6 +2252,8 @@ void initStd()
     ADD_STD("setField", setFieldNative);
     ADD_STD("getClassName", classNameNative);
     ADD_STD("getSuperName", superNameNative);
+    ADD_STD("getFields", getFieldsNative);
+    ADD_STD("taskModeNode", taskModeNodeNative);
 }
 
 void destroyStd()

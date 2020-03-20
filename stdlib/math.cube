@@ -1,6 +1,24 @@
 var pi = 3.14159265359;
 var e = 2.71828;
 
+var sin = __std__.sin;
+var cos = __std__.cos;
+var tan = __std__.tan;
+var asin = __std__.asin;
+var acos = __std__.acos;
+var atan = __std__.atan;
+var atan2 = __std__.atan2;
+var sqrt = __std__.sqrt;
+var log = __std__.log;
+var ln = __std__.ln;
+var isnan = __std__.isnan;
+var isinf = __std__.isinf;
+var ceil = __std__.ceil;
+var floor = __std__.floor;
+var round = __std__.round;
+var pow = __std__.pow;
+var exp = __std__.exp;
+
 func deg(x) 
 {   
     return x * 57.2958; 

@@ -1,0 +1,119 @@
+import json
+
+class Serializable
+{
+    
+    func __serialize()
+    {
+        var fields = getFields(this)
+        var value
+        var data = {}
+        for(var field in fields)
+        {
+            value = getField(this, field)
+            if(value is null)
+                data[field] = str(value)
+            else if(value is Serializable)
+                data[field] = value.__serialize()
+            else if(value is not bool and 
+                    value is not num and 
+                    value is not str and 
+                    value is not list and 
+                    value is not dict)
+                continue
+            else
+                data[field] = value
+            data[field+'_type'] = type(value)
+        }
+
+        data['class'] = getClassName(this)
+        
+        return data
+    }
+
+    func serialize(path)
+    {
+        var data = this.__serialize()
+
+        var rc;
+        with(path, 'w')
+        {
+            rc = file.write(data)
+        }
+        
+        return rc > 0
+    }
+
+    func __deserialize(data)
+    {
+        var fields = getFields(this)
+        var value, type, obj, className
+        for(var field in fields)
+        {
+            value = data[field]
+            type = data[field+'_type']
+            if(value is null)
+                continue
+            switch(type)
+            {
+                case 'null':
+                {
+                    setField(this, field, null)
+                }
+                case 'instance':
+                {
+                    className = value['class']
+                    if(className is str)
+                    {
+                        obj = eval("${className}()")
+                        if(obj is instance)
+                        {
+                            obj.__deserialize(value)
+                            setField(this, field, obj)
+                        }
+                    }
+                }
+                default:
+                {
+                    setField(this, field, value)
+                }
+            }
+        }
+        return true
+    }
+
+    func deserialize(path)
+    {
+        var data = json.readJson(path)
+        if(data is null)
+            return false
+        return this.__deserialize(data)
+    }
+
+    static func load(path)
+    {
+        var data = json.readJson(path)
+        if(data is null)
+            return null
+        
+        var obj, className
+        className = data['class']
+        if(className is not str)
+            return null
+
+        obj = eval("${className}()")
+        if(obj is not instance or obj is not Serializable)
+            return null 
+
+        obj.__deserialize(data)
+        return obj
+    }
+
+    static func save(obj, path)
+    {
+        if(obj is not Serializable)
+            return false
+        
+        return obj.serialize(path)
+    }
+}

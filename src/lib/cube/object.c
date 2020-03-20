@@ -506,7 +506,7 @@ char *objectToString(Value value, bool literal)
             ObjString *stringObj = AS_STRING(value);
             char *string = mp_malloc(sizeof(char) * stringObj->length + 4);
             if (literal)
-                snprintf(string, stringObj->length + 3, "'%s'", stringObj->chars);
+                snprintf(string, stringObj->length + 3, "\"%s\"", stringObj->chars);
             else
                 snprintf(string, stringObj->length + 3, "%s", stringObj->chars);
             return string;
@@ -598,6 +598,7 @@ char *objectToString(Value value, bool literal)
                 int elementSize = strlen(element);
                 listStringSize = strlen(listString);
 
+            resize:
                 if ((elementSize + 12) >= (size - listStringSize - 1))
                 {
                     if (elementSize > size * 2)
@@ -614,6 +615,7 @@ char *objectToString(Value value, bool literal)
                     }
 
                     listString = newB;
+                    goto resize;
                 }
 
                 strncat(listString, element, size - listStringSize - 1);
@@ -647,7 +649,8 @@ char *objectToString(Value value, bool literal)
                 int keySize = strlen(item->key);
                 int dictStringSize = strlen(dictString);
 
-                if ((keySize + 3) >= (size - dictStringSize - 1))
+            resizeKey:
+                if ((keySize + 6) >= (size - dictStringSize - 1))
                 {
                     if (keySize > size * 2)
                         size += keySize * 2;
@@ -663,6 +666,7 @@ char *objectToString(Value value, bool literal)
                     }
 
                     dictString = newB;
+                    goto resizeKey;
                 }
 
                 char *dictKeyString = mp_malloc(sizeof(char) * (strlen(item->key) + 5));
@@ -676,6 +680,7 @@ char *objectToString(Value value, bool literal)
                 char *element = valueToString(item->item, true);
                 int elementSize = strlen(element);
 
+            resizeElement:
                 if (elementSize + 8 >= (size - dictStringSize - 1))
                 {
                     if (elementSize > size * 2)
@@ -692,6 +697,7 @@ char *objectToString(Value value, bool literal)
                     }
 
                     dictString = newB;
+                    goto resizeElement;
                 }
 
                 strncat(dictString, element, size - dictStringSize - 1);

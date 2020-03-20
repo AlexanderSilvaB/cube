@@ -485,3 +485,25 @@ char **listFiles(const char *pathRaw, int *size)
     *size = N;
     return list;
 }
+
+uint8_t *cube_bytebyte(const uint8_t *b1, const uint8_t *b2, size_t n1, size_t n2)
+{
+    uint8_t *ptr = NULL;
+    for (size_t i = 0, j = 0; i < n1; i++)
+    {
+        if (b1[i] == b2[j])
+        {
+            if (j == 0)
+                ptr = &b1[i];
+            j++;
+            if (j == n2)
+                break;
+        }
+        else
+        {
+            ptr = NULL;
+            j = 0;
+        }
+    }
+    return ptr;
+}

@@ -1,0 +1,85 @@
+import math;
+
+class Complex
+{
+    var real = 0, imag = 0;
+
+    func init(r, i)
+    {
+        if(r is not num)
+            r = num(r);
+
+        if(i is not num)
+            i = num(i);
+        
+        this.real = num(r);
+        this.imag = num(i);
+    }
+
+    func ==(c)
+    {
+        return real == c.real and imag == c.imag;
+    }
+
+    func +(c)
+    {
+        return Complex(this.real + c.real, this.imag + c.imag);
+    }
+
+    func -(c)
+    {
+        if(c is null)
+            return conj()
+        return Complex(this.real - c.real, this.imag - c.imag);
+    }
+
+    func *(c)
+    {
+        var xu = this.real * c.real;
+        var yv = this.imag * c.imag;
+        var xv = this.real * c.imag;
+        var yu = this.imag * c.real;
+        return Complex(xu - yv, xv + yu);
+    }
+
+    func /(c)
+    {
+        var x = this.real;
+        var y = this.imag;
+        var u = c.real;
+        var v = c.imag;
+        var b = -c.imag;
+
+        var xu = x * u;
+        var xb = x * b;
+        var yu = y * u;
+        var yb = - y * b;
+
+        var ux = u * u;
+        var vb = - v * b;
+
+        var r = xu + yb;
+        var i = xb + yu;
+        var d = ux + vb;
+
+        return Complex(r / d, i / d);
+    }
+
+    func conj()
+    {
+        return Complex(real, -imag);
+    }
+
+    func num()
+    {
+        return this.real;
+    }
+
+    func str()
+    {
+        if(this.imag < 0)
+            return this.real + " - " + math.abs(this.imag) + "j";
+        else
+            return this.real + " + " + this.imag + "j";
+    }
+}

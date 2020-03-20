@@ -1,94 +1,19 @@
-import math;
+import complex as default ;
 
-class Complex
-{
-    var real = 0, imag = -1;
+var c1 = Complex(3, 2);
+println("C1 = ", c1.str());
 
-    func init(r, i)
-    {
-        if(r is not num)
-            r = num(r);
+var c2 = Complex(4, -3);
+println("C2 = ", c2.str());
 
-        if(i is not num)
-            i = num(i);
-        
-        this.real = num(r);
-        this.imag = num(i);
-    }
+var c3 = c1 + c2;
+println("C1 + C2 = ", c3.str());
 
-    func +(c)
-    {
-        return Complex(this.real + c.real, this.imag + c.imag);
-    }
+var c4 = c1 - c2;
+println("C1 - C2 = ", c4.str());
 
-    func -(c)
-    {
-        return Complex(this.real - c.real, this.imag - c.imag);
-    }
+var c5 = c1 * c2;
+println("C1 * C2 = ", c5.str());
 
-    func *(c)
-    {
-        var xu = this.real * c.real;
-        var yv = this.imag * c.imag;
-        var xv = this.real * c.imag;
-        var yu = this.imag * c.real;
-        return Complex(xu - yv, xv + yu);
-    }
-
-    func /(c)
-    {
-        var x = this.real;
-        var y = this.imag;
-        var u = c.real;
-        var v = c.imag;
-        var b = -c.imag;
-
-        var xu = x * u;
-        var xb = x * b;
-        var yu = y * u;
-        var yb = - y * b;
-
-        var ux = u * u;
-        var vb = - v * b;
-
-        var r = xu + yb;
-        var i = xb + yu;
-        var d = ux + vb;
-
-        return Complex(r / d, i / d);
-    }
-
-    func num()
-    {
-        return this.real;
-    }
-
-    func str()
-    {
-        if(this.imag < 0)
-            return this.real + " - " + math.abs(this.imag) + "j";
-        else
-            return this.real + " + " + this.imag + "j";
-    }
-}
-
-if(__name__ == '__main__')
-{
-    var c1 = Complex(3, 2);
-    println("C1 = ", c1.str());
-
-    var c2 = Complex(4, -3);
-    println("C2 = ", c2.str());
-
-    var c3 = c1 + c2;
-    println("C1 + C2 = ", c3.str());
-
-    var c4 = c1 - c2;
-    println("C1 - C2 = ", c4.str());
-
-    var c5 = c1 * c2;
-    println("C1 * C2 = ", c5.str());
-
-    var c6 = c1 / c2;
-    println("C1 / C2 = ", c6.str());
-}
+var c6 = c1 / c2;
+println("C1 / C2 = ", c6.str());

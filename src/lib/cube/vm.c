@@ -7,6 +7,7 @@
 
 #include <linenoise/linenoise.h>
 
+#include "bytes.h"
 #include "collections.h"
 #include "common.h"
 #include "compiler.h"
@@ -129,6 +130,7 @@ static TaskFrame *createTaskFrame(const char *name)
     strcpy(taskFrame->name, name);
     taskFrame->next = NULL;
     taskFrame->finished = false;
+    taskFrame->waiting = false;
     taskFrame->result = NULL_VAL;
     taskFrame->eval = false;
     taskFrame->stackTop = taskFrame->stack;
@@ -334,6 +336,7 @@ void initVM(const char *path, const char *scriptName)
     vm.running = true;
     vm.repl = NULL_VAL;
     vm.print = false;
+    vm.nodeTaskMode = false;
 
     memset(vm.threadFrames, '\0', sizeof(ThreadFrame) * MAX_THREADS);
 
@@ -361,6 +364,7 @@ void initVM(const char *path, const char *scriptName)
     initTable(&vm.strings);
     initTable(&vm.extensions);
     vm.paths = initList();
+    vm.packages = initList();
     addPath(path);
 
     vm.extension = ".cube";
@@ -379,16 +383,16 @@ void initVM(const char *path, const char *scriptName)
 
     // STD
     initStd();
-    ObjPackage *stdPackage = newPackage(AS_STRING(STRING_VAL("std")));
-    tableSet(&vm.globals, stdPackage->name, OBJ_VAL(stdPackage));
+    vm.stdPackage = newPackage(AS_STRING(STRING_VAL("std")));
+    tableSet(&vm.globals, vm.stdPackage->name, OBJ_VAL(vm.stdPackage));
     ObjProcess *io = defaultProcess();
-    tableSet(&stdPackage->symbols, AS_STRING(STRING_VAL("io")), OBJ_VAL(io));
+    tableSet(&vm.stdPackage->symbols, AS_STRING(STRING_VAL("io")), OBJ_VAL(io));
     do
     {
         std_fn *stdFn = linked_list_get(stdFnList);
         if (stdFn != NULL)
         {
-            defineNative(stdFn->name, stdFn->fn, stdPackage);
+            defineNative(stdFn->name, stdFn->fn, vm.stdPackage);
             linenoise_add_keyword(stdFn->name);
         }
     } while (linked_list_next(&stdFnList));
@@ -431,6 +435,11 @@ void addPath(const char *path)
 
     if (home == NULL)
         mp_free(pathStr);
+}
+
+ObjPackage *findPackage()
+{
+    return NULL;
 }
 
 static int initArgC = 0;
@@ -664,7 +673,9 @@ static bool hasExtension(Value receiver, ObjString *name)
     }
 
     Value result;
-    return dictContains(value, OBJ_VAL(name), &result);
+    if (!dictContains(value, OBJ_VAL(name), &result))
+        return false;
+    return AS_BOOL(result);
 }
 
 static void defineExtension(ObjString *name, ObjString *type)
@@ -769,6 +780,8 @@ static bool invoke(ObjString *name, int argCount)
         return dictMethods(name->chars, argCount + 1);
     else if (IS_STRING(receiver))
         return stringMethods(name->chars, argCount + 1);
+    else if (IS_BYTES(receiver))
+        return bytesMethods(name->chars, argCount + 1);
     else if (IS_FILE(receiver))
         return fileMethods(name->chars, argCount + 1);
     else if (IS_PROCESS(receiver))
@@ -1387,6 +1400,11 @@ bool envVariable(ObjString *name, Value *value)
         *value = vm.repl;
         return true;
     }
+    else if (strcmp(name->chars, "__std__") == 0)
+    {
+        *value = OBJ_VAL(vm.stdPackage);
+        return true;
+    }
     return false;
 }
 
@@ -1451,6 +1469,70 @@ bool subscriptString(Value stringValue, Value indexValue, Value *result)
         str[strI] = '\0';
 
         *result = STRING_VAL(str);
+        return true;
+    }
+    return false;
+}
+
+bool subscriptBytes(Value bytesValue, Value indexValue, Value *result)
+{
+    if (!(IS_NUMBER(indexValue) || IS_LIST(indexValue)))
+    {
+        runtimeError("Bytes index must be a number or a list.");
+        return false;
+    }
+
+    ObjBytes *bytes = AS_BYTES(bytesValue);
+    if (IS_NUMBER(indexValue))
+    {
+        int index = AS_NUMBER(indexValue);
+
+        if (index < 0)
+            index = bytes->length + index;
+        if (index >= 0 && index < bytes->length)
+        {
+            uint8_t bs[1];
+            bs[0] = bytes->bytes[index];
+            *result = BYTES_VAL(bs, 1);
+            return true;
+        }
+
+        runtimeError("Bytes index out of bounds.");
+        return false;
+    }
+    else
+    {
+        ObjList *indexes = AS_LIST(indexValue);
+        uint8_t *bs = ALLOCATE(uint8_t, indexes->values.count);
+        int bI = 0;
+        for (int i = 0; i < indexes->values.count; i++)
+        {
+            Value innerIndexValue = indexes->values.values[i];
+            if (!IS_NUMBER(innerIndexValue))
+            {
+                FREE_ARRAY(uint8_t, bs, indexes->values.count);
+                runtimeError("Bytes index must be a number.");
+                return false;
+            }
+
+            int index = AS_NUMBER(innerIndexValue);
+
+            if (index < 0)
+                index = bytes->length + index;
+            if (index >= 0 && index < bytes->length)
+            {
+                bs[bI] = bytes->bytes[index];
+                bI++;
+            }
+            else
+            {
+                FREE_ARRAY(uint8_t, bs, indexes->values.count);
+                runtimeError("Bytes index out of bounds.");
+                return false;
+            }
+        }
+
+        *result = BYTES_VAL(bs, bI);
         return true;
     }
     return false;
@@ -1607,6 +1689,10 @@ bool subscript(Value container, Value indexValue, Value *result)
     {
         return subscriptString(container, indexValue, result);
     }
+    else if (IS_BYTES(container))
+    {
+        return subscriptBytes(container, indexValue, result);
+    }
     else if (IS_LIST(container))
     {
         return subscriptList(container, indexValue, result);
@@ -1746,7 +1832,12 @@ bool subscriptAssign(Value container, Value indexValue, Value assignValue)
 {
     if (IS_STRING(container))
     {
-        runtimeError("String substring not implemented yet.");
+        runtimeError("Substring assign not implemented yet.");
+        return false;
+    }
+    else if (IS_BYTES(container))
+    {
+        runtimeError("Sub-bytes assign not implemented yet.");
         return false;
     }
     else if (IS_LIST(container))
@@ -1786,6 +1877,27 @@ bool instanceOperation(const char *op)
     }
 
     return invokeFromClass(selected, name, 1, instance);
+}
+
+bool instanceOperationUnary(const char *op)
+{
+    if (!IS_INSTANCE(peek(0)))
+    {
+        return false;
+    }
+
+    ObjString *name = AS_STRING(STRING_VAL(op));
+
+    ObjInstance *instance = AS_INSTANCE(peek(0));
+
+    Value method;
+    ObjClass *selected;
+    if (!findMethod(instance->klass, name, &method, &selected))
+    {
+        return false;
+    }
+
+    return invokeFromClass(selected, name, 0, instance);
 }
 
 bool instanceOperationGet(const char *op)
@@ -1830,10 +1942,40 @@ bool instanceOperationSet(const char *op)
     return invokeFromClass(selected, name, 2, instance);
 }
 
+static bool inherits(ObjClass *klass, ObjString *name)
+{
+    ObjClass *current = klass;
+    while (current != NULL)
+    {
+        if (strcmp(current->name->chars, name->chars) == 0)
+            return true;
+        current = current->super;
+    }
+    return false;
+}
+
+static bool hasTask(ThreadFrame *threadFrame)
+{
+    TaskFrame *tf = threadFrame->taskFrame;
+    if (tf == NULL)
+        return false;
+
+    while (tf != NULL)
+    {
+        if (!tf->finished)
+            return true;
+        tf = tf->next;
+    }
+    return false;
+}
+
 static bool nextTask()
 {
     ThreadFrame *threadFrame = currentThread();
     TaskFrame *ctf = threadFrame->ctf;
+
+    if (vm.nodeTaskMode)
+        goto analyse;
 
 next:
     threadFrame->ctf = threadFrame->ctf->next;
@@ -1841,11 +1983,42 @@ next:
         threadFrame->ctf = threadFrame->taskFrame;
     if (threadFrame->ctf->finished)
     {
-        if (threadFrame->ctf == ctf)
+        if (!hasTask(threadFrame))
+        {
             return false;
+        }
         else
             goto next;
     }
+    else if (vm.nodeTaskMode && threadFrame->ctf->waiting)
+    {
+        goto next;
+    }
+
+analyse:
+    if (threadFrame->ctf->endTime > 0)
+    {
+        uint64_t t = cube_clock();
+        if (t > threadFrame->ctf->endTime)
+        {
+            pop();
+            push(NUMBER_VAL((t - threadFrame->ctf->startTime) * 1e-6));
+            threadFrame->ctf->startTime = threadFrame->ctf->endTime = 0;
+        }
+        else
+        {
+            goto next;
+        }
+    }
+    else if (threadFrame->ctf->finished)
+    {
+        goto next;
+    }
+    else if (vm.nodeTaskMode && threadFrame->ctf->waiting)
+    {
+        goto next;
+    }
+
     return true;
 }
 
@@ -1862,26 +2035,13 @@ InterpretResult run()
         {
             return INTERPRET_OK;
         }
+
         if (!nextTask())
         {
             return INTERPRET_OK;
         }
 
         ThreadFrame *threadFrame = currentThread();
-        if (threadFrame->ctf->endTime > 0)
-        {
-            uint64_t t = cube_clock();
-            if (t > threadFrame->ctf->endTime)
-            {
-                pop();
-                push(NUMBER_VAL((t - threadFrame->ctf->startTime) * 1e-6));
-                threadFrame->ctf->startTime = threadFrame->ctf->endTime = 0;
-            }
-            else
-            {
-                continue;
-            }
-        }
 
         CallFrame *frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
         threadFrame->frame = frame;
@@ -2198,9 +2358,10 @@ InterpretResult run()
             }
 
             case OP_GET_PROPERTY: {
-                if (!IS_INSTANCE(peek(0)) && !IS_CLASS(peek(0)) && !IS_PACKAGE(peek(0)) && !IS_ENUM(peek(0)))
+                if (!IS_INSTANCE(peek(0)) && !IS_CLASS(peek(0)) && !IS_PACKAGE(peek(0)) && !IS_ENUM(peek(0)) &&
+                    !IS_DICT(peek(0)))
                 {
-                    runtimeError("Only instances, classes, enums and packages have properties.");
+                    runtimeError("Only instances, classes, enums, dicts and packages have properties.");
                     if (!checkTry(frame))
                         return INTERPRET_RUNTIME_ERROR;
                     else
@@ -2267,6 +2428,21 @@ InterpretResult run()
                             break;
                     }
                 }
+                else if (IS_DICT(peek(0)))
+                {
+                    Value value;
+                    if (!subscript(peek(0), READ_CONSTANT(), &value))
+                    {
+                        runtimeError("Could not find this key in dict.");
+                        if (!checkTry(frame))
+                            return INTERPRET_RUNTIME_ERROR;
+                        else
+                            break;
+                    }
+
+                    pop();
+                    push(value);
+                }
                 else
                 {
                     ObjInstance *instance = AS_INSTANCE(peek(0));
@@ -2292,9 +2468,9 @@ InterpretResult run()
             }
 
             case OP_GET_PROPERTY_NO_POP: {
-                if (!IS_INSTANCE(peek(0)) && !IS_CLASS(peek(0)))
+                if (!IS_INSTANCE(peek(0)) && !IS_CLASS(peek(0)) && !IS_DICT(peek(0)))
                 {
-                    runtimeError("Only instances and classes have properties.");
+                    runtimeError("Only dicts, instances and classes have properties.");
                     if (!checkTry(frame))
                         return INTERPRET_RUNTIME_ERROR;
                     else
@@ -2320,6 +2496,20 @@ InterpretResult run()
                             break;
                     }
                 }
+                else if (IS_DICT(peek(0)))
+                {
+                    Value value;
+                    if (!subscript(peek(0), READ_CONSTANT(), &value))
+                    {
+                        runtimeError("Could not set this key in dict.");
+                        if (!checkTry(frame))
+                            return INTERPRET_RUNTIME_ERROR;
+                        else
+                            break;
+                    }
+
+                    push(value);
+                }
                 else
                 {
                     ObjInstance *instance = AS_INSTANCE(peek(0));
@@ -2342,9 +2532,9 @@ InterpretResult run()
             }
 
             case OP_SET_PROPERTY: {
-                if (!IS_INSTANCE(peek(1)) && !IS_CLASS(peek(1)))
+                if (!IS_INSTANCE(peek(1)) && !IS_CLASS(peek(1)) && !IS_DICT(peek(1)))
                 {
-                    runtimeError("Only instances and classes have properties.");
+                    runtimeError("Only dicts, instances and classes have properties.");
                     if (!checkTry(frame))
                         return INTERPRET_RUNTIME_ERROR;
                     else
@@ -2367,6 +2557,17 @@ InterpretResult run()
                     }
                     else
                         tableSet(&klass->staticFields, name, value);
+                }
+                else if (IS_DICT(peek(1)))
+                {
+                    if (!subscriptAssign(peek(1), READ_CONSTANT(), peek(0)))
+                    {
+                        runtimeError("Could not set this key in dict.");
+                        if (!checkTry(frame))
+                            return INTERPRET_RUNTIME_ERROR;
+                        else
+                            break;
+                    }
                 }
                 else
                 {
@@ -2544,29 +2745,43 @@ InterpretResult run()
                 }
                 break;
             case OP_INC: {
-                if (!IS_NUMBER(peek(0)))
+                if (instanceOperationUnary("++"))
                 {
-                    runtimeError("Operand must be a number.");
-                    if (!checkTry(frame))
-                        return INTERPRET_RUNTIME_ERROR;
-                    else
-                        break;
+                    frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
                 }
+                else
+                {
+                    if (!IS_NUMBER(peek(0)))
+                    {
+                        runtimeError("Operand must be a number.");
+                        if (!checkTry(frame))
+                            return INTERPRET_RUNTIME_ERROR;
+                        else
+                            break;
+                    }
 
-                push(NUMBER_VAL(AS_NUMBER(pop()) + 1));
+                    push(NUMBER_VAL(AS_NUMBER(pop()) + 1));
+                }
                 break;
             }
             case OP_DEC: {
-                if (!IS_NUMBER(peek(0)))
+                if (instanceOperationUnary("--"))
                 {
-                    runtimeError("Operand must be a number.");
-                    if (!checkTry(frame))
-                        return INTERPRET_RUNTIME_ERROR;
-                    else
-                        break;
+                    frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
                 }
+                else
+                {
+                    if (!IS_NUMBER(peek(0)))
+                    {
+                        runtimeError("Operand must be a number.");
+                        if (!checkTry(frame))
+                            return INTERPRET_RUNTIME_ERROR;
+                        else
+                            break;
+                    }
 
-                push(NUMBER_VAL(AS_NUMBER(pop()) - 1));
+                    push(NUMBER_VAL(AS_NUMBER(pop()) - 1));
+                }
                 break;
             }
             case OP_MULTIPLY:
@@ -2820,6 +3035,17 @@ InterpretResult run()
                             break;
                     }
                 }
+                else if (IS_BYTES(container) && IS_BYTES(item))
+                {
+                    if (!bytesContains(container, item, &result))
+                    {
+                        runtimeError("Could not search on bytes");
+                        if (!checkTry(frame))
+                            return INTERPRET_RUNTIME_ERROR;
+                        else
+                            break;
+                    }
+                }
                 else if (IS_LIST(container))
                 {
                     if (!listContains(container, item, &result))
@@ -2901,7 +3127,7 @@ InterpretResult run()
                     if (IS_INSTANCE(obj))
                     {
                         ObjInstance *instance = AS_INSTANCE(obj);
-                        if (strcmp(instance->klass->name->chars, type->chars) == 0)
+                        if (inherits(instance->klass, type))
                             ret = not? FALSE_VAL : TRUE_VAL;
                         else
                             ret = not? TRUE_VAL : FALSE_VAL;
@@ -2919,21 +3145,35 @@ InterpretResult run()
             }
 
             case OP_NOT:
-                push(BOOL_VAL(isFalsey(pop())));
-                break;
-
-            case OP_NEGATE:
-                if (!IS_NUMBER(peek(0)))
+                if (instanceOperationUnary("!"))
                 {
-                    runtimeError("Operand must be a number.");
-                    if (!checkTry(frame))
-                        return INTERPRET_RUNTIME_ERROR;
-                    else
-                        break;
+                    frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
                 }
-
-                push(NUMBER_VAL(-AS_NUMBER(pop())));
+                else
+                    push(BOOL_VAL(isFalsey(pop())));
                 break;
+
+            case OP_NEGATE: {
+                if (instanceOperationUnary("-"))
+                {
+                    frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+                }
+                else
+                {
+                    if (!IS_NUMBER(peek(0)))
+                    {
+                        runtimeError("Operand must be a number.");
+                        if (!checkTry(frame))
+                            return INTERPRET_RUNTIME_ERROR;
+                        else
+                            break;
+                    }
+
+                    push(NUMBER_VAL(-AS_NUMBER(pop())));
+                }
+                break;
+            }
+            break;
 
             case OP_JUMP: {
                 uint16_t offset = READ_SHORT();
@@ -3735,17 +3975,22 @@ InterpretResult run()
                     else
                         break;
                 }
+
+                threadFrame->ctf->waiting = true;
+
                 ObjTask *task = AS_TASK(pop());
                 TaskFrame *tf = findTaskFrame(task->name->chars);
                 if (tf == NULL)
                 {
                     push(NULL_VAL);
+                    threadFrame->ctf->waiting = false;
                 }
                 else
                 {
                     if (tf->finished)
                     {
                         push(tf->result);
+                        threadFrame->ctf->waiting = false;
                     }
                     else
                     {
