@@ -102,42 +102,65 @@ typedef struct BreakPoint_t
     struct BreakPoint_t *next;
 } BreakPoint;
 
-Parser parser;
+typedef struct GlobalCompiler_t
+{
+    Scanner scanner;
+    Parser parser;
+    Compiler *current;
+    ClassCompiler *currentClass;
+    bool staticMethod;
+    Documentation *currentDoc;
+    int loopInCount;
+    bool compilingToFile;
+    int tempId;
 
-Compiler *current = NULL;
+    // Used for "continue" statements
+    int innermostLoopStart;
+    int innermostLoopScopeDepth;
 
-ClassCompiler *currentClass = NULL;
-bool staticMethod = false;
+    // Used for "break" statements
+    BreakPoint *currentBreak;
 
-Documentation *currentDoc = NULL;
+    struct GlobalCompiler_t *previous;
+} GlobalCompiler;
 
 static char *initString = "<CUBE>";
-static int loopInCount = 0;
-static bool compilingToFile = false;
-static int tempId = 0;
+GlobalCompiler *gbcpl = NULL;
 
-// Used for "continue" statements
-int innermostLoopStart = -1;
-int innermostLoopScopeDepth = 0;
-
-// Used for "break" statements
-BreakPoint *currentBreak = NULL;
-
-void compileToFileMode(bool toFile)
+void initGlobalCompiler()
 {
-    compilingToFile = toFile;
+    GlobalCompiler *current = (GlobalCompiler *)mp_malloc(sizeof(GlobalCompiler));
+    current->current = NULL;
+    current->currentClass = NULL;
+    current->staticMethod = false;
+    current->currentDoc = NULL;
+    current->loopInCount = 0;
+    current->compilingToFile = false;
+    current->tempId = 0;
+    current->innermostLoopStart = -1;
+    current->innermostLoopScopeDepth = 0;
+    current->currentBreak = NULL;
+    current->previous = gbcpl;
+    gbcpl = current;
+}
+
+void freeGlobalCompiler()
+{
+    GlobalCompiler *current = gbcpl;
+    gbcpl = current->previous;
+    mp_free(current);
 }
 
 static Chunk *currentChunk()
 {
-    return &current->function->chunk;
+    return &gbcpl->current->function->chunk;
 }
 
 static void errorAt(Token *token, const char *message)
 {
-    if (parser.panicMode)
+    if (gbcpl->parser.panicMode)
         return;
-    parser.panicMode = true;
+    gbcpl->parser.panicMode = true;
 
     fprintf(stderr, "[line %d] Error", token->line);
 
@@ -155,36 +178,36 @@ static void errorAt(Token *token, const char *message)
     }
 
     fprintf(stderr, ": %s\n", message);
-    parser.hadError = true;
+    gbcpl->parser.hadError = true;
 }
 
 static void error(const char *message)
 {
-    errorAt(&parser.previous, message);
+    errorAt(&gbcpl->parser.previous, message);
 }
 
 static void errorAtCurrent(const char *message)
 {
-    errorAt(&parser.current, message);
+    errorAt(&gbcpl->parser.current, message);
 }
 
 static void advance()
 {
-    parser.previous = parser.current;
+    gbcpl->parser.previous = gbcpl->parser.current;
 
     for (;;)
     {
-        parser.current = scanToken();
-        if (parser.current.type != TOKEN_ERROR)
+        gbcpl->parser.current = scanToken(&gbcpl->scanner);
+        if (gbcpl->parser.current.type != TOKEN_ERROR)
             break;
 
-        errorAtCurrent(parser.current.start);
+        errorAtCurrent(gbcpl->parser.current.start);
     }
 }
 
 static void consume(TokenType type, const char *message)
 {
-    if (parser.current.type == type)
+    if (gbcpl->parser.current.type == type)
     {
         advance();
         return;
@@ -195,7 +218,7 @@ static void consume(TokenType type, const char *message)
 
 static bool check(TokenType type)
 {
-    return parser.current.type == type;
+    return gbcpl->parser.current.type == type;
 }
 
 static bool match(TokenType type)
@@ -208,7 +231,7 @@ static bool match(TokenType type)
 
 static void emitByte(uint8_t byte)
 {
-    writeChunk(currentChunk(), byte, parser.previous.line);
+    writeChunk(currentChunk(), byte, gbcpl->parser.previous.line);
 }
 
 static void emitBytes(uint8_t byte1, uint8_t byte2)
@@ -256,18 +279,18 @@ static void emitBreak()
     bp->point = emitJump(OP_BREAK);
     bp->next = NULL;
 
-    if (currentBreak == NULL)
-        currentBreak = bp;
+    if (gbcpl->currentBreak == NULL)
+        gbcpl->currentBreak = bp;
     else
     {
-        bp->next = currentBreak;
-        currentBreak = bp;
+        bp->next = gbcpl->currentBreak;
+        gbcpl->currentBreak = bp;
     }
 }
 
 static void emitReturn()
 {
-    if (current->type == TYPE_INITIALIZER)
+    if (gbcpl->current->type == TYPE_INITIALIZER)
     {
         emitShort(OP_GET_LOCAL, 0);
     }
@@ -311,58 +334,58 @@ static void patchJump(int offset)
 
 static void patchBreak()
 {
-    while (currentBreak != NULL)
+    while (gbcpl->currentBreak != NULL)
     {
-        patchJump(currentBreak->point);
-        BreakPoint *next = currentBreak->next;
-        mp_free(currentBreak);
-        currentBreak = next;
+        patchJump(gbcpl->currentBreak->point);
+        BreakPoint *next = gbcpl->currentBreak->next;
+        mp_free(gbcpl->currentBreak);
+        gbcpl->currentBreak = next;
     }
 }
 
 static void initDoc()
 {
-    currentDoc = NULL;
+    gbcpl->currentDoc = NULL;
 }
 
 static void endDoc()
 {
     Documentation *old;
-    while (currentDoc != NULL)
+    while (gbcpl->currentDoc != NULL)
     {
-        free(currentDoc->doc);
-        old = currentDoc;
-        currentDoc = old->next;
+        free(gbcpl->currentDoc->doc);
+        old = gbcpl->currentDoc;
+        gbcpl->currentDoc = old->next;
         free(old);
     }
 }
 
 static Documentation *getDoc()
 {
-    return currentDoc;
+    return gbcpl->currentDoc;
 }
 
 static void initCompiler(Compiler *compiler, FunctionType type)
 {
-    compiler->enclosing = current;
+    compiler->enclosing = gbcpl->current;
     compiler->function = NULL;
     compiler->type = type;
     compiler->localCount = 0;
     compiler->scopeDepth = 0;
     compiler->loopDepth = 0;
     compiler->function = newFunction(type == TYPE_STATIC);
-    if (current != NULL)
-        compiler->path = current->path;
+    if (gbcpl->current != NULL)
+        compiler->path = gbcpl->current->path;
     else
         compiler->path = "<null>";
-    current = compiler;
+    gbcpl->current = compiler;
 
     if (type != TYPE_SCRIPT && type != TYPE_EVAL)
     {
-        current->function->name = copyString(parser.previous.start, parser.previous.length);
+        gbcpl->current->function->name = copyString(gbcpl->parser.previous.start, gbcpl->parser.previous.length);
     }
 
-    Local *local = &current->locals[current->localCount++];
+    Local *local = &gbcpl->current->locals[gbcpl->current->localCount++];
     local->depth = 0;
     local->isCaptured = false;
     if (type == TYPE_INITIALIZER || type == TYPE_METHOD || type == TYPE_EXTENSION)
@@ -380,32 +403,40 @@ static void initCompiler(Compiler *compiler, FunctionType type)
 static ObjFunction *endCompiler()
 {
     emitReturn();
-    ObjFunction *function = current->function;
-    function->path = current->path;
+    ObjFunction *function = gbcpl->current->function;
+    if (gbcpl->current->path == NULL)
+        function->path = NULL;
+    else
+    {
+        char *path = mp_malloc(strlen(gbcpl->current->path) + 1);
+        strcpy(path, gbcpl->current->path);
+        function->path = path;
+    }
 
 #ifdef DEBUG_PRINT_CODE
-    if (!parser.hadError)
+    if (!gbcpl->parser.hadError)
     {
         disassembleChunk(currentChunk(), function->name != NULL ? function->name->chars : "<script>");
     }
 #endif
 
-    current = current->enclosing;
+    gbcpl->current = gbcpl->current->enclosing;
     return function;
 }
 
 static void beginScope()
 {
-    current->scopeDepth++;
+    gbcpl->current->scopeDepth++;
 }
 
 static void endScope()
 {
-    current->scopeDepth--;
+    gbcpl->current->scopeDepth--;
 
-    while (current->localCount > 0 && current->locals[current->localCount - 1].depth > current->scopeDepth)
+    while (gbcpl->current->localCount > 0 &&
+           gbcpl->current->locals[gbcpl->current->localCount - 1].depth > gbcpl->current->scopeDepth)
     {
-        if (current->locals[current->localCount - 1].isCaptured)
+        if (gbcpl->current->locals[gbcpl->current->localCount - 1].isCaptured)
         {
             emitByte(OP_CLOSE_UPVALUE);
         }
@@ -413,7 +444,7 @@ static void endScope()
         {
             emitByte(OP_POP);
         }
-        current->localCount--;
+        gbcpl->current->localCount--;
     }
 }
 
@@ -500,13 +531,13 @@ static int resolveUpvalue(Compiler *compiler, Token *name)
 
 static void addLocal(Token name)
 {
-    if (current->localCount == UINT16_COUNT)
+    if (gbcpl->current->localCount == UINT16_COUNT)
     {
         error("Too many local variables in function.");
         return;
     }
 
-    Local *local = &current->locals[current->localCount++];
+    Local *local = &gbcpl->current->locals[gbcpl->current->localCount++];
     local->name = name;
     local->depth = -1;
     local->isCaptured = false;
@@ -515,13 +546,13 @@ static void addLocal(Token name)
 static uint16_t setVariablePop(Token name)
 {
     uint8_t getOp, setOp;
-    int arg = resolveLocal(current, &name, false);
+    int arg = resolveLocal(gbcpl->current, &name, false);
     if (arg != -1)
     {
         getOp = OP_GET_LOCAL;
         setOp = OP_SET_LOCAL;
     }
-    else if ((arg = resolveUpvalue(current, &name)) != -1)
+    else if ((arg = resolveUpvalue(gbcpl->current, &name)) != -1)
     {
         getOp = OP_GET_UPVALUE;
         setOp = OP_SET_UPVALUE;
@@ -540,13 +571,13 @@ static uint16_t setVariablePop(Token name)
 static uint16_t setVariable(Token name, Value value)
 {
     uint8_t getOp, setOp;
-    int arg = resolveLocal(current, &name, false);
+    int arg = resolveLocal(gbcpl->current, &name, false);
     if (arg != -1)
     {
         getOp = OP_GET_LOCAL;
         setOp = OP_SET_LOCAL;
     }
-    else if ((arg = resolveUpvalue(current, &name)) != -1)
+    else if ((arg = resolveUpvalue(gbcpl->current, &name)) != -1)
     {
         getOp = OP_GET_UPVALUE;
         setOp = OP_SET_UPVALUE;
@@ -566,13 +597,13 @@ static uint16_t setVariable(Token name, Value value)
 static uint16_t getVariable(Token name)
 {
     uint8_t getOp, setOp;
-    int arg = resolveLocal(current, &name, false);
+    int arg = resolveLocal(gbcpl->current, &name, false);
     if (arg != -1)
     {
         getOp = OP_GET_LOCAL;
         setOp = OP_SET_LOCAL;
     }
-    else if ((arg = resolveUpvalue(current, &name)) != -1)
+    else if ((arg = resolveUpvalue(gbcpl->current, &name)) != -1)
     {
         getOp = OP_GET_UPVALUE;
         setOp = OP_SET_UPVALUE;
@@ -591,13 +622,13 @@ static uint16_t getVariable(Token name)
 static void namedVariable(Token name, bool canAssign)
 {
     uint8_t getOp, setOp;
-    int arg = resolveLocal(current, &name, false);
+    int arg = resolveLocal(gbcpl->current, &name, false);
     if (arg != -1)
     {
         getOp = OP_GET_LOCAL;
         setOp = OP_SET_LOCAL;
     }
-    else if ((arg = resolveUpvalue(current, &name)) != -1)
+    else if ((arg = resolveUpvalue(gbcpl->current, &name)) != -1)
     {
         getOp = OP_GET_UPVALUE;
         setOp = OP_SET_UPVALUE;
@@ -666,7 +697,7 @@ static void namedVariable(Token name, bool canAssign)
 
 static void variable(bool canAssign)
 {
-    namedVariable(parser.previous, canAssign);
+    namedVariable(gbcpl->parser.previous, canAssign);
 }
 
 static Token syntheticToken(const char *text)
@@ -697,14 +728,14 @@ static void syntheticCall(const char *name, Value value)
 
 static void declareVariable()
 {
-    if (current->scopeDepth == 0)
+    if (gbcpl->current->scopeDepth == 0)
         return;
 
-    Token *name = &parser.previous;
-    for (int i = current->localCount - 1; i >= 0; i--)
+    Token *name = &gbcpl->parser.previous;
+    for (int i = gbcpl->current->localCount - 1; i >= 0; i--)
     {
-        Local *local = &current->locals[i];
-        if (local->depth != -1 && local->depth < current->scopeDepth)
+        Local *local = &gbcpl->current->locals[i];
+        if (local->depth != -1 && local->depth < gbcpl->current->scopeDepth)
         {
             break; // [negative]
         }
@@ -720,13 +751,13 @@ static void declareVariable()
 
 static void declareNamedVariable(Token *name)
 {
-    if (current->scopeDepth == 0)
+    if (gbcpl->current->scopeDepth == 0)
         return;
 
-    for (int i = current->localCount - 1; i >= 0; i--)
+    for (int i = gbcpl->current->localCount - 1; i >= 0; i--)
     {
-        Local *local = &current->locals[i];
-        if (local->depth != -1 && local->depth < current->scopeDepth)
+        Local *local = &gbcpl->current->locals[i];
+        if (local->depth != -1 && local->depth < gbcpl->current->scopeDepth)
         {
             break; // [negative]
         }
@@ -745,15 +776,15 @@ static uint16_t parseVariable(const char *errorMessage)
     consume(TOKEN_IDENTIFIER, errorMessage);
     declareVariable();
 
-    Token var = parser.previous;
+    Token var = gbcpl->parser.previous;
 
     if (match(TOKEN_COLON))
     {
         consume(TOKEN_IDENTIFIER, "Only variable types allowed");
-        Token type = parser.previous;
+        Token type = gbcpl->parser.previous;
     }
 
-    if (current->scopeDepth > 0)
+    if (gbcpl->current->scopeDepth > 0)
         return 0;
 
     return identifierConstant(&var);
@@ -761,14 +792,14 @@ static uint16_t parseVariable(const char *errorMessage)
 
 static void markInitialized()
 {
-    if (current->scopeDepth == 0)
+    if (gbcpl->current->scopeDepth == 0)
         return;
-    current->locals[current->localCount - 1].depth = current->scopeDepth;
+    gbcpl->current->locals[gbcpl->current->localCount - 1].depth = gbcpl->current->scopeDepth;
 }
 
 static void defineVariable(uint16_t global)
 {
-    if (current->scopeDepth > 0)
+    if (gbcpl->current->scopeDepth > 0)
     {
         markInitialized();
         return;
@@ -821,7 +852,7 @@ static void is(bool canAssign)
 
     if (match(TOKEN_IDENTIFIER) || match(TOKEN_NULL) || match(TOKEN_FUNC) || match(TOKEN_CLASS) || match(TOKEN_ENUM))
     {
-        ObjString *str = copyString(parser.previous.start, parser.previous.length);
+        ObjString *str = copyString(gbcpl->parser.previous.start, gbcpl->parser.previous.length);
 
         emitConstant(OBJ_VAL(str));
         emitByte(OP_IS);
@@ -832,7 +863,7 @@ static void is(bool canAssign)
 
 static void binary(bool canAssign)
 {
-    TokenType operatorType = parser.previous.type;
+    TokenType operatorType = gbcpl->parser.previous.type;
 
     ParseRule *rule = getRule(operatorType);
     parsePrecedence((Precedence)(rule->precedence + 1));
@@ -909,27 +940,27 @@ static void call(bool canAssign)
 
 static void emitPreviousAsString()
 {
-    int len = parser.previous.length + 1;
+    int len = gbcpl->parser.previous.length + 1;
     char *str = mp_malloc(sizeof(char) * len);
-    strncpy(str, parser.previous.start, parser.previous.length);
-    str[parser.previous.length] = '\0';
+    strncpy(str, gbcpl->parser.previous.start, gbcpl->parser.previous.length);
+    str[gbcpl->parser.previous.length] = '\0';
     emitConstant(OBJ_VAL(copyString(str, strlen(str))));
     mp_free(str);
 }
 
 static char *getPreviousAsString()
 {
-    int len = parser.previous.length + 1;
+    int len = gbcpl->parser.previous.length + 1;
     char *str = mp_malloc(sizeof(char) * len);
-    strncpy(str, parser.previous.start, parser.previous.length);
-    str[parser.previous.length] = '\0';
+    strncpy(str, gbcpl->parser.previous.start, gbcpl->parser.previous.length);
+    str[gbcpl->parser.previous.length] = '\0';
     return str;
 }
 
 static void dot(bool canAssign)
 {
     consume(TOKEN_IDENTIFIER, "Expect property name after '.'.");
-    uint16_t name = identifierConstant(&parser.previous);
+    uint16_t name = identifierConstant(&gbcpl->parser.previous);
 
     if (canAssign && match(TOKEN_PLUS_EQUALS))
     {
@@ -978,7 +1009,7 @@ static void dot(bool canAssign)
 
 static void literal(bool canAssign)
 {
-    switch (parser.previous.type)
+    switch (gbcpl->parser.previous.type)
     {
         case TOKEN_FALSE:
             emitByte(OP_FALSE);
@@ -1003,12 +1034,12 @@ static void grouping(bool canAssign)
 static void number(bool canAssign)
 {
     double value;
-    if (parser.previous.type == TOKEN_NAN)
+    if (gbcpl->parser.previous.type == TOKEN_NAN)
         value = NAN;
-    else if (parser.previous.type == TOKEN_INF)
+    else if (gbcpl->parser.previous.type == TOKEN_INF)
         value = INFINITY;
     else
-        value = strtod(parser.previous.start, NULL);
+        value = strtod(gbcpl->parser.previous.start, NULL);
     emitConstant(NUMBER_VAL(value));
 }
 
@@ -1016,11 +1047,11 @@ static void byte(bool canAssign)
 {
     char *string = NULL;
 
-    size_t slength = parser.previous.length - 2;
+    size_t slength = gbcpl->parser.previous.length - 2;
     if ((slength % 2) != 0) // must be even
     {
         string = mp_malloc(slength + 1);
-        memcpy(string, parser.previous.start + 2, slength);
+        memcpy(string, gbcpl->parser.previous.start + 2, slength);
         string[slength] = string[slength - 1];
         string[slength - 1] = '0';
         slength++;
@@ -1028,7 +1059,7 @@ static void byte(bool canAssign)
     else
     {
         string = mp_malloc(slength);
-        memcpy(string, parser.previous.start + 2, slength);
+        memcpy(string, gbcpl->parser.previous.start + 2, slength);
     }
 
     size_t dlength = slength / 2;
@@ -1061,7 +1092,7 @@ static void byte(bool canAssign)
     mp_free(data);
     mp_free(string);
     // return data;
-    // emitConstant(BYTES_VAL(parser.previous.start, parser.previous.length));
+    // emitConstant(BYTES_VAL(gbcpl->parser.previous.start, gbcpl->parser.previous.length));
 }
 
 static void or_(bool canAssign)
@@ -1079,39 +1110,39 @@ static void or_(bool canAssign)
 static void string(bool canAssign)
 {
     int num_id = 0;
-    char *str = mp_malloc(sizeof(char) * parser.previous.length);
+    char *str = mp_malloc(sizeof(char) * gbcpl->parser.previous.length);
     int j = 0;
-    for (int i = 1; i < parser.previous.length - 1; i++)
+    for (int i = 1; i < gbcpl->parser.previous.length - 1; i++)
     {
-        if (parser.previous.start[i] == '\\' && i < parser.previous.length - 2)
+        if (gbcpl->parser.previous.start[i] == '\\' && i < gbcpl->parser.previous.length - 2)
         {
-            if (parser.previous.start[i + 1] == 'n')
+            if (gbcpl->parser.previous.start[i + 1] == 'n')
             {
                 i++;
                 str[j++] = '\n';
             }
-            else if (parser.previous.start[i + 1] == 'r')
+            else if (gbcpl->parser.previous.start[i + 1] == 'r')
             {
                 i++;
                 str[j++] = '\r';
             }
-            else if (parser.previous.start[i + 1] == 't')
+            else if (gbcpl->parser.previous.start[i + 1] == 't')
             {
                 i++;
                 str[j++] = '\t';
             }
-            else if (parser.previous.start[i + 1] == 'b')
+            else if (gbcpl->parser.previous.start[i + 1] == 'b')
             {
                 i++;
                 str[j++] = '\b';
             }
-            else if (parser.previous.start[i + 1] == 'v')
+            else if (gbcpl->parser.previous.start[i + 1] == 'v')
             {
                 i++;
                 str[j++] = '\v';
             }
-            else if (parser.previous.start[i + 1] == '$' && i < parser.previous.length - 3 &&
-                     parser.previous.start[i + 2] == '{')
+            else if (gbcpl->parser.previous.start[i + 1] == '$' && i < gbcpl->parser.previous.length - 3 &&
+                     gbcpl->parser.previous.start[i + 2] == '{')
             {
                 i++;
                 str[j++] = '$';
@@ -1123,18 +1154,18 @@ static void string(bool canAssign)
                 str[j++] == '\\';
             }
         }
-        else if (parser.previous.start[i] == '$' && i < parser.previous.length - 4 &&
-                 parser.previous.start[i + 1] == '{')
+        else if (gbcpl->parser.previous.start[i] == '$' && i < gbcpl->parser.previous.length - 4 &&
+                 gbcpl->parser.previous.start[i + 1] == '{')
         {
-            str[j++] = parser.previous.start[i++];
-            str[j++] = parser.previous.start[i++];
+            str[j++] = gbcpl->parser.previous.start[i++];
+            str[j++] = gbcpl->parser.previous.start[i++];
             int s = i;
             int n = 0;
-            while (parser.previous.start[i] != '}' && i < parser.previous.length)
+            while (gbcpl->parser.previous.start[i] != '}' && i < gbcpl->parser.previous.length)
             {
                 if (n == 0)
                 {
-                    if (!isAlpha(parser.previous.start[i]))
+                    if (!isAlpha(gbcpl->parser.previous.start[i]))
                     {
                         errorAtCurrent("Invalid identifier in string.");
                         return;
@@ -1142,7 +1173,7 @@ static void string(bool canAssign)
                 }
                 else
                 {
-                    if (!isAlpha(parser.previous.start[i]) && !isDigit(parser.previous.start[i]))
+                    if (!isAlpha(gbcpl->parser.previous.start[i]) && !isDigit(gbcpl->parser.previous.start[i]))
                     {
                         errorAtCurrent("Invalid identifier in string.");
                         return;
@@ -1152,13 +1183,13 @@ static void string(bool canAssign)
                 i++;
                 n++;
             }
-            if (i == parser.previous.length)
+            if (i == gbcpl->parser.previous.length)
             {
                 errorAtCurrent("Invalid identifier end in string.");
                 return;
             }
             char *id = mp_malloc(sizeof(char) * (n + 1));
-            memcpy(id, &parser.previous.start[s], n);
+            memcpy(id, &gbcpl->parser.previous.start[s], n);
             id[n] = '\0';
 
             j += sprintf(str + j, "__%d__}", num_id++);
@@ -1168,7 +1199,7 @@ static void string(bool canAssign)
             mp_free(id);
         }
         else
-            str[j++] = parser.previous.start[i];
+            str[j++] = gbcpl->parser.previous.start[i];
     }
 
     str[j] = '\0';
@@ -1235,25 +1266,25 @@ static void subscript(bool canAssign)
 
 static void pushSuperclass()
 {
-    if (currentClass == NULL)
+    if (gbcpl->currentClass == NULL)
         return;
     namedVariable(syntheticToken("super"), false);
 }
 
 static void super_(bool canAssign)
 {
-    if (currentClass == NULL)
+    if (gbcpl->currentClass == NULL)
     {
         error("Cannot use 'super' outside of a class.");
     }
-    else if (!currentClass->hasSuperclass)
+    else if (!gbcpl->currentClass->hasSuperclass)
     {
         error("Cannot use 'super' in a class with no superclass.");
     }
 
     consume(TOKEN_DOT, "Expect '.' after 'super'.");
     consume(TOKEN_IDENTIFIER, "Expect superclass method name.");
-    uint16_t name = identifierConstant(&parser.previous);
+    uint16_t name = identifierConstant(&gbcpl->parser.previous);
 
     namedVariable(syntheticToken("this"), false);
 
@@ -1274,15 +1305,15 @@ static void super_(bool canAssign)
 
 static void this_(bool canAssign)
 {
-    if (current->type == TYPE_EXTENSION)
+    if (gbcpl->current->type == TYPE_EXTENSION)
     {
         variable(false);
     }
-    else if (currentClass == NULL)
+    else if (gbcpl->currentClass == NULL)
     {
         error("Cannot use 'this' outside of a class.");
     }
-    else if (staticMethod)
+    else if (gbcpl->staticMethod)
         error("Cannot use 'this' inside a static method.");
     else
     {
@@ -1292,7 +1323,7 @@ static void this_(bool canAssign)
 
 static void unary(bool canAssign)
 {
-    TokenType operatorType = parser.previous.type;
+    TokenType operatorType = gbcpl->parser.previous.type;
 
     parsePrecedence(PREC_UNARY);
     switch (operatorType)
@@ -1323,7 +1354,7 @@ static uint16_t createSyntheticVariable(const char *name, Token *token)
     *token = syntheticToken(name);
     declareNamedVariable(token);
     uint16_t it;
-    if (current->scopeDepth > 0)
+    if (gbcpl->current->scopeDepth > 0)
         it = 0;
     else
         it = identifierConstant(token);
@@ -1342,8 +1373,8 @@ static void function(FunctionType type)
     {
         do
         {
-            current->function->arity++;
-            if (current->function->arity > 255)
+            gbcpl->current->function->arity++;
+            if (gbcpl->current->function->arity > 255)
             {
                 errorAtCurrent("Cannot have more than 255 parameters.");
             }
@@ -1355,7 +1386,7 @@ static void function(FunctionType type)
             // }
             // else
             // {
-            //   emitConstant(NUMBER_VAL(current->function->arity));
+            //   emitConstant(NUMBER_VAL(gbcpl->current->function->arity));
             // }
 
             defineVariable(paramConstant);
@@ -1391,7 +1422,7 @@ static void function(FunctionType type)
     // endScope();
 
     if (type == TYPE_STATIC)
-        staticMethod = false;
+        gbcpl->staticMethod = false;
 
     // Create the function object.
     ObjFunction *function = endCompiler();
@@ -1406,19 +1437,19 @@ static void function(FunctionType type)
 
 static void lambda(bool canAssign)
 {
-    TokenType operatorType = parser.previous.type;
+    TokenType operatorType = gbcpl->parser.previous.type;
     markInitialized();
     function(TYPE_FUNCTION);
 }
 
 static void expand(bool canAssign)
 {
-    bool ex = parser.previous.type == TOKEN_EXPAND_EX;
+    bool ex = gbcpl->parser.previous.type == TOKEN_EXPAND_EX;
     parsePrecedence(PREC_UNARY);
 
     if (match(TOKEN_EXPAND_IN) || match(TOKEN_EXPAND_EX))
     {
-        ex = parser.previous.type == TOKEN_EXPAND_EX;
+        ex = gbcpl->parser.previous.type == TOKEN_EXPAND_EX;
         parsePrecedence(PREC_UNARY);
     }
     else
@@ -1433,10 +1464,10 @@ static void expand(bool canAssign)
 
 static void prefix(bool canAssign)
 {
-    TokenType operatorType = parser.previous.type;
-    Token cur = parser.current;
+    TokenType operatorType = gbcpl->parser.previous.type;
+    Token cur = gbcpl->parser.current;
     consume(TOKEN_IDENTIFIER, "Expected variable");
-    namedVariable(parser.previous, true);
+    namedVariable(gbcpl->parser.previous, true);
 
     int arg;
     bool instance = false;
@@ -1444,7 +1475,7 @@ static void prefix(bool canAssign)
     if (match(TOKEN_DOT))
     {
         consume(TOKEN_IDENTIFIER, "Expect property name after '.'.");
-        arg = identifierConstant(&parser.previous);
+        arg = identifierConstant(&gbcpl->parser.previous);
         emitShort(OP_GET_PROPERTY_NO_POP, arg);
         instance = true;
     }
@@ -1467,11 +1498,11 @@ static void prefix(bool canAssign)
     {
         uint8_t setOp;
         // int arg = resolveLocal(current, &cur, false);
-        int arg = resolveLocal(current, &cur, false);
+        int arg = resolveLocal(gbcpl->current, &cur, false);
 
         if (arg != -1)
             setOp = OP_SET_LOCAL;
-        else if ((arg = resolveUpvalue(current, &cur)) != -1)
+        else if ((arg = resolveUpvalue(gbcpl->current, &cur)) != -1)
             setOp = OP_SET_UPVALUE;
         else
         {
@@ -1485,7 +1516,7 @@ static void prefix(bool canAssign)
 
 static void static_(bool canAssign)
 {
-    if (currentClass == NULL)
+    if (gbcpl->currentClass == NULL)
         error("Cannot use 'static' outside of a class.");
 }
 
@@ -1501,7 +1532,7 @@ static void require(bool canAssign)
 static void await(bool canAssign)
 {
     consume(TOKEN_IDENTIFIER, "Expect a function call in await.");
-    getVariable(parser.previous);
+    getVariable(gbcpl->parser.previous);
     emitByte(OP_AWAIT);
 }
 
@@ -1519,7 +1550,7 @@ static void async(bool canAssign)
     getVariable(syntheticToken(vm.argsString));
     defineVariable(args);
 
-    namedVariable(parser.previous, false);
+    namedVariable(gbcpl->parser.previous, false);
 
     consume(TOKEN_LEFT_PAREN, "Expect a function function call in async.");
     uint8_t argCount = argumentList();
@@ -1618,6 +1649,7 @@ ParseRule rules[] = {
     {NULL, NULL, PREC_NULL},         // TOKEN_ENUM
     {NULL, NULL, PREC_NULL},         // TOKEN_IMPORT
     {require, NULL, PREC_NULL},      // TOKEN_REQUIRE
+    {NULL, NULL, PREC_NULL},         // TOKEN_INCLUDE
     {NULL, NULL, PREC_NULL},         // TOKEN_AS
     {NULL, NULL, PREC_NULL},         // TOKEN_NATIVE
     {NULL, NULL, PREC_NULL},         // TOKEN_WITH
@@ -1634,7 +1666,7 @@ ParseRule rules[] = {
 static void parsePrecedence(Precedence precedence)
 {
     advance();
-    ParseFn prefixRule = getRule(parser.previous.type)->prefix;
+    ParseFn prefixRule = getRule(gbcpl->parser.previous.type)->prefix;
     if (prefixRule == NULL)
     {
         error("Expect expression.");
@@ -1644,10 +1676,10 @@ static void parsePrecedence(Precedence precedence)
     bool canAssign = precedence <= PREC_ASSIGNMENT;
     prefixRule(canAssign);
 
-    while (precedence <= getRule(parser.current.type)->precedence)
+    while (precedence <= getRule(gbcpl->parser.current.type)->precedence)
     {
         advance();
-        ParseFn infixRule = getRule(parser.previous.type)->infix;
+        ParseFn infixRule = getRule(gbcpl->parser.previous.type)->infix;
         infixRule(canAssign);
     }
 
@@ -1674,7 +1706,7 @@ static void method(bool isStatic)
     if (isStatic)
     {
         type = TYPE_STATIC;
-        staticMethod = true;
+        gbcpl->staticMethod = true;
     }
     else
         type = TYPE_METHOD;
@@ -1682,7 +1714,7 @@ static void method(bool isStatic)
     consume(TOKEN_FUNC, "Expect a function declaration.");
     bool bracked = false;
     bool set = false;
-    if (!check(TOKEN_IDENTIFIER) && !isOperator(parser.current.type))
+    if (!check(TOKEN_IDENTIFIER) && !isOperator(gbcpl->parser.current.type))
     {
         if (match(TOKEN_LEFT_BRACKET))
         {
@@ -1707,7 +1739,7 @@ static void method(bool isStatic)
 
     uint16_t constant;
     if (!bracked)
-        constant = identifierConstant(&parser.previous);
+        constant = identifierConstant(&gbcpl->parser.previous);
     else
     {
         Token br = syntheticToken(set ? "[=]" : "[]");
@@ -1715,7 +1747,7 @@ static void method(bool isStatic)
     }
 
     // If the method is named "init", it's an initializer.
-    if (parser.previous.length == 4 && memcmp(parser.previous.start, "init", 4) == 0)
+    if (gbcpl->parser.previous.length == 4 && memcmp(gbcpl->parser.previous.start, "init", 4) == 0)
     {
         type = TYPE_INITIALIZER;
     }
@@ -1733,13 +1765,13 @@ static void property(bool isStatic, Token *className)
     while (true)
     {
         consume(TOKEN_IDENTIFIER, "Expect variable name.");
-        name = identifierConstant(&parser.previous);
-        // bool isLocal = (current->scopeDepth > 0);
+        name = identifierConstant(&gbcpl->parser.previous);
+        // bool isLocal = (gbcpl->current->scopeDepth > 0);
 
         if (match(TOKEN_COLON))
         {
             consume(TOKEN_IDENTIFIER, "Only variable types allowed");
-            Token type = parser.previous;
+            Token type = gbcpl->parser.previous;
         }
 
         if (match(TOKEN_EQUAL))
@@ -1791,26 +1823,26 @@ static void nativeFunc()
 {
     if (!match(TOKEN_VAR))
         consume(TOKEN_IDENTIFIER, "Expect type name.");
-    int len = parser.previous.length + 1;
+    int len = gbcpl->parser.previous.length + 1;
     char *str = mp_malloc(sizeof(char) * len);
-    strncpy(str, parser.previous.start, parser.previous.length);
-    str[parser.previous.length] = '\0';
+    strncpy(str, gbcpl->parser.previous.start, gbcpl->parser.previous.length);
+    str[gbcpl->parser.previous.length] = '\0';
     emitConstant(OBJ_VAL(copyString(str, strlen(str))));
     mp_free(str);
 
     consume(TOKEN_IDENTIFIER, "Expect function name.");
-    Token name = parser.previous;
-    uint16_t nameConstant = identifierConstant(&parser.previous);
+    Token name = gbcpl->parser.previous;
+    uint16_t nameConstant = identifierConstant(&gbcpl->parser.previous);
     declareVariable();
 
     // uint8_t name = parseVariable("Expect funcion name.");
-    // Token tokName = parser.previous;
+    // Token tokName = gbcpl->parser.previous;
 
     // consume(TOKEN_IDENTIFIER, "Expect function name.");
-    len = parser.previous.length + 1;
+    len = gbcpl->parser.previous.length + 1;
     str = mp_malloc(sizeof(char) * len);
-    strncpy(str, parser.previous.start, parser.previous.length);
-    str[parser.previous.length] = '\0';
+    strncpy(str, gbcpl->parser.previous.start, gbcpl->parser.previous.length);
+    str[gbcpl->parser.previous.length] = '\0';
     emitConstant(OBJ_VAL(copyString(str, strlen(str))));
     mp_free(str);
 
@@ -1833,10 +1865,10 @@ static void nativeFunc()
                 if (!match(TOKEN_FUNC))
                     consume(TOKEN_IDENTIFIER, "Expect parameter type.");
             }
-            len = parser.previous.length + 1;
+            len = gbcpl->parser.previous.length + 1;
             str = mp_malloc(sizeof(char) * len);
-            strncpy(str, parser.previous.start, parser.previous.length);
-            str[parser.previous.length] = '\0';
+            strncpy(str, gbcpl->parser.previous.start, gbcpl->parser.previous.length);
+            str[gbcpl->parser.previous.length] = '\0';
             emitConstant(OBJ_VAL(copyString(str, strlen(str))));
             mp_free(str);
 
@@ -1860,24 +1892,24 @@ static void nativeFunc()
 static void classDeclaration()
 {
     consume(TOKEN_IDENTIFIER, "Expect class name.");
-    Token className = parser.previous;
-    uint16_t nameConstant = identifierConstant(&parser.previous);
+    Token className = gbcpl->parser.previous;
+    uint16_t nameConstant = identifierConstant(&gbcpl->parser.previous);
     declareVariable();
 
     emitShort(OP_CLASS, nameConstant);
     defineVariable(nameConstant);
 
     ClassCompiler classCompiler;
-    classCompiler.name = parser.previous;
+    classCompiler.name = gbcpl->parser.previous;
     classCompiler.hasSuperclass = false;
-    classCompiler.enclosing = currentClass;
-    currentClass = &classCompiler;
+    classCompiler.enclosing = gbcpl->currentClass;
+    gbcpl->currentClass = &classCompiler;
 
     if (match(TOKEN_COLON))
     {
         consume(TOKEN_IDENTIFIER, "Expect superclass name.");
 
-        if (identifiersEqual(&className, &parser.previous))
+        if (identifiersEqual(&className, &gbcpl->parser.previous))
         {
             error("A class cannot inherit from itself.");
         }
@@ -1909,7 +1941,7 @@ static void classDeclaration()
         endScope();
     }
 
-    currentClass = currentClass->enclosing;
+    gbcpl->currentClass = gbcpl->currentClass->enclosing;
 }
 
 static void enumMember(Token *enumName)
@@ -1919,7 +1951,7 @@ static void enumMember(Token *enumName)
     while (true)
     {
         consume(TOKEN_IDENTIFIER, "Expect member name.");
-        name = identifierConstant(&parser.previous);
+        name = identifierConstant(&gbcpl->parser.previous);
 
         if (match(TOKEN_EQUAL))
         {
@@ -1944,8 +1976,8 @@ static void enumMember(Token *enumName)
 static void enumDeclaration()
 {
     consume(TOKEN_IDENTIFIER, "Expect enum name.");
-    Token enumName = parser.previous;
-    uint16_t nameConstant = identifierConstant(&parser.previous);
+    Token enumName = gbcpl->parser.previous;
+    uint16_t nameConstant = identifierConstant(&gbcpl->parser.previous);
     declareVariable();
 
     emitShort(OP_ENUM, nameConstant);
@@ -1965,10 +1997,10 @@ static void pathOrString(const char *extension, const char *errorIdentifier, con
 {
     if (match(TOKEN_IDENTIFIER))
     {
-        int len = parser.previous.length;
+        int len = gbcpl->parser.previous.length;
         int totalLen = len;
         char *str = ALLOCATE(char, len + 1);
-        strncpy(str, parser.previous.start, parser.previous.length);
+        strncpy(str, gbcpl->parser.previous.start, gbcpl->parser.previous.length);
         str[len] = '\0';
 
         while (true)
@@ -1977,10 +2009,10 @@ static void pathOrString(const char *extension, const char *errorIdentifier, con
             {
                 if (match(TOKEN_IDENTIFIER))
                 {
-                    totalLen += parser.previous.length + 1;
+                    totalLen += gbcpl->parser.previous.length + 1;
                     str = GROW_ARRAY(str, char, len + 1, totalLen + 1);
                     str[len] = '/';
-                    strncpy(str + (len + 1), parser.previous.start, parser.previous.length);
+                    strncpy(str + (len + 1), gbcpl->parser.previous.start, gbcpl->parser.previous.length);
                     len = totalLen;
                     str[len] = '\0';
                 }
@@ -2006,8 +2038,64 @@ static void pathOrString(const char *extension, const char *errorIdentifier, con
     else
     {
         consume(TOKEN_STRING, errorString);
-        emitConstant(OBJ_VAL(copyString(parser.previous.start + 1, parser.previous.length - 2)));
+        emitConstant(OBJ_VAL(copyString(gbcpl->parser.previous.start + 1, gbcpl->parser.previous.length - 2)));
     }
+}
+
+static int pathOrStringNoEmit(char **p, const char *extension, const char *errorIdentifier, const char *errorString)
+{
+    if (match(TOKEN_IDENTIFIER))
+    {
+        int len = gbcpl->parser.previous.length;
+        int totalLen = len;
+        char *str = ALLOCATE(char, len + 1);
+        strncpy(str, gbcpl->parser.previous.start, gbcpl->parser.previous.length);
+        str[len] = '\0';
+
+        while (true)
+        {
+            if (match(TOKEN_SLASH))
+            {
+                if (match(TOKEN_IDENTIFIER))
+                {
+                    totalLen += gbcpl->parser.previous.length + 1;
+                    str = GROW_ARRAY(str, char, len + 1, totalLen + 1);
+                    str[len] = '/';
+                    strncpy(str + (len + 1), gbcpl->parser.previous.start, gbcpl->parser.previous.length);
+                    len = totalLen;
+                    str[len] = '\0';
+                }
+                else
+                {
+                    errorAtCurrent(errorIdentifier);
+                }
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        totalLen = len + strlen(extension);
+        str = GROW_ARRAY(str, char, len + 1, totalLen + 1);
+        len = totalLen;
+        strcat(str, extension);
+
+        *p = str;
+        return totalLen + 1;
+    }
+    else
+    {
+        consume(TOKEN_STRING, errorString);
+        char *str = ALLOCATE(char, gbcpl->parser.previous.length - 1);
+        memcpy(str, gbcpl->parser.previous.start + 1, gbcpl->parser.previous.length - 2);
+        str[gbcpl->parser.previous.length - 2] = '\0';
+
+        *p = str;
+        return gbcpl->parser.previous.length - 1;
+    }
+    *p = NULL;
+    return 0;
 }
 
 static void nativeDeclaration()
@@ -2044,12 +2132,12 @@ static void funDeclaration()
             }
         }
     }
-    if (parser.current.type == TOKEN_DOT)
+    if (gbcpl->parser.current.type == TOKEN_DOT)
     {
-        global = identifierConstant(&parser.previous);
+        global = identifierConstant(&gbcpl->parser.previous);
         advance();
         consume(TOKEN_IDENTIFIER, "Expect function name");
-        prop = identifierConstant(&parser.previous);
+        prop = identifierConstant(&gbcpl->parser.previous);
 
         function(TYPE_EXTENSION);
 
@@ -2059,10 +2147,10 @@ static void funDeclaration()
     else
     {
         declareVariable();
-        if (current->scopeDepth > 0)
+        if (gbcpl->current->scopeDepth > 0)
             global = 0;
         else
-            global = identifierConstant(&parser.previous);
+            global = identifierConstant(&gbcpl->parser.previous);
         markInitialized();
         function(TYPE_FUNCTION);
         defineVariable(global);
@@ -2078,12 +2166,12 @@ static void globalDeclaration(bool checkEnd)
     while (true)
     {
         consume(TOKEN_IDENTIFIER, "Expect variable name.");
-        global = identifierConstant(&parser.previous);
+        global = identifierConstant(&gbcpl->parser.previous);
 
         if (match(TOKEN_COLON))
         {
             consume(TOKEN_IDENTIFIER, "Only variable types allowed");
-            Token type = parser.previous;
+            Token type = gbcpl->parser.previous;
         }
 
         if (match(TOKEN_EQUAL))
@@ -2107,15 +2195,15 @@ static void globalDeclaration(bool checkEnd)
 
 static void docDeclaration()
 {
-    Token tdoc = parser.previous;
+    Token tdoc = gbcpl->parser.previous;
     Documentation *doc = (Documentation *)mp_malloc(sizeof(Documentation));
     doc->id = 0;
     doc->line = -1;
     doc->doc = (char *)mp_malloc(sizeof(char) * (tdoc.length + 1));
     memcpy(doc->doc, tdoc.start, tdoc.length);
     doc->doc[tdoc.length] = '\0';
-    doc->next = currentDoc;
-    currentDoc = doc;
+    doc->next = gbcpl->currentDoc;
+    gbcpl->currentDoc = doc;
     if (doc->next != NULL)
         doc->id = doc->next->id + 1;
 }
@@ -2157,7 +2245,7 @@ static void expressionStatement()
 static void forStatement()
 {
     beginScope();
-    current->loopDepth++;
+    gbcpl->current->loopDepth++;
 
     consume(TOKEN_LEFT_PAREN, "Expect '(' after 'for'.");
 
@@ -2177,12 +2265,12 @@ static void forStatement()
     else if (match(TOKEN_VAR))
     {
         name = parseVariable("Expect variable name.");
-        nameVar = parser.previous;
+        nameVar = gbcpl->parser.previous;
         if (match(TOKEN_COMMA))
         {
             consume(TOKEN_IDENTIFIER, "Expected a index name.");
             hasIndex = true;
-            loopVar = parser.previous;
+            loopVar = gbcpl->parser.previous;
         }
 
         if (match(TOKEN_EQUAL))
@@ -2197,10 +2285,10 @@ static void forStatement()
                 char *str__index = (char *)mp_malloc(sizeof(char) * 32);
                 char *str__cond = (char *)mp_malloc(sizeof(char) * 32);
                 str__value[0] = str__index[0] = str__cond[0] = '\0';
-                sprintf(str__value, "__value%d", loopInCount);
-                sprintf(str__index, "__index%d", loopInCount);
-                sprintf(str__cond, "__cond%d", loopInCount);
-                loopInCount++;
+                sprintf(str__value, "__value%d", gbcpl->loopInCount);
+                sprintf(str__index, "__index%d", gbcpl->loopInCount);
+                sprintf(str__cond, "__cond%d", gbcpl->loopInCount);
+                gbcpl->loopInCount++;
 
                 emitByte(OP_NULL);
                 defineVariable(name);
@@ -2217,7 +2305,7 @@ static void forStatement()
                 else
                 {
                     declareNamedVariable(&loopVar);
-                    if (current->scopeDepth > 0)
+                    if (gbcpl->current->scopeDepth > 0)
                         it = 0;
                     else
                         it = identifierConstant(&loopVar);
@@ -2259,10 +2347,10 @@ static void forStatement()
         expressionStatement();
     }
 
-    surroundingLoopStart = innermostLoopStart;
-    surroundingLoopScopeDepth = innermostLoopScopeDepth;
-    innermostLoopStart = currentChunk()->count;
-    innermostLoopScopeDepth = current->scopeDepth;
+    surroundingLoopStart = gbcpl->innermostLoopStart;
+    surroundingLoopScopeDepth = gbcpl->innermostLoopScopeDepth;
+    gbcpl->innermostLoopStart = currentChunk()->count;
+    gbcpl->innermostLoopScopeDepth = gbcpl->current->scopeDepth;
 
     if (!in && !match(TOKEN_SEMICOLON))
     {
@@ -2297,8 +2385,8 @@ static void forStatement()
         emitByte(OP_POP);
         consume(TOKEN_RIGHT_PAREN, "Expect ')' after for clauses.");
 
-        emitLoop(innermostLoopStart);
-        innermostLoopStart = incrementStart;
+        emitLoop(gbcpl->innermostLoopStart);
+        gbcpl->innermostLoopStart = incrementStart;
         patchJump(bodyJump);
     }
     else if (in)
@@ -2315,8 +2403,8 @@ static void forStatement()
 
         consume(TOKEN_RIGHT_PAREN, "Expect ')' after for clauses.");
 
-        emitLoop(innermostLoopStart);
-        innermostLoopStart = incrementStart;
+        emitLoop(gbcpl->innermostLoopStart);
+        gbcpl->innermostLoopStart = incrementStart;
         patchJump(bodyJump);
 
         // Set variable
@@ -2330,7 +2418,7 @@ static void forStatement()
     statement();
 
     // Jump back to the beginning (or the increment).
-    emitLoop(innermostLoopStart);
+    emitLoop(gbcpl->innermostLoopStart);
 
     patchBreak();
     if (exitJump != -1)
@@ -2353,11 +2441,11 @@ static void forStatement()
         emitByte(OP_POP);
     }
 
-    innermostLoopStart = surroundingLoopStart;
-    innermostLoopScopeDepth = surroundingLoopScopeDepth;
+    gbcpl->innermostLoopStart = surroundingLoopStart;
+    gbcpl->innermostLoopScopeDepth = surroundingLoopScopeDepth;
 
     endScope();
-    current->loopDepth--;
+    gbcpl->current->loopDepth--;
 }
 
 static void ifStatement()
@@ -2398,8 +2486,8 @@ static void withStatement()
     beginScope();
 
     Token file = syntheticToken("file");
-    Local *local = &current->locals[current->localCount++];
-    local->depth = current->scopeDepth;
+    Local *local = &gbcpl->current->locals[gbcpl->current->localCount++];
+    local->depth = gbcpl->current->scopeDepth;
     local->isCaptured = false;
     local->name = file;
 
@@ -2421,7 +2509,7 @@ static void withStatement()
 
 static void returnStatement()
 {
-    if (current->type == TYPE_SCRIPT)
+    if (gbcpl->current->type == TYPE_SCRIPT)
     {
         error("Cannot return from top-level code.");
     }
@@ -2432,7 +2520,7 @@ static void returnStatement()
     }
     else
     {
-        if (current->type == TYPE_INITIALIZER)
+        if (gbcpl->current->type == TYPE_INITIALIZER)
         {
             error("Cannot return a value from an initializer.");
         }
@@ -2466,7 +2554,7 @@ static void importStatement()
     {
         forClause = true;
         str = mp_malloc(sizeof(char) * 64);
-        sprintf(str, "__temp_package_%d", tempId++);
+        sprintf(str, "__temp_package_%d", gbcpl->tempId++);
         emitConstant(OBJ_VAL(copyString(str, strlen(str))));
         emitByte(OP_IMPORT);
 
@@ -2501,10 +2589,65 @@ static void importStatement()
     }
 }
 
+static void includeStatement()
+{
+    char *fileName;
+    int len = pathOrStringNoEmit(&fileName, vm.extension, "Expect an identifier after slash in include.",
+                                 "Expect string after include.");
+
+    if (len == 0 || fileName == NULL)
+        return;
+
+    char *s = NULL;
+    char *strPath;
+    if (!findAndReadFile(fileName, &strPath, &s))
+    {
+        mp_free(strPath);
+        FREE_ARRAY(char, fileName, len);
+        errorAtCurrent("Could not load the file for include.");
+        return;
+    }
+    FREE_ARRAY(char, fileName, len);
+
+    ObjFunction *function = compile(s, strPath);
+    if (function == NULL)
+    {
+        mp_free(strPath);
+        FREE_ARRAY(char, fileName, len);
+        mp_free(s);
+        errorAtCurrent("Could not compile the included file.");
+        return;
+    }
+    mp_free(s);
+
+    emitConstant(STRING_VAL(strPath));
+    mp_free(strPath);
+
+    if (match(TOKEN_AS))
+    {
+        if (match(TOKEN_IDENTIFIER) || match(TOKEN_DEFAULT))
+        {
+            emitPreviousAsString();
+        }
+        else
+        {
+            consume(TOKEN_IDENTIFIER, "Expect identifier after as.");
+        }
+    }
+    else
+    {
+        emitByte(OP_NULL);
+    }
+
+    // consume(TOKEN_SEMICOLON, "Expect ';' after import.");
+    match(TOKEN_SEMICOLON);
+    emitShort(OP_INCLUDE, makeConstant(OBJ_VAL(function)));
+}
+
 static void abortStatement()
 {
     consume(TOKEN_IDENTIFIER, "Expect a function call in abort.");
-    getVariable(parser.previous);
+    getVariable(gbcpl->parser.previous);
     // consume(TOKEN_SEMICOLON, "Expect ';' after abort.");
     match(TOKEN_SEMICOLON);
     emitByte(OP_ABORT);
@@ -2512,12 +2655,12 @@ static void abortStatement()
 
 static void whileStatement()
 {
-    current->loopDepth++;
+    gbcpl->current->loopDepth++;
 
-    int surroundingLoopStart = innermostLoopStart;
-    int surroundingLoopScopeDepth = innermostLoopScopeDepth;
-    innermostLoopStart = currentChunk()->count;
-    innermostLoopScopeDepth = current->scopeDepth;
+    int surroundingLoopStart = gbcpl->innermostLoopStart;
+    int surroundingLoopScopeDepth = gbcpl->innermostLoopScopeDepth;
+    gbcpl->innermostLoopStart = currentChunk()->count;
+    gbcpl->innermostLoopScopeDepth = gbcpl->current->scopeDepth;
 
     consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
     expression();
@@ -2529,26 +2672,26 @@ static void whileStatement()
     statement();
 
     // Loop back to the start.
-    emitLoop(innermostLoopStart);
+    emitLoop(gbcpl->innermostLoopStart);
 
     patchBreak();
     patchJump(exitJump);
     emitByte(OP_POP);
 
-    innermostLoopStart = surroundingLoopStart;
-    innermostLoopScopeDepth = surroundingLoopScopeDepth;
+    gbcpl->innermostLoopStart = surroundingLoopStart;
+    gbcpl->innermostLoopScopeDepth = surroundingLoopScopeDepth;
 
-    current->loopDepth--;
+    gbcpl->current->loopDepth--;
 }
 
 static void doWhileStatement()
 {
-    current->loopDepth++;
+    gbcpl->current->loopDepth++;
 
-    int surroundingLoopStart = innermostLoopStart;
-    int surroundingLoopScopeDepth = innermostLoopScopeDepth;
-    innermostLoopStart = currentChunk()->count;
-    innermostLoopScopeDepth = current->scopeDepth;
+    int surroundingLoopStart = gbcpl->innermostLoopStart;
+    int surroundingLoopScopeDepth = gbcpl->innermostLoopScopeDepth;
+    gbcpl->innermostLoopStart = currentChunk()->count;
+    gbcpl->innermostLoopScopeDepth = gbcpl->current->scopeDepth;
 
     statement();
 
@@ -2564,37 +2707,38 @@ static void doWhileStatement()
     emitByte(OP_POP);
 
     // Loop back to the start.
-    emitLoop(innermostLoopStart);
+    emitLoop(gbcpl->innermostLoopStart);
 
     patchBreak();
     patchJump(exitJump);
     emitByte(OP_POP);
 
-    innermostLoopStart = surroundingLoopStart;
-    innermostLoopScopeDepth = surroundingLoopScopeDepth;
+    gbcpl->innermostLoopStart = surroundingLoopStart;
+    gbcpl->innermostLoopScopeDepth = surroundingLoopScopeDepth;
 
-    current->loopDepth--;
+    gbcpl->current->loopDepth--;
 }
 
 static void continueStatement()
 {
-    if (innermostLoopStart == -1)
+    if (gbcpl->innermostLoopStart == -1)
         error("Cannot use 'continue' outside of a loop.");
 
     // consume(TOKEN_SEMICOLON, "Expect ';' after 'continue'.");
     match(TOKEN_SEMICOLON);
 
     // Discard any locals created inside the loop.
-    for (int i = current->localCount - 1; i >= 0 && current->locals[i].depth > innermostLoopScopeDepth; i--)
+    for (int i = gbcpl->current->localCount - 1;
+         i >= 0 && gbcpl->current->locals[i].depth > gbcpl->innermostLoopScopeDepth; i--)
         emitByte(OP_POP);
 
     // Jump to top of current innermost loop.
-    emitLoop(innermostLoopStart);
+    emitLoop(gbcpl->innermostLoopStart);
 }
 
 static void breakStatement()
 {
-    if (current->loopDepth == 0)
+    if (gbcpl->current->loopDepth == 0)
     {
         error("Cannot use 'break' outside of a loop.");
         return;
@@ -2621,7 +2765,7 @@ static void switchStatement()
     {
         if (match(TOKEN_CASE) || match(TOKEN_DEFAULT))
         {
-            TokenType caseType = parser.previous.type;
+            TokenType caseType = gbcpl->parser.previous.type;
 
             if (state == 2)
             {
@@ -2714,14 +2858,14 @@ static void tryStatement()
 
 static void synchronize()
 {
-    parser.panicMode = false;
+    gbcpl->parser.panicMode = false;
 
-    while (parser.current.type != TOKEN_EOF)
+    while (gbcpl->parser.current.type != TOKEN_EOF)
     {
-        if (parser.previous.type == TOKEN_SEMICOLON)
+        if (gbcpl->parser.previous.type == TOKEN_SEMICOLON)
             return;
 
-        switch (parser.current.type)
+        switch (gbcpl->parser.current.type)
         {
             case TOKEN_CLASS:
             case TOKEN_ENUM:
@@ -2735,6 +2879,7 @@ static void synchronize()
             case TOKEN_WHILE:
             case TOKEN_RETURN:
             case TOKEN_IMPORT:
+            case TOKEN_INCLUDE:
             case TOKEN_BREAK:
             case TOKEN_WITH:
             case TOKEN_ABORT:
@@ -2754,8 +2899,8 @@ static void synchronize()
 
 static void declaration(bool checkEnd)
 {
-    if (currentDoc != NULL && currentDoc->line < 0)
-        currentDoc->line = parser.current.line;
+    if (gbcpl->currentDoc != NULL && gbcpl->currentDoc->line < 0)
+        gbcpl->currentDoc->line = gbcpl->parser.current.line;
 
     if (match(TOKEN_CLASS))
     {
@@ -2790,7 +2935,7 @@ static void declaration(bool checkEnd)
         statement();
     }
 
-    if (parser.panicMode)
+    if (gbcpl->parser.panicMode)
         synchronize();
 }
 
@@ -2815,6 +2960,10 @@ static void statement()
     else if (match(TOKEN_IMPORT))
     {
         importStatement();
+    }
+    else if (match(TOKEN_INCLUDE))
+    {
+        includeStatement();
     }
     else if (match(TOKEN_ABORT))
     {
@@ -2846,14 +2995,14 @@ static void statement()
     }
     else if (match(TOKEN_LEFT_BRACE))
     {
-        Token previous = parser.previous;
-        Token current = parser.current;
+        Token previous = gbcpl->parser.previous;
+        Token current = gbcpl->parser.current;
         if (check(TOKEN_STRING))
         {
-            for (int i = 0; i < parser.current.length - parser.previous.length + 1; ++i)
-                backTrack();
+            for (int i = 0; i < gbcpl->parser.current.length - gbcpl->parser.previous.length + 1; ++i)
+                backTrack(&gbcpl->scanner);
 
-            parser.current = previous;
+            gbcpl->parser.current = previous;
             expressionStatement();
             return;
         }
@@ -2862,14 +3011,14 @@ static void statement()
             advance();
             if (check(TOKEN_SEMICOLON))
             {
-                backTrack();
-                backTrack();
-                parser.current = previous;
+                backTrack(&gbcpl->scanner);
+                backTrack(&gbcpl->scanner);
+                gbcpl->parser.current = previous;
                 expressionStatement();
                 return;
             }
         }
-        parser.current = current;
+        gbcpl->parser.current = current;
 
         beginScope();
         block();
@@ -2883,6 +3032,7 @@ static void statement()
 
 ObjFunction *compile(const char *source, const char *path)
 {
+    initGlobalCompiler();
     DISABLE_GC;
     ObjFunction *function = NULL;
     if (memcmp(initString, source, strlen(initString)) == 0)
@@ -2899,15 +3049,15 @@ ObjFunction *compile(const char *source, const char *path)
     }
     else
     {
-        initScanner(source);
+        initScanner(&gbcpl->scanner, source);
         Compiler compiler;
 
         initDoc();
         initCompiler(&compiler, TYPE_SCRIPT);
         compiler.path = path;
 
-        parser.hadError = false;
-        parser.panicMode = false;
+        gbcpl->parser.hadError = false;
+        gbcpl->parser.panicMode = false;
 
         // Create args
         Token argsToken = syntheticToken("args");
@@ -2925,15 +3075,17 @@ ObjFunction *compile(const char *source, const char *path)
 
         function = endCompiler();
         function->doc = getDoc();
-        if (parser.hadError)
+        if (gbcpl->parser.hadError)
             function = NULL;
     }
     RESTORE_GC;
+    freeGlobalCompiler();
     return function;
 }
 
 ObjFunction *eval(const char *source)
 {
+    initGlobalCompiler();
     int len = strlen(source) + 24;
     char *code = ALLOCATE(char, len);
     strcpy(code, "return (");
@@ -2942,14 +3094,14 @@ ObjFunction *eval(const char *source)
 
     ObjFunction *function = NULL;
 
-    initScanner(code);
+    initScanner(&gbcpl->scanner, code);
     Compiler compiler;
 
     initDoc();
     initCompiler(&compiler, TYPE_EVAL);
 
-    parser.hadError = false;
-    parser.panicMode = false;
+    gbcpl->parser.hadError = false;
+    gbcpl->parser.panicMode = false;
 
     // Parse the code
     advance();
@@ -2961,17 +3113,17 @@ ObjFunction *eval(const char *source)
 
     function = endCompiler();
     function->doc = getDoc();
-    if (parser.hadError)
+    if (gbcpl->parser.hadError)
         function = NULL;
 
     FREE_ARRAY(char, code, len);
-
+    freeGlobalCompiler();
     return function;
 }
 
 void markCompilerRoots()
 {
-    Compiler *compiler = current;
+    Compiler *compiler = gbcpl->current;
     while (compiler != NULL)
     {
         mark_object((Obj *)compiler->function);

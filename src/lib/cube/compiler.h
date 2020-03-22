@@ -4,7 +4,6 @@
 #include "object.h"
 #include "vm.h"
 
-void compileToFileMode(bool toFile);
 ObjFunction *compile(const char *source, const char *path);
 ObjFunction *eval(const char *source);
 bool initByteCode(FILE *file);

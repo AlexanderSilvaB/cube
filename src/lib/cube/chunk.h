@@ -56,6 +56,7 @@ typedef enum
     OP_BREAK,
     OP_DUP,
     OP_IMPORT,
+    OP_INCLUDE,
     OP_FROM_PACKAGE,
     OP_REMOVE_VAR,
     OP_REQUIRE,

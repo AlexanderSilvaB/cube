@@ -223,6 +223,8 @@ int disassembleInstruction(Chunk *chunk, int offset)
             return simpleInstruction("OP_RETURN", offset);
         case OP_IMPORT:
             return simpleInstruction("OP_IMPORT", offset);
+        case OP_INCLUDE:
+            return simpleInstruction("OP_INCLUDE", offset);
         case OP_FROM_PACKAGE:
             return simpleInstruction("OP_FROM_PACKAGE", offset);
         case OP_REMOVE_VAR:

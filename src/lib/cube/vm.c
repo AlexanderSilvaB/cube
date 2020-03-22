@@ -3339,6 +3339,73 @@ InterpretResult run()
                 break;
             }
 
+            case OP_INCLUDE: {
+                ObjFunction *function = AS_FUNCTION(READ_CONSTANT());
+
+                Value asValue = pop();
+                ObjString *as = NULL;
+                if (IS_STRING(asValue))
+                {
+                    as = AS_STRING(asValue);
+                }
+
+                ObjString *fileName = AS_STRING(pop());
+
+                char *name = NULL;
+
+                if (as != NULL)
+                {
+                    if (strcmp(as->chars, "default") != 0)
+                    {
+                        name = (char *)mp_malloc(sizeof(char) * (as->length + 1));
+                        strcpy(name, as->chars);
+                    }
+                }
+                else
+                {
+                    name = getFileDisplayName(fileName->chars);
+                }
+
+                threadFrame->ctf->currentScriptName = fileName->chars;
+
+                ObjPackage *package = frame->package;
+                if (name != NULL)
+                {
+                    ObjString *nameStr = AS_STRING(STRING_VAL(name));
+                    package = newPackage(nameStr);
+                    if (frame->package != NULL)
+                    {
+                        package->parent = frame->package;
+                    }
+                    linenoise_add_keyword(name);
+                    if (frame->package == NULL)
+                        tableSet(&vm.globals, nameStr, OBJ_VAL(package));
+                    else
+                        tableSet(&frame->package->symbols, nameStr, OBJ_VAL(package));
+                    mp_free(name);
+                }
+
+                push(OBJ_VAL(function));
+                ObjClosure *closure = newClosure(function);
+                pop();
+                push(OBJ_VAL(closure));
+
+                threadFrame->ctf->currentFrameCount = threadFrame->ctf->frameCount;
+
+                frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount++];
+                frame->ip = closure->function->chunk.code;
+                frame->closure = closure;
+                frame->slots = threadFrame->ctf->stackTop - 1;
+                frame->package = package;
+                frame->type = CALL_FRAME_TYPE_PACKAGE;
+                frame->nextPackage = NULL;
+                frame->require = false;
+
+                vm.repl = OBJ_VAL(package);
+
+                break;
+            }
+
             case OP_FROM_PACKAGE: {
                 if (!IS_STRING(peek(0)))
                 {

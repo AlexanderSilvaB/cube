@@ -87,6 +87,7 @@ typedef enum
 
     TOKEN_IMPORT,
     TOKEN_REQUIRE,
+    TOKEN_INCLUDE,
     TOKEN_AS,
     TOKEN_NATIVE,
     TOKEN_WITH,
@@ -109,9 +110,16 @@ typedef struct
     int line;
 } Token;
 
-void initScanner(const char *source);
-void backTrack();
-Token scanToken();
+typedef struct
+{
+    const char *start;
+    const char *current;
+    int line;
+} Scanner;
+
+void initScanner(Scanner *scanner, const char *source);
+void backTrack(Scanner *scanner);
+Token scanToken(Scanner *scanner);
 bool isOperator(TokenType type);
 bool isAlpha(char c);
 bool isDigit(char c);
