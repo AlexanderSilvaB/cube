@@ -2,7 +2,6 @@ import json
 
 class Serializable
 {
-    
     func __serialize()
     {
         var fields = getFields(this)

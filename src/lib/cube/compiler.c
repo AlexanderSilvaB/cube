@@ -743,12 +743,20 @@ static void declareNamedVariable(Token *name)
 static uint16_t parseVariable(const char *errorMessage)
 {
     consume(TOKEN_IDENTIFIER, errorMessage);
-
     declareVariable();
+
+    Token var = parser.previous;
+
+    if (match(TOKEN_COLON))
+    {
+        consume(TOKEN_IDENTIFIER, "Only variable types allowed");
+        Token type = parser.previous;
+    }
+
     if (current->scopeDepth > 0)
         return 0;
 
-    return identifierConstant(&parser.previous);
+    return identifierConstant(&var);
 }
 
 static void markInitialized()
@@ -1728,6 +1736,12 @@ static void property(bool isStatic, Token *className)
         name = identifierConstant(&parser.previous);
         // bool isLocal = (current->scopeDepth > 0);
 
+        if (match(TOKEN_COLON))
+        {
+            consume(TOKEN_IDENTIFIER, "Only variable types allowed");
+            Token type = parser.previous;
+        }
+
         if (match(TOKEN_EQUAL))
         {
             expression();
@@ -2065,6 +2079,12 @@ static void globalDeclaration(bool checkEnd)
     {
         consume(TOKEN_IDENTIFIER, "Expect variable name.");
         global = identifierConstant(&parser.previous);
+
+        if (match(TOKEN_COLON))
+        {
+            consume(TOKEN_IDENTIFIER, "Only variable types allowed");
+            Token type = parser.previous;
+        }
 
         if (match(TOKEN_EQUAL))
         {
