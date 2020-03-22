@@ -751,6 +751,17 @@ Value dictNative(int argCount, Value *args)
                 }
             }
         }
+        else if (argCount % 2 == 0)
+        {
+            ObjDict *dict = initDict();
+            for (int i = 0; i < argCount; i += 2)
+            {
+                ObjString *str = AS_STRING(toString(args[i]));
+                char *key = str->chars;
+                insertDict(dict, key, args[i + 1]);
+            }
+            return OBJ_VAL(dict);
+        }
 
         runtimeError("dict(str, delimiter, innerDelimiter) takes exactly 3 "
                      "arguments (%d given).",
@@ -2165,6 +2176,45 @@ static Value taskModeNodeNative(int argCount, Value *args)
     return BOOL_VAL(vm.nodeTaskMode);
 }
 
+static Value assertNative(int argCount, Value *args)
+{
+    bool valid = false;
+    if (argCount == 0)
+        runtimeError("assert()");
+    else
+    {
+        if (AS_BOOL(toBool(args[0])) == false)
+        {
+            if (argCount > 1)
+            {
+                int sz = 128;
+                int len = 0;
+                char *error = ALLOCATE(char, sz);
+                error[0] = '\0';
+                for (int i = 1; i < argCount; i++)
+                {
+                    char *str = valueToString(args[i], false);
+                    if (len + strlen(error) + 1 >= sz)
+                    {
+                        error = GROW_ARRAY(error, char, sz, sz * 2);
+                        sz *= 2;
+                    }
+                    strcat(error + len, str);
+                    mp_free(str);
+                    len = strlen(error);
+                }
+                runtimeError("assert(): %s", error);
+                FREE_ARRAY(char, error, sz);
+            }
+            else
+                runtimeError("assert()");
+        }
+        else
+            valid = true;
+    }
+    return BOOL_VAL(valid);
+}
+
 // Register
 linked_list *stdFnList;
 #define ADD_STD(name, fn) linked_list_add(stdFnList, createStdFn(name, fn))
@@ -2254,6 +2304,7 @@ void initStd()
     ADD_STD("getSuperName", superNameNative);
     ADD_STD("getFields", getFieldsNative);
     ADD_STD("taskModeNode", taskModeNodeNative);
+    ADD_STD("assert", assertNative);
 }
 
 void destroyStd()
