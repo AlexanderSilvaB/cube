@@ -125,7 +125,7 @@ static TaskFrame *createTaskFrame(const char *name)
 {
     ThreadFrame *threadFrame = createThreadFrame();
 
-    TaskFrame *taskFrame = (TaskFrame *)mp_malloc(sizeof(TaskFrame));
+    TaskFrame *taskFrame = (TaskFrame *)mp_calloc(1, sizeof(TaskFrame));
     taskFrame->name = (char *)mp_malloc(sizeof(char) * (strlen(name) + 1));
     strcpy(taskFrame->name, name);
     taskFrame->next = NULL;
@@ -326,6 +326,7 @@ static void defineNative(const char *name, NativeFn function, ObjPackage *packag
 void initVM(const char *path, const char *scriptName)
 {
     vm.debug = false;
+    vm.forceInclude = false;
     vm.ready = false;
     vm.exitCode = 0;
     vm.continueDebug = false;
@@ -4161,8 +4162,8 @@ loopWait:
 
 InterpretResult compileCode(const char *source, const char *path)
 {
-    ObjFunction *function = compile(source, path);
-    if (function == NULL)
+    ObjFunction *fn = compile(source, path);
+    if (fn == NULL)
         return INTERPRET_COMPILE_ERROR;
 
     char *bcPath = ALLOCATE(char, strlen(path) * 2);
@@ -4186,7 +4187,7 @@ InterpretResult compileCode(const char *source, const char *path)
         return INTERPRET_COMPILE_ERROR;
     }
 
-    if (!writeByteCode(file, OBJ_VAL(function)))
+    if (!writeByteCode(file, OBJ_VAL(fn)))
     {
         fclose(file);
         printf("Could not write the byte code");

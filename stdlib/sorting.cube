@@ -1,7 +1,7 @@
 func qsort(data, fn)
 {
     if(fn is null)
-        fn = @(a, b){return a < b}
+        fn = @(a, b) => a < b
     func _partition(arr, low, high)
     {
         var i  = low - 1
@@ -36,7 +36,7 @@ func qsort(data, fn)
 
 func shuffle(data)
 {
-    return qsort(data, @(a, b){return (0.5 - random()) < 0; })
+    return qsort(data, @(a, b) => ((0.5 - random()) < 0))
 }
 
 func reverse(data)

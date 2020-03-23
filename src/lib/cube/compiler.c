@@ -403,25 +403,25 @@ static void initCompiler(Compiler *compiler, FunctionType type)
 static ObjFunction *endCompiler()
 {
     emitReturn();
-    ObjFunction *function = gbcpl->current->function;
+    ObjFunction *fn = gbcpl->current->function;
     if (gbcpl->current->path == NULL)
-        function->path = NULL;
+        fn->path = NULL;
     else
     {
         char *path = mp_malloc(strlen(gbcpl->current->path) + 1);
         strcpy(path, gbcpl->current->path);
-        function->path = path;
+        fn->path = path;
     }
 
 #ifdef DEBUG_PRINT_CODE
     if (!gbcpl->parser.hadError)
     {
-        disassembleChunk(currentChunk(), function->name != NULL ? function->name->chars : "<script>");
+        disassembleChunk(currentChunk(), fn->name != NULL ? fn->name->chars : "<script>");
     }
 #endif
 
     gbcpl->current = gbcpl->current->enclosing;
-    return function;
+    return fn;
 }
 
 static void beginScope()
@@ -1425,10 +1425,10 @@ static void function(FunctionType type)
         gbcpl->staticMethod = false;
 
     // Create the function object.
-    ObjFunction *function = endCompiler();
-    emitShort(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
+    ObjFunction *fn = endCompiler();
+    emitShort(OP_CLOSURE, makeConstant(OBJ_VAL(fn)));
 
-    for (int i = 0; i < function->upvalueCount; i++)
+    for (int i = 0; i < fn->upvalueCount; i++)
     {
         emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
         emitShortAlone(compiler.upvalues[i].index);
@@ -1559,10 +1559,10 @@ static void async(bool canAssign)
     emitByte(OP_RETURN);
 
     // Create the function object.
-    ObjFunction *function = endCompiler();
-    emitShort(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
+    ObjFunction *fn = endCompiler();
+    emitShort(OP_CLOSURE, makeConstant(OBJ_VAL(fn)));
 
-    for (int i = 0; i < function->upvalueCount; i++)
+    for (int i = 0; i < fn->upvalueCount; i++)
     {
         emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
         emitShortAlone(compiler.upvalues[i].index);
@@ -2532,8 +2532,68 @@ static void returnStatement()
     }
 }
 
+static void includeStatement()
+{
+    char *fileName;
+    int len = pathOrStringNoEmit(&fileName, vm.extension, "Expect an identifier after slash in include.",
+                                 "Expect string after include.");
+
+    if (len == 0 || fileName == NULL)
+        return;
+
+    char *s = NULL;
+    char *strPath;
+    if (!findAndReadFile(fileName, &strPath, &s))
+    {
+        mp_free(strPath);
+        FREE_ARRAY(char, fileName, len);
+        errorAtCurrent("Could not load the file for include.");
+        return;
+    }
+    FREE_ARRAY(char, fileName, len);
+
+    ObjFunction *fn = compile(s, strPath);
+    if (fn == NULL)
+    {
+        mp_free(strPath);
+        FREE_ARRAY(char, fileName, len);
+        mp_free(s);
+        errorAtCurrent("Could not compile the included file.");
+        return;
+    }
+    mp_free(s);
+
+    emitConstant(STRING_VAL(strPath));
+    mp_free(strPath);
+
+    if (match(TOKEN_AS))
+    {
+        if (match(TOKEN_IDENTIFIER) || match(TOKEN_DEFAULT))
+        {
+            emitPreviousAsString();
+        }
+        else
+        {
+            consume(TOKEN_IDENTIFIER, "Expect identifier after as.");
+        }
+    }
+    else
+    {
+        emitByte(OP_NULL);
+    }
+
+    // consume(TOKEN_SEMICOLON, "Expect ';' after import.");
+    match(TOKEN_SEMICOLON);
+    emitShort(OP_INCLUDE, makeConstant(OBJ_VAL(fn)));
+}
+
 static void importStatement()
 {
+    if (vm.forceInclude)
+    {
+        includeStatement();
+        return;
+    }
     pathOrString(vm.extension, "Expect an identifier after slash in import.", "Expect string after import.");
     bool forClause = false;
     Token module;
@@ -2587,61 +2647,6 @@ static void importStatement()
         emitByte(OP_REMOVE_VAR);
         mp_free(str);
     }
-}
-
-static void includeStatement()
-{
-    char *fileName;
-    int len = pathOrStringNoEmit(&fileName, vm.extension, "Expect an identifier after slash in include.",
-                                 "Expect string after include.");
-
-    if (len == 0 || fileName == NULL)
-        return;
-
-    char *s = NULL;
-    char *strPath;
-    if (!findAndReadFile(fileName, &strPath, &s))
-    {
-        mp_free(strPath);
-        FREE_ARRAY(char, fileName, len);
-        errorAtCurrent("Could not load the file for include.");
-        return;
-    }
-    FREE_ARRAY(char, fileName, len);
-
-    ObjFunction *function = compile(s, strPath);
-    if (function == NULL)
-    {
-        mp_free(strPath);
-        FREE_ARRAY(char, fileName, len);
-        mp_free(s);
-        errorAtCurrent("Could not compile the included file.");
-        return;
-    }
-    mp_free(s);
-
-    emitConstant(STRING_VAL(strPath));
-    mp_free(strPath);
-
-    if (match(TOKEN_AS))
-    {
-        if (match(TOKEN_IDENTIFIER) || match(TOKEN_DEFAULT))
-        {
-            emitPreviousAsString();
-        }
-        else
-        {
-            consume(TOKEN_IDENTIFIER, "Expect identifier after as.");
-        }
-    }
-    else
-    {
-        emitByte(OP_NULL);
-    }
-
-    // consume(TOKEN_SEMICOLON, "Expect ';' after import.");
-    match(TOKEN_SEMICOLON);
-    emitShort(OP_INCLUDE, makeConstant(OBJ_VAL(function)));
 }
 
 static void abortStatement()
@@ -3034,7 +3039,7 @@ ObjFunction *compile(const char *source, const char *path)
 {
     initGlobalCompiler();
     DISABLE_GC;
-    ObjFunction *function = NULL;
+    ObjFunction *fn = NULL;
     if (memcmp(initString, source, strlen(initString)) == 0)
     {
         char *src = (char *)source + strlen(initString);
@@ -3045,7 +3050,7 @@ ObjFunction *compile(const char *source, const char *path)
         uint32_t pos = 0;
         Value value = loadByteCode(src, &pos, len);
         if (IS_FUNCTION(value))
-            function = AS_FUNCTION(value);
+            fn = AS_FUNCTION(value);
     }
     else
     {
@@ -3073,14 +3078,14 @@ ObjFunction *compile(const char *source, const char *path)
             declaration(true);
         }
 
-        function = endCompiler();
-        function->doc = getDoc();
+        fn = endCompiler();
+        fn->doc = getDoc();
         if (gbcpl->parser.hadError)
-            function = NULL;
+            fn = NULL;
     }
     RESTORE_GC;
     freeGlobalCompiler();
-    return function;
+    return fn;
 }
 
 ObjFunction *eval(const char *source)
@@ -3092,7 +3097,7 @@ ObjFunction *eval(const char *source)
     strcat(code, source);
     strcat(code, ");");
 
-    ObjFunction *function = NULL;
+    ObjFunction *fn = NULL;
 
     initScanner(&gbcpl->scanner, code);
     Compiler compiler;
@@ -3111,14 +3116,14 @@ ObjFunction *eval(const char *source)
         declaration(true);
     }
 
-    function = endCompiler();
-    function->doc = getDoc();
+    fn = endCompiler();
+    fn->doc = getDoc();
     if (gbcpl->parser.hadError)
-        function = NULL;
+        fn = NULL;
 
     FREE_ARRAY(char, code, len);
     freeGlobalCompiler();
-    return function;
+    return fn;
 }
 
 void markCompilerRoots()

@@ -124,6 +124,7 @@ typedef struct
     bool debug;
     bool continueDebug;
     bool waitingDebug;
+    bool forceInclude;
     DebugInfo debugInfo;
 } VM;
 

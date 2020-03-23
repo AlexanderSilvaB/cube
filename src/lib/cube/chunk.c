@@ -36,7 +36,7 @@ void writeChunk(Chunk *chunk, uint8_t byte, int line)
     chunk->count++;
 
     // See if we're still on the same line.
-    if (chunk->lineCount > 0 && chunk->lines[chunk->lineCount - 1].line == line)
+    if (chunk->lineCount > 0 && chunk->lines != NULL && chunk->lines[chunk->lineCount - 1].line == line)
     {
         return;
     }

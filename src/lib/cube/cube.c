@@ -102,6 +102,7 @@ int runCube(int argc, const char *argv[])
     const char *fileName = NULL;
     bool execute = true;
     bool debug = false;
+    bool forceInclude = false;
     int argStart = 1;
     for (int i = 1; i < argc; i++)
     {
@@ -120,13 +121,19 @@ int runCube(int argc, const char *argv[])
             debug = true;
             argStart++;
         }
+        else if (strcmp(argv[i], "-i") == 0 && forceInclude == false)
+        {
+            forceInclude = true;
+            argStart++;
+        }
     }
 
     vm.debug = debug;
+    vm.forceInclude = forceInclude;
 
     loadArgs(argc, argv, argStart);
 
-    if (argc == 1)
+    if (argc == 1 || (argc == 2 && forceInclude) || (argc == 2 && debug))
     {
         rc = repl();
     }
@@ -186,6 +193,7 @@ int repl()
     linenoise_add_keyword("nan");
     linenoise_add_keyword("inf");
     linenoise_add_keyword("import");
+    linenoise_add_keyword("include");
     linenoise_add_keyword("require");
     linenoise_add_keyword("as");
     linenoise_add_keyword("native");
