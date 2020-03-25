@@ -37,9 +37,7 @@ func fibIterative(n)
 }
 
 
-var start;
-var result;
-var time;
+var start, result, time
 
 start = clock();
 result = fibRecursive(10);

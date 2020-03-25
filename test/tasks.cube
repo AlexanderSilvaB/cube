@@ -24,6 +24,6 @@ var elapsed = await t2;
 println("\nElapsed: ", elapsed, 's');
 
 // We can abort a running task at any time by using the 'abort' keyword followed by the task name
-var t3 = async task(200, '<{}>');
+var t3 = async task(2000, '<{}>');
 wait(1);
 abort t3;

@@ -14,7 +14,7 @@
       "windows": {
         "program": "${workspaceFolder}/build-win32/src/exe/main/cube.exe"
       },
-      "args": ["temp/test.cube"],
+      "args": ["test/tasks.cube"],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
       "environment": [],

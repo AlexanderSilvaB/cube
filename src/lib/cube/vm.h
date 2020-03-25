@@ -57,6 +57,8 @@ typedef struct TaskFrame_t
     Value result;
     bool finished;
     bool waiting;
+    bool aborted;
+    struct TaskFrame_t *parent;
     char *error;
     uint64_t endTime;
     uint64_t startTime;
@@ -108,7 +110,7 @@ typedef struct
 
     bool gc;
     bool autoGC;
-    bool nodeTaskMode;
+    bool skipWaitingTasks;
 
     size_t bytesAllocated;
     size_t nextGC;

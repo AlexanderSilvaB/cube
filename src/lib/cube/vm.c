@@ -131,6 +131,8 @@ static TaskFrame *createTaskFrame(const char *name)
     taskFrame->next = NULL;
     taskFrame->finished = false;
     taskFrame->waiting = false;
+    taskFrame->parent = NULL;
+    taskFrame->aborted = false;
     taskFrame->result = NULL_VAL;
     taskFrame->eval = false;
     taskFrame->stackTop = taskFrame->stack;
@@ -200,9 +202,10 @@ static void destroyTaskFrame(const char *name)
 
         if (strcmp(name, tf->name) == 0)
         {
+            tf->aborted = true;
             threadFrame->taskFrame = tf->next;
-            mp_free(tf->name);
-            mp_free(tf);
+            // mp_free(tf->name);
+            // mp_free(tf);
             break;
         }
         else
@@ -216,9 +219,10 @@ static void destroyTaskFrame(const char *name)
 
             if (tf != NULL)
             {
+                tf->aborted = true;
                 parent->next = tf->next;
-                mp_free(tf->name);
-                mp_free(tf);
+                // mp_free(tf->name);
+                // mp_free(tf);
                 break;
             }
         }
@@ -337,7 +341,7 @@ void initVM(const char *path, const char *scriptName)
     vm.running = true;
     vm.repl = NULL_VAL;
     vm.print = false;
-    vm.nodeTaskMode = false;
+    vm.skipWaitingTasks = false;
 
     memset(vm.threadFrames, '\0', sizeof(ThreadFrame) * MAX_THREADS);
 
@@ -1975,11 +1979,19 @@ static bool nextTask()
     ThreadFrame *threadFrame = currentThread();
     TaskFrame *ctf = threadFrame->ctf;
 
-    if (vm.nodeTaskMode)
+    if (vm.skipWaitingTasks)
         goto analyse;
 
 next:
-    threadFrame->ctf = threadFrame->ctf->next;
+    if (threadFrame->ctf->aborted)
+    {
+        TaskFrame *task = threadFrame->ctf;
+        threadFrame->ctf = threadFrame->ctf->next;
+        mp_free(task->name);
+        mp_free(task);
+    }
+    else
+        threadFrame->ctf = threadFrame->ctf->next;
     if (threadFrame->ctf == NULL)
         threadFrame->ctf = threadFrame->taskFrame;
     if (threadFrame->ctf->finished)
@@ -1991,7 +2003,7 @@ next:
         else
             goto next;
     }
-    else if (vm.nodeTaskMode && threadFrame->ctf->waiting)
+    else if (vm.skipWaitingTasks && threadFrame->ctf->waiting)
     {
         goto next;
     }
@@ -2015,7 +2027,11 @@ analyse:
     {
         goto next;
     }
-    else if (vm.nodeTaskMode && threadFrame->ctf->waiting)
+    else if (vm.skipWaitingTasks && threadFrame->ctf->waiting)
+    {
+        goto next;
+    }
+    else if (threadFrame->ctf->aborted)
     {
         goto next;
     }
@@ -3844,6 +3860,8 @@ InterpretResult run()
                 {
                     threadFrame->ctf->result = result;
                     threadFrame->ctf->finished = true;
+                    if (threadFrame->ctf->parent != NULL)
+                        threadFrame->ctf->parent->waiting = false;
                     // return INTERPRET_OK;
                     break;
                 }
@@ -4057,11 +4075,22 @@ InterpretResult run()
                 {
                     if (tf->finished)
                     {
+                        tf->parent = NULL;
                         push(tf->result);
                         threadFrame->ctf->waiting = false;
                     }
                     else
                     {
+                        if (threadFrame->ctf->parent == tf)
+                        {
+                            runtimeError("A task cannot wait for another task already waiting it.");
+                            if (!checkTry(frame))
+                                return INTERPRET_RUNTIME_ERROR;
+                            else
+                                break;
+                        }
+                        else
+                            tf->parent = threadFrame->ctf;
                         push(OBJ_VAL(task));
                         frame->ip--;
                     }

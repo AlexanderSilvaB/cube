@@ -2166,14 +2166,14 @@ static Value getFieldsNative(int argCount, Value *args)
     return OBJ_VAL(list);
 }
 
-static Value taskModeNodeNative(int argCount, Value *args)
+static Value skipWaitingTasksNative(int argCount, Value *args)
 {
     if (argCount > 0)
     {
         bool v = AS_BOOL(toBool(args[0]));
-        vm.nodeTaskMode = v;
+        vm.skipWaitingTasks = v;
     }
-    return BOOL_VAL(vm.nodeTaskMode);
+    return BOOL_VAL(vm.skipWaitingTasks);
 }
 
 static Value assertNative(int argCount, Value *args)
@@ -2303,7 +2303,7 @@ void initStd()
     ADD_STD("getClassName", classNameNative);
     ADD_STD("getSuperName", superNameNative);
     ADD_STD("getFields", getFieldsNative);
-    ADD_STD("taskModeNode", taskModeNodeNative);
+    ADD_STD("skipWaitingTasks", skipWaitingTasksNative);
     ADD_STD("assert", assertNative);
 }
 
