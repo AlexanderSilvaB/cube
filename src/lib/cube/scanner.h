@@ -96,6 +96,7 @@ typedef enum
     TOKEN_ABORT,
     TOKEN_TRY,
     TOKEN_CATCH,
+    TOKEN_ASSERT,
 
     TOKEN_DOC,
     TOKEN_ERROR,
@@ -120,6 +121,7 @@ typedef struct
 void initScanner(Scanner *scanner, const char *source);
 void backTrack(Scanner *scanner);
 Token scanToken(Scanner *scanner);
+Token getArguments(Scanner *scanner, int n);
 bool isOperator(TokenType type);
 bool isAlpha(char c);
 bool isDigit(char c);

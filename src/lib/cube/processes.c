@@ -94,7 +94,12 @@ static bool readProcess(int argCount)
         rd = maxSize - size;
         if (rd > 256)
             rd = 256;
+#ifndef _WIN32
         if (process->in == STDIN_FILENO)
+#else
+        if (process->in == _fileno(stdin))
+#endif
+        
             break;
         rc = readFd(process->in, rd, buf);
     }
@@ -165,7 +170,11 @@ static bool readProcessBytes(int argCount)
         rd = maxSize - size;
         if (rd > 256)
             rd = 256;
+#ifndef _WIN32
         if (process->in == STDIN_FILENO)
+#else
+        if (process->in == _fileno(stdin))
+#endif
             break;
         rc = readFd(process->in, rd, buf);
     }

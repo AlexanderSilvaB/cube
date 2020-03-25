@@ -155,8 +155,13 @@ ObjProcess *defaultProcess()
     process->status = 0;
     process->closed = false;
     process->pid = 0;
+#ifndef _WIN32
     process->in = STDIN_FILENO;
     process->out = STDOUT_FILENO;
+#else
+    process->in = _fileno(stdin);
+    process->out = _fileno(stdout);
+#endif
     process->protected = true;
 
     return process;

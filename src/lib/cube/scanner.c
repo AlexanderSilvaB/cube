@@ -67,6 +67,44 @@ static bool match(Scanner *scanner, char expected)
     return true;
 }
 
+Token getArguments(Scanner *scanner, int n)
+{
+    Token args;
+    args.length = 0;
+    args.start = scanner->current;
+    int folds = 0;
+    int N = 0;
+    while (args.start[args.length] != '\0')
+    {
+        if (args.start[args.length] == '(')
+            folds++;
+        else if (args.start[args.length] == ')')
+        {
+            if (folds > 0)
+                folds--;
+            else
+            {
+                break;
+            }
+        }
+        else if (args.start[args.length] == ',' && folds == 0 && n > 0)
+        {
+            N++;
+            if (n == N)
+                break;
+        }
+        args.length++;
+    }
+
+    if (args.start[args.length] == '\0')
+    {
+        args.start = NULL;
+        args.length = 0;
+    }
+
+    return args;
+}
+
 static Token makeToken(Scanner *scanner, TokenType type)
 {
     Token token;
@@ -206,6 +244,8 @@ static TokenType identifierType(Scanner *scanner)
                             {
                                 case 'y':
                                     return checkKeyword(scanner, 3, 2, "nc", TOKEN_ASYNC);
+                                case 's':
+                                    return checkKeyword(scanner, 3, 3, "ert", TOKEN_ASSERT);
                             }
                         }
                         else

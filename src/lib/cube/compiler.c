@@ -79,9 +79,11 @@ typedef struct Compiler
     ObjFunction *function;
     FunctionType type;
 
-    Local locals[UINT16_COUNT];
+    // Local locals[UINT16_COUNT];
+    Local *locals;
     int localCount;
-    Upvalue upvalues[UINT16_COUNT];
+    // Upvalue upvalues[UINT16_COUNT];
+    Upvalue *upvalues;
     int scopeDepth;
     int loopDepth;
 
@@ -140,6 +142,8 @@ void initGlobalCompiler()
     current->innermostLoopStart = -1;
     current->innermostLoopScopeDepth = 0;
     current->currentBreak = NULL;
+    memset(&current->scanner, '\0', sizeof(Scanner));
+    memset(&current->parser, '\0', sizeof(Parser));
     current->previous = gbcpl;
     gbcpl = current;
 }
@@ -385,6 +389,9 @@ static void initCompiler(Compiler *compiler, FunctionType type)
         gbcpl->current->function->name = copyString(gbcpl->parser.previous.start, gbcpl->parser.previous.length);
     }
 
+    compiler->locals = mp_malloc(sizeof(Local) * UINT16_COUNT);
+    compiler->upvalues = mp_malloc(sizeof(Upvalue) * UINT16_COUNT);
+
     Local *local = &gbcpl->current->locals[gbcpl->current->localCount++];
     local->depth = 0;
     local->isCaptured = false;
@@ -419,6 +426,9 @@ static ObjFunction *endCompiler()
         disassembleChunk(currentChunk(), fn->name != NULL ? fn->name->chars : "<script>");
     }
 #endif
+
+    mp_free(gbcpl->current->locals);
+    mp_free(gbcpl->current->upvalues);
 
     gbcpl->current = gbcpl->current->enclosing;
     return fn;
@@ -1438,7 +1448,7 @@ static void function(FunctionType type)
 static void lambda(bool canAssign)
 {
     TokenType operatorType = gbcpl->parser.previous.type;
-    markInitialized();
+    // markInitialized();
     function(TYPE_FUNCTION);
 }
 
@@ -1658,6 +1668,7 @@ ParseRule rules[] = {
     {NULL, NULL, PREC_NULL},         // TOKEN_ABORT
     {NULL, NULL, PREC_NULL},         // TOKEN_TRY
     {NULL, NULL, PREC_NULL},         // TOKEN_CATCH
+    {NULL, NULL, PREC_NULL},         // TOKEN_ASSERT
     {NULL, NULL, PREC_NULL},         // TOKEN_DOC
     {NULL, NULL, PREC_NULL},         // TOKEN_ERROR
     {NULL, NULL, PREC_NULL},         // TOKEN_EOF
@@ -2208,6 +2219,22 @@ static void docDeclaration()
         doc->id = doc->next->id + 1;
 }
 
+static void assertDeclaration()
+{
+    variable(false);
+    Token args = getArguments(&gbcpl->scanner, 1);
+    if (args.start == NULL)
+        errorAtCurrent("assert must receive an expression.");
+    else
+    {
+        emitConstant(OBJ_VAL(copyString(args.start, args.length)));
+
+        consume(TOKEN_LEFT_PAREN, "assert must be called as a function");
+        uint8_t argCount = argumentList() + 1;
+        emitBytes(OP_CALL, argCount);
+    }
+}
+
 static void varDeclaration(bool checkEnd)
 {
     uint16_t global;
@@ -2564,7 +2591,7 @@ static void includeStatement()
     mp_free(s);
 
     emitConstant(STRING_VAL(strPath));
-    mp_free(strPath);
+    // mp_free(strPath);
 
     if (match(TOKEN_AS))
     {
@@ -2934,6 +2961,10 @@ static void declaration(bool checkEnd)
     else if (match(TOKEN_DOC))
     {
         docDeclaration();
+    }
+    else if (match(TOKEN_ASSERT))
+    {
+        assertDeclaration();
     }
     else
     {

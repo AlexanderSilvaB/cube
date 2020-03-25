@@ -1787,7 +1787,12 @@ Value readNative(int argCount, Value *args)
             rd = maxSize - size;
             if (rd > 256)
                 rd = 256;
+#ifndef _WIN32
             if (process->in == STDIN_FILENO)
+#else
+            if (process->in == _fileno(stdin))
+#endif
+            
                 break;
             rc = readFd(process->in, rd, buf);
         }
@@ -1920,7 +1925,12 @@ Value writeNative(int argCount, Value *args)
             {
                 ObjString *str = AS_STRING(toString(args[i]));
                 rc = writeFd(process->out, str->length, str->chars);
+#ifndef _WIN32
                 if (process->out == STDOUT_FILENO)
+#else
+                if (process->out == _fileno(stdout))
+#endif
+                
                     vm.newLine = str->chars[str->length - 1] != '\n';
             }
 
@@ -2179,19 +2189,19 @@ static Value skipWaitingTasksNative(int argCount, Value *args)
 static Value assertNative(int argCount, Value *args)
 {
     bool valid = false;
-    if (argCount == 0)
+    if (argCount < 2)
         runtimeError("assert()");
     else
     {
-        if (AS_BOOL(toBool(args[0])) == false)
+        if (AS_BOOL(toBool(args[1])) == false)
         {
-            if (argCount > 1)
+            if (argCount > 2)
             {
                 int sz = 128;
                 int len = 0;
                 char *error = ALLOCATE(char, sz);
                 error[0] = '\0';
-                for (int i = 1; i < argCount; i++)
+                for (int i = 2; i < argCount; i++)
                 {
                     char *str = valueToString(args[i], false);
                     if (len + strlen(error) + 1 >= sz)
@@ -2203,11 +2213,11 @@ static Value assertNative(int argCount, Value *args)
                     mp_free(str);
                     len = strlen(error);
                 }
-                runtimeError("assert(): %s", error);
+                runtimeError("assert(%s): %s", AS_CSTRING(toString(args[0])), error);
                 FREE_ARRAY(char, error, sz);
             }
             else
-                runtimeError("assert()");
+                runtimeError("assert(%s)", AS_CSTRING(toString(args[0])));
         }
         else
             valid = true;
