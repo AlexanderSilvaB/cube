@@ -240,3 +240,48 @@ class Circle : Shape
         return d;
     }
 }
+
+class Image : Shape
+{
+    var x = 0;
+    var y = 0;
+    var width = 100;
+    var height = 100;
+
+    var sourceX = 0;
+    var sourceY = 0;
+    var sourceWidth = -1;
+    var sourceHeight = -1;
+
+    var image = null;
+
+    func init(image, x, y, width, height)
+    {
+        super.init('image');
+        if(image is not null)
+            this.image = image
+        if(x is not null)
+            this.x = x;
+        if(y is not null)
+            this.y = y;
+        if(width is not null)
+            this.width = width;
+        if(height is not null)
+            this.height = height;
+    }
+
+    func dict()
+    {
+        var d = super.dict();
+        d['x'] = x;
+        d['y'] = y;
+        d['width'] = width;
+        d['height'] = height;
+        d['sourceX'] = sourceX;
+        d['sourceY'] = sourceY;
+        d['sourceWidth'] = sourceWidth;
+        d['sourceHeight'] = sourceHeight;
+        d['image'] = image;
+        return d;
+    }
+}

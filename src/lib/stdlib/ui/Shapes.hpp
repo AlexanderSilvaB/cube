@@ -108,4 +108,17 @@ class CircleShape : public EllipseShape
     void update(std::map<std::string, std::string> &values);
 };
 
+class ImageShape : public Shape
+{
+  public:
+    int x, y, w, h;
+    int sx, sy, sw, sh;
+    QImage image;
+
+    ImageShape();
+    ~ImageShape();
+    void draw(QPainter &painter);
+    void update(std::map<std::string, std::string> &values);
+};
+
 #endif

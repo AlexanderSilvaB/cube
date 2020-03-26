@@ -616,6 +616,8 @@ int WM::AddShape(int id, Dict &values)
         shape = new EllipseShape();
     else if (type == "circle")
         shape = new CircleShape();
+    else if (type == "image")
+        shape = new ImageShape();
     else
         return -1;
 

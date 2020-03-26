@@ -246,3 +246,53 @@ void CircleShape::update(map<string, string> &values)
     r = getInt(values, "radius", r);
     w = h = r;
 }
+
+ImageShape::ImageShape() : Shape()
+{
+    x = 0;
+    y = 0;
+    w = 100;
+    h = 100;
+    sx = 0;
+    sy = 0;
+    sw = -1;
+    sh = -1;
+}
+
+ImageShape::~ImageShape()
+{
+}
+
+void ImageShape::draw(QPainter &painter)
+{
+    if (image.isNull())
+        return;
+
+    Shape::draw(painter);
+
+    QRect target(x, y, w, h);
+    QRect source;
+    if (sx >= 0 && sy >= 0 && sw > 0 && sh > 0)
+        source = QRect(sx, sy, sw, sh);
+    else
+        source = image.rect();
+
+    painter.drawImage(target, image, source);
+}
+
+void ImageShape::update(map<string, string> &values)
+{
+    Shape::update(values);
+    x = getInt(values, "x", x);
+    y = getInt(values, "y", y);
+    w = getInt(values, "width", w);
+    h = getInt(values, "height", h);
+
+    sx = getInt(values, "sourceX", x);
+    sy = getInt(values, "sourceY", y);
+    sw = getInt(values, "sourceWidth", w);
+    sh = getInt(values, "sourceHeight", h);
+
+    QString image = QString::fromStdString(getString(values, "image", ""));
+    this->image = QImage(image);
+}
