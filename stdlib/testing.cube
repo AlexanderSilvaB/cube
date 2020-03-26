@@ -1,12 +1,13 @@
 import parser
 
 var test_start = clock()
+var test_memory = mem()
 
 func print()
 {
     for(var i in args)
     {
-        Test._out += i
+        Test._out += str(i)
         __std__.print(i)
     }
 }
@@ -15,7 +16,7 @@ func println()
 {
     for(var i in args)
     {
-        Test._out += i
+        Test._out += str(i)
         __std__.print(i)
     }
     Test._out += '\n'
@@ -28,26 +29,26 @@ class Test
 
     static func expect(out)
     {
-        Test.out = out
+        Test.out = str(out)
     }
 
-    static func test(expr, out)
+    static func test(expr, out, name)
     {
-        Test.exprs.add([expr, out])
+        Test.exprs.add([expr, out, name])
     }
 
-    static func check(arguments)
+    static func run(arguments)
     {
-        var run = false
+        var execute = false
         if(arguments is list)
         {
             Test.p.parse(arguments)
-            run = Test.p['test']
+            execute = Test.p['test']
         }
         else if(arguments is null or arguments == true)
-            run = true
+            execute = true
             
-        if(run)
+        if(execute)
         {
             var success = 0
             var total = 0
@@ -63,26 +64,40 @@ class Test
                     __std__.println("Output: FAILED")
             }
 
-            var ret
+            var ret, ts, out, name
             for(var t, i in Test.exprs)
             {
                 total++
-                if(t[0] is func)
-                    ret = t[0]()
+
+                ts = t[0]
+                out = t[1]
+                name = t[2]
+
+                if(ts is func)
+                    ret = ts()
                 else
-                    ret = t[0]
+                    ret = ts
                 
-                if(ret == t[1])
+                if(ret == out)
                 {
                     success++
-                    __std__.println("Test ", i, ": PASS")
+                    if(name is null)
+                        __std__.println("Test ", i, ": PASS")
+                    else
+                        __std__.println("Test ", i, " [", name,"]: PASS")
                 }
                 else
-                    __std__.println("Test ", i, ": FAILED")
+                {
+                    if(name is null)
+                        __std__.println("Test ", i, ": FAILED")
+                    else
+                        __std__.println("Test ", i, " [", name,"]: FAILED")
+                }
             }
 
             __std__.println("--------------------");
             __std__.println("Total time: ", (clock() - test_start), "s")
+            __std__.println("Total memory: ", (mem() - test_memory), " bytes")
             __std__.println("Coverage: ", (success / total) * 100, "%")
         }
     }

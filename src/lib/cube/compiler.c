@@ -3163,6 +3163,8 @@ ObjFunction *eval(const char *source)
 
 void markCompilerRoots()
 {
+    if (gbcpl == NULL)
+        return;
     Compiler *compiler = gbcpl->current;
     while (compiler != NULL)
     {
