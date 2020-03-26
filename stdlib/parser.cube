@@ -13,6 +13,11 @@ class Parser
         this.version = version;
     }
 
+    func [](key)
+    {
+        return this.args[key]
+    }
+
     func add(name, letter, type, descr)
     {
         this.rules.add(args);
@@ -125,8 +130,8 @@ class Parser
             print('[--', rule[0],']');
             if(rule[1] is not null)
                 print('[-', rule[1],']');
-            if(rule[3] is not null)
-                println(' ',rule[4]);
+            if(rule[2] is not null)
+                println(' ',rule[3]);
         }
     }
 

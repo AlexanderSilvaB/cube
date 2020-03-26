@@ -5,14 +5,16 @@ var c = "ABC";
 var d = 'ABC';
 var e = 'This is a string with "double" quotes';
 var f = "This is a string with 'single' quotes";
-var g = true;
-var h = null;
-var i = @(x) {return x + 5;};
-var j = i(9);
-var k = [1, 2, 3, 4, 5];
-//var l = k[0, 3:end];
-var m = 0..2..20;
-var n = 
+var g = 'This is a parsed string where a = ${a} and d = ${d}'
+var h = true;
+var i = null;
+var j = @(x) {return x + 5;};
+var k = @(x) => x + 5;
+var l = j(9);
+var m = k(9);
+var n = [1, 2, 3, 4, 5];
+var o = 0..2..20;
+var p = 
 {
     'n1' : 1,
     'n2' : 3.5,
@@ -23,7 +25,7 @@ var n =
     }
 };
 
-class o
+class q
 {
     var name = 'Bob';
     func init(n)
@@ -31,8 +33,8 @@ class o
         this.name = n;
     }
 }
-var p = o('Mike');
-println(p.name);
+var r = q('Mike');
+println(r.name);
 
 println("Env: ");
 vars();

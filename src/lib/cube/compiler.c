@@ -1120,7 +1120,8 @@ static void or_(bool canAssign)
 static void string(bool canAssign)
 {
     int num_id = 0;
-    char *str = mp_malloc(sizeof(char) * gbcpl->parser.previous.length);
+    int slen = gbcpl->parser.previous.length;
+    char *str = mp_malloc(sizeof(char) * slen);
     int j = 0;
     for (int i = 1; i < gbcpl->parser.previous.length - 1; i++)
     {
@@ -1202,11 +1203,14 @@ static void string(bool canAssign)
             memcpy(id, &gbcpl->parser.previous.start[s], n);
             id[n] = '\0';
 
+            slen += 6;
+            str = mp_realloc(str, slen);
             j += sprintf(str + j, "__%d__}", num_id++);
 
             getVariable(syntheticToken(id));
 
             mp_free(id);
+            id = NULL;
         }
         else
             str[j++] = gbcpl->parser.previous.start[i];

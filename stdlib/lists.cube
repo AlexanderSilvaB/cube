@@ -1,0 +1,57 @@
+func list.unique()
+{
+    var _unique = []
+    for(var i in this)
+    {
+        if(!(i in _unique))
+            _unique.add(i)
+    }
+    return _unique
+}
+
+func list.removeIf(fn)
+{
+    var _toremove = []
+    for(var i in this)
+    {
+        if(fn(i))
+            _toremove.add(i)
+    }
+
+    for(var i in _toremove)
+    {
+        this.remove(i)
+    }
+
+    return _toremove
+}
+
+func list.max()
+{
+    if(len(this) == 0)
+        return null
+    
+    var m = this[0]
+    for(var i in this)
+    {
+        if(i > m)
+            m = i
+    }
+
+    return m
+}
+
+func list.min()
+{
+    if(len(this) == 0)
+        return null
+    
+    var m = this[0]
+    for(var i in this)
+    {
+        if(i < m)
+            m = i
+    }
+
+    return m
+}

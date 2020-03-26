@@ -397,6 +397,40 @@ ObjList *copyList(ObjList *oldList, bool shallow)
     return newList;
 }
 
+static bool swapAllListItems(int argCount)
+{
+    if (argCount != 2)
+    {
+        runtimeError("swapAll() takes 3 arguments (%d given)", argCount);
+        return false;
+    }
+
+    if (!IS_LIST(peek(0)))
+    {
+        runtimeError("swapAll() arguments must be another list");
+        return false;
+    }
+
+    ObjList *list1 = AS_LIST(pop());
+    ObjList *list2 = AS_LIST(pop());
+
+    ObjList *copy1 = copyList(list1, false);
+    ObjList *copy2 = copyList(list2, false);
+
+    list1->values.count = 0;
+    list2->values.count = 0;
+
+    int n = 0;
+    for (int i = 0; i < copy1->values.count; i++, n++)
+        writeValueArray(&list2->values, copy1->values.values[i]);
+
+    for (int i = 0; i < copy2->values.count; i++, n--)
+        writeValueArray(&list1->values, copy2->values.values[i]);
+
+    push(NUMBER_VAL(n));
+    return true;
+}
+
 static bool copyListShallow(int argCount)
 {
     if (argCount != 1)
@@ -506,6 +540,8 @@ bool listMethods(char *method, int argCount)
         return joinList(argCount);
     else if (strcmp(method, "swap") == 0)
         return swapListItems(argCount);
+    else if (strcmp(method, "swapAll") == 0)
+        return swapAllListItems(argCount);
 
     runtimeError("List has no method %s()", method);
     return false;

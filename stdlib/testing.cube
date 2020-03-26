@@ -1,0 +1,96 @@
+import parser
+
+var test_start = clock()
+
+func print()
+{
+    for(var i in args)
+    {
+        Test._out += i
+        __std__.print(i)
+    }
+}
+
+func println()
+{
+    for(var i in args)
+    {
+        Test._out += i
+        __std__.print(i)
+    }
+    Test._out += '\n'
+    __std__.println()
+}
+
+class Test
+{
+    static var p, out, _out, exprs
+
+    static func expect(out)
+    {
+        Test.out = out
+    }
+
+    static func test(expr, out)
+    {
+        Test.exprs.add([expr, out])
+    }
+
+    static func check(arguments)
+    {
+        var run = false
+        if(arguments is list)
+        {
+            Test.p.parse(arguments)
+            run = Test.p['test']
+        }
+        else if(arguments is null or arguments == true)
+            run = true
+            
+        if(run)
+        {
+            var success = 0
+            var total = 0
+            if(Test.out is not null)
+            {
+                total++
+                if(Test.out == Test._out or (len(Test._out) > 0 and Test.out == Test._out.substr(0, len(Test._out)-1)))
+                {
+                    success++
+                    __std__.println("Output: PASS")
+                }
+                else
+                    __std__.println("Output: FAILED")
+            }
+
+            var ret
+            for(var t, i in Test.exprs)
+            {
+                total++
+                if(t[0] is func)
+                    ret = t[0]()
+                else
+                    ret = t[0]
+                
+                if(ret == t[1])
+                {
+                    success++
+                    __std__.println("Test ", i, ": PASS")
+                }
+                else
+                    __std__.println("Test ", i, ": FAILED")
+            }
+
+            __std__.println("--------------------");
+            __std__.println("Total time: ", (clock() - test_start), "s")
+            __std__.println("Coverage: ", (success / total) * 100, "%")
+        }
+    }
+}
+
+Test.p = parser.Parser("Unit testing", "Unit testing", 0.1)
+Test.p.add('test', 't', null, 0)
+
+Test.out = null
+Test._out = ''
+Test.exprs = []
