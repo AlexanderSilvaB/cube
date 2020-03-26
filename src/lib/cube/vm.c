@@ -511,7 +511,7 @@ static bool call(ObjClosure *closure, int argCount, ObjInstance *instance, ObjCl
     frame->closure = closure;
     frame->ip = closure->function->chunk.code;
     frame->type = CALL_FRAME_TYPE_FUNCTION;
-    frame->package = threadFrame->frame ? threadFrame->frame->package : NULL;
+    frame->package = closure->package ? closure->package : (threadFrame->frame ? threadFrame->frame->package : NULL);
     frame->nextPackage = NULL;
     frame->require = false;
     frame->instance = instance;
@@ -3814,6 +3814,7 @@ InterpretResult run()
             case OP_CLOSURE: {
                 ObjFunction *function = AS_FUNCTION(READ_CONSTANT());
                 ObjClosure *closure = newClosure(function);
+                closure->package = frame->package;
                 push(OBJ_VAL(closure));
                 for (int i = 0; i < closure->upvalueCount; i++)
                 {

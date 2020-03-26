@@ -55,3 +55,14 @@ func list.min()
 
     return m
 }
+
+func list.each(fn)
+{
+    if(fn is not func)
+        throw('Each parameter must be a func')
+        
+    for(var i in this)
+    {
+        fn(i)
+    }
+}

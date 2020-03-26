@@ -186,14 +186,6 @@ typedef struct sUpvalue
     struct sUpvalue *next;
 } ObjUpvalue;
 
-typedef struct
-{
-    Obj obj;
-    ObjFunction *function;
-    ObjUpvalue **upvalues;
-    int upvalueCount;
-} ObjClosure;
-
 typedef struct sObjPackage
 {
     Obj obj;
@@ -201,6 +193,15 @@ typedef struct sObjPackage
     Table symbols;
     struct sObjPackage *parent;
 } ObjPackage;
+
+typedef struct
+{
+    Obj obj;
+    ObjFunction *function;
+    ObjUpvalue **upvalues;
+    int upvalueCount;
+    ObjPackage *package;
+} ObjClosure;
 
 typedef struct sObjClass
 {

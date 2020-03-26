@@ -210,6 +210,7 @@ void mark_object(Obj *object)
         case OBJ_CLOSURE: {
             ObjClosure *closure = (ObjClosure *)object;
             mark_object((Obj *)closure->function);
+            mark_object((Obj *)closure->package);
             for (int i = 0; i < closure->upvalueCount; i++)
             {
                 mark_object((Obj *)closure->upvalues[i]);

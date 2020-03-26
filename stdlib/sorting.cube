@@ -50,3 +50,10 @@ func reverse(data)
     }
     return ndata
 }
+
+func list.sort()
+{
+    var nlist = qsort(this)
+    this.swapAll(nlist)
+    return nlist
+}

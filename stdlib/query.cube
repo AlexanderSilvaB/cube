@@ -1,5 +1,5 @@
 import sorting
-import each as default
+import lists as default
 
 class Query
 {
