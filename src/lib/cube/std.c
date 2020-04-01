@@ -16,6 +16,7 @@
 
 #include <errno.h>
 
+#include "ansi_escapes.h"
 #include "compiler.h"
 #include "files.h"
 #include "gc.h"
@@ -1792,7 +1793,7 @@ Value readNative(int argCount, Value *args)
 #else
             if (process->in == _fileno(stdin))
 #endif
-            
+
                 break;
             rc = readFd(process->in, rd, buf);
         }
@@ -1930,7 +1931,7 @@ Value writeNative(int argCount, Value *args)
 #else
                 if (process->out == _fileno(stdout))
 #endif
-                
+
                     vm.newLine = str->chars[str->length - 1] != '\n';
             }
 
@@ -2225,6 +2226,42 @@ static Value assertNative(int argCount, Value *args)
     return BOOL_VAL(valid);
 }
 
+Value clearNative(int argCount, Value *args)
+{
+    clearScreen();
+    return NULL_VAL;
+}
+
+Value clearbNative(int argCount, Value *args)
+{
+    clearScreenToBottom();
+    return NULL_VAL;
+}
+
+Value cleartNative(int argCount, Value *args)
+{
+    clearScreenToTop();
+    return NULL_VAL;
+}
+
+Value clearlNative(int argCount, Value *args)
+{
+    clearLine();
+    return NULL_VAL;
+}
+
+Value clearlrNative(int argCount, Value *args)
+{
+    clearLineToRight();
+    return NULL_VAL;
+}
+
+Value clearllNative(int argCount, Value *args)
+{
+    clearLineToLeft();
+    return NULL_VAL;
+}
+
 // Register
 linked_list *stdFnList;
 #define ADD_STD(name, fn) linked_list_add(stdFnList, createStdFn(name, fn))
@@ -2315,6 +2352,12 @@ void initStd()
     ADD_STD("getFields", getFieldsNative);
     ADD_STD("skipWaitingTasks", skipWaitingTasksNative);
     ADD_STD("assert", assertNative);
+    ADD_STD("clear", clearNative);
+    ADD_STD("clearb", clearbNative);
+    ADD_STD("cleart", cleartNative);
+    ADD_STD("clearl", clearlNative);
+    ADD_STD("clearlr", clearlrNative);
+    ADD_STD("clearll", clearllNative);
 }
 
 void destroyStd()

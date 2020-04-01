@@ -1,14 +1,12 @@
-func A()
+func A(s)
 {
-    for(var i = 200; i < 300; ++i)
+    for(var i = 0; i < 100; ++i)
     {
-        println(i)
+        print(s)
     }
 }
 
-async A();
-
-for(var i = 0; i < 100; ++i)
-{
-    println(i)
-}
+async A('*')
+async A('$')
+async A('@')
+A('.')

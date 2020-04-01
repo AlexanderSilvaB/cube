@@ -1,0 +1,229 @@
+import scanner as default
+import paths as default
+
+class LibCreator
+{
+    var scanner, hFile, code
+
+    func init(hFile)
+    {
+        var file = open(hFile, 'r')
+        if(file is null)
+            throw('Invalid file')
+        
+        var text = file.read()
+        file.close()
+
+        this.hFile = hFile
+        scanner = Scanner(text)
+    }
+
+    func generate()
+    {
+        var code = '#include <cube/cubeext.h>\n#include "${hFile}"\n\n'
+        var fnCode = ''
+        var arg
+
+        var fn = this.__readFunc()
+        while(fn is not null)
+        {
+            if(fn[0] == 'void')
+                fnCode = 'EXPORTED void cube_' + fn[1] + '('
+            else
+                fnCode = 'EXPORTED cube_native_var* cube_' + fn[1] + '('
+            for(var i = 0; i < len(fn[2]); i++)
+            {
+                arg = fn[2][i]
+                fnCode += 'cube_native_var* _' + arg[1]
+                if(i < len(fn[2]) - 1)
+                    fnCode += ', '
+            }
+            fnCode += ')\n{\n'
+
+            if(fn[0] != 'void')
+                fnCode += '\tcube_native_var *result = NATIVE_NULL();\n'
+
+            for(var i = 0; i < len(fn[2]); i++)
+            {
+                arg = fn[2][i]
+                fnCode += '\t' + arg[0] + ' ' + arg[1] + ' = '
+                if(arg[0] == 'bool')
+                    fnCode += 'AS_NATIVE_BOOL(_' + arg[1] + ');\n'
+                else if(this.__isNumberType(arg[0]))
+                    fnCode += 'AS_NATIVE_NUMBER(_' + arg[1] + ');\n'
+                else 
+                    fnCode += 'AS_NATIVE_STRING(_' + arg[1] + ');\n'
+            }
+
+            if(fn[0] != 'void')
+            {
+                fnCode += '\n\t' + fn[0] + ' res = '
+            }
+            else
+                fnCode += '\t'
+            
+            fnCode += fn[1] + '('
+            for(var i = 0; i < len(fn[2]); i++)
+            {
+                arg = fn[2][i]
+                fnCode += arg[1]
+                if(i < len(fn[2]) - 1)
+                    fnCode += ', '
+            }
+            fnCode += ');\n'
+
+            if(fn[0] != 'void')
+            {
+                if(arg[0] == 'bool')
+                    fnCode += '\n\tTO_NATIVE_BOOL(result, res);\n'
+                else if(this.__isNumberType(arg[0]))
+                    fnCode += '\n\tTO_NATIVE_NUMBER(result, res);\n'
+                else 
+                    fnCode += '\n\tTO_NATIVE_STRING(result, res);\n'
+            }
+
+
+
+            if(fn[0] != 'void')
+                fnCode += '\n\treturn result;\n'
+
+            fnCode += '}\n\n'
+
+            code += fnCode
+
+            fn = this.__readFunc()
+        }
+
+        this.code = code
+        return code
+    }
+
+    func save(path)
+    {
+        if(path is null)
+        {
+            path = hFile
+            path = changeExtension(path, 'cube.c')
+        }
+        
+        var file = open(path, 'w')
+        if(file is null)
+            return false
+        
+        file.write(code)
+        file.close()
+
+        return true
+    }
+
+    func __readFunc()
+    {
+        var token, line
+
+        var fnType, fnName, fnArgs
+        var fnArg
+
+        while(not this.scanner.eof())
+        {
+            token = this.scanner.next()
+            if(token == null)
+                continue
+
+            if(line is not null)
+            {
+                if(line == token.line)
+                    continue
+                else
+                    line = null
+            }
+            
+            if(token.type == TokenType.SYM and token.value == '#')
+            {
+                line = token.line
+                continue
+            }
+
+            if(token.type == TokenType.ID and fnType == null)
+            {
+                if(this.__isValidType(token.value))
+                {
+                    fnType = token.value
+                    continue
+                }
+            }
+            else if(token.type == TokenType.ID and fnName == null)
+            {
+                fnName = token.value
+                continue
+            }
+            else if(token.type == TokenType.SYM and token.value == '(')
+            {
+                fnArgs = []
+                fnArg = []
+                continue
+            }
+            else if(token.type == TokenType.ID and fnArg is list and len(fnArg) < 2)
+            {
+                if(len(fnArg) == 0 and this.__isValidType(token.value))
+                {
+                    fnArg.add(token.value)
+                    continue
+                }
+                else
+                {
+                    fnArg.add(token.value)
+                    continue
+                }
+            }
+            else if(token.type == TokenType.SYM and token.value == ',' and fnArg is list and len(fnArg) == 2)
+            {
+                fnArgs.add(fnArg)
+                fnArg = []
+                continue
+            }
+            else if(token.type == TokenType.SYM and token.value == ')' and fnArgs is list)
+            {
+                if(len(fnArg) == 2)
+                {
+                    fnArgs.add(fnArg)
+                    fnArg = []
+                }
+                continue
+            }
+            else if(token.type == TokenType.SYM and token.value == ';' and fnArgs is list)
+            {
+                return [fnType, fnName, fnArgs]
+                fnType = null
+                fnName = null
+                fnArgs = null
+                fnArg = null
+                continue
+            }
+        
+            println('Invalid token')
+            println(token.str())
+            return null
+        }
+
+        return null
+    }
+
+    func __isValidType(value)
+    {
+        return (value == 'void' or
+            value == 'int' or
+            value == 'float' or
+            value == 'double' or
+            value == 'char*')
+    }
+
+    func __isNumberType(value)
+    {
+        return (value == 'void' or
+            value == 'bool' or
+            value == 'int' or
+            value == 'float' or
+            value == 'double' or
+            value == 'char*')
+    }
+}

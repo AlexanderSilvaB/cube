@@ -47,3 +47,10 @@ func expand(p)
 
     return p.replace('~', home);
 }
+
+func changeExtension(path, ext)
+{
+    var e = extension(path)
+    var npath = path.replace('.'+e, '.'+ext)
+    return npath
+}

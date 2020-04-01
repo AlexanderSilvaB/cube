@@ -25,5 +25,11 @@ enum Colors
 
 void setupConsole(void);
 void restoreConsole(void);
+void clearScreen(void);
+void clearScreenToBottom(void);
+void clearScreenToTop(void);
+void clearLine(void);
+void clearLineToRight(void);
+void clearLineToLeft(void);
 
 #endif

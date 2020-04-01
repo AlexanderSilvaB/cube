@@ -1,0 +1,122 @@
+import ui as default;
+
+
+UI.start();
+
+var W = 500
+var H = 500
+var window = Window("Conway's Game of Life", W, H)
+
+var w = 10, h = 10
+var sx = W / w, sy = H / h
+var sz = sx * sy
+var map = [0] * sz
+
+func createTileMap()
+{
+    for (var y = 0; y < sy; ++y)
+    {
+        for(var x = 0; x < sx; ++x)
+        {
+            window.draw(Rect(x * w, y * h, w, h))
+        }
+    }
+}
+
+func createExploder()
+{
+    var minX = int(sx/2) - int(5 / 2)
+    var minY = int(sy/2) - int(5 / 2)
+    var maxX = minX + 4
+    var maxY = minY + 4
+    
+    for(var i = minY; i <= maxY; ++i)
+    {
+        for(var j = minX; j <= maxX; ++j)
+        {
+            if(j == minX or j == maxX)
+            {
+                var index = i * sx + j
+                map[index] = 1
+            }
+        }
+    }
+
+    map[minY*w + minX + 2] = 1
+    map[maxY*w + minX + 2] = 1
+}
+
+func neigh(map, x, y)
+{
+    var n = 0
+    var mx = x-1
+    var Mx = x+1
+    var my = y-1
+    var My = y+1
+
+    for(var i = my; i <= My; ++i)
+    {
+        if(i >= 0 and i < sy)
+        {
+            for(var j = mx; j <= Mx; ++j)
+            {
+                if(j >= 0 and j < sx)
+                {
+                    if(i != y or j != x)
+                    {
+                        if(map[i*sx + j] > 0)
+                        {
+                            n++
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return n
+}
+
+
+func updateMap()
+{
+    var nmap = copy(map)
+    var n, i, new;
+    for (var y = 0; y < sy; ++y)
+    {
+        for(var x = 0; x < sx; ++x)
+        {
+            n = neigh(nmap, x, y);
+            i = y*sx + x;
+            if(n < 2)
+            {
+                map[i] = 0
+            }
+            if(n > 3)
+            {
+                map[i] = 0
+            }            
+            if(n == 3)
+            {
+                map[i] = 1
+            }
+            if(map[i] > 0)
+                window.shapes[i].color = '#000'
+            else
+                window.shapes[i].color = '#FFF'
+            window.shapes[i].update()
+        }
+    }
+}
+
+println('Creating exploder...');
+createTileMap();
+createExploder();
+
+window.onUpdate(@(window, fps, dt, T)
+{
+    println('Update')
+    updateMap()
+})
+
+UI.forever()

@@ -1,0 +1,114 @@
+enum TokenType
+{
+    ID, NUM, SYM
+}
+
+class Token
+{
+    var type, value, line
+
+    func init(type, value, line)
+    {
+        this.type = type
+        this.value = value
+        this.line = line
+    }
+
+    func str()
+    {
+        return "${type} [${line}] (${value})"
+    }
+}
+
+class Scanner
+{
+    var text, current, line
+
+    func init(text)
+    {
+        this.text = text
+        this.current = text
+        this.line = 1
+    }
+
+    func reset()
+    {
+        current = text
+        line = 1
+    }
+
+    func eof()
+    {
+        return isempty(this.current)
+    }
+
+    func next()
+    {
+        var token, c;
+        this.__skipWhite()
+
+        if(len(current) == 0)
+            return null
+
+        c = current[0]
+
+        if(ischar(c))
+        {
+            token = Token(TokenType.ID, this.__readID(), line)
+        }
+        else if(isdigit(c))
+        {
+            token = Token(TokenType.NUM, this.__readNum(), line)
+        }
+        else
+        {
+            token = Token(TokenType.SYM, this.__readSymbol(), line)
+        }
+        return token
+    }
+
+    func __skipWhite()
+    {
+        var i = 0
+        while(i < len(current) and isspace(current[i]))
+        {
+            if(current[i] == '\n')
+                line++
+            i++
+        }
+        current = current.from(i)
+    }
+
+    func __readSymbol()
+    {
+        var s = current[0]
+        current = current.from(1)
+        return s
+    }
+
+    func __readID()
+    {
+        var id, i = 0
+        while(i < len(current) and (ischar(current[i]) or isdigit(current[i]) or current[i] == '_'))
+        {
+            i++
+        }
+
+        id = current.substr(0, i)
+        current = current.from(i)
+        return id
+    }
+
+    func __readNum()
+    {
+        var id, i = 0
+        while(i < len(current) and isdigit(current[i]))
+        {
+            i++
+        }
+
+        id = current.substr(0, i)
+        current = current.from(i)
+        return num(id)
+    }
+}

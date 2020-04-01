@@ -4,7 +4,7 @@ var h = int(input("Height: "));
 var ite = int(input("Iteractions: "));
 
 var sz = w*h;
-var map = make('list', sz, 0);
+var map = [0] * sz;
 
 
 func createExploder(map, w, h)
@@ -50,7 +50,7 @@ func neigh(map, x, y, w, h)
                     {
                         if(map[i*w + j] > 0)
                         {
-                            n = n + 1;
+                            n++;
                         }
                     }
                 }
@@ -64,11 +64,12 @@ func neigh(map, x, y, w, h)
 
 func update(map, w, h)
 {
+    var nmap = copy(map)
     for (var y = 0; y < h; ++y)
     {
         for(var x = 0; x < w; ++x)
         {
-            var n = neigh(map, x, y, w, h);
+            var n = neigh(nmap, x, y, w, h);
             var i = y*w + x;
             if(n < 2)
             {
@@ -106,11 +107,11 @@ println('Starting');
 
 println("P: 0");
 show(map, w, h);
-//for(p in 1:ite)
 
 for(var p = 1; p < ite; ++p)
 {
     update(map, w, h);
     println("P: ", p);
     show(map, w, h);
+    clear();
 }
