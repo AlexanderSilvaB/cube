@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "cubeext.h"
+#include "mempool.h"
 #include "native.h"
 #include "util.h"
 #include "vm.h"
@@ -19,6 +20,67 @@ typedef union {
     func_value f_value;
 } lib_func;
 
+typedef struct NativeLibPointer_st
+{
+    int counter;
+    char *path;
+    void *handler;
+    struct NativeLibPointer_st *next;
+} NativeLibPointer;
+
+static NativeLibPointer *libPointer = NULL;
+
+void *getNativeHandler(const char *path)
+{
+    NativeLibPointer *pt = libPointer;
+    while (pt != NULL)
+    {
+        if (strcmp(pt->path, path) == 0)
+        {
+            pt->counter++;
+            return pt->handler;
+        }
+        pt = pt->next;
+    }
+    return NULL;
+}
+
+NativeLibPointer *getNativePointer(void *handle)
+{
+    NativeLibPointer *pt = libPointer;
+    while (pt != NULL)
+    {
+        if (pt->handler == handle)
+        {
+            return pt;
+        }
+        pt = pt->next;
+    }
+    return NULL;
+}
+
+void deleteNativePointer(NativeLibPointer *rm)
+{
+    NativeLibPointer *parent = NULL;
+    NativeLibPointer *pt = libPointer;
+    while (pt != NULL)
+    {
+        if (pt == rm)
+        {
+            if (parent == NULL)
+                libPointer = pt->next;
+            else
+                parent->next = pt->next;
+
+            mp_free(pt->path);
+            mp_free(pt);
+            break;
+        }
+        parent = pt;
+        pt = pt->next;
+    }
+}
+
 bool openNativeLib(ObjNativeLib *lib)
 {
     if (lib->handle == NULL)
@@ -30,32 +92,46 @@ bool openNativeLib(ObjNativeLib *lib)
             return false;
         }
 
-#ifdef _WIN32
-        lib->handle = LoadLibrary(TEXT(path));
-#else
-        // lib->handle = dlopen(path, RTLD_NOW | RTLD_GLOBAL);
-        lib->handle = dlopen(path, RTLD_LAZY);
-#endif
+        lib->handle = getNativeHandler(path);
 
         if (lib->handle == NULL)
         {
 #ifdef _WIN32
-            runtimeError("Unable to open native lib: '%s'\nError: #%ld", lib->name->chars, GetLastError());
+            lib->handle = LoadLibrary(TEXT(path));
 #else
-            runtimeError("Unable to open native lib: '%s'\nError: %s", lib->name->chars, dlerror());
+            // lib->handle = dlopen(path, RTLD_NOW | RTLD_GLOBAL);
+            lib->handle = dlopen(path, RTLD_LAZY);
 #endif
-            return false;
-        }
 
-        lib_func fn;
+            if (lib->handle == NULL)
+            {
 #ifdef _WIN32
-        fn.f_void = (func_void)GetProcAddress(lib->handle, "cube_init");
+                runtimeError("Unable to open native lib: '%s'\nError: #%ld", lib->name->chars, GetLastError());
 #else
-        fn.f_void = (func_void)dlsym(lib->handle, "cube_init");
+                runtimeError("Unable to open native lib: '%s'\nError: %s", lib->name->chars, dlerror());
+#endif
+                return false;
+            }
+
+            NativeLibPointer *pt = (NativeLibPointer *)mp_malloc(sizeof(NativeLibPointer));
+            pt->counter = 1;
+            pt->next = libPointer;
+            pt->handler = lib->handle;
+            pt->path = (char *)mp_malloc(sizeof(char) * (strlen(path) + 1));
+            strcpy(pt->path, path);
+
+            libPointer = pt;
+
+            lib_func fn;
+#ifdef _WIN32
+            fn.f_void = (func_void)GetProcAddress(lib->handle, "cube_init");
+#else
+            fn.f_void = (func_void)dlsym(lib->handle, "cube_init");
 #endif
 
-        if (fn.f_void != NULL)
-            fn.f_void();
+            if (fn.f_void != NULL)
+                fn.f_void();
+        }
     }
     return true;
 }
@@ -64,6 +140,19 @@ void closeNativeLib(ObjNativeLib *lib)
 {
     if (lib->handle != NULL)
     {
+        NativeLibPointer *pt = getNativePointer(lib->handle);
+        if (pt != NULL)
+        {
+            pt->counter--;
+            if (pt->counter > 0)
+            {
+                lib->handle = NULL;
+                return;
+            }
+            else
+                deleteNativePointer(pt);
+        }
+
         lib_func fn;
 #ifdef _WIN32
         fn.f_void = (func_void)GetProcAddress(lib->handle, "cube_release");

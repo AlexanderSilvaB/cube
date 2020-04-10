@@ -1,0 +1,12 @@
+native libs/libgame
+{
+    bool valid();
+    num width();
+    num height();
+    void delay(num);
+}
+
+include game/image
+include game/display
+include game/events
+include game/shapes

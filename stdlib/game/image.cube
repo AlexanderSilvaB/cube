@@ -1,0 +1,4 @@
+native libs/libgame
+{
+    num load(str);
+}

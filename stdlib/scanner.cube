@@ -45,7 +45,7 @@ class Scanner
     func next()
     {
         var token, c;
-        this.__skipWhite()
+        this.skipWhite()
 
         if(len(current) == 0)
             return null
@@ -54,20 +54,20 @@ class Scanner
 
         if(ischar(c))
         {
-            token = Token(TokenType.ID, this.__readID(), line)
+            token = Token(TokenType.ID, this.readID(), line)
         }
         else if(isdigit(c))
         {
-            token = Token(TokenType.NUM, this.__readNum(), line)
+            token = Token(TokenType.NUM, this.readNum(), line)
         }
         else
         {
-            token = Token(TokenType.SYM, this.__readSymbol(), line)
+            token = Token(TokenType.SYM, this.readSymbol(), line)
         }
         return token
     }
 
-    func __skipWhite()
+    func skipWhite()
     {
         var i = 0
         while(i < len(current) and isspace(current[i]))
@@ -79,14 +79,14 @@ class Scanner
         current = current.from(i)
     }
 
-    func __readSymbol()
+    func readSymbol()
     {
         var s = current[0]
         current = current.from(1)
         return s
     }
 
-    func __readID()
+    func readID()
     {
         var id, i = 0
         while(i < len(current) and (ischar(current[i]) or isdigit(current[i]) or current[i] == '_'))
@@ -99,7 +99,7 @@ class Scanner
         return id
     }
 
-    func __readNum()
+    func readNum()
     {
         var id, i = 0
         while(i < len(current) and isdigit(current[i]))

@@ -57,6 +57,20 @@ void *threadFn(void *data);
                 push(valueType(a op b));                                                                               \
                 break;                                                                                                 \
             }                                                                                                          \
+            else if (IS_ENUM_VALUE(peek(0)) && IS_NUMBER(peek(1)) && IS_NUMBER(AS_ENUM_VALUE(peek(0))->value))         \
+            {                                                                                                          \
+                double b = AS_NUMBER(AS_ENUM_VALUE(pop())->value);                                                     \
+                double a = AS_NUMBER(pop());                                                                           \
+                push(valueType(a op b));                                                                               \
+                break;                                                                                                 \
+            }                                                                                                          \
+            else if (IS_ENUM_VALUE(peek(1)) && IS_NUMBER(peek(0)) && IS_NUMBER(AS_ENUM_VALUE(peek(1))->value))         \
+            {                                                                                                          \
+                double b = AS_NUMBER(pop());                                                                           \
+                double a = AS_NUMBER(AS_ENUM_VALUE(pop())->value);                                                     \
+                push(valueType(a op b));                                                                               \
+                break;                                                                                                 \
+            }                                                                                                          \
             runtimeError("Operands must be numbers or strings.");                                                      \
             if (!checkTry(frame))                                                                                      \
                 return INTERPRET_RUNTIME_ERROR;                                                                        \
