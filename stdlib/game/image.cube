@@ -1,4 +1,83 @@
 native libs/libgame
 {
     num load(str);
+    num loadRaw(str);
+    num loadColorKey(str, list);
+    void sprite(num, num, num);
+    void next(num);
+    void previous(num);
+    void index(num, num);
+    void tile(num, num, num);
+}
+
+class Scroll
+{
+    var img, vertical, pos, x, y, w, h, s
+    func init(img, vertical)
+    {
+        if(img is str)
+            img = load(img)
+            
+        this.img = img
+        if(vertical is bool)
+            this.vertical = vertical
+        else
+            this.vertical = false
+
+        var rect = game.display.rect(img)
+        pos = 0
+        x = rect[0]
+        y = rect[1]
+        w = rect[2]
+        h = rect[3]
+
+        var sz = game.display.dims(img)
+        if(this.vertical)
+            s = sz[1] / h
+        else
+            s = sz[0] / w
+    }
+
+    func reset()
+    {
+        pos = 0
+    }
+
+    func draw(v)
+    {
+        if(v is not num)
+            v = 0
+
+        var D = w
+        if(vertical)
+            D = h
+
+        pos += v
+        if(pos < 0)
+            pos = D
+        else if(pos > D)
+            pos = 0
+
+        if(vertical)
+        {
+            game.display.view(img, 0, s * pos, -1, -1)
+            game.display.set(img, x, y, w, h - pos)
+            game.display.draw(img)
+
+            game.display.view(img, 0, 0, -1, s * pos)
+            game.display.set(img, x, y + h - pos, w, pos)
+            game.display.draw(img)
+        }
+        else
+        {
+            game.display.view(img, s * pos, 0, -1, -1)
+            game.display.set(img, x, y, w - pos, h)
+            game.display.draw(img)
+
+            game.display.view(img, 0, 0, s * pos, -1)
+            game.display.set(img, x + w - pos, y, pos, h)
+            game.display.draw(img)
+        }
+    }   
+
 }

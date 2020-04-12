@@ -1,0 +1,49 @@
+class Move
+{
+    var obj, vx, vy, fx, fy
+    func init(obj)
+    {
+        this.obj = obj
+        vx = 0
+        vy = 0
+        fx = 0
+        fy = 0
+    }
+
+    func gravity(g)
+    {
+        if(g is not num)
+            g = 9.8
+        fy = g
+    }
+
+    func reset()
+    {
+        vx = 0
+        vy = 0
+        fx = 0
+        fy = 0
+    }
+
+    func addForce(fx, fy)
+    {
+        if(fx is not num)
+            fx = 0
+        if(fy is not num)
+            fy = 0
+        
+        this.fx += fx
+        this.fy += fy
+    }
+
+    func update(dt)
+    {
+        this.vx += this.fx * dt
+        this.vy += this.fy * dt
+        
+        if(obj is num)
+            game.display.translate(obj, this.vx * dt, this.vy * dt)
+        else
+            obj.translate(this.vx * dt, this.vy * dt)
+    }
+}

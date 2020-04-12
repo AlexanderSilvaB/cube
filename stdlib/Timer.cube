@@ -1,0 +1,50 @@
+class Timer
+{
+    var ms, start, time, delta
+
+    func init(ms)
+    {
+        this.ms = ms
+        this.start = clock()
+        this.time = 0
+        this.delta = 0
+    }
+
+    func wait()
+    {
+        var s = clock()
+        var elapsed = ( clock() - start )
+        var remaining = ms - elapsed * 1000
+        if(remaining > 0)
+            wait(remaining)
+        start = clock()
+        delta = start - s + elapsed
+        time += delta
+    }
+}
+
+class FPS
+{
+    var fps, ms, start, time, delta
+
+    func init(fps)
+    {
+        this.fps = fps
+        this.ms = 1000 / fps
+        this.start = clock()
+        this.time = 0
+        this.delta = 0
+    }
+
+    func wait()
+    {
+        var s = clock()
+        var elapsed = ( clock() - start )
+        var remaining = ms - elapsed * 1000
+        if(remaining > 0)
+            wait(remaining)
+        start = clock()
+        delta = start - s + elapsed
+        time += delta
+    }
+}

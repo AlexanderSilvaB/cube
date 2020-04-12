@@ -1,0 +1,63 @@
+import game
+import player as default
+
+
+// Setup
+game.display.title('Flappy Bird')
+game.display.size(288, 512)
+
+// Load objects
+var player = Player('samples/flappy_bird/assets/sprites_bmp/')
+var bg = game.image.Scroll(game.image.loadRaw('samples/flappy_bird/assets/sprites_bmp/background-day.bmp'))
+
+var base = game.image.loadRaw('samples/flappy_bird/assets/sprites_bmp/base.bmp')
+game.display.bottom(base)
+base = game.image.Scroll(base)
+
+// Control variables
+var quit = false
+var v = 200
+var jump = false
+
+// Timer
+var fps = game.FPS(30)
+
+// Game loop
+while(!quit)
+{
+    // Events handler
+    for(var e in game.events.get())
+    {
+        if(e.type == game.events.types.QUIT)
+        {
+            quit = true
+        }
+        else if(e.type == game.events.types.KEYDOWN)
+        {
+            if(e.scancode == 44)
+            {
+                jump = true
+            }
+        }
+    }
+
+    // Game logic
+    if(jump)
+        player.jump()
+    jump = false
+    player.update(fps.delta)
+    if(player.y > 400)
+        player.reset()
+
+    v *= 1.001
+
+    // Drawing
+    game.display.clear()
+    bg.draw(v * fps.delta)
+    base.draw(v * fps.delta)
+    player.draw()
+
+    // Finish frame
+    game.display.update()
+    fps.wait()
+}

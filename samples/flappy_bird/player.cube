@@ -1,0 +1,72 @@
+class Player
+{
+    var index, images
+    var phy
+    var x, y
+
+    func init(path)
+    {
+        index = 1
+        images = []
+        images.add(game.image.load(path+'bluebird-downflap.bmp'))
+        images.add(game.image.load(path+'bluebird-midflap.bmp'))
+        images.add(game.image.load(path+'bluebird-upflap.bmp'))
+
+        phy = game.physics.Move(this)
+
+        this.reset()
+    }
+
+    func reset()
+    {
+        var a = 10
+        for(var i in images)
+        {
+            game.display.center(i)
+            game.display.translate(i, -50, 0)
+            game.display.rotateTo(i, a)
+            a -= 10
+        }
+        
+        phy.reset()
+        phy.gravity(300)
+    }
+
+    func jump()
+    {
+        index = 2
+        phy.vy = -300
+    }
+
+    func update(dt)
+    {
+        phy.update(dt)
+        if(phy.vy < -30)
+            index = 2
+        else if(phy.vy > 30)
+            index = 0
+        else
+            index = 1
+        
+        var rect = game.display.rect(images[index])
+        x = rect[0]
+        y = rect[1]
+    }
+
+    func translate(dx, dy)
+    {
+        for(var i in images)
+        {
+            game.display.translate(i, dx, dy)
+        }
+    }
+
+    func draw()
+    {
+        if(index < 0 or index >= len(images))
+            return;
+
+        var img = images[index]
+        game.display.draw(img)
+    }
+}

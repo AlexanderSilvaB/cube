@@ -4,14 +4,31 @@ native libs/libgame
     void size(num, num);
     void rgb(num, num, num);
     void rgba(num, num, num, num);
-    void alpha(num, num);
     bool full(bool);
     void update();
     void clear();
+
+    num group();
+    void add(num, num);
+
+    void view(num, num, num, num, num);
+    void set(num, num, num, num, num);
+    list rect(num);
+    list dims(num);
+
+    void alpha(num, num);
+    num copy(num);
+    void center(num);
+    void top(num);
+    void bottom(num);
+    void left(num);
+    void right(num);
     void translate(num, num, num);
     void move(num, num, num);
     void rotate(num, num);
-    void rotation(num, num);
+    void rotateTo(num, num);
+    void scale(num, num);
+    void scaleTo(num, num);
     void flip(num, bool, bool);
     void draw(num);
 }

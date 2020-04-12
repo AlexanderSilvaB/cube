@@ -1,5 +1,5 @@
 native libs/libgame
 {
-    num rect(num, num, num, num);
-    num fill(num, num, num, num);
+    num border(num, num);
+    num fill(num, num);
 }

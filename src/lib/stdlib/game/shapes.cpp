@@ -7,20 +7,24 @@ using namespace std;
 
 extern "C"
 {
-    EXPORTED cube_native_var *rect(cube_native_var *_x, cube_native_var *_y, cube_native_var *_w, cube_native_var *_h)
+    EXPORTED cube_native_var *border(cube_native_var *_w, cube_native_var *_h)
     {
-        int x = AS_NATIVE_NUMBER(_x);
-        int y = AS_NATIVE_NUMBER(_y);
         int w = AS_NATIVE_NUMBER(_w);
         int h = AS_NATIVE_NUMBER(_h);
 
         SurfaceContainer container;
         container.type = RECT;
-        container.dest = {x, y, w, h};
+        container.dest = {0, 0, w, h};
         container.surface = NULL;
         container.color.rgba = 0xFF000000;
         container.texture = NULL;
         container.angle = 0;
+        container.scale = 1.0f;
+        container.w = w;
+        container.h = h;
+        container.index = 0;
+        container.rows = 1;
+        container.cols = 1;
         container.flip = SDL_FLIP_NONE;
 
         surfaces[surfacesCount] = container;
@@ -30,20 +34,24 @@ extern "C"
         return res;
     }
 
-    EXPORTED cube_native_var *fill(cube_native_var *_x, cube_native_var *_y, cube_native_var *_w, cube_native_var *_h)
+    EXPORTED cube_native_var *fill(cube_native_var *_w, cube_native_var *_h)
     {
-        int x = AS_NATIVE_NUMBER(_x);
-        int y = AS_NATIVE_NUMBER(_y);
         int w = AS_NATIVE_NUMBER(_w);
         int h = AS_NATIVE_NUMBER(_h);
 
         SurfaceContainer container;
         container.type = RECT_FILL;
-        container.dest = {x, y, w, h};
+        container.dest = {0, 0, w, h};
         container.surface = NULL;
         container.color.rgba = 0xFF000000;
         container.texture = NULL;
         container.angle = 0;
+        container.w = w;
+        container.h = h;
+        container.index = 0;
+        container.rows = 1;
+        container.cols = 1;
+        container.scale = 1.0f;
         container.flip = SDL_FLIP_NONE;
 
         surfaces[surfacesCount] = container;
