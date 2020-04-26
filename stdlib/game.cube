@@ -6,7 +6,7 @@ native libs/libgame
     void delay(num);
 }
 
-include Timer as default
+include timers
 include game/image
 include game/display
 include game/events

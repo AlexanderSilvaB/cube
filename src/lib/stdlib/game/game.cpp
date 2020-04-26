@@ -26,9 +26,9 @@ bool createRenderer()
     // Initialize renderer color
     SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
 
-    // // Initialize PNG loading
-    // int imgFlags = IMG_INIT_PNG;
-    // if (!(IMG_Init(imgFlags) & imgFlags))
+    // // Initialize image loading
+    // int flags = IMG_INIT_PNG | IMG_INIT_JPEG;
+    // if (!(IMG_Init(flags) & flags))
     // {
     //     printf("SDL_image could not initialize! SDL_image Error: %s\n", IMG_GetError());
     // }

@@ -3,10 +3,12 @@ class Player
     var index, images
     var phy
     var x, y
+    var frames
 
     func init(path)
     {
-        index = 1
+        index = 0
+        frames = 0
         images = []
         images.add(game.image.load(path+'bluebird-downflap.bmp'))
         images.add(game.image.load(path+'bluebird-midflap.bmp'))
@@ -24,12 +26,10 @@ class Player
         {
             game.display.center(i)
             game.display.translate(i, -50, 0)
-            game.display.rotateTo(i, a)
-            a -= 10
         }
         
         phy.reset()
-        phy.gravity(300)
+        phy.gravity(500)
     }
 
     func jump()
@@ -41,12 +41,14 @@ class Player
     func update(dt)
     {
         phy.update(dt)
-        if(phy.vy < -30)
-            index = 2
-        else if(phy.vy > 30)
-            index = 0
-        else
-            index = 1
+        frames++
+        if(frames > 2)
+        {
+            frames = 0
+            index++
+            if(index > 2)
+                index = 0
+        }
         
         var rect = game.display.rect(images[index])
         x = rect[0]

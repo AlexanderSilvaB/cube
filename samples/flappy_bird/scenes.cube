@@ -1,0 +1,236 @@
+import player as default
+import score as default
+
+class Scene
+{
+    var next = null
+    var done = false
+    func init()
+    {
+        this.setup()
+    }
+
+    func reset()
+    {
+        this.done = false
+        this.setup()
+    }
+
+    func setup()
+    {
+        println('Setup!')
+    }
+
+    func update(ev, dt)
+    {
+        println('Update')
+    }
+
+    func draw(dt)
+    {
+        println('Draw')
+    }
+
+    func setNext(next)
+    {
+        this.next = next
+    }
+
+    func getNext()
+    {
+        return next
+    }
+}
+
+class StartScene : Scene
+{
+    var bg, msg, ready
+    func setup()
+    {
+        ready = null
+        bg = game.image.Scroll(game.image.loadRaw('samples/flappy_bird/assets/sprites/background-day.bmp'))
+        msg = game.image.load('samples/flappy_bird/assets/sprites/message.bmp')
+    }
+
+    func update(ev, dt)
+    {
+        for(var e in ev)
+        {
+            if(e.type == game.events.types.KEYUP and e.scancode != 27)
+            {
+                ready = 2
+            }
+            else if(e.type == game.events.types.MOUSEBUTTONUP or 
+                e.type == game.events.types.JOYBUTTONUP or
+                e.type == game.events.types.FINGERUP)
+            {
+                ready = 2
+            }
+        }
+        if(ready is not null)
+        {
+            ready -= dt
+            if(ready < 0)
+                done = true
+        }
+    }
+
+    func draw(dt)
+    {
+        bg.draw(100 * dt)
+
+        if(ready is null)
+        {
+            game.display.view(msg, 0, 0, -1, 50)
+            game.display.set(msg, 0, 0, -1, 50)
+            game.display.center(msg)
+            game.display.translate(msg, 0, -100)
+            game.display.draw(msg)
+
+            game.display.view(msg, 0, 160, -1, 100)
+            game.display.set(msg, 0, 0, -1, 100)
+            game.display.center(msg)
+            game.display.draw(msg)
+        }
+        else
+        {
+            game.display.view(msg, 0, 90, -1, 70)
+            game.display.set(msg, 0, 0, -1, 70)
+            game.display.center(msg)
+            game.display.draw(msg)
+        }
+    }
+}
+
+class GamePlayScene : Scene
+{
+    // Game objects
+    var bg, player, base, score
+    var top, bottom
+    
+    // Control variables
+    var v, jump
+
+    func setup()
+    {
+        bg = game.image.Scroll(game.image.loadRaw('samples/flappy_bird/assets/sprites/background-day.bmp'))
+        player = Player('samples/flappy_bird/assets/sprites/')
+        base = game.image.loadRaw('samples/flappy_bird/assets/sprites/base.bmp')
+        score = Score('samples/flappy_bird/assets/sprites/')
+
+        game.display.bottom(base)
+        base = game.image.Scroll(base)
+
+        top = []
+        bottom = []
+        for(var i = 0; i < 2; i++)
+        {
+            top.add(game.image.loadColorKey('samples/flappy_bird/assets/sprites/pipe-green.bmp', [255, 255, 255]))
+            bottom.add(game.image.loadColorKey('samples/flappy_bird/assets/sprites/pipe-green.bmp', [255, 255, 255]))
+
+            game.display.flip(top[i], false, true)
+            
+            game.display.set(top[i], -100, 0, -1, -1)
+            game.display.set(bottom[i], -100, 0, -1, -1)
+            
+            game.display.top(top[i])
+            game.display.bottom(bottom[i])
+        }
+
+        v = 100
+        jump = false
+    }
+
+    func update(ev, dt)
+    {
+        for(var e in ev)
+        {
+            if(e.type == game.events.types.KEYUP and e.scancode == 44)
+            {
+               jump = true
+            }
+            else if(e.type == game.events.types.MOUSEBUTTONUP or 
+                e.type == game.events.types.JOYBUTTONUP or
+                e.type == game.events.types.FINGERUP)
+            {
+                jump = true
+            }
+        }
+
+        // Game logic
+        if(jump)
+            player.jump()
+        jump = false
+        player.update(fps.delta)
+        if(player.y > 400)
+            done = true
+
+        var width = game.width()
+
+        var rect, x, y
+        for(var i = 0; i < 2; i++)
+        {
+            rect = game.display.rect(top[i])
+            if(rect[0] < -50)
+            {
+                x = width + random() * 50
+                y = 
+            }
+        }
+
+        v *= 1.001
+    }
+
+    func draw(dt)
+    {
+        bg.draw(v * dt)
+        base.draw(v * dt)
+        player.draw()
+
+        for(var i = 0; i < 2; i++)
+        {
+            game.display.draw(top[i])
+            game.display.draw(bottom[i])
+        }
+
+        score.draw()
+    }
+}
+
+class GameOverScene : Scene
+{
+    var bg, msg, ready
+    func setup()
+    {
+        ready = 5
+        bg = game.image.Scroll(game.image.loadRaw('samples/flappy_bird/assets/sprites/background-day.bmp'))
+        msg = game.image.load('samples/flappy_bird/assets/sprites/gameover.bmp')
+    }
+
+    func update(ev, dt)
+    {
+        for(var e in ev)
+        {
+            if(e.type == game.events.types.KEYUP and e.scancode != 27)
+            {
+                ready = 0
+            }
+            else if(e.type == game.events.types.MOUSEBUTTONUP or 
+                e.type == game.events.types.JOYBUTTONUP or
+                e.type == game.events.types.FINGERUP)
+            {
+                ready = 0
+            }
+        }
+        ready -= dt
+        if(ready < 0)
+            done = true
+    }
+
+    func draw(dt)
+    {
+        bg.draw(100 * dt)
+        game.display.center(msg)
+        game.display.draw(msg)
+    }
+}

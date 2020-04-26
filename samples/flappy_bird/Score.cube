@@ -1,0 +1,37 @@
+class Score
+{
+    var score, images
+
+    func init(path)
+    {
+        score = 0
+        images = []
+        for(var i = 0; i <= 9; i++)
+        {
+            images.add(game.image.loadColorKey(path+'${i}.bmp', [255, 255, 255]))
+        }
+    }
+
+    func draw()
+    {
+        var score = list(str(this.score))
+        for(var i = 0; i <= 9; i++)
+        {
+            if(!(str(i) in score))
+            {
+                game.display.move(images[i], -100, -100)
+            }
+        }
+
+        var width = game.width()
+        var start = ( width - (26 * len(score)) ) / 2
+        var image
+        for(var i in score)
+        {
+            image = images[num(i)]
+            game.display.move(image, start, 20)
+            game.display.draw(image)
+            start += 26
+        }
+    }
+}

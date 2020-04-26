@@ -1,63 +1,64 @@
 import game
-import player as default
+import scenes as default
 
+if(not game.valid)
+    exit(0)
 
-// Setup
+// Setup display
 game.display.title('Flappy Bird')
 game.display.size(288, 512)
 
-// Load objects
-var player = Player('samples/flappy_bird/assets/sprites_bmp/')
-var bg = game.image.Scroll(game.image.loadRaw('samples/flappy_bird/assets/sprites_bmp/background-day.bmp'))
+// Load scenes
+var start = StartScene()
+var gameplay = GamePlayScene()
+var gameOver = GameOverScene()
 
-var base = game.image.loadRaw('samples/flappy_bird/assets/sprites_bmp/base.bmp')
-game.display.bottom(base)
-base = game.image.Scroll(base)
+// Setup scenes order
+start.setNext(gameplay)
+gameplay.setNext(gameOver)
+gameOver.setNext(start)
+
+// Set current scene
+var scene = start
 
 // Control variables
 var quit = false
-var v = 200
-var jump = false
 
 // Timer
-var fps = game.FPS(30)
+var fps = game.timers.FPS(30)
 
 // Game loop
 while(!quit)
 {
-    // Events handler
-    for(var e in game.events.get())
+    // Get events
+    var ev = game.events.get()
+
+    // Handle quit event
+    for(var e in ev)
     {
         if(e.type == game.events.types.QUIT)
         {
             quit = true
         }
-        else if(e.type == game.events.types.KEYDOWN)
-        {
-            if(e.scancode == 44)
-            {
-                jump = true
-            }
-        }
     }
 
-    // Game logic
-    if(jump)
-        player.jump()
-    jump = false
-    player.update(fps.delta)
-    if(player.y > 400)
-        player.reset()
+    // Update current scene
+    scene.update(ev, fps.delta)
 
-    v *= 1.001
-
-    // Drawing
+    // Draw scene
     game.display.clear()
-    bg.draw(v * fps.delta)
-    base.draw(v * fps.delta)
-    player.draw()
+    scene.draw(fps.delta)
 
-    // Finish frame
+    // Handle scene change
+    if(scene.done)
+    {
+        scene = scene.getNext()
+        scene.reset()
+    }
+
+    // Update screen
     game.display.update()
+
+    // Wait timer
     fps.wait()
 }

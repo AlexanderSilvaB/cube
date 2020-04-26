@@ -37,17 +37,29 @@ Uint32 getpixel(SDL_Surface *surface, int x, int y)
     }
 }
 
+SDL_Surface *loadImage(const char *path)
+{
+    // return IMG_Load(path);
+    return SDL_LoadBMP(path);
+}
+
 extern "C"
 {
     EXPORTED cube_native_var *load(cube_native_var *_path)
     {
         char *path = AS_NATIVE_STRING(_path);
 
-        // SDL_Surface *surface = IMG_Load(path);
-        SDL_Surface *surface = SDL_LoadBMP(path);
+        SDL_Surface *surface = loadImage(path);
 
         if (surface == NULL)
             return NATIVE_NULL();
+
+        SDL_Surface *optimized = SDL_ConvertSurface(surface, surface->format, 0);
+        if (optimized)
+        {
+            SDL_FreeSurface(surface);
+            surface = optimized;
+        }
 
         Uint32 pixel = getpixel(surface, 0, 0);
         unsigned char r, g, b;
@@ -97,11 +109,17 @@ extern "C"
 
         char *path = AS_NATIVE_STRING(_path);
 
-        // SDL_Surface *surface = IMG_Load(path);
-        SDL_Surface *surface = SDL_LoadBMP(path);
+        SDL_Surface *surface = loadImage(path);
 
         if (surface == NULL)
             return NATIVE_NULL();
+
+        SDL_Surface *optimized = SDL_ConvertSurface(surface, surface->format, 0);
+        if (optimized)
+        {
+            SDL_FreeSurface(surface);
+            surface = optimized;
+        }
 
         unsigned char r = AS_NATIVE_NUMBER(_key->list[0]);
         unsigned char g = r;
@@ -150,11 +168,17 @@ extern "C"
     {
         char *path = AS_NATIVE_STRING(_path);
 
-        // SDL_Surface *surface = IMG_Load(path);
-        SDL_Surface *surface = SDL_LoadBMP(path);
+        SDL_Surface *surface = loadImage(path);
 
         if (surface == NULL)
             return NATIVE_NULL();
+
+        SDL_Surface *optimized = SDL_ConvertSurface(surface, surface->format, 0);
+        if (optimized)
+        {
+            SDL_FreeSurface(surface);
+            surface = optimized;
+        }
 
         SurfaceContainer container;
         container.type = TEXTURE;
