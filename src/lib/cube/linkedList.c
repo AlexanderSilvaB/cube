@@ -27,6 +27,8 @@ void linked_list_destroy_intern(linked_list *llist, bool freeData)
 
 void linked_list_destroy(linked_list *llist, bool freeData)
 {
+    if (!llist)
+        return;
     linked_list_reset(&llist);
     linked_list_destroy_intern(llist, freeData);
 }

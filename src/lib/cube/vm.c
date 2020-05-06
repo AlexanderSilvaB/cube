@@ -809,6 +809,8 @@ static bool invoke(ObjString *name, int argCount)
         return enumMethods(name->chars, argCount + 1);
     else if (IS_ENUM_VALUE(receiver))
         return enumValueMethods(name->chars, argCount + 1);
+    else if (IS_NATIVE_LIB(receiver))
+        return nativeLibMethods(name->chars, argCount + 1);
 
     if (!IS_INSTANCE(receiver))
     {
@@ -4018,9 +4020,26 @@ InterpretResult run()
                     count--;
                 }
 
+                Value name = pop();
+
                 lib->name = AS_STRING(pop());
 
-                push(OBJ_VAL(lib));
+                Value libVal = OBJ_VAL(lib);
+
+                push(libVal);
+
+                ObjString *nameStr;
+
+                if (IS_STRING(name))
+                    nameStr = AS_STRING(name);
+                else
+                    nameStr = AS_STRING(STRING_VAL(getFileDisplayName(lib->name->chars)));
+
+                if (frame->package == NULL)
+                    tableSet(&vm.globals, nameStr, libVal);
+                else
+                    tableSet(&frame->package->symbols, nameStr, libVal);
+
                 break;
             }
             case OP_ASYNC: {

@@ -2117,6 +2117,22 @@ static void nativeDeclaration()
 {
     pathOrString(vm.nativeExtension, "Expect an identifier after slash in native.", "Expect string after native.");
 
+    if (match(TOKEN_AS))
+    {
+        if (match(TOKEN_IDENTIFIER) || match(TOKEN_DEFAULT))
+        {
+            emitPreviousAsString();
+        }
+        else
+        {
+            consume(TOKEN_IDENTIFIER, "Expect identifier after as.");
+        }
+    }
+    else
+    {
+        emitByte(OP_NULL);
+    }
+
     int count = 0;
     consume(TOKEN_LEFT_BRACE, "Expect '{' before native body.");
     while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF))

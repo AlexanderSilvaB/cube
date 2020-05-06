@@ -25,10 +25,17 @@ typedef struct NativeLibPointer_st
     int counter;
     char *path;
     void *handler;
+    linked_list *symbols;
     struct NativeLibPointer_st *next;
 } NativeLibPointer;
 
 static NativeLibPointer *libPointer = NULL;
+
+#ifdef _WIN32
+#include "native_w32.c"
+#else
+#include "native_posix.c"
+#endif
 
 void *getNativeHandler(const char *path)
 {
@@ -72,6 +79,7 @@ void deleteNativePointer(NativeLibPointer *rm)
             else
                 parent->next = pt->next;
 
+            linked_list_destroy(pt->symbols, true);
             mp_free(pt->path);
             mp_free(pt);
             break;
@@ -118,6 +126,7 @@ bool openNativeLib(ObjNativeLib *lib)
             pt->next = libPointer;
             pt->handler = lib->handle;
             pt->path = (char *)mp_malloc(sizeof(char) * (strlen(path) + 1));
+            pt->symbols = list_symbols(path);
             strcpy(pt->path, path);
 
             libPointer = pt;
@@ -564,4 +573,516 @@ NativeTypes getNativeType(const char *name)
         return TYPE_FUNC;
 
     return TYPE_UNKNOWN;
+}
+
+static bool symbolsNativeLib(int argCount, int type)
+{
+    if (argCount != 1)
+    {
+        runtimeError("symbols() takes 1 argument (%d given)", argCount);
+        return false;
+    }
+
+    ObjNativeLib *lib = AS_NATIVE_LIB(pop());
+    if (!openNativeLib(lib))
+    {
+        runtimeError("Unable to open native library: '%s'", lib->name->chars);
+        return false;
+    }
+
+    NativeLibPointer *pt = getNativePointer(lib->handle);
+
+    ObjList *list = initList();
+
+    if (pt != NULL && pt->symbols != NULL)
+    {
+        do
+        {
+            symbol_t *sym = linked_list_get(pt->symbols);
+            if (sym != NULL)
+            {
+                if (type == 0)
+                    writeValueArray(&list->values, STRING_VAL(sym->name));
+                else if (type == 1 && sym->is_func)
+                    writeValueArray(&list->values, STRING_VAL(sym->name));
+                else if (type == 2 && !sym->is_func)
+                    writeValueArray(&list->values, STRING_VAL(sym->name));
+            }
+        } while (linked_list_next(&pt->symbols));
+        linked_list_reset(&pt->symbols);
+    }
+
+    push(OBJ_VAL(list));
+    return true;
+}
+
+static bool getNativeLib(int argCount)
+{
+    if (argCount != 3)
+    {
+        runtimeError("get() takes 2 arguments (%d given)", argCount);
+        return false;
+    }
+
+    ObjString *typeName = AS_STRING(pop());
+    ObjString *name = AS_STRING(pop());
+
+    ObjNativeLib *lib = AS_NATIVE_LIB(pop());
+    if (!openNativeLib(lib))
+    {
+        runtimeError("Unable to open native library: '%s'", lib->name->chars);
+        return false;
+    }
+
+    void *obj = NULL;
+#ifdef _WIN32
+    obj = (func_void)GetProcAddress(lib->handle, name->chars);
+#else
+    obj = (func_void)dlsym(lib->handle, name->chars);
+#endif
+
+    if (obj == NULL)
+    {
+        runtimeError("Unable to find native symbol: '%s'", name->chars);
+        return false;
+    }
+
+    Value val = NULL_VAL;
+
+    if (strcmp(typeName->chars, "bool") == 0)
+    {
+        bool *ptr = (bool *)obj;
+        val = BOOL_VAL(*ptr);
+    }
+    else if (strcmp(typeName->chars, "num") == 0)
+    {
+        double *ptr = (double *)obj;
+        val = NUMBER_VAL(*ptr);
+    }
+    else if (strcmp(typeName->chars, "double") == 0)
+    {
+        double *ptr = (double *)obj;
+        val = NUMBER_VAL(*ptr);
+    }
+    else if (strcmp(typeName->chars, "float") == 0)
+    {
+        float *ptr = (float *)obj;
+        val = NUMBER_VAL(*ptr);
+    }
+    else if (strcmp(typeName->chars, "int") == 0)
+    {
+        int *ptr = (int *)obj;
+        val = NUMBER_VAL(*ptr);
+    }
+    else if (strcmp(typeName->chars, "str") == 0)
+    {
+        char *ptr = (char *)obj;
+        val = STRING_VAL(ptr);
+    }
+    else if (strcmp(typeName->chars, "char") == 0)
+    {
+        char *ptr = (char *)obj;
+        char _ptr[2];
+        _ptr[0] = ptr[0];
+        _ptr[1] = '\0';
+        val = STRING_VAL(_ptr);
+    }
+
+    push(val);
+
+    return true;
+}
+
+static bool setNativeLib(int argCount)
+{
+    if (argCount != 3)
+    {
+        runtimeError("set() takes 3 arguments (%d given)", argCount);
+        return false;
+    }
+
+    Value value = pop();
+    ObjString *name = AS_STRING(pop());
+
+    ObjNativeLib *lib = AS_NATIVE_LIB(pop());
+    if (!openNativeLib(lib))
+    {
+        runtimeError("Unable to open native library: '%s'", lib->name->chars);
+        return false;
+    }
+
+    void *obj = NULL;
+#ifdef _WIN32
+    obj = (func_void)GetProcAddress(lib->handle, name->chars);
+#else
+    obj = (func_void)dlsym(lib->handle, name->chars);
+#endif
+
+    if (obj == NULL)
+    {
+        runtimeError("Unable to find native symbol: '%s'", name->chars);
+        return false;
+    }
+
+    Value val = FALSE_VAL;
+
+    if (IS_BOOL(value))
+    {
+        bool *ptr = (bool *)obj;
+        *ptr = AS_BOOL(value);
+        val = TRUE_VAL;
+    }
+    else if (IS_NUMBER(value))
+    {
+        double *ptr = (double *)obj;
+        *ptr = AS_NUMBER(value);
+        val = TRUE_VAL;
+    }
+    else if (IS_STRING(value))
+    {
+        char *ptr = (char *)obj;
+        strcpy(ptr, AS_CSTRING(value));
+        val = TRUE_VAL;
+    }
+
+    push(val);
+    return true;
+}
+
+static bool setFloatNativeLib(int argCount)
+{
+    if (argCount != 4)
+    {
+        runtimeError("setFloat() takes 3 arguments (%d given)", argCount);
+        return false;
+    }
+
+    Value value = pop();
+    ObjString *name = AS_STRING(pop());
+
+    ObjNativeLib *lib = AS_NATIVE_LIB(pop());
+    if (!openNativeLib(lib))
+    {
+        runtimeError("Unable to open native library: '%s'", lib->name->chars);
+        return false;
+    }
+
+    void *obj = NULL;
+#ifdef _WIN32
+    obj = (func_void)GetProcAddress(lib->handle, name->chars);
+#else
+    obj = (func_void)dlsym(lib->handle, name->chars);
+#endif
+
+    if (obj == NULL)
+    {
+        runtimeError("Unable to find native symbol: '%s'", name->chars);
+        return false;
+    }
+
+    Value val = FALSE_VAL;
+
+    float *ptr = (float *)obj;
+
+    if (IS_BOOL(value))
+    {
+        *ptr = AS_BOOL(value);
+        val = TRUE_VAL;
+    }
+    else if (IS_NUMBER(value))
+    {
+        *ptr = AS_NUMBER(value);
+        val = TRUE_VAL;
+    }
+
+    push(val);
+    return true;
+}
+
+static bool setIntNativeLib(int argCount)
+{
+    if (argCount != 4)
+    {
+        runtimeError("setInt() takes 3 arguments (%d given)", argCount);
+        return false;
+    }
+
+    Value value = pop();
+    ObjString *name = AS_STRING(pop());
+
+    ObjNativeLib *lib = AS_NATIVE_LIB(pop());
+    if (!openNativeLib(lib))
+    {
+        runtimeError("Unable to open native library: '%s'", lib->name->chars);
+        return false;
+    }
+
+    void *obj = NULL;
+#ifdef _WIN32
+    obj = (func_void)GetProcAddress(lib->handle, name->chars);
+#else
+    obj = (func_void)dlsym(lib->handle, name->chars);
+#endif
+
+    if (obj == NULL)
+    {
+        runtimeError("Unable to find native symbol: '%s'", name->chars);
+        return false;
+    }
+
+    Value val = FALSE_VAL;
+
+    int *ptr = (int *)obj;
+
+    if (IS_BOOL(value))
+    {
+        *ptr = AS_BOOL(value);
+        val = TRUE_VAL;
+    }
+    else if (IS_NUMBER(value))
+    {
+        *ptr = AS_NUMBER(value);
+        val = TRUE_VAL;
+    }
+
+    push(val);
+    return true;
+}
+
+static bool setCharNativeLib(int argCount)
+{
+    if (argCount != 4)
+    {
+        runtimeError("setChar() takes 3 arguments (%d given)", argCount);
+        return false;
+    }
+
+    Value value = pop();
+    ObjString *name = AS_STRING(pop());
+
+    ObjNativeLib *lib = AS_NATIVE_LIB(pop());
+    if (!openNativeLib(lib))
+    {
+        runtimeError("Unable to open native library: '%s'", lib->name->chars);
+        return false;
+    }
+
+    void *obj = NULL;
+#ifdef _WIN32
+    obj = (func_void)GetProcAddress(lib->handle, name->chars);
+#else
+    obj = (func_void)dlsym(lib->handle, name->chars);
+#endif
+
+    if (obj == NULL)
+    {
+        runtimeError("Unable to find native symbol: '%s'", name->chars);
+        return false;
+    }
+
+    Value val = FALSE_VAL;
+
+    char *ptr = (char *)obj;
+
+    if (IS_BOOL(value))
+    {
+        *ptr = AS_BOOL(value);
+        val = TRUE_VAL;
+    }
+    else if (IS_NUMBER(value))
+    {
+        *ptr = (char)AS_NUMBER(value);
+        val = TRUE_VAL;
+    }
+    else if (IS_STRING(value))
+    {
+        *ptr = AS_CSTRING(value)[0];
+        val = TRUE_VAL;
+    }
+
+    push(val);
+    return true;
+}
+
+static bool callNativeLib(int argCount)
+{
+    if (argCount < 2 || argCount > 3)
+    {
+        runtimeError("call() takes 2 or 3 arguments (%d given)", argCount);
+        return false;
+    }
+
+    ObjList *list = NULL;
+    int nargs = 0;
+    Value args = NULL_VAL;
+    if (argCount == 3)
+    {
+        args = pop();
+        nargs = 1;
+    }
+
+    if (nargs == 1)
+    {
+        if (!IS_LIST(args))
+        {
+            list = initList();
+            writeValueArray(&list->values, args);
+            args = OBJ_VAL(list);
+        }
+        list = AS_LIST(args);
+        nargs = list->values.count;
+    }
+
+    ObjString *name = AS_STRING(pop());
+
+    ObjNativeLib *lib = AS_NATIVE_LIB(pop());
+    if (!openNativeLib(lib))
+    {
+        runtimeError("Unable to open native library: '%s'", lib->name->chars);
+        return false;
+    }
+
+    lib_func fn;
+#ifdef _WIN32
+    fn.f_void = (func_void)GetProcAddress(lib->handle, name->chars);
+#else
+    fn.f_void = (func_void)dlsym(lib->handle, name->chars);
+#endif
+
+    if (fn.f_void == NULL)
+    {
+        runtimeError("Unable to find native symbol: '%s'", name->chars);
+        return false;
+    }
+
+    Value result = NULL_VAL;
+    cube_native_var **values = (cube_native_var **)malloc(sizeof(cube_native_var *) * 10);
+    for (int i = 0; i < 10; i++)
+        values[i] = NULL;
+    for (int i = 0; i < nargs && i < 10; i++)
+    {
+        values[i] = NATIVE_VAR();
+        valueToNative(values[i], list->values.values[i]);
+    }
+
+    result = callNativeFn(fn, TYPE_VOID, argCount, values);
+
+    for (int i = 0; i < nargs && i < 10; i++)
+    {
+        freeNativeVar(values[i], false, true);
+        values[i] = NULL;
+    }
+    free(values);
+
+    push(result);
+
+    return true;
+}
+
+static bool callRetNativeLib(int argCount)
+{
+    if (argCount < 3 || argCount > 4)
+    {
+        runtimeError("callRet() takes 3 or 4 arguments (%d given)", argCount);
+        return false;
+    }
+
+    ObjList *list = NULL;
+    int nargs = 0;
+    Value args = NULL_VAL;
+    if (argCount == 4)
+    {
+        args = pop();
+        nargs = 1;
+    }
+
+    if (nargs == 1)
+    {
+        if (!IS_LIST(args))
+        {
+            list = initList();
+            writeValueArray(&list->values, args);
+            args = OBJ_VAL(list);
+        }
+        list = AS_LIST(args);
+        nargs = list->values.count;
+    }
+
+    ObjString *returnType = AS_STRING(pop());
+
+    ObjString *name = AS_STRING(pop());
+
+    ObjNativeLib *lib = AS_NATIVE_LIB(pop());
+    if (!openNativeLib(lib))
+    {
+        runtimeError("Unable to open native library: '%s'", lib->name->chars);
+        return false;
+    }
+
+    lib_func fn;
+#ifdef _WIN32
+    fn.f_void = (func_void)GetProcAddress(lib->handle, name->chars);
+#else
+    fn.f_void = (func_void)dlsym(lib->handle, name->chars);
+#endif
+
+    if (fn.f_void == NULL)
+    {
+        runtimeError("Unable to find native symbol: '%s'", name->chars);
+        return false;
+    }
+
+    Value result = NULL_VAL;
+    cube_native_var **values = (cube_native_var **)malloc(sizeof(cube_native_var *) * 10);
+    for (int i = 0; i < 10; i++)
+        values[i] = NULL;
+    for (int i = 0; i < nargs && i < 10; i++)
+    {
+        values[i] = NATIVE_VAR();
+        valueToNative(values[i], list->values.values[i]);
+    }
+
+    NativeTypes retType = getNativeType(returnType->chars);
+    if (retType == TYPE_UNKNOWN)
+        retType = TYPE_VOID;
+
+    result = callNativeFn(fn, retType, argCount, values);
+
+    for (int i = 0; i < nargs && i < 10; i++)
+    {
+        freeNativeVar(values[i], false, true);
+        values[i] = NULL;
+    }
+    free(values);
+
+    push(result);
+
+    return true;
+}
+
+bool nativeLibMethods(char *method, int argCount)
+{
+    if (strcmp(method, "symbols") == 0)
+        return symbolsNativeLib(argCount, 0);
+    else if (strcmp(method, "functions") == 0)
+        return symbolsNativeLib(argCount, 1);
+    else if (strcmp(method, "vars") == 0)
+        return symbolsNativeLib(argCount, 2);
+    else if (strcmp(method, "get") == 0)
+        return getNativeLib(argCount);
+    else if (strcmp(method, "set") == 0)
+        return setNativeLib(argCount);
+    else if (strcmp(method, "setFloat") == 0)
+        return setFloatNativeLib(argCount);
+    else if (strcmp(method, "setInt") == 0)
+        return setIntNativeLib(argCount);
+    else if (strcmp(method, "setChar") == 0)
+        return setCharNativeLib(argCount);
+    else if (strcmp(method, "call") == 0)
+        return callNativeLib(argCount);
+    else if (strcmp(method, "callRet") == 0)
+        return callRetNativeLib(argCount);
+
+    runtimeError("NativeLib has no method %s()", method);
+    return false;
 }

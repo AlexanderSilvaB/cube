@@ -109,7 +109,7 @@ class GamePlayScene : Scene
 {
     // Game objects
     var bg, player, base, score
-    var top, bottom
+    var top, bottom, N
     
     // Control variables
     var v, jump
@@ -124,9 +124,11 @@ class GamePlayScene : Scene
         game.display.bottom(base)
         base = game.image.Scroll(base)
 
+        N = 1
+
         top = []
         bottom = []
-        for(var i = 0; i < 2; i++)
+        for(var i = 0; i < N; i++)
         {
             top.add(game.image.loadColorKey('samples/flappy_bird/assets/sprites/pipe-green.bmp', [255, 255, 255]))
             bottom.add(game.image.loadColorKey('samples/flappy_bird/assets/sprites/pipe-green.bmp', [255, 255, 255]))
@@ -170,7 +172,7 @@ class GamePlayScene : Scene
         var height = game.height()
 
         var rect, x, y
-        for(var i = 0; i < 2; i++)
+        for(var i = 0; i < N; i++)
         {
             rect = game.display.rect(top[i])
             if(rect[0] < -rect[2])
@@ -178,7 +180,7 @@ class GamePlayScene : Scene
                 x = width + random() * width
                 y =  0.5 * height * random()
                 game.display.move(top[i], x, -y)
-                game.display.move(bottom[i], x, height - y)
+                game.display.move(bottom[i], x, height - y - 50)
             }
             else
             {
@@ -199,7 +201,7 @@ class GamePlayScene : Scene
         base.draw(v * dt)
         player.draw()
 
-        for(var i = 0; i < 2; i++)
+        for(var i = 0; i < N; i++)
         {
             game.display.draw(top[i])
             game.display.draw(bottom[i])
