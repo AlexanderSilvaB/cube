@@ -14,7 +14,7 @@
       "windows": {
         "program": "${workspaceFolder}/build-win32/src/exe/main/cube.exe"
       },
-      "args": ["temp/test.cube"],
+      "args": ["samples/flappy_bird/main.cube"],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
       "environment": [],

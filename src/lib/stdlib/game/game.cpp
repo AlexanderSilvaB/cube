@@ -1,3 +1,4 @@
+#include "audio.h"
 #include <SDL.h>
 #include <cube/cubeext.h>
 #include <map>
@@ -9,6 +10,8 @@ using namespace std;
 SDL_Window *window = NULL;
 // The surface contained by the window
 SDL_Renderer *renderer = NULL;
+// If audio module is available
+bool hasAudio = false;
 
 extern void freeSurfaces();
 
@@ -39,7 +42,7 @@ extern "C"
 {
     EXPORTED void cube_init()
     {
-        // Initialize SDL
+        // Initialize SDL Video
         if (SDL_Init(SDL_INIT_VIDEO) < 0)
         {
             printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
@@ -58,10 +61,24 @@ extern "C"
         {
             return;
         }
+
+        // Initialize SDL Audio
+        if (SDL_Init(SDL_INIT_AUDIO) >= 0)
+        {
+            hasAudio = true;
+            /* Init Simple-SDL2-Audio */
+            initAudio();
+        }
     }
 
     EXPORTED void cube_release()
     {
+        if (hasAudio)
+        {
+            /* End Simple-SDL2-Audio */
+            endAudio();
+        }
+
         freeSurfaces();
 
         if (renderer)
@@ -80,6 +97,11 @@ extern "C"
     EXPORTED cube_native_var *valid()
     {
         return NATIVE_BOOL(window != NULL && renderer != NULL);
+    }
+
+    EXPORTED cube_native_var *audioAvailable()
+    {
+        return NATIVE_BOOL(hasAudio);
     }
 
     EXPORTED cube_native_var *width()

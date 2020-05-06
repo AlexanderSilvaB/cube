@@ -1,0 +1,9 @@
+native libs/libgame
+{
+    num open(str);
+    void close(num);
+    void play(num);
+    void pause(num);
+    void stop(num);
+    void repeat(num, bool);
+}

@@ -44,12 +44,13 @@ class Scene
 
 class StartScene : Scene
 {
-    var bg, msg, ready
+    var bg, msg, ready, audio
     func setup()
     {
         ready = null
         bg = game.image.Scroll(game.image.loadRaw('samples/flappy_bird/assets/sprites/background-day.bmp'))
         msg = game.image.load('samples/flappy_bird/assets/sprites/message.bmp')
+        audio = game.audio.open('samples/flappy_bird/assets/audio/hit.wav')
     }
 
     func update(ev, dt)
@@ -59,12 +60,14 @@ class StartScene : Scene
             if(e.type == game.events.types.KEYUP and e.scancode != 27)
             {
                 ready = 2
+                game.audio.play(audio)
             }
             else if(e.type == game.events.types.MOUSEBUTTONUP or 
                 e.type == game.events.types.JOYBUTTONUP or
                 e.type == game.events.types.FINGERUP)
             {
                 ready = 2
+                game.audio.play(audio)
             }
         }
         if(ready is not null)
@@ -162,21 +165,30 @@ class GamePlayScene : Scene
             player.jump()
         jump = false
         player.update(fps.delta)
-        if(player.y > 400)
-            done = true
 
         var width = game.width()
+        var height = game.height()
 
         var rect, x, y
         for(var i = 0; i < 2; i++)
         {
             rect = game.display.rect(top[i])
-            if(rect[0] < -50)
+            if(rect[0] < -rect[2])
             {
-                x = width + random() * 50
-                y = 
+                x = width + random() * width
+                y =  0.5 * height * random()
+                game.display.move(top[i], x, -y)
+                game.display.move(bottom[i], x, height - y)
+            }
+            else
+            {
+                game.display.translate(top[i], -v * fps.delta, 0)
+                game.display.translate(bottom[i], -v * fps.delta, 0)
             }
         }
+
+        if(player.y > 400)
+            done = true
 
         v *= 1.001
     }

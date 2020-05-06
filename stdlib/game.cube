@@ -1,6 +1,7 @@
 native libs/libgame
 {
     bool valid();
+    bool audioAvailable();
     num width();
     num height();
     void delay(num);
@@ -12,3 +13,4 @@ include game/display
 include game/events
 include game/shapes
 include game/physics
+include game/audio

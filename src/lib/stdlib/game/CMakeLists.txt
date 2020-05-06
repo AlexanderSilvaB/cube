@@ -15,7 +15,9 @@ set(SRC game.cpp
         display.cpp
         events.cpp
         drawing.cpp
-        shapes.cpp)
+        shapes.cpp
+        audio.cpp
+        audio.c)
 
 include_directories("SDL2-2.0.12/include")
 
