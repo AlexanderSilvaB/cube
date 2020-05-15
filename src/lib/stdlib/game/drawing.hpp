@@ -38,6 +38,10 @@ typedef struct
     SurfaceColor color;
     vector<int> items;
 
+    bool hasAlpha;
+    unsigned char *data;
+    int dataSize;
+
 } SurfaceContainer;
 
 extern int surfacesCount;
@@ -69,5 +73,7 @@ void viewShape(int id, int x, int y, int w, int h);
 void setShape(int id, int x, int y, int w, int h);
 bool getShape(int id, int *x, int *y, int *w, int *h);
 bool dimsShape(int id, int *w, int *h);
+bool getPixelsTexture(int id, unsigned int *length, unsigned char **pixels);
+bool setPixelsTexture(int id, unsigned int length, unsigned char *pixels);
 
 #endif

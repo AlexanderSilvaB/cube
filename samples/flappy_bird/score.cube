@@ -12,6 +12,16 @@ class Score
         }
     }
 
+    func inc()
+    {
+        score++
+    }
+
+    func reset()
+    {
+        score = 0
+    }
+
     func draw()
     {
         var score = list(str(this.score))

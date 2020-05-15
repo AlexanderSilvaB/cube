@@ -44,13 +44,14 @@ class Scene
 
 class StartScene : Scene
 {
-    var bg, msg, ready, audio
+    var bg, msg, ready
+    var hit
     func setup()
     {
         ready = null
         bg = game.image.Scroll(game.image.loadRaw('samples/flappy_bird/assets/sprites/background-day.bmp'))
         msg = game.image.load('samples/flappy_bird/assets/sprites/message.bmp')
-        audio = game.audio.open('samples/flappy_bird/assets/audio/hit.wav')
+        hit = game.audio.open('samples/flappy_bird/assets/audio/hit.wav')
     }
 
     func update(ev, dt)
@@ -60,14 +61,14 @@ class StartScene : Scene
             if(e.type == game.events.types.KEYUP and e.scancode != 27)
             {
                 ready = 2
-                game.audio.play(audio)
+                game.audio.play(hit)
             }
             else if(e.type == game.events.types.MOUSEBUTTONUP or 
                 e.type == game.events.types.JOYBUTTONUP or
                 e.type == game.events.types.FINGERUP)
             {
                 ready = 2
-                game.audio.play(audio)
+                game.audio.play(hit)
             }
         }
         if(ready is not null)
@@ -109,7 +110,8 @@ class GamePlayScene : Scene
 {
     // Game objects
     var bg, player, base, score
-    var top, bottom, N
+    var top, bottom, points, N
+    var wing, die, point
     
     // Control variables
     var v, jump
@@ -120,6 +122,9 @@ class GamePlayScene : Scene
         player = Player('samples/flappy_bird/assets/sprites/')
         base = game.image.loadRaw('samples/flappy_bird/assets/sprites/base.bmp')
         score = Score('samples/flappy_bird/assets/sprites/')
+        wing = game.audio.open('samples/flappy_bird/assets/audio/wing.wav')
+        die = game.audio.open('samples/flappy_bird/assets/audio/die.wav')
+        point = game.audio.open('samples/flappy_bird/assets/audio/point.wav')
 
         game.display.bottom(base)
         base = game.image.Scroll(base)
@@ -141,6 +146,8 @@ class GamePlayScene : Scene
             game.display.top(top[i])
             game.display.bottom(bottom[i])
         }
+
+        points = [false] * N
 
         v = 100
         jump = false
@@ -164,7 +171,11 @@ class GamePlayScene : Scene
 
         // Game logic
         if(jump)
+        {
             player.jump()
+            game.audio.play(wing)
+        }
+
         jump = false
         player.update(fps.delta)
 
@@ -181,16 +192,30 @@ class GamePlayScene : Scene
                 y =  0.5 * height * random()
                 game.display.move(top[i], x, -y)
                 game.display.move(bottom[i], x, height - y - 50)
+                points[i] = false
             }
             else
             {
                 game.display.translate(top[i], -v * fps.delta, 0)
                 game.display.translate(bottom[i], -v * fps.delta, 0)
+                if(rect[0] < player.x)
+                {
+                    if(points[i] == false)
+                    {
+                        points[i] = true
+                        game.audio.play(point)
+                        score.inc()
+                    }
+                }
             }
         }
 
         if(player.y > 400)
+        {
             done = true
+            game.audio.play(die)
+            score.reset()
+        }
 
         v *= 1.001
     }

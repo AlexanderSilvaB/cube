@@ -3,6 +3,9 @@ native libs/libgame
     num load(str);
     num loadRaw(str);
     num loadColorKey(str, list);
+    num create(num, num, bool);
+    bytes getPixels(num);
+    bool setPixels(num, bytes);
     void sprite(num, num, num);
     void next(num);
     void previous(num);

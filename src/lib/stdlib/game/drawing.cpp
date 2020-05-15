@@ -54,6 +54,7 @@ int cloneShape(int id)
     SurfaceContainer clone;
     clone.type = container->type;
     clone.scale = container->scale;
+    clone.dataSize = container->dataSize;
     clone.w = container->w;
     clone.h = container->h;
     clone.dest = container->dest;
@@ -66,6 +67,8 @@ int cloneShape(int id)
     clone.cols = container->cols;
     clone.flip = container->flip;
     clone.texture = container->texture;
+    clone.data = container->data;
+    clone.hasAlpha = container->hasAlpha;
     for (int i = 0; i < container->items.size(); i++)
         clone.items.push_back(cloneShape(container->items[i]));
 
@@ -608,4 +611,47 @@ void drawShape(int id)
     container->dest.y -= dy;
     container->dest.w = W;
     container->dest.h = H;
+}
+
+bool getPixelsTexture(int id, unsigned int *length, unsigned char **pixels)
+{
+    SurfaceContainer *container = getContainer(id);
+    if (!container)
+        return false;
+
+    if (container->type != TEXTURE)
+        return false;
+
+    *length = container->dataSize;
+    *pixels = (unsigned char *)malloc(sizeof(unsigned char) * container->dataSize);
+    memcpy(*pixels, container->data, container->dataSize);
+    return true;
+}
+
+bool setPixelsTexture(int id, unsigned int length, unsigned char *pixels)
+{
+    SurfaceContainer *container = getContainer(id);
+    if (!container)
+        return false;
+
+    if (container->type != TEXTURE)
+        return false;
+
+    if (container->dataSize != length)
+        return false;
+
+    memcpy(container->data, pixels, length);
+
+    SDL_Texture *tex = SDL_CreateTextureFromSurface(renderer, container->surface);
+
+    if (tex == NULL)
+        return false;
+
+    SDL_DestroyTexture(container->texture);
+    container->texture = tex;
+
+    SDL_SetTextureBlendMode(container->texture, SDL_BLENDMODE_BLEND);
+    SDL_SetTextureAlphaMod(container->texture, 255);
+
+    return true;
 }

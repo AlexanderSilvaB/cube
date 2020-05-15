@@ -1731,6 +1731,104 @@ bool subscript(Value container, Value indexValue, Value *result)
     return false;
 }
 
+bool subscriptBytesAssign(Value container, Value indexValue, Value assignValue)
+{
+    if (!(IS_NUMBER(indexValue) || IS_LIST(indexValue)))
+    {
+        runtimeError("Bytes index must be a number or a list.");
+        return false;
+    }
+
+    ObjBytes *value = AS_BYTES(toBytes(assignValue));
+
+    ObjBytes *bytes = AS_BYTES(container);
+
+    if (IS_NUMBER(indexValue))
+    {
+        int index = AS_NUMBER(indexValue);
+
+        if (index < 0)
+            index = bytes->length + index;
+        if (index >= 0 && index < bytes->length)
+        {
+            bytes->bytes = GROW_ARRAY(bytes->bytes, unsigned char, bytes->length, bytes->length + value->length - 1);
+            memcpy(bytes->bytes + index + value->length, bytes->bytes + index + 1, bytes->length - index - 1);
+            memcpy(bytes->bytes + index, value->bytes, value->length);
+            bytes->length = bytes->length + value->length - 1;
+            return true;
+        }
+
+        runtimeError("Array index out of bounds.");
+        return false;
+    }
+    else
+    {
+        ObjList *indexes = AS_LIST(indexValue);
+        if (IS_BYTES(assignValue) && AS_BYTES(assignValue)->length == indexes->values.count)
+        {
+            ObjBytes *assignValues = AS_BYTES(assignValue);
+            for (int i = 0; i < indexes->values.count; i++)
+            {
+                Value innerIndexValue = indexes->values.values[i];
+                if (!IS_NUMBER(innerIndexValue))
+                {
+                    runtimeError("Array index must be a number.");
+                    return false;
+                }
+
+                int index = AS_NUMBER(innerIndexValue);
+
+                if (index < 0)
+                    index = bytes->length + index;
+                if (index >= 0 && index < bytes->length)
+                {
+                    bytes->bytes[index] = assignValues->bytes[i];
+                }
+                else
+                {
+                    runtimeError("Array index out of bounds.");
+                    return false;
+                }
+            }
+
+            return true;
+        }
+        else
+        {
+            for (int i = 0; i < indexes->values.count; i++)
+            {
+                Value innerIndexValue = indexes->values.values[i];
+                if (!IS_NUMBER(innerIndexValue))
+                {
+                    runtimeError("List index must be a number.");
+                    return false;
+                }
+
+                int index = AS_NUMBER(innerIndexValue);
+
+                if (index < 0)
+                    index = bytes->length + index;
+                if (index >= 0 && index < bytes->length)
+                {
+                    bytes->bytes =
+                        GROW_ARRAY(bytes->bytes, unsigned char, bytes->length, bytes->length + value->length - 1);
+                    memcpy(bytes->bytes + index + value->length, bytes->bytes + index + 1, bytes->length - index - 1);
+                    memcpy(bytes->bytes + index, value->bytes, value->length);
+                    bytes->length = bytes->length + value->length - 1;
+                }
+                else
+                {
+                    runtimeError("Bytes index out of bounds.");
+                    return false;
+                }
+            }
+
+            return true;
+        }
+    }
+    return true;
+}
+
 bool subscriptListAssign(Value container, Value indexValue, Value assignValue)
 {
     if (!(IS_NUMBER(indexValue) || IS_LIST(indexValue)))
@@ -1858,7 +1956,7 @@ bool subscriptAssign(Value container, Value indexValue, Value assignValue)
     }
     else if (IS_BYTES(container))
     {
-        runtimeError("Sub-bytes assign not implemented yet.");
+        return subscriptBytesAssign(container, indexValue, assignValue);
         return false;
     }
     else if (IS_LIST(container))

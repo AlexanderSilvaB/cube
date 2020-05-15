@@ -43,7 +43,7 @@ extern "C"
         if (it == audios.end())
             return;
 
-        if (it->second->loop)
+        if (!it->second->loop)
             playSoundFromMemory(it->second, SDL_MIX_MAXVOLUME);
         else
             playMusicFromMemory(it->second, SDL_MIX_MAXVOLUME);

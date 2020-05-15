@@ -3,12 +3,7 @@ include_directories(../..)
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 add_definitions(-DWIN_EXPORT)
 
-set(SDL_STATIC ON CACHE BOOL "" FORCE)
-set(SDL_SHARED OFF CACHE BOOL "" FORCE)
-set(SDL_STATIC_ENABLED_BY_DEFAULT ON CACHE BOOL "" FORCE)
-set(SDL_STATIC_PIC ON CACHE BOOL "" FORCE) 
-
-add_subdirectory("SDL2-2.0.12")
+find_package(SDL2 REQUIRED)
 
 set(SRC game.cpp 
         image.cpp 
@@ -18,11 +13,11 @@ set(SRC game.cpp
         shapes.cpp
         audio.cpp
         audio.c)
-
-include_directories("SDL2-2.0.12/include")
+        
+include_directories(${SDL2_INCLUDE_DIRS})
 
 add_library(game SHARED ${SRC})
-target_link_libraries(game SDL2-static)
+target_link_libraries(game ${SDL2_LIBRARIES})
 set_target_properties(game PROPERTIES
         LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../stdlib/libs/)
 set_target_properties(game PROPERTIES

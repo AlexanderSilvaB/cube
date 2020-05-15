@@ -63,7 +63,7 @@ extern "C"
         }
 
         // Initialize SDL Audio
-        if (SDL_Init(SDL_INIT_AUDIO) >= 0)
+        if (SDL_InitSubSystem(SDL_INIT_AUDIO) >= 0)
         {
             hasAudio = true;
             /* Init Simple-SDL2-Audio */

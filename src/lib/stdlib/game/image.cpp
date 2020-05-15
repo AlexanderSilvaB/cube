@@ -68,6 +68,9 @@ extern "C"
         SDL_SetColorKey(surface, SDL_TRUE, key);
 
         SurfaceContainer container;
+        container.data = (unsigned char *)surface->pixels;
+        container.dataSize = surface->pitch * surface->h;
+        container.hasAlpha = true;
         container.type = TEXTURE;
         container.scale = 1.0f;
         container.w = surface->w;
@@ -133,6 +136,9 @@ extern "C"
         SDL_SetColorKey(surface, SDL_TRUE, key);
 
         SurfaceContainer container;
+        container.data = (unsigned char *)surface->pixels;
+        container.dataSize = surface->pitch * surface->h;
+        container.hasAlpha = true;
         container.type = TEXTURE;
         container.scale = 1.0f;
         container.w = surface->w;
@@ -181,6 +187,9 @@ extern "C"
         }
 
         SurfaceContainer container;
+        container.data = (unsigned char *)surface->pixels;
+        container.dataSize = surface->pitch * surface->h;
+        container.hasAlpha = true;
         container.type = TEXTURE;
         container.scale = 1.0f;
         container.w = surface->w;
@@ -210,6 +219,118 @@ extern "C"
 
         surfacesCount++;
         return res;
+    }
+
+    EXPORTED cube_native_var *create(cube_native_var *_width, cube_native_var *_height, cube_native_var *_alpha)
+    {
+        int width = AS_NATIVE_NUMBER(_width);
+        int height = AS_NATIVE_NUMBER(_height);
+
+        if (width <= 0 || height <= 0)
+        {
+            printf("Invalid dimensions [%dx%d]\n", width, height);
+            return NATIVE_NULL();
+        }
+
+        bool alpha = AS_NATIVE_BOOL(_alpha);
+
+        int depth, pitch;
+        Uint32 rmask, gmask, bmask, amask;
+#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+        int shift = (req_format == STBI_rgb) ? 8 : 0;
+        rmask = 0xff000000 >> shift;
+        gmask = 0x00ff0000 >> shift;
+        bmask = 0x0000ff00 >> shift;
+        amask = 0x000000ff >> shift;
+#else // little endian, like x86
+        rmask = 0x000000ff;
+        gmask = 0x0000ff00;
+        bmask = 0x00ff0000;
+        amask = !alpha ? 0 : 0xff000000;
+#endif
+
+        if (alpha)
+        {
+            depth = 32;
+            pitch = 4 * width;
+        }
+        else
+        {
+            depth = 24;
+            pitch = 3 * width;
+        }
+
+        unsigned char *data = new unsigned char[pitch * height];
+
+        SDL_Surface *surface =
+            SDL_CreateRGBSurfaceFrom((void *)data, width, height, depth, pitch, rmask, gmask, bmask, amask);
+
+        if (surface == NULL)
+        {
+            delete[] data;
+            return NATIVE_NULL();
+        }
+
+        SurfaceContainer container;
+        container.data = data;
+        container.dataSize = surface->pitch * surface->h;
+        container.hasAlpha = alpha;
+        container.type = TEXTURE;
+        container.scale = 1.0f;
+        container.w = surface->w;
+        container.h = surface->h;
+        container.dest = {0, 0, surface->w, surface->h};
+        container.src = {0, 0, surface->w, surface->h};
+        container.surface = surface;
+        container.color.rgba = 0xFF000000;
+        container.angle = 0;
+        container.index = 0;
+        container.rows = 1;
+        container.cols = 1;
+        container.flip = SDL_FLIP_NONE;
+        container.texture = SDL_CreateTextureFromSurface(renderer, surface);
+        if (container.texture == NULL)
+        {
+            printf("Unable to create texture! SDL Error: %s\n", SDL_GetError());
+            SDL_FreeSurface(surface);
+            delete[] data;
+            return NATIVE_NULL();
+        }
+
+        SDL_SetTextureBlendMode(container.texture, SDL_BLENDMODE_BLEND);
+        SDL_SetTextureAlphaMod(container.texture, 255);
+
+        surfaces[surfacesCount] = container;
+        cube_native_var *res = NATIVE_NUMBER(surfacesCount);
+
+        surfacesCount++;
+        return res;
+    }
+
+    EXPORTED cube_native_var *getPixels(cube_native_var *id)
+    {
+        cube_native_bytes bytes;
+        bool success = getPixelsTexture(AS_NATIVE_NUMBER(id), &bytes.length, &bytes.bytes);
+        if (!success)
+        {
+            printf("Cannot get pixels from non-texture image.\n");
+            return NATIVE_NULL();
+        }
+
+        return NATIVE_BYTES_ARG(bytes.length, bytes.bytes);
+    }
+
+    EXPORTED cube_native_var *setPixels(cube_native_var *id, cube_native_var *pixels)
+    {
+        cube_native_bytes bytes = AS_NATIVE_BYTES(pixels);
+        bool success = setPixelsTexture(AS_NATIVE_NUMBER(id), bytes.length, bytes.bytes);
+        if (!success)
+        {
+            printf("Could not set pixels (non-texture image or invalid dimensions).\n");
+            return NATIVE_BOOL(false);
+        }
+
+        return NATIVE_BOOL(true);
     }
 
     EXPORTED void alpha(cube_native_var *id, cube_native_var *alpha)
