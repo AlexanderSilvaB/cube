@@ -11,4 +11,4 @@ set_target_properties(calc PROPERTIES
 set_target_properties(calc PROPERTIES
          RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../libs/)
          
-# install(TARGETS calc DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/libs)
+install(TARGETS calc DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/libs)
