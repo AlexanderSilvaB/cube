@@ -1,7 +1,15 @@
-func printArgs(a)
+func printArgs1(a)
 {
     println(a);
     println(args);
 }
 
-printArgs(1, 2, 3, 4);
+func printArgs2(a, b)
+{
+    println(a, b);
+    println(args);
+}
+
+
+printArgs1(1, 2, 3, 4);
+printArgs2(1);

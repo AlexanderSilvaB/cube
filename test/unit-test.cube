@@ -1,0 +1,19 @@
+// it is better to import 'testing' in the default namespace
+// otherwise you must import each overrided function using the 'for' keyword
+// Example: import testing for Test, print, println
+import testing as default
+
+// Expects '81' as output of the main code
+Test.expect(81)
+
+// Add some unit tests
+Test.test(true, true, 'true')
+Test.test(false, false, 'false')
+Test.test(@() => 9 + 5, 14, '9 + 5 = 14')
+Test.test(@() => 8.1 * 8, 64.8, '8.1 * 8 = 64.8')
+
+// Run the main code
+println(9 ^ 2)
+
+// Run the tests
+Test.run()

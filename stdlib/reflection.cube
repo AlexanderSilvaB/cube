@@ -20,6 +20,16 @@ class Reflection
         return eval(code);
     }
 
+    static func classFields(klass)
+    {
+        return getFields(klass)
+    }
+
+    static func classMethods(klass)
+    {
+        return getMethods(klass)
+    }
+
     // inherit members
     func [](key)
     {
@@ -29,6 +39,16 @@ class Reflection
     func [=](key, value)
     {
         return setField(this, key, value);
+    }
+
+    func fields()
+    {
+        return getFields(this)
+    }
+
+    func methods()
+    {
+        return getMethods(this)
     }
 
     func className()

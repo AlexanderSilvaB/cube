@@ -1,0 +1,42 @@
+import serialization as default
+
+class A : Serializable
+{
+    var p1, p2, p3
+    func init()
+    {
+        p1 = 0
+        p2 = 0
+        p3 = 0
+    }
+
+    func show()
+    {
+        println('P1 = ', p1, ', P2 = ', p2, ', P3 = ', p3)
+    }
+}
+
+var a = A()
+a.p1 = 9
+a.p2 = 3
+a.p3 = 1
+
+print('A: ')
+a.show()
+
+var data = a.serialize()
+println('A serialized: ', data)
+
+Serializable.save(a, 'temp/A.json')
+
+var b = A()
+print('B: ')
+b.show()
+
+b.deserialize(data)
+print('B: ')
+b.show()
+
+var c = Serializable.load('temp/A.json')
+print('C: ')
+c.show()

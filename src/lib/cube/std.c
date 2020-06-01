@@ -2172,6 +2172,80 @@ static Value getFieldsNative(int argCount, Value *args)
                 writeValueArray(&list->values, STRING_VAL(entry.key->chars));
             }
         }
+        else if (IS_CLASS(args[0]))
+        {
+            ObjClass *klass = AS_CLASS(args[0]);
+            int i = 0;
+            Entry entry;
+            Table *table = &klass->fields;
+            while (iterateTable(table, &entry, &i))
+            {
+                if (entry.key == NULL)
+                    continue;
+
+                writeValueArray(&list->values, STRING_VAL(entry.key->chars));
+            }
+
+            i = 0;
+            table = &klass->staticFields;
+            while (iterateTable(table, &entry, &i))
+            {
+                if (entry.key == NULL)
+                    continue;
+
+                if (!IS_FUNCTION(entry.value))
+                    writeValueArray(&list->values, STRING_VAL(entry.key->chars));
+            }
+        }
+    }
+
+    return OBJ_VAL(list);
+}
+
+static Value getMethodsNative(int argCount, Value *args)
+{
+    ObjList *list = initList();
+    if (argCount != 0)
+    {
+        if (IS_INSTANCE(args[0]))
+        {
+            ObjInstance *instance = AS_INSTANCE(args[0]);
+            int i = 0;
+            Entry entry;
+            Table *table = &instance->klass->methods;
+            while (iterateTable(table, &entry, &i))
+            {
+                if (entry.key == NULL)
+                    continue;
+
+                writeValueArray(&list->values, STRING_VAL(entry.key->chars));
+            }
+        }
+        else if (IS_CLASS(args[0]))
+        {
+            ObjClass *klass = AS_CLASS(args[0]);
+            int i = 0;
+            Entry entry;
+            Table *table = &klass->methods;
+            while (iterateTable(table, &entry, &i))
+            {
+                if (entry.key == NULL)
+                    continue;
+
+                writeValueArray(&list->values, STRING_VAL(entry.key->chars));
+            }
+
+            i = 0;
+            table = &klass->staticFields;
+            while (iterateTable(table, &entry, &i))
+            {
+                if (entry.key == NULL)
+                    continue;
+
+                if (IS_FUNCTION(entry.value))
+                    writeValueArray(&list->values, STRING_VAL(entry.key->chars));
+            }
+        }
     }
 
     return OBJ_VAL(list);
@@ -2350,6 +2424,7 @@ void initStd()
     ADD_STD("getClassName", classNameNative);
     ADD_STD("getSuperName", superNameNative);
     ADD_STD("getFields", getFieldsNative);
+    ADD_STD("getMethods", getMethodsNative);
     ADD_STD("skipWaitingTasks", skipWaitingTasksNative);
     ADD_STD("assert", assertNative);
     ADD_STD("clear", clearNative);

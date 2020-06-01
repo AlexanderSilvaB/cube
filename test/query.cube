@@ -1,0 +1,19 @@
+import query as default
+
+var numbers = 1..100
+
+var less = from(numbers)
+            .where(@(n) => n < 50)
+            .data
+
+var odd = from(numbers)
+            .where(@(n) => n % 2 != 0)
+            .data
+
+var square = from(numbers)
+            .select(@(n) => n^2)
+            .data
+
+println(less)
+println(odd)
+println(square)

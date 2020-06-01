@@ -1,0 +1,48 @@
+import reflection as default
+
+class A : Reflection
+{
+    var p1, p2, p3
+    static var p4
+
+    func init()
+    {
+        p1 = 0
+        p2 = 0
+        p3 = 0
+    }
+
+    func show()
+    {
+        println('P1 = ', p1, ', P2 = ', p2, ', P3 = ', p3)
+    }
+
+    static func test()
+    {
+        return true
+    }
+}
+
+var a = A()
+var b = Reflection.create('A')
+
+println('class name = ', a.className())
+println('super name = ', a.superName())
+
+println('a is ', a)
+println('b is ', b)
+
+a.p1 = 4
+b['p1'] = 4
+
+println('a.p1 = ', a.p1)
+println('b.p1 = ', b.p1)
+
+println("a['p1'] = ", a['p1'])
+println("b['p1'] = ", b['p1'])
+
+println('A fields = ', Reflection.classFields(A))
+println('a fields = ', a.fields())
+
+println('A methods = ', Reflection.classMethods(A))
+println('a methods = ', a.methods())

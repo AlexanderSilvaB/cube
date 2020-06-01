@@ -1,0 +1,19 @@
+import libCreator as default
+
+// Create a sample header file
+var path = 'temp/test.h'
+with(path, 'w')
+{
+    file.write('void print();
+                int add(int a, int b);');
+}
+
+// Create the library header
+var lib = LibCreator(path)
+
+// Generate the library code
+var code = lib.generate()
+println(code)
+
+// Save the library code
+lib.save()

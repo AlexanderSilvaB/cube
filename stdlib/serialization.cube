@@ -34,6 +34,9 @@ class Serializable
     {
         var data = this.__serialize()
 
+        if(path is null)
+            return str(data)
+
         var rc;
         with(path, 'w')
         {
@@ -84,6 +87,8 @@ class Serializable
     func deserialize(path)
     {
         var data = json.readJson(path)
+        if(data is null or len(data) == 0)
+            data = json.parseJson(path)
         if(data is null)
             return false
         return this.__deserialize(data)

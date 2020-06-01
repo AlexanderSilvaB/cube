@@ -110,8 +110,8 @@ show(map, w, h);
 
 for(var p = 1; p < ite; ++p)
 {
+    println('\n')
     update(map, w, h);
     println("P: ", p);
     show(map, w, h);
-    clear();
 }
