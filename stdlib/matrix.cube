@@ -120,7 +120,7 @@ class Mat
         return determinant_matrix(ptr);
     }
 
-    func eigenValues()
+    func eigenvalues()
     {
         return eigenvalues_matrix(ptr);
     }

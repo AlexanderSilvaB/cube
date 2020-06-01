@@ -1,0 +1,52 @@
+import matrix as default
+
+var a = Mat.rand(4)
+var b = Mat.rand(4)
+
+println('a')
+a.print()
+println('b')
+b.print()
+
+var a1 = a + 5
+var a2 = a + b
+println('a + 5')
+a1.print()
+println('a + b')
+a2.print()
+
+var s1 = a - 5
+var s2 = a - b
+println('a - 5')
+s1.print()
+println('a - b')
+s2.print()
+
+var m1 = a * 5
+var m2 = a * b
+println('a * 5')
+m1.print()
+println('a * b')
+m2.print()
+
+var d1 = a / 5
+var d2 = a / b
+println('a / 5')
+d1.print()
+println('a / b')
+d2.print()
+
+println('a')
+println(a.str())
+
+println('inverse(a)')
+println(a.inverse().str())
+
+println('transpose(a)')
+println(a.transpose().str())
+
+println('determinant(a)')
+println(a.determinant())
+
+println('eigenvalues(a)')
+println(a.eigenvalues())

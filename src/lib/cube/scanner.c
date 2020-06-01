@@ -2,13 +2,18 @@
 #include <string.h>
 
 #include "common.h"
+#include "mempool.h"
 #include "scanner.h"
+
+Keyword *read_keyword(char **source);
+TokenType get_token_type(char *key);
 
 void initScanner(Scanner *scanner, const char *source)
 {
     scanner->start = source;
     scanner->current = source;
     scanner->line = 1;
+    scanner->keywords = NULL;
 }
 
 bool isAlpha(char c)
@@ -148,8 +153,12 @@ static void skipWhitespace(Scanner *scanner, Token *doc)
             case '#': {
                 if (peekNext(scanner) == '!' && scanner->start == scanner->current)
                 {
+                    char *shebang = ((char *)scanner->current) + 2;
+
                     while (peek(scanner) != '\n' && !isAtEnd(scanner))
                         advance(scanner);
+
+                    int len = scanner->current - shebang;
                 }
                 break;
             }
@@ -228,6 +237,24 @@ static TokenType checkKeyword(Scanner *scanner, int start, int length, const cha
 
 static TokenType identifierType(Scanner *scanner)
 {
+    if (scanner->keywords != NULL)
+    {
+        int L = (scanner->current - scanner->start);
+        do
+        {
+            Keyword *keyword = linked_list_get(scanner->keywords);
+            if (keyword != NULL)
+            {
+                int l = strlen(keyword->word);
+                if (L == l && memcmp(scanner->start, keyword->word, l) == 0)
+                {
+                    return keyword->key;
+                }
+            }
+        } while (linked_list_next(&scanner->keywords));
+        linked_list_reset(&scanner->keywords);
+    }
+
     switch (scanner->start[0])
     {
         case 'a':
@@ -283,6 +310,8 @@ static TokenType identifierType(Scanner *scanner)
                         return checkKeyword(scanner, 2, 3, "ass", TOKEN_CLASS);
                     case 'o':
                         return checkKeyword(scanner, 2, 6, "ntinue", TOKEN_CONTINUE);
+                    case 'u':
+                        return checkKeyword(scanner, 2, 2, "be", TOKEN_CUBE);
                 }
             break;
         case 'd':
@@ -690,4 +719,61 @@ bool isOperator(TokenType type)
            type == TOKEN_LESS || type == TOKEN_GREATER || type == TOKEN_LESS_EQUAL || type == TOKEN_GREATER_EQUAL ||
            type == TOKEN_SHIFT_LEFT || type == TOKEN_SHIFT_RIGHT || type == TOKEN_BINARY_AND ||
            type == TOKEN_BINARY_OR || type == TOKEN_INC || type == TOKEN_DEC;
+}
+
+bool setLanguage(Scanner *scanner, const char *languageSource)
+{
+    if (scanner->keywords != NULL)
+    {
+        linked_list_destroy(scanner->keywords, true);
+    }
+    scanner->keywords = NULL;
+
+    scanner->keywords = linked_list_create();
+
+    char *source = (char *)languageSource;
+    Keyword *keyword = read_keyword(&source);
+    while (keyword != NULL)
+    {
+        linked_list_add(scanner->keywords, keyword);
+        keyword = read_keyword(&source);
+    }
+
+    return false;
+}
+
+Keyword *read_keyword(char **source)
+{
+    char key[32];
+    char word[32];
+
+    char *src = *source;
+    int rc = sscanf(src, "%s %s\n", &key, &word);
+    if (rc != 2)
+        return NULL;
+
+    int inc = strlen(key) + strlen(word) + 2;
+    src += inc;
+
+    *source = src;
+
+    printf("%d: %s -> %s\n", rc, key, word);
+
+    Keyword *keyword = mp_malloc(sizeof(Keyword));
+    keyword->key = get_token_type(key);
+    strcpy(keyword->word, word);
+    return keyword;
+}
+
+TokenType get_token_type(char *key)
+{
+    if (strcmp(key, "if") == 0)
+    {
+        return TOKEN_IF;
+    }
+    else if (strcmp(key, "else") == 0)
+    {
+        return TOKEN_ELSE;
+    }
+    return TOKEN_ERROR;
 }

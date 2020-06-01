@@ -1,6 +1,8 @@
 #ifndef CLOX_scanner_h
 #define CLOX_scanner_h
 
+#include "linkedList.h"
+
 typedef enum
 {
     TOKEN_LEFT_PAREN,
@@ -99,6 +101,7 @@ typedef enum
     TOKEN_ASSERT,
 
     TOKEN_DOC,
+    TOKEN_CUBE,
     TOKEN_ERROR,
     TOKEN_EOF
 } TokenType;
@@ -113,9 +116,16 @@ typedef struct
 
 typedef struct
 {
+    char word[16];
+    TokenType key;
+} Keyword;
+
+typedef struct
+{
     const char *start;
     const char *current;
     int line;
+    linked_list *keywords;
 } Scanner;
 
 void initScanner(Scanner *scanner, const char *source);
@@ -125,5 +135,6 @@ Token getArguments(Scanner *scanner, int n);
 bool isOperator(TokenType type);
 bool isAlpha(char c);
 bool isDigit(char c);
+bool setLanguage(Scanner *scanner, const char *languageSource);
 
 #endif
