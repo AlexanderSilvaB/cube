@@ -26,6 +26,7 @@ int writeFd(int fd, int size, char *buff);
 int readFileRaw(FILE *fd, int size, char *buff);
 int writeFileRaw(FILE *fd, int size, char *buff);
 char *readFile(const char *path, bool verbose);
+bool writeFile(const char *path, const char *buffer, size_t bufferSize, bool verbose);
 char *getFolder(const char *path);
 int countBytes(const void *raw, int maxSize);
 void replaceString(char *str, const char *find, const char *replace);

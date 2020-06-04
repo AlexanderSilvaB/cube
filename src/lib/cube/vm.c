@@ -23,6 +23,7 @@
 #include "scanner.h"
 #include "std.h"
 #include "strings.h"
+#include "tasks.h"
 #include "threads.h"
 #include "util.h"
 #include "vm.h"
@@ -183,7 +184,7 @@ static TaskFrame *createTaskFrame(const char *name)
     return taskFrame;
 }
 
-static TaskFrame *findTaskFrame(const char *name)
+TaskFrame *findTaskFrame(const char *name)
 {
     for (int i = 0; i < MAX_THREADS; i++)
     {
@@ -205,7 +206,7 @@ static TaskFrame *findTaskFrame(const char *name)
     return NULL;
 }
 
-static void destroyTaskFrame(const char *name)
+void destroyTaskFrame(const char *name)
 {
     for (int i = 0; i < MAX_THREADS; i++)
     {
@@ -811,6 +812,8 @@ static bool invoke(ObjString *name, int argCount)
         return enumValueMethods(name->chars, argCount + 1);
     else if (IS_NATIVE_LIB(receiver))
         return nativeLibMethods(name->chars, argCount + 1);
+    else if (IS_TASK(receiver))
+        return taskMethods(name->chars, argCount + 1);
 
     if (!IS_INSTANCE(receiver))
     {
@@ -4321,18 +4324,24 @@ loopWait:
     return ret;
 }
 
-InterpretResult compileCode(const char *source, const char *path)
+InterpretResult compileCode(const char *source, const char *path, const char *output)
 {
     ObjFunction *fn = compile(source, path);
     if (fn == NULL)
         return INTERPRET_COMPILE_ERROR;
 
-    char *bcPath = ALLOCATE(char, strlen(path) * 2);
-    strcpy(bcPath, path);
-    if (strstr(bcPath, ".cube") != NULL)
-        replaceStringN(bcPath, ".cube", ".cubec", 1);
+    char *bcPath = NULL;
+    if (output == NULL)
+    {
+        ALLOCATE(char, strlen(path) * 2);
+        strcpy(bcPath, path);
+        if (strstr(bcPath, ".cube") != NULL)
+            replaceStringN(bcPath, ".cube", ".cubec", 1);
+        else
+            strcat(bcPath + strlen(bcPath), ".cubec");
+    }
     else
-        strcat(bcPath + strlen(bcPath), ".cubec");
+        bcPath = output;
 
     FILE *file = fopen(bcPath, "wb");
     if (file == NULL)

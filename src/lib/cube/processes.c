@@ -99,7 +99,7 @@ static bool readProcess(int argCount)
 #else
         if (process->in == _fileno(stdin))
 #endif
-        
+
             break;
         rc = readFd(process->in, rd, buf);
     }
@@ -364,6 +364,25 @@ static bool runningProcess(int argCount)
     return true;
 }
 
+static bool doneProcess(int argCount)
+{
+    if (argCount != 1)
+    {
+        runtimeError("done() takes 1 argument (%d given)", argCount);
+        return false;
+    }
+
+    ObjProcess *process = AS_PROCESS(pop());
+    if (process->protected)
+    {
+        push(FALSE_VAL);
+        return true;
+    }
+    processAlive(process);
+    push(BOOL_VAL(!process->running));
+    return true;
+}
+
 static bool blockProcess(int argCount)
 {
     if (argCount == 0 || argCount > 2)
@@ -471,6 +490,8 @@ bool processesMethods(char *method, int argCount)
         return statusProcess(argCount);
     else if (strcmp(method, "running") == 0)
         return runningProcess(argCount);
+    else if (strcmp(method, "done") == 0)
+        return doneProcess(argCount);
     else if (strcmp(method, "block") == 0)
         return blockProcess(argCount);
     else if (strcmp(method, "close") == 0)

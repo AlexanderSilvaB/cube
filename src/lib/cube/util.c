@@ -89,6 +89,28 @@ char *readFile(const char *path, bool verbose)
     return buffer;
 }
 
+bool writeFile(const char *path, const char *buffer, size_t bufferSize, bool verbose)
+{
+    FILE *file = fopen(path, "wb");
+    if (file == NULL)
+    {
+        if (verbose)
+            fprintf(stderr, "Could not open file \"%s\".\n", path);
+        return false;
+    }
+
+    size_t bytesWriten = fwrite(buffer, sizeof(char), bufferSize, file);
+    if (bytesWriten < bufferSize)
+    {
+        if (verbose)
+            fprintf(stderr, "Could not write file \"%s\".\n", path);
+        return false;
+    }
+
+    fclose(file);
+    return true;
+}
+
 const char *cube_strchr(const char *s, int c1, int c2, int *c)
 {
     if (s == NULL)

@@ -6,10 +6,10 @@ set(SRC linenoise.cpp)
 
 add_definitions(-DWIN_EXPORT)
 
-add_library(linenoise STATIC ${SRC})
+add_library(cube_linenoise STATIC ${SRC})
          
-# install(TARGETS linenoise
-#     EXPORT linenoise_Targets
-#     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-#     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-#     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(TARGETS cube_linenoise
+    EXPORT cube_linenoise_Targets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

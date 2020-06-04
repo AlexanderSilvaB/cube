@@ -1,5 +1,12 @@
 #!/usr/local/bin/cube
 
+cube
+{
+    title = "Cubix",
+    description = "The cube package manager",
+    bin = "cubix"
+}
+
 import json;
 import curl;
 import os;

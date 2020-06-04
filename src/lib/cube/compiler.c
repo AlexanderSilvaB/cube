@@ -8,10 +8,10 @@
 #include "gc.h"
 #include "memory.h"
 #include "mempool.h"
+#include "packer.h"
 #include "parser.h"
 #include "scanner.h"
 #include "util.h"
-
 
 #ifdef DEBUG_PRINT_CODE
 #include "debug.h"
@@ -2104,7 +2104,24 @@ static void cubeDeclaration()
             break;
         }
 
-        printf("Cube: %s = %s\n", id, value);
+        if (strcmp(id, "title") == 0)
+        {
+            strcpy(cube_bin_options.title, value);
+        }
+        else if (strcmp(id, "bin") == 0)
+        {
+            strcpy(cube_bin_options.binary, value);
+        }
+        else if (strcmp(id, "description") == 0)
+        {
+            strcpy(cube_bin_options.description, value);
+        }
+        else
+        {
+            printf("Invalid cube setting: %s = %s\n", id, value);
+            errorAt(&gbcpl->parser.previous, "");
+            break;
+        }
 
         if (!match(TOKEN_COMMA))
             break;

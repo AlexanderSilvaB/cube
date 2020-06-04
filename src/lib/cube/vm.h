@@ -139,7 +139,7 @@ void loadArgs(int argc, const char *argv[], int argStart);
 ThreadFrame *currentThread();
 
 InterpretResult interpret(const char *source, const char *path);
-InterpretResult compileCode(const char *source, const char *path);
+InterpretResult compileCode(const char *source, const char *path, const char *output);
 void push(Value value);
 Value pop();
 Value peek(int distance);

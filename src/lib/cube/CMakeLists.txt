@@ -20,19 +20,22 @@ set(SRC cube.c
         files.c
         processes.c
         enums.c
+        tasks.c
         linkedList.c
         native.c
         gc.c
         threads.c
         mempool.c
-        ansi_escapes.c)
+        ansi_escapes.c
+        packer.c)
 
 set(INCLUDES
     ${CMAKE_CURRENT_SOURCE_DIR}/cube.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/version.h
     ${CMAKE_CURRENT_SOURCE_DIR}/cubeext.h)
 
 add_library(cube ${SRC})
-target_link_libraries(cube linenoise)
+target_link_libraries(cube cube_linenoise)
 IF (NOT WIN32)
 target_link_libraries(cube m)
 endif()

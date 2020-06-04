@@ -11,6 +11,7 @@
 #include "cube.h"
 #include "debug.h"
 #include "mempool.h"
+#include "packer.h"
 #include "util.h"
 #include "vm.h"
 
@@ -100,7 +101,9 @@ int runCube(int argc, const char *argv[])
 {
     int rc = 0;
     const char *fileName = NULL;
+    const char *output = NULL;
     bool execute = true;
+    bool binary = false;
     bool debug = false;
     bool forceInclude = false;
     int argStart = 1;
@@ -111,17 +114,29 @@ int runCube(int argc, const char *argv[])
             fileName = argv[i];
             argStart++;
         }
-        else if (strcmp(argv[i], "-c") == 0 && execute == true)
+        else if (strcmp(argv[i], "-o") == 0)
+        {
+            i++;
+            output = argv[i];
+            argStart += 2;
+        }
+        else if (strcmp(argv[i], "-c") == 0)
         {
             execute = false;
             argStart++;
         }
-        else if (strcmp(argv[i], "-d") == 0 && debug == false)
+        else if (strcmp(argv[i], "-b") == 0)
+        {
+            binary = true;
+            execute = false;
+            argStart++;
+        }
+        else if (strcmp(argv[i], "-d") == 0)
         {
             debug = true;
             argStart++;
         }
-        else if (strcmp(argv[i], "-i") == 0 && forceInclude == false)
+        else if (strcmp(argv[i], "-i") == 0)
         {
             forceInclude = true;
             argStart++;
@@ -147,7 +162,7 @@ int runCube(int argc, const char *argv[])
         char *folder = getFolder(fileName);
         if (folder != NULL)
             addPath(folder);
-        rc = runFile(fileName, execute);
+        rc = runFile(fileName, output, execute, binary);
         if (vm.newLine)
             printf("\n");
     }
@@ -205,6 +220,7 @@ int repl()
     linenoise_add_keyword("try");
     linenoise_add_keyword("catch");
     linenoise_add_keyword("for");
+    linenoise_add_keyword("cube");
 
     linenoise_set_multiline(true);
     linenoise_set_history_max_len(20);
@@ -251,7 +267,7 @@ int repl()
     return vm.exitCode;
 }
 
-int runFile(const char *path, bool execute)
+int runFile(const char *path, const char *output, bool execute, bool binary)
 {
     char *source = readFile(path, true);
     if (source == NULL)
@@ -263,8 +279,32 @@ int runFile(const char *path, bool execute)
     if (execute)
         result = interpret(source, path);
     else
-        result = compileCode(source, path);
+    {
+        if (binary)
+        {
+            if (pack(source, path, output))
+                result = INTERPRET_OK;
+            else
+                result = INTERPRET_COMPILE_ERROR;
+        }
+        else
+            result = compileCode(source, path, output);
+    }
     mp_free(source);
+
+    if (result == INTERPRET_COMPILE_ERROR)
+        return 65;
+    if (result == INTERPRET_RUNTIME_ERROR)
+        return 70;
+    return vm.exitCode;
+}
+
+int runCode(const char *source, const char *path, int argc, const char *argv[])
+{
+    loadArgs(argc, argv, 1);
+
+    InterpretResult result;
+    result = interpret(source, path);
 
     if (result == INTERPRET_COMPILE_ERROR)
         return 65;
