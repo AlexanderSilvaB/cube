@@ -35,7 +35,7 @@ set(INCLUDES
     ${CMAKE_CURRENT_SOURCE_DIR}/cubeext.h)
 
 add_library(cube ${SRC})
-target_link_libraries(cube cube_linenoise)
+target_link_libraries(cube cube_linenoise ffi_static)
 IF (NOT WIN32)
 target_link_libraries(cube m)
 endif()
