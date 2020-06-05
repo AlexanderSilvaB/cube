@@ -173,9 +173,9 @@ bool pack(const char *source, const char *path, const char *output)
 
     char *cmd = malloc(1024);
 #ifdef _WIN32
-    sprintf(cmd, "g++ %s -o %s -lcube -lpthread -lcube_linenoise", codeName, out);
+    sprintf(cmd, "g++ %s -o %s -l:libcube.a -lpthread -l:libcube_linenoise.a -l:libcubeffi.a", codeName, out);
 #else
-    sprintf(cmd, "g++ %s -o %s -lcube -lm -ldl -lpthread -lcube_linenoise", codeName, out);
+    sprintf(cmd, "g++ %s -o %s -l:libcube.a -lm -ldl -lpthread -l:libcube_linenoise.a -l:libcubeffi.a", codeName, out);
 #endif
     // printf("%s\n", cmd);
     system(cmd);
