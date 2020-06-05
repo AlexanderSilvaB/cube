@@ -55,5 +55,4 @@ func Mandel()
     }
 }
 
-if(__name__ == '__main__')
-    Mandel();
+Mandel();

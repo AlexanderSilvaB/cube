@@ -1,0 +1,19 @@
+native libcalc{}
+
+println('Symbols -----------------------')
+println(libcalc.symbols())
+
+println('Functions ---------------------')
+println(libcalc.functions())
+
+println('Vars --------------------------')
+println(libcalc.vars())
+
+println('Get (__bss_start) -------------')
+println(libcalc.get('__bss_start', 'num'))
+
+println('CallRet (add) -----------------')
+println(libcalc.callRet('add', 'num', [2, 3]))
+
+println('CallRet (mul) -----------------')
+println(libcalc.callRet('mul', 'num', [8, 2]))
