@@ -1512,8 +1512,16 @@ bool subscriptBytes(Value bytesValue, Value indexValue, Value *result)
         int index = AS_NUMBER(indexValue);
 
         if (index < 0)
-            index = bytes->length + index;
-        if (index >= 0 && index < bytes->length)
+        {
+            if (bytes->length >= 0)
+                index = bytes->length + index;
+            else
+            {
+                runtimeError("Bytes index out of bounds.");
+                return false;
+            }
+        }
+        if (index >= 0 && (bytes->length < 0 || index < bytes->length))
         {
             uint8_t bs[1];
             bs[0] = bytes->bytes[index];
@@ -1542,8 +1550,16 @@ bool subscriptBytes(Value bytesValue, Value indexValue, Value *result)
             int index = AS_NUMBER(innerIndexValue);
 
             if (index < 0)
-                index = bytes->length + index;
-            if (index >= 0 && index < bytes->length)
+            {
+                if (bytes->length >= 0)
+                    index = bytes->length + index;
+                else
+                {
+                    runtimeError("Bytes index out of bounds.");
+                    return false;
+                }
+            }
+            if (index >= 0 && (bytes->length < 0 || index < bytes->length))
             {
                 bs[bI] = bytes->bytes[index];
                 bI++;
@@ -1750,15 +1766,32 @@ bool subscriptBytesAssign(Value container, Value indexValue, Value assignValue)
     {
         int index = AS_NUMBER(indexValue);
 
-        if (index < 0)
-            index = bytes->length + index;
-        if (index >= 0 && index < bytes->length)
+        if (bytes->length >= 0)
         {
-            bytes->bytes = GROW_ARRAY(bytes->bytes, unsigned char, bytes->length, bytes->length + value->length - 1);
-            memcpy(bytes->bytes + index + value->length, bytes->bytes + index + 1, bytes->length - index - 1);
-            memcpy(bytes->bytes + index, value->bytes, value->length);
-            bytes->length = bytes->length + value->length - 1;
-            return true;
+            if (index < 0)
+                index = bytes->length + index;
+            if (index >= 0 && index < bytes->length)
+            {
+                bytes->bytes =
+                    GROW_ARRAY(bytes->bytes, unsigned char, bytes->length, bytes->length + value->length - 1);
+                memcpy(bytes->bytes + index + value->length, bytes->bytes + index + 1, bytes->length - index - 1);
+                memcpy(bytes->bytes + index, value->bytes, value->length);
+                bytes->length = bytes->length + value->length - 1;
+                return true;
+            }
+        }
+        else
+        {
+            if (index < 0)
+            {
+                runtimeError("Array index out of bounds.");
+                return false;
+            }
+            if (index >= 0)
+            {
+                memcpy(bytes->bytes + index, value->bytes, value->length);
+                return true;
+            }
         }
 
         runtimeError("Array index out of bounds.");
@@ -1781,16 +1814,31 @@ bool subscriptBytesAssign(Value container, Value indexValue, Value assignValue)
 
                 int index = AS_NUMBER(innerIndexValue);
 
-                if (index < 0)
-                    index = bytes->length + index;
-                if (index >= 0 && index < bytes->length)
+                if (bytes->length >= 0)
                 {
-                    bytes->bytes[index] = assignValues->bytes[i];
+                    if (index < 0)
+                        index = bytes->length + index;
+                    if (index >= 0 && index < bytes->length)
+                    {
+                        bytes->bytes[index] = assignValues->bytes[i];
+                    }
+                    else
+                    {
+                        runtimeError("Array index out of bounds.");
+                        return false;
+                    }
                 }
                 else
                 {
-                    runtimeError("Array index out of bounds.");
-                    return false;
+                    if (index >= 0)
+                    {
+                        bytes->bytes[index] = assignValues->bytes[i];
+                    }
+                    else
+                    {
+                        runtimeError("Array index out of bounds.");
+                        return false;
+                    }
                 }
             }
 
@@ -1809,20 +1857,36 @@ bool subscriptBytesAssign(Value container, Value indexValue, Value assignValue)
 
                 int index = AS_NUMBER(innerIndexValue);
 
-                if (index < 0)
-                    index = bytes->length + index;
-                if (index >= 0 && index < bytes->length)
+                if (bytes->length >= 0)
                 {
-                    bytes->bytes =
-                        GROW_ARRAY(bytes->bytes, unsigned char, bytes->length, bytes->length + value->length - 1);
-                    memcpy(bytes->bytes + index + value->length, bytes->bytes + index + 1, bytes->length - index - 1);
-                    memcpy(bytes->bytes + index, value->bytes, value->length);
-                    bytes->length = bytes->length + value->length - 1;
+                    if (index < 0)
+                        index = bytes->length + index;
+                    if (index >= 0 && index < bytes->length)
+                    {
+                        bytes->bytes =
+                            GROW_ARRAY(bytes->bytes, unsigned char, bytes->length, bytes->length + value->length - 1);
+                        memcpy(bytes->bytes + index + value->length, bytes->bytes + index + 1,
+                               bytes->length - index - 1);
+                        memcpy(bytes->bytes + index, value->bytes, value->length);
+                        bytes->length = bytes->length + value->length - 1;
+                    }
+                    else
+                    {
+                        runtimeError("Bytes index out of bounds.");
+                        return false;
+                    }
                 }
                 else
                 {
-                    runtimeError("Bytes index out of bounds.");
-                    return false;
+                    if (index >= 0)
+                    {
+                        memcpy(bytes->bytes + index, value->bytes, value->length);
+                    }
+                    else
+                    {
+                        runtimeError("Bytes index out of bounds.");
+                        return false;
+                    }
                 }
             }
 

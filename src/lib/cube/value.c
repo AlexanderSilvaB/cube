@@ -395,7 +395,7 @@ Value toNumber(Value value)
     {
         ObjBytes *bytes = AS_BYTES(value);
         char b[sizeof(uint32_t)];
-        int len = bytes->length > sizeof(uint32_t) ? sizeof(uint32_t) : bytes->length;
+        int len = bytes->length > sizeof(uint32_t) || bytes->length < 0 ? sizeof(uint32_t) : bytes->length;
         memcpy(b, bytes->bytes, len);
         uint32_t value = *((uint32_t *)b);
         return NUMBER_VAL(value);

@@ -53,6 +53,11 @@ static bool writeFile(int argCount, bool newLine)
     else
     {
         ObjBytes *bytes = AS_BYTES(toBytes(data));
+        if (bytes->length < 0)
+        {
+            runtimeError("Unsafe bytes are not writable!");
+            return false;
+        }
         wrote = fwrite(bytes->bytes, sizeof(char), bytes->length, file->file);
         if (newLine)
         {

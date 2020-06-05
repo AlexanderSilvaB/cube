@@ -27,6 +27,12 @@ static bool splitBytes(int argCount)
     ObjBytes *delimiter = AS_BYTES(pop());
     ObjBytes *bytes = AS_BYTES(pop());
 
+    if (bytes->length < 0 || delimiter->length < 0)
+    {
+        runtimeError("Unsafe bytes are not allowed in 'split'.\n");
+        return false;
+    }
+
     uint8_t *token;
     uint8_t *start = bytes->bytes;
     size_t len = bytes->length;
@@ -75,6 +81,12 @@ static bool containsBytes(int argCount)
 
     ObjBytes *delimiter = AS_BYTES(pop());
     ObjBytes *bytes = AS_BYTES(pop());
+
+    if (bytes->length < 0 || delimiter->length < 0)
+    {
+        runtimeError("Unsafe bytes are not allowed in 'contains'.\n");
+        return false;
+    }
 
     if (!cube_bytebyte(bytes->bytes, delimiter->bytes, bytes->length, delimiter->length))
     {
@@ -131,6 +143,12 @@ static bool findBytes(int argCount)
     ObjBytes *subb = AS_BYTES(pop());
     ObjBytes *bytes = AS_BYTES(pop());
 
+    if (bytes->length < 0 || subb->length < 0)
+    {
+        runtimeError("Unsafe bytes are not allowed in 'find'.\n");
+        return false;
+    }
+
     int position = 0;
     int next = 0;
 
@@ -174,6 +192,12 @@ static bool replaceBytes(int argCount)
     ObjBytes *replace = AS_BYTES(pop());
     ObjBytes *to_replace = AS_BYTES(pop());
     ObjBytes *bytes = AS_BYTES(pop());
+
+    if (bytes->length < 0 || replace->length < 0 || to_replace->length < 0)
+    {
+        runtimeError("Unsafe bytes are not allowed in 'replace'.\n");
+        return false;
+    }
 
     uint8_t *res = NULL;
     size_t rL = 0;
@@ -225,15 +249,18 @@ static bool subbytesBytes(int argCount)
 
     ObjBytes *bytes = AS_BYTES(pop());
 
-    if (start >= bytes->length)
+    if (bytes->length >= 0)
     {
-        runtimeError("start index out of bounds", start);
-        return false;
-    }
+        if (start >= bytes->length)
+        {
+            runtimeError("start index out of bounds", start);
+            return false;
+        }
 
-    if (start + length > bytes->length)
-    {
-        length = bytes->length - start;
+        if (start + length > bytes->length)
+        {
+            length = bytes->length - start;
+        }
     }
 
     uint8_t *temp = mp_malloc(sizeof(uint8_t) * length);
@@ -256,19 +283,26 @@ static bool fromBytes(int argCount)
 
     ObjBytes *bytes = AS_BYTES(pop());
 
-    if (start > bytes->length)
+    if (bytes->length >= 0)
     {
-        runtimeError("start index out of bounds", start);
-        return false;
+        if (start > bytes->length)
+        {
+            runtimeError("start index out of bounds", start);
+            return false;
+        }
+
+        int length = bytes->length - start;
+
+        uint8_t *temp = mp_malloc(sizeof(uint8_t) * length);
+        memcpy(temp, bytes->bytes + start, length);
+
+        push(BYTES_VAL(temp, length));
+        mp_free(temp);
     }
-
-    int length = bytes->length - start;
-
-    uint8_t *temp = mp_malloc(sizeof(uint8_t) * length);
-    memcpy(temp, bytes->bytes + start, length);
-
-    push(BYTES_VAL(temp, length));
-    mp_free(temp);
+    else
+    {
+        push(UNSAFE_VAL(bytes->bytes + start));
+    }
     return true;
 }
 
@@ -289,7 +323,18 @@ static bool startsWithBytes(int argCount)
     ObjBytes *start = AS_BYTES(pop());
     ObjBytes *bytes = AS_BYTES(pop());
 
-    uint8_t *result = cube_bytebyte(bytes->bytes, start->bytes, bytes->length, start->length);
+    if (start->length < 0)
+    {
+        runtimeError("Unsafe bytes are not allowed in 'startsWith' start.\n");
+        return false;
+    }
+
+    uint8_t *result = NULL;
+
+    if (bytes->length >= 0)
+        result = cube_bytebyte(bytes->bytes, start->bytes, bytes->length, start->length);
+    else
+        result = cube_bytebyte(bytes->bytes, start->bytes, INT32_MAX, start->length);
 
     push(BOOL_VAL(bytes->bytes == result));
     return true;
@@ -311,6 +356,12 @@ static bool endsWithBytes(int argCount)
 
     ObjBytes *suffix = AS_BYTES(pop());
     ObjBytes *bytes = AS_BYTES(pop());
+
+    if (bytes->length < 0 || suffix->length < 0)
+    {
+        runtimeError("Unsafe bytes are not allowed in 'endsWith'.\n");
+        return false;
+    }
 
     if (bytes->length < suffix->length)
     {
@@ -339,20 +390,107 @@ static bool numBytes(int argCount)
         return true;
     }
 
-    char b[sizeof(uint32_t)];
-    size_t len = bytes->length > sizeof(uint32_t) ? sizeof(uint32_t) : bytes->length;
-    memset(b, '\0', sizeof(uint32_t));
+    char b[sizeof(double)];
+    size_t len = bytes->length > sizeof(double) || bytes->length < 0 ? sizeof(double) : bytes->length;
+    memset(b, '\0', sizeof(double));
     if (bytes->length >= len)
         memcpy(b, bytes->bytes, len);
     else
         memcpy(b, bytes->bytes, bytes->length);
-    uint32_t value = *((uint32_t *)b);
+    double value = *((double *)b);
     push(NUMBER_VAL(value));
 
-    size_t L = bytes->length - len;
-    memcpy(bytes->bytes, bytes->bytes + len, L);
-    bytes->bytes = GROW_ARRAY(bytes->bytes, uint8_t, bytes->length, L);
-    bytes->length = L;
+    if (bytes->length >= 0)
+    {
+        size_t L = bytes->length - len;
+        memcpy(bytes->bytes, bytes->bytes + len, L);
+        bytes->bytes = GROW_ARRAY(bytes->bytes, uint8_t, bytes->length, L);
+        bytes->length = L;
+    }
+    else
+    {
+        bytes->bytes = bytes->bytes + len;
+    }
+
+    return true;
+}
+
+static bool floatBytes(int argCount)
+{
+    if (argCount != 1)
+    {
+        runtimeError("float() takes 0 arguments (%d  given)", argCount - 1);
+        return false;
+    }
+
+    ObjBytes *bytes = AS_BYTES(pop());
+    if (bytes->length == 0)
+    {
+        push(NUMBER_VAL(0));
+        return true;
+    }
+
+    char b[sizeof(float)];
+    size_t len = bytes->length > sizeof(float) || bytes->length < 0 ? sizeof(float) : bytes->length;
+    memset(b, '\0', sizeof(float));
+    if (bytes->length >= len)
+        memcpy(b, bytes->bytes, len);
+    else
+        memcpy(b, bytes->bytes, bytes->length);
+    float value = *((float *)b);
+    push(NUMBER_VAL(value));
+
+    if (bytes->length >= 0)
+    {
+        size_t L = bytes->length - len;
+        memcpy(bytes->bytes, bytes->bytes + len, L);
+        bytes->bytes = GROW_ARRAY(bytes->bytes, uint8_t, bytes->length, L);
+        bytes->length = L;
+    }
+    else
+    {
+        bytes->bytes = bytes->bytes + len;
+    }
+
+    return true;
+}
+
+static bool intBytes(int argCount)
+{
+    if (argCount != 1)
+    {
+        runtimeError("int() takes 0 arguments (%d  given)", argCount - 1);
+        return false;
+    }
+
+    ObjBytes *bytes = AS_BYTES(pop());
+    if (bytes->length == 0)
+    {
+        push(NUMBER_VAL(0));
+        return true;
+    }
+
+    char b[sizeof(int32_t)];
+    size_t len = bytes->length > sizeof(int32_t) || bytes->length < 0 ? sizeof(int32_t) : bytes->length;
+    memset(b, '\0', sizeof(int32_t));
+    if (bytes->length >= len)
+        memcpy(b, bytes->bytes, len);
+    else
+        memcpy(b, bytes->bytes, bytes->length);
+    int32_t value = *((int32_t *)b);
+    push(NUMBER_VAL(value));
+
+    if (bytes->length >= 0)
+    {
+        size_t L = bytes->length - len;
+        memcpy(bytes->bytes, bytes->bytes + len, L);
+        bytes->bytes = GROW_ARRAY(bytes->bytes, uint8_t, bytes->length, L);
+        bytes->length = L;
+    }
+    else
+    {
+        bytes->bytes = bytes->bytes + len;
+    }
 
     return true;
 }
@@ -375,11 +513,79 @@ static bool boolBytes(int argCount)
 
     push(BOOL_VAL((bytes->bytes[0] > 0)));
 
-    size_t L = bytes->length - 1;
-    memcpy(bytes->bytes, bytes->bytes + 1, L);
-    bytes->bytes = GROW_ARRAY(bytes->bytes, uint8_t, bytes->length, L);
-    bytes->length = L;
+    if (bytes->length >= 0)
+    {
+        size_t L = bytes->length - 1;
+        memcpy(bytes->bytes, bytes->bytes + 1, L);
+        bytes->bytes = GROW_ARRAY(bytes->bytes, uint8_t, bytes->length, L);
+        bytes->length = L;
+    }
+    else
+    {
+        bytes->bytes = bytes->bytes + 1;
+    }
 
+    return true;
+}
+
+static bool truncBytes(int argCount)
+{
+    if (argCount != 2)
+    {
+        runtimeError("trunc() takes 2 arguments (%d  given)", argCount);
+        return false;
+    }
+
+    int length = AS_NUMBER(pop());
+
+    ObjBytes *bytes = AS_BYTES(pop());
+
+    if (bytes->length >= 0)
+    {
+        if (length > bytes->length)
+        {
+            length = bytes->length;
+        }
+    }
+
+    uint8_t *temp = mp_malloc(sizeof(uint8_t) * length);
+    strncpy(temp, bytes->bytes, length);
+
+    push(BYTES_VAL(temp, length));
+    mp_free(temp);
+    return true;
+}
+
+static bool copyToBytes(int argCount)
+{
+    if (argCount != 2)
+    {
+        runtimeError("copyTo() takes 2 arguments (%d given)", argCount);
+        return false;
+    }
+
+    if (!IS_BYTES(peek(0)))
+    {
+        runtimeError("Can only copy to another bytes object.");
+        return false;
+    }
+
+    ObjBytes *to = AS_BYTES(pop());
+    ObjBytes *from = AS_BYTES(pop());
+
+    if (from->length < 0)
+    {
+        runtimeError("Unsafe bytes are not allowed to direct copy.\n");
+        return false;
+    }
+
+    int length = from->length;
+    if (to->length >= 0 && to->length < length)
+        length = to->length;
+
+    memcpy(to->bytes, from->bytes, length);
+
+    push(NUMBER_VAL(length));
     return true;
 }
 
@@ -403,8 +609,16 @@ bool bytesMethods(char *method, int argCount)
         return subbytesBytes(argCount);
     else if (strcmp(method, "num") == 0)
         return numBytes(argCount);
+    else if (strcmp(method, "float") == 0)
+        return floatBytes(argCount);
+    else if (strcmp(method, "int") == 0)
+        return intBytes(argCount);
     else if (strcmp(method, "bool") == 0)
         return boolBytes(argCount);
+    else if (strcmp(method, "trunc") == 0)
+        return truncBytes(argCount);
+    else if (strcmp(method, "copyTo") == 0)
+        return copyToBytes(argCount);
 
     runtimeError("Bytes has no method %s()", method);
     return false;

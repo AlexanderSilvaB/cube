@@ -75,5 +75,7 @@ bool getShape(int id, int *x, int *y, int *w, int *h);
 bool dimsShape(int id, int *w, int *h);
 bool getPixelsTexture(int id, unsigned int *length, unsigned char **pixels);
 bool setPixelsTexture(int id, unsigned int length, unsigned char *pixels);
+unsigned char *getPixelsTextureRaw(int id);
+void blitTexture(int id);
 
 #endif

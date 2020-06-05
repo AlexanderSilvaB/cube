@@ -383,6 +383,14 @@ ObjBytes *copyBytes(const void *bytes, int length)
     return obj;
 }
 
+ObjBytes *transferBytes(void *bytes)
+{
+    ObjBytes *obj = initBytes();
+    obj->bytes = bytes;
+    obj->length = -1;
+    return obj;
+}
+
 ObjUpvalue *newUpvalue(Value *slot)
 {
     ObjUpvalue *upvalue = ALLOCATE_OBJ(ObjUpvalue, OBJ_UPVALUE);
@@ -580,12 +588,17 @@ char *objectToString(Value value, bool literal)
 
         case OBJ_BYTES: {
             ObjBytes *bytes = AS_BYTES(value);
-            char *bytesString = mp_malloc(sizeof(unsigned char) * 7 * bytes->length);
+            int len = bytes->length;
+            if (len < 0)
+                len = 10;
+            char *bytesString = mp_malloc(sizeof(unsigned char) * 8 * len);
             bytesString[0] = '\0';
-            for (int i = 0; i < bytes->length; i++)
+            for (int i = 0; i < len; i++)
             {
                 snprintf(bytesString + strlen(bytesString), 6, "0x%X ", (unsigned char)bytes->bytes[i]);
             }
+            if (len != bytes->length)
+                snprintf(bytesString + strlen(bytesString), 6, "... ");
             return bytesString;
         }
 
@@ -975,7 +988,11 @@ Value copyObject(Value value)
     else if (IS_BYTES(value))
     {
         ObjBytes *oldBytes = AS_BYTES(value);
-        ObjBytes *newBytes = copyBytes(oldBytes->bytes, oldBytes->length);
+        ObjBytes *newBytes = NULL;
+        if (oldBytes->length >= 0)
+            newBytes = copyBytes(oldBytes->bytes, oldBytes->length);
+        else
+            newBytes = transferBytes(oldBytes->bytes);
         return OBJ_VAL(newBytes);
     }
     return value;
@@ -992,7 +1009,10 @@ ObjBytes *objectToBytes(Value value)
     else if (IS_BYTES(value))
     {
         ObjBytes *old = AS_BYTES(value);
-        bytes = copyBytes(old->bytes, old->length);
+        if (old->length >= 0)
+            bytes = copyBytes(old->bytes, old->length);
+        else
+            bytes = transferBytes(old->bytes);
     }
     else if (IS_LIST(value))
     {
@@ -1009,6 +1029,8 @@ ObjBytes *objectToBytes(Value value)
 
 void appendBytes(ObjBytes *dest, ObjBytes *src)
 {
+    if (dest->length < 0 || src->length < 0)
+        return;
     dest->bytes = GROW_ARRAY(dest->bytes, unsigned char, dest->length, dest->length + src->length);
     memcpy(dest->bytes + dest->length, src->bytes, src->length);
     dest->length += src->length;

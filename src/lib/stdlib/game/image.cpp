@@ -333,6 +333,16 @@ extern "C"
         return NATIVE_BOOL(true);
     }
 
+    EXPORTED unsigned char *data(cube_native_var *id)
+    {
+        return getPixelsTextureRaw(AS_NATIVE_NUMBER(id));
+    }
+
+    EXPORTED void blit(cube_native_var *id)
+    {
+        blitTexture(AS_NATIVE_NUMBER(id));
+    }
+
     EXPORTED void alpha(cube_native_var *id, cube_native_var *alpha)
     {
         if (!renderer)

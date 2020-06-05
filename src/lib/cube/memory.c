@@ -161,7 +161,8 @@ void freeObject(Obj *object)
 
         case OBJ_BYTES: {
             ObjBytes *bytes = (ObjBytes *)object;
-            FREE_ARRAY(char, bytes->bytes, bytes->length);
+            if (bytes->length >= 0)
+                FREE_ARRAY(char, bytes->bytes, bytes->length);
             FREE(ObjBytes, object);
             break;
         }

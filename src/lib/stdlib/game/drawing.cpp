@@ -655,3 +655,36 @@ bool setPixelsTexture(int id, unsigned int length, unsigned char *pixels)
 
     return true;
 }
+
+unsigned char *getPixelsTextureRaw(int id)
+{
+    SurfaceContainer *container = getContainer(id);
+    if (!container)
+        return NULL;
+
+    if (container->type != TEXTURE)
+        return NULL;
+
+    return container->data;
+}
+
+void blitTexture(int id)
+{
+    SurfaceContainer *container = getContainer(id);
+    if (!container)
+        return;
+
+    if (container->type != TEXTURE)
+        return;
+
+    SDL_Texture *tex = SDL_CreateTextureFromSurface(renderer, container->surface);
+
+    if (tex == NULL)
+        return;
+
+    SDL_DestroyTexture(container->texture);
+    container->texture = tex;
+
+    SDL_SetTextureBlendMode(container->texture, SDL_BLENDMODE_BLEND);
+    SDL_SetTextureAlphaMod(container->texture, 255);
+}

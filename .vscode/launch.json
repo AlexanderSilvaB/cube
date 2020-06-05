@@ -15,9 +15,7 @@
         "program": "${workspaceFolder}/build-win32/src/exe/main/cube.exe"
       },
       "args": [
-        "temp/hello.cube",
-        "-c",
-        "-b"
+        "temp/sdl.cube"
       ],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",

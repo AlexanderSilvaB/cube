@@ -50,6 +50,19 @@ typedef enum
     TYPE_DICT,
     TYPE_VAR,
     TYPE_FUNC,
+    TYPE_CBOOL,
+    TYPE_UINT8,
+    TYPE_UINT16,
+    TYPE_UINT32,
+    TYPE_UINT64,
+    TYPE_INT8,
+    TYPE_INT16,
+    TYPE_INT32,
+    TYPE_INT64,
+    TYPE_FLOAT32,
+    TYPE_FLOAT64,
+    TYPE_CSTRING,
+    TYPE_CBYTES,
     TYPE_UNKNOWN
 } NativeTypes;
 
@@ -163,6 +176,16 @@ static cube_native_var *NATIVE_BYTES_ARG(unsigned int length, unsigned char *byt
     var->type = TYPE_BYTES;
     var->value._bytes.length = length;
     var->value._bytes.bytes = bytes;
+    return var;
+}
+
+static cube_native_var *NATIVE_BYTES_COPY(unsigned int length, unsigned char *bytes)
+{
+    cube_native_var *var = NATIVE_VAR();
+    var->type = TYPE_BYTES;
+    var->value._bytes.length = length;
+    var->value._bytes.bytes = (uint8_t *)malloc(sizeof(uint8_t) * length);
+    memcpy(var->value._bytes.bytes, bytes, length);
     return var;
 }
 

@@ -6,6 +6,8 @@ native libs/libgame
     num create(num, num, bool);
     bytes getPixels(num);
     bool setPixels(num, bytes);
+    cbytes data(num);
+    void blit(num);
     void sprite(num, num, num);
     void next(num);
     void previous(num);

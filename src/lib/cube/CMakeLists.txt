@@ -2,6 +2,8 @@ include_directories(..)
 
 find_package(Threads)
 
+include_directories(../libffi-3.3/include)
+
 set(SRC cube.c 
         chunk.c 
         memory.c 

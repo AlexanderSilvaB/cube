@@ -1,10 +1,18 @@
 #ifdef _WIN32
 #include <windows.h>
 #else
+#define _GNU_SOURCE
+#ifdef __APPLE__
+#include <mach-o/dyld.h>
+#else // Linux
+#include <link.h>
+#endif
 #include <dlfcn.h>
 #endif
 
 #include <string.h>
+
+#include <ffi.h>
 
 #include "cubeext.h"
 #include "mempool.h"
@@ -13,12 +21,27 @@
 #include "vm.h"
 
 typedef void (*func_void)();
-typedef cube_native_var *(*func_value)();
 
 typedef union {
-    func_void f_void;
-    func_value f_value;
-} lib_func;
+    bool _bool;
+    uint8_t _uint8;
+    uint16_t _uint16;
+    uint32_t _uint32;
+    uint64_t _uint64;
+    int8_t _int8;
+    int16_t _int16;
+    int32_t _int32;
+    int64_t _int64;
+    float _float32;
+    double _float64;
+    void *_ptr;
+} var_value_t;
+
+typedef struct
+{
+    var_value_t val;
+    bool alloc;
+} var_t;
 
 typedef struct NativeLibPointer_st
 {
@@ -36,6 +59,48 @@ static NativeLibPointer *libPointer = NULL;
 #else
 #include "native_posix.c"
 #endif
+
+const char *dlpath(void *handle)
+{
+    const char *path = NULL;
+#ifdef __APPLE__
+    for (int32_t i = _dyld_image_count(); i >= 0; i--)
+    {
+
+        bool found = FALSE;
+        const char *probe_path = _dyld_get_image_name(i);
+        void *probe_handle = dlopen(probe_path, RTLD_NOW | RTLD_LOCAL | RTLD_NOLOAD);
+
+        if (handle == probe_handle)
+        {
+            found = TRUE;
+            path = probe_path;
+        }
+
+        dlclose(probe_handle);
+
+        if (found)
+            break;
+    }
+#else // Linux
+#ifdef _WIN32
+    char Filename[MAX_PATH];
+    int size = GetModuleFileNameA(handle, Filename, MAX_PATH);
+    if (size != 0)
+    {
+        path = malloc(size + 1);
+        strcpy(path, Filename);
+    }
+#else
+    struct link_map *map;
+    dlinfo(handle, RTLD_DI_LINKMAP, &map);
+
+    if (map)
+        path = map->l_name;
+#endif
+#endif
+    return path;
+}
 
 void *getNativeHandler(const char *path)
 {
@@ -96,8 +161,9 @@ bool openNativeLib(ObjNativeLib *lib)
         char *path = findFile(lib->name->chars);
         if (path == NULL)
         {
-            runtimeError("Unable to find native lib: '%s'", lib->name->chars);
-            return false;
+            // runtimeError("Unable to find native lib: '%s'", lib->name->chars);
+            // return false;
+            path = lib->name->chars;
         }
 
         lib->handle = getNativeHandler(path);
@@ -121,6 +187,10 @@ bool openNativeLib(ObjNativeLib *lib)
                 return false;
             }
 
+            char *p2 = dlpath(lib->handle);
+            if (p2)
+                path = p2;
+
             NativeLibPointer *pt = (NativeLibPointer *)mp_malloc(sizeof(NativeLibPointer));
             pt->counter = 1;
             pt->next = libPointer;
@@ -131,15 +201,15 @@ bool openNativeLib(ObjNativeLib *lib)
 
             libPointer = pt;
 
-            lib_func fn;
+            func_void fn;
 #ifdef _WIN32
-            fn.f_void = (func_void)GetProcAddress(lib->handle, "cube_init");
+            fn = (func_void)GetProcAddress(lib->handle, "cube_init");
 #else
-            fn.f_void = (func_void)dlsym(lib->handle, "cube_init");
+            fn = (func_void)dlsym(lib->handle, "cube_init");
 #endif
 
-            if (fn.f_void != NULL)
-                fn.f_void();
+            if (fn != NULL)
+                fn();
         }
     }
     return true;
@@ -162,15 +232,15 @@ void closeNativeLib(ObjNativeLib *lib)
                 deleteNativePointer(pt);
         }
 
-        lib_func fn;
+        func_void fn;
 #ifdef _WIN32
-        fn.f_void = (func_void)GetProcAddress(lib->handle, "cube_release");
+        fn = (func_void)GetProcAddress(lib->handle, "cube_release");
 #else
-        fn.f_void = (func_void)dlsym(lib->handle, "cube_release");
+        fn = (func_void)dlsym(lib->handle, "cube_release");
 #endif
 
-        if (fn.f_void != NULL)
-            fn.f_void();
+        if (fn != NULL)
+            fn();
 
 #ifdef _WIN32
         FreeLibrary(lib->handle);
@@ -348,109 +418,232 @@ void freeVarNative(cube_native_var *var)
     freeNativeVar(var, false, false);
 }
 
-Value callNativeFn(lib_func func, NativeTypes ret, int count, cube_native_var **values)
+void free_var(var_t var)
+{
+    if (var.alloc)
+    {
+        freeNativeVar((cube_native_var *)var.val._ptr, false, true);
+    }
+}
+
+void to_var(var_t *var, Value value, NativeTypes type, ffi_type **ffi_arg)
+{
+    switch (type)
+    {
+
+        case TYPE_NULL:
+        case TYPE_BOOL:
+        case TYPE_NUMBER:
+        case TYPE_STRING:
+        case TYPE_BYTES:
+        case TYPE_LIST:
+        case TYPE_DICT:
+        case TYPE_VAR: {
+            *ffi_arg = &ffi_type_pointer;
+            var->val._ptr = NATIVE_VAR();
+            var->alloc = true;
+            valueToNative((cube_native_var *)var->val._ptr, value);
+        }
+        break;
+        case TYPE_FUNC: {
+            *ffi_arg = &ffi_type_pointer;
+            var->val._ptr = NATIVE_VAR();
+            var->alloc = true;
+            TO_NATIVE_FUNC((cube_native_var *)var->val._ptr);
+        }
+        break;
+        case TYPE_VOID:
+            *ffi_arg = &ffi_type_void;
+            var->val._uint64 = 0;
+            break;
+        case TYPE_CBOOL:
+            *ffi_arg = &ffi_type_sint8;
+            var->val._bool = (bool)(AS_BOOL(toBool(value)));
+            break;
+        case TYPE_INT8:
+            *ffi_arg = &ffi_type_sint8;
+            var->val._int8 = (int8_t)(AS_NUMBER(toNumber(value)));
+            break;
+        case TYPE_INT16:
+            *ffi_arg = &ffi_type_sint16;
+            var->val._int16 = (int16_t)(AS_NUMBER(toNumber(value)));
+            break;
+        case TYPE_INT32:
+            *ffi_arg = &ffi_type_sint32;
+            var->val._int32 = (int32_t)(AS_NUMBER(toNumber(value)));
+            break;
+        case TYPE_INT64:
+            *ffi_arg = &ffi_type_sint64;
+            var->val._int64 = (int64_t)(AS_NUMBER(toNumber(value)));
+            break;
+        case TYPE_UINT8:
+            *ffi_arg = &ffi_type_uint8;
+            var->val._uint8 = (uint8_t)(AS_NUMBER(toNumber(value)));
+            break;
+        case TYPE_UINT16:
+            *ffi_arg = &ffi_type_uint16;
+            var->val._uint16 = (uint16_t)(AS_NUMBER(toNumber(value)));
+            break;
+        case TYPE_UINT32:
+            *ffi_arg = &ffi_type_uint32;
+            var->val._uint32 = (uint32_t)(AS_NUMBER(toNumber(value)));
+            break;
+        case TYPE_UINT64:
+            *ffi_arg = &ffi_type_uint64;
+            var->val._uint64 = (uint64_t)(AS_NUMBER(toNumber(value)));
+            break;
+        case TYPE_FLOAT32:
+            *ffi_arg = &ffi_type_float;
+            var->val._float32 = (float)(AS_NUMBER(toNumber(value)));
+            break;
+        case TYPE_FLOAT64:
+            *ffi_arg = &ffi_type_double;
+            var->val._float64 = (double)(AS_NUMBER(toNumber(value)));
+            break;
+        case TYPE_CSTRING:
+            *ffi_arg = &ffi_type_pointer;
+            var->val._ptr = (char *)(AS_CSTRING(toString(value)));
+            break;
+        case TYPE_CBYTES:
+            *ffi_arg = &ffi_type_pointer;
+            var->val._ptr = (uint8_t *)(AS_CBYTES(toBytes(value)));
+            break;
+        default:
+            *ffi_arg = &ffi_type_pointer;
+            var->val._ptr = NATIVE_NULL();
+            var->alloc = true;
+            break;
+    }
+}
+
+ffi_type *prepare_ret_var(var_t *var, NativeTypes type)
+{
+    ffi_type *ffi_ret_type = &ffi_type_void;
+    var->alloc = false;
+
+    switch (type)
+    {
+        case TYPE_NULL:
+        case TYPE_BOOL:
+        case TYPE_NUMBER:
+        case TYPE_STRING:
+        case TYPE_BYTES:
+        case TYPE_LIST:
+        case TYPE_DICT:
+        case TYPE_VAR:
+        case TYPE_FUNC: {
+            ffi_ret_type = &ffi_type_pointer;
+            var->alloc = true;
+        }
+        break;
+        case TYPE_CBOOL:
+            ffi_ret_type = &ffi_type_sint8;
+            break;
+        case TYPE_INT8:
+            ffi_ret_type = &ffi_type_sint8;
+            break;
+        case TYPE_INT16:
+            ffi_ret_type = &ffi_type_sint16;
+            break;
+        case TYPE_INT32:
+            ffi_ret_type = &ffi_type_sint32;
+            break;
+        case TYPE_INT64:
+            ffi_ret_type = &ffi_type_sint64;
+            break;
+        case TYPE_UINT8:
+            ffi_ret_type = &ffi_type_uint8;
+            break;
+        case TYPE_UINT16:
+            ffi_ret_type = &ffi_type_uint16;
+            break;
+        case TYPE_UINT32:
+            ffi_ret_type = &ffi_type_uint32;
+            break;
+        case TYPE_UINT64:
+            ffi_ret_type = &ffi_type_uint64;
+            break;
+        case TYPE_FLOAT32:
+            ffi_ret_type = &ffi_type_float;
+            break;
+        case TYPE_FLOAT64:
+            ffi_ret_type = &ffi_type_double;
+            break;
+        case TYPE_CSTRING:
+            ffi_ret_type = &ffi_type_pointer;
+            break;
+        case TYPE_CBYTES:
+            ffi_ret_type = &ffi_type_pointer;
+        default:
+            break;
+    }
+
+    return ffi_ret_type;
+}
+
+Value from_var(var_t *var, NativeTypes retType)
 {
     Value result = NULL_VAL;
-    cube_native_var *res = NULL;
-    if (ret == TYPE_VOID)
+
+    switch (retType)
     {
-        switch (count)
-        {
-            case 0:
-                func.f_void();
-                break;
-            case 1:
-                func.f_void(values[0]);
-                break;
-            case 2:
-                func.f_void(values[0], values[1]);
-                break;
-            case 3:
-                func.f_void(values[0], values[1], values[2]);
-                break;
-            case 4:
-                func.f_void(values[0], values[1], values[2], values[3]);
-                break;
-            case 5:
-                func.f_void(values[0], values[1], values[2], values[3], values[4]);
-                break;
-            case 6:
-                func.f_void(values[0], values[1], values[2], values[3], values[4], values[5]);
-                break;
-            case 7:
-                func.f_void(values[0], values[1], values[2], values[3], values[4], values[5], values[6]);
-                break;
-            case 8:
-                func.f_void(values[0], values[1], values[2], values[3], values[4], values[5], values[6], values[7]);
-                break;
-            case 9:
-                func.f_void(values[0], values[1], values[2], values[3], values[4], values[5], values[6], values[7],
-                            values[8]);
-                break;
-            case 10:
-                func.f_void(values[0], values[1], values[2], values[3], values[4], values[5], values[6], values[7],
-                            values[8], values[9]);
-                break;
-            default:
-                break;
+        case TYPE_NULL:
+        case TYPE_BOOL:
+        case TYPE_NUMBER:
+        case TYPE_STRING:
+        case TYPE_BYTES:
+        case TYPE_LIST:
+        case TYPE_DICT:
+        case TYPE_VAR:
+        case TYPE_FUNC: {
+            NativeTypes nt;
+            result = nativeToValue((cube_native_var *)var->val._ptr, &nt);
+            freeNativeVar((cube_native_var *)var->val._ptr, false, false);
         }
+        break;
+        case TYPE_CBOOL:
+            result = BOOL_VAL((bool)(var->val._bool));
+            break;
+        case TYPE_INT8:
+            result = NUMBER_VAL((int8_t)(var->val._int8));
+            break;
+        case TYPE_INT16:
+            result = NUMBER_VAL((int16_t)(var->val._int16));
+            break;
+        case TYPE_INT32:
+            result = NUMBER_VAL((int32_t)(var->val._int32));
+            break;
+        case TYPE_INT64:
+            result = NUMBER_VAL((uint64_t)(var->val._int64));
+            break;
+        case TYPE_UINT8:
+            result = NUMBER_VAL((uint8_t)(var->val._uint8));
+            break;
+        case TYPE_UINT16:
+            result = NUMBER_VAL((uint16_t)(var->val._uint16));
+            break;
+        case TYPE_UINT32:
+            result = NUMBER_VAL((uint32_t)(var->val._uint32));
+            break;
+        case TYPE_UINT64:
+            result = NUMBER_VAL((uint64_t)(var->val._uint64));
+            break;
+        case TYPE_FLOAT32:
+            result = NUMBER_VAL((float)(var->val._float32));
+            break;
+        case TYPE_FLOAT64:
+            result = NUMBER_VAL((double)(var->val._float64));
+            break;
+        case TYPE_CSTRING:
+            result = STRING_VAL((char *)var->val._ptr);
+            break;
+        case TYPE_CBYTES:
+            result = UNSAFE_VAL((uint8_t *)var->val._ptr);
+            break;
+        default:
+            break;
     }
-    else
-    {
-        switch (count)
-        {
-            case 0:
-                res = func.f_value();
-                break;
-            case 1:
-                res = func.f_value(values[0]);
-                break;
-            case 2:
-                res = func.f_value(values[0], values[1]);
-                break;
-            case 3:
-                res = func.f_value(values[0], values[1], values[2]);
-                break;
-            case 4:
-                res = func.f_value(values[0], values[1], values[2], values[3]);
-                break;
-            case 5:
-                res = func.f_value(values[0], values[1], values[2], values[3], values[4]);
-                break;
-            case 6:
-                res = func.f_value(values[0], values[1], values[2], values[3], values[4], values[5]);
-                break;
-            case 7:
-                res = func.f_value(values[0], values[1], values[2], values[3], values[4], values[5], values[6]);
-                break;
-            case 8:
-                res = func.f_value(values[0], values[1], values[2], values[3], values[4], values[5], values[6],
-                                   values[7]);
-                break;
-            case 9:
-                res = func.f_value(values[0], values[1], values[2], values[3], values[4], values[5], values[6],
-                                   values[7], values[8]);
-                break;
-            case 10:
-                res = func.f_value(values[0], values[1], values[2], values[3], values[4], values[5], values[6],
-                                   values[7], values[8], values[9]);
-                break;
-            default:
-                break;
-        }
 
-        NativeTypes nt;
-        result = nativeToValue(res, &nt);
-
-        // if (nt != ret)
-        // {
-        //     freeNativeVar(res, false, false);
-        //     runtimeError("Native function returned an inconsistent type");
-        //     return NULL_VAL;
-        // }
-
-        freeNativeVar(res, false, false);
-    }
     return result;
 }
 
@@ -459,14 +652,14 @@ Value callNative(ObjNativeFunc *func, int argCount, Value *args)
     if (!openNativeLib(func->lib))
         return NULL_VAL;
 
-    lib_func fn;
+    func_void fn;
 #ifdef _WIN32
-    fn.f_void = (func_void)GetProcAddress(func->lib->handle, func->name->chars);
+    fn = (func_void)GetProcAddress(func->lib->handle, func->name->chars);
 #else
-    fn.f_void = (func_void)dlsym(func->lib->handle, func->name->chars);
+    fn = (func_void)dlsym(func->lib->handle, func->name->chars);
 #endif
 
-    if (fn.f_void == NULL)
+    if (fn == NULL)
     {
         runtimeError("Unable to find native func: '%s'", func->name->chars);
         return NULL_VAL;
@@ -478,74 +671,77 @@ Value callNative(ObjNativeFunc *func, int argCount, Value *args)
         return NULL_VAL;
     }
 
-    Value result = NULL_VAL;
-    cube_native_var **values = (cube_native_var **)malloc(sizeof(cube_native_var *) * 10);
-    for (int i = 0; i < 10; i++)
-        values[i] = NULL;
-    for (int i = 0; i < func->params.count && i < 10; i++)
+    // Arguments ------------------------
+    ffi_type **ffi_args = (ffi_type **)malloc(sizeof(ffi_type *) * argCount);
+    void **ffi_values = (void **)malloc(sizeof(void *) * argCount);
+    var_t *vars = (var_t *)malloc(sizeof(var_t) * argCount);
+
+    for (int i = 0; i < argCount; i++)
     {
         NativeTypes type = getNativeType(AS_CSTRING(func->params.values[i]));
         if (type == TYPE_UNKNOWN || type == TYPE_VOID)
         {
+            free(ffi_args);
+            free(ffi_values);
+            free(vars);
             runtimeError("Invalid argument type in %s: '%s'", func->name->chars, AS_CSTRING(func->params.values[i]));
             return NULL_VAL;
         }
-        values[i] = NATIVE_VAR();
-        switch (type)
-        {
-            case TYPE_NULL:
-                TO_NATIVE_NULL(values[i]);
-                break;
-            case TYPE_BOOL:
-                TO_NATIVE_BOOL(values[i], AS_BOOL(toBool(args[i])));
-                break;
-            case TYPE_NUMBER:
-                TO_NATIVE_NUMBER(values[i], (double)AS_NUMBER(toNumber(args[i])));
-                break;
-            case TYPE_STRING:
-                TO_NATIVE_STRING(values[i], AS_CSTRING(toString(args[i])));
-                break;
-            case TYPE_BYTES: {
-                ObjBytes *bytes = AS_BYTES(toBytes(args[i]));
-                TO_NATIVE_BYTES_ARG(values[i], bytes->length, bytes->bytes);
-            }
-            break;
-            case TYPE_LIST:
-            case TYPE_DICT:
-            case TYPE_VAR: {
-                valueToNative(values[i], args[i]);
-            }
-            break;
-            case TYPE_FUNC: {
-                TO_NATIVE_FUNC(values[i]);
-            }
-            break;
-            default:
-                values[i]->type = TYPE_VOID;
-                break;
-        }
+
+        ffi_values[i] = &vars[i];
+        vars[i].alloc = false;
+
+        to_var(&vars[i], args[i], type, &ffi_args[i]);
     }
 
+    // Return -------------------------
     NativeTypes retType = getNativeType(func->returnType->chars);
     if (retType == TYPE_UNKNOWN)
     {
-        for (int i = 0; i < func->params.count && i < 10; i++)
+        for (int i = 0; i < argCount; i++)
         {
-            freeNativeVar(values[i], false, true);
-            values[i] = NULL;
+            free_var(vars[i]);
         }
-        free(values);
+        free(ffi_args);
+        free(ffi_values);
+        free(vars);
         runtimeError("Invalid return type in %s: '%s'", func->name->chars, func->returnType->chars);
         return NULL_VAL;
     }
-    result = callNativeFn(fn, retType, argCount, values);
 
-    for (int i = 0; i < func->params.count && i < 10; i++)
+    var_t ret;
+    ffi_type *ffi_ret_type = prepare_ret_var(&ret, retType);
+
+    // Prepare for call -----------------------
+    ffi_cif cif;
+    if (ffi_prep_cif(&cif, FFI_DEFAULT_ABI, argCount, ffi_ret_type, ffi_args) != FFI_OK)
     {
-        freeNativeVar(values[i], false, true);
-        values[i] = NULL;
+        for (int i = 0; i < argCount; i++)
+        {
+            free_var(vars[i]);
+        }
+        free(ffi_args);
+        free(ffi_values);
+        free(vars);
+        runtimeError("Could not call '%s'.", func->name->chars);
+        return NULL_VAL;
     }
-    free(values);
+
+    // Call ------------------------------------
+    ffi_call(&cif, FFI_FN(fn), &ret.val, ffi_values);
+
+    // Get the result
+    Value result = from_var(&ret, retType);
+
+    // Free data
+    for (int i = 0; i < argCount; i++)
+    {
+        free_var(vars[i]);
+    }
+    free(ffi_args);
+    free(ffi_values);
+    free(vars);
+
     return result;
 }
 
@@ -571,6 +767,32 @@ NativeTypes getNativeType(const char *name)
         return TYPE_VAR;
     else if (strcmp(name, "func") == 0)
         return TYPE_FUNC;
+    else if (strcmp(name, "cbool") == 0)
+        return TYPE_CBOOL;
+    else if (strcmp(name, "int8") == 0 || strcmp(name, "char") == 0)
+        return TYPE_INT8;
+    else if (strcmp(name, "int16") == 0 || strcmp(name, "short") == 0)
+        return TYPE_INT16;
+    else if (strcmp(name, "int32") == 0 || strcmp(name, "int") == 0)
+        return TYPE_INT32;
+    else if (strcmp(name, "int64") == 0 || strcmp(name, "long") == 0)
+        return TYPE_INT64;
+    else if (strcmp(name, "uint8") == 0 || strcmp(name, "uchar") == 0)
+        return TYPE_UINT8;
+    else if (strcmp(name, "uint16") == 0 || strcmp(name, "ushort") == 0)
+        return TYPE_UINT16;
+    else if (strcmp(name, "uint32") == 0 || strcmp(name, "uint") == 0)
+        return TYPE_UINT32;
+    else if (strcmp(name, "uint64") == 0 || strcmp(name, "ulong") == 0)
+        return TYPE_UINT64;
+    else if (strcmp(name, "float") == 0 || strcmp(name, "float32") == 0)
+        return TYPE_FLOAT32;
+    else if (strcmp(name, "double") == 0 || strcmp(name, "float64") == 0)
+        return TYPE_FLOAT64;
+    else if (strcmp(name, "char_array") == 0 || strcmp(name, "cstring") == 0 || strcmp(name, "cstr") == 0)
+        return TYPE_CSTRING;
+    else if (strcmp(name, "uchar_array") == 0 || strcmp(name, "cbytes") == 0 || strcmp(name, "raw") == 0)
+        return TYPE_CBYTES;
 
     return TYPE_UNKNOWN;
 }
@@ -906,16 +1128,37 @@ static bool setCharNativeLib(int argCount)
 
 static bool callNativeLib(int argCount)
 {
-    if (argCount < 2 || argCount > 3)
+    if (argCount < 2 || argCount > 4)
     {
-        runtimeError("call() takes 2 or 3 arguments (%d given)", argCount);
+        runtimeError("call() takes 2, 3 or 4 arguments (%d given)", argCount);
         return false;
+    }
+
+    ObjList *listTypes = NULL;
+    int ntypes = 0;
+    Value types = NULL_VAL;
+    if (argCount == 4)
+    {
+        types = pop();
+        ntypes = 1;
+    }
+
+    if (ntypes == 1)
+    {
+        if (!IS_LIST(types))
+        {
+            listTypes = initList();
+            writeValueArray(&listTypes->values, types);
+            types = OBJ_VAL(listTypes);
+        }
+        listTypes = AS_LIST(types);
+        ntypes = listTypes->values.count;
     }
 
     ObjList *list = NULL;
     int nargs = 0;
     Value args = NULL_VAL;
-    if (argCount == 3)
+    if (argCount == 3 || argCount == 4)
     {
         args = pop();
         nargs = 1;
@@ -931,6 +1174,12 @@ static bool callNativeLib(int argCount)
         }
         list = AS_LIST(args);
         nargs = list->values.count;
+    }
+
+    if (listTypes != NULL && nargs != ntypes)
+    {
+        runtimeError("Types and values must be the same size");
+        return false;
     }
 
     ObjString *name = AS_STRING(pop());
@@ -942,55 +1191,136 @@ static bool callNativeLib(int argCount)
         return false;
     }
 
-    lib_func fn;
+    func_void fn;
 #ifdef _WIN32
-    fn.f_void = (func_void)GetProcAddress(lib->handle, name->chars);
+    fn = (func_void)GetProcAddress(lib->handle, name->chars);
 #else
-    fn.f_void = (func_void)dlsym(lib->handle, name->chars);
+    fn = (func_void)dlsym(lib->handle, name->chars);
 #endif
 
-    if (fn.f_void == NULL)
+    if (fn == NULL)
     {
         runtimeError("Unable to find native symbol: '%s'", name->chars);
         return false;
     }
 
-    Value result = NULL_VAL;
-    cube_native_var **values = (cube_native_var **)malloc(sizeof(cube_native_var *) * 10);
-    for (int i = 0; i < 10; i++)
-        values[i] = NULL;
-    for (int i = 0; i < nargs && i < 10; i++)
+    // Arguments ------------------------
+    ffi_type **ffi_args = (ffi_type **)malloc(sizeof(ffi_type *) * nargs);
+    void **ffi_values = (void **)malloc(sizeof(void *) * nargs);
+    var_t *vars = (var_t *)malloc(sizeof(var_t) * nargs);
+
+    for (int i = 0; i < nargs; i++)
     {
-        values[i] = NATIVE_VAR();
-        valueToNative(values[i], list->values.values[i]);
+        ffi_values[i] = &vars[i];
+        vars[i].alloc = false;
+
+        NativeTypes type = TYPE_VAR;
+        if (listTypes != NULL)
+        {
+            if (!IS_STRING(listTypes->values.values[i]))
+            {
+                for (int i = 0; i < nargs; i++)
+                {
+                    free_var(vars[i]);
+                }
+                free(ffi_args);
+                free(ffi_values);
+                free(vars);
+                runtimeError("Type must be a string.");
+                return false;
+            }
+            else
+            {
+                type = getNativeType(AS_CSTRING(listTypes->values.values[i]));
+                if (type == TYPE_UNKNOWN || type == TYPE_VOID)
+                {
+                    for (int i = 0; i < nargs; i++)
+                    {
+                        free_var(vars[i]);
+                    }
+                    free(ffi_args);
+                    free(ffi_values);
+                    free(vars);
+                    runtimeError("Invalid argument type '%s'.", AS_CSTRING(listTypes->values.values[i]));
+                    return false;
+                }
+            }
+        }
+
+        to_var(&vars[i], list->values.values[i], type, &ffi_args[i]);
     }
 
-    result = callNativeFn(fn, TYPE_VOID, argCount, values);
+    // Return -------------------------
+    var_t ret;
+    ffi_type *ffi_ret_type = prepare_ret_var(&ret, TYPE_VOID);
 
-    for (int i = 0; i < nargs && i < 10; i++)
+    // Prepare for call -----------------------
+    ffi_cif cif;
+    if (ffi_prep_cif(&cif, FFI_DEFAULT_ABI, nargs, ffi_ret_type, ffi_args) != FFI_OK)
     {
-        freeNativeVar(values[i], false, true);
-        values[i] = NULL;
+        for (int i = 0; i < nargs; i++)
+        {
+            free_var(vars[i]);
+        }
+        free(ffi_args);
+        free(ffi_values);
+        free(vars);
+        runtimeError("Could not call '%s'.", name->chars);
+        return false;
     }
-    free(values);
+
+    // Call ------------------------------------
+    ffi_call(&cif, FFI_FN(fn), &ret.val, ffi_values);
+
+    // Get the result
+    Value result = from_var(&ret, TYPE_VOID);
+
+    // Free data
+    for (int i = 0; i < nargs; i++)
+    {
+        free_var(vars[i]);
+    }
+    free(ffi_args);
+    free(ffi_values);
+    free(vars);
 
     push(result);
-
     return true;
 }
 
 static bool callRetNativeLib(int argCount)
 {
-    if (argCount < 3 || argCount > 4)
+    if (argCount < 3 || argCount > 5)
     {
-        runtimeError("callRet() takes 3 or 4 arguments (%d given)", argCount);
+        runtimeError("callRet() takes 3, 4 or 5 arguments (%d given)", argCount);
         return false;
+    }
+
+    ObjList *listTypes = NULL;
+    int ntypes = 0;
+    Value types = NULL_VAL;
+    if (argCount == 5)
+    {
+        types = pop();
+        ntypes = 1;
+    }
+
+    if (ntypes == 1)
+    {
+        if (!IS_LIST(types))
+        {
+            listTypes = initList();
+            writeValueArray(&listTypes->values, types);
+            types = OBJ_VAL(listTypes);
+        }
+        listTypes = AS_LIST(types);
+        ntypes = listTypes->values.count;
     }
 
     ObjList *list = NULL;
     int nargs = 0;
     Value args = NULL_VAL;
-    if (argCount == 4)
+    if (argCount == 4 || argCount == 5)
     {
         args = pop();
         nargs = 1;
@@ -1006,6 +1336,12 @@ static bool callRetNativeLib(int argCount)
         }
         list = AS_LIST(args);
         nargs = list->values.count;
+    }
+
+    if (listTypes != NULL && nargs != ntypes)
+    {
+        runtimeError("Types and values must be the same size");
+        return false;
     }
 
     ObjString *returnType = AS_STRING(pop());
@@ -1019,41 +1355,102 @@ static bool callRetNativeLib(int argCount)
         return false;
     }
 
-    lib_func fn;
+    func_void fn;
 #ifdef _WIN32
-    fn.f_void = (func_void)GetProcAddress(lib->handle, name->chars);
+    fn = (func_void)GetProcAddress(lib->handle, name->chars);
 #else
-    fn.f_void = (func_void)dlsym(lib->handle, name->chars);
+    fn = (func_void)dlsym(lib->handle, name->chars);
 #endif
 
-    if (fn.f_void == NULL)
+    if (fn == NULL)
     {
         runtimeError("Unable to find native symbol: '%s'", name->chars);
         return false;
     }
 
-    Value result = NULL_VAL;
-    cube_native_var **values = (cube_native_var **)malloc(sizeof(cube_native_var *) * 10);
-    for (int i = 0; i < 10; i++)
-        values[i] = NULL;
-    for (int i = 0; i < nargs && i < 10; i++)
+    // Arguments ------------------------
+    ffi_type **ffi_args = (ffi_type **)malloc(sizeof(ffi_type *) * nargs);
+    void **ffi_values = (void **)malloc(sizeof(void *) * nargs);
+    var_t *vars = (var_t *)malloc(sizeof(var_t) * nargs);
+
+    for (int i = 0; i < nargs; i++)
     {
-        values[i] = NATIVE_VAR();
-        valueToNative(values[i], list->values.values[i]);
+        ffi_values[i] = &vars[i];
+        vars[i].alloc = false;
+
+        NativeTypes type = TYPE_VAR;
+        if (listTypes != NULL)
+        {
+            if (!IS_STRING(listTypes->values.values[i]))
+            {
+                for (int i = 0; i < nargs; i++)
+                {
+                    free_var(vars[i]);
+                }
+                free(ffi_args);
+                free(ffi_values);
+                free(vars);
+                runtimeError("Type must be a string.");
+                return false;
+            }
+            else
+            {
+                type = getNativeType(AS_CSTRING(listTypes->values.values[i]));
+                if (type == TYPE_UNKNOWN || type == TYPE_VOID)
+                {
+                    for (int i = 0; i < nargs; i++)
+                    {
+                        free_var(vars[i]);
+                    }
+                    free(ffi_args);
+                    free(ffi_values);
+                    free(vars);
+                    runtimeError("Invalid argument type '%s'.", AS_CSTRING(listTypes->values.values[i]));
+                    return false;
+                }
+            }
+        }
+
+        to_var(&vars[i], list->values.values[i], type, &ffi_args[i]);
     }
 
+    // Return -------------------------
     NativeTypes retType = getNativeType(returnType->chars);
     if (retType == TYPE_UNKNOWN)
         retType = TYPE_VOID;
 
-    result = callNativeFn(fn, retType, argCount, values);
+    var_t ret;
+    ffi_type *ffi_ret_type = prepare_ret_var(&ret, retType);
 
-    for (int i = 0; i < nargs && i < 10; i++)
+    // Prepare for call -----------------------
+    ffi_cif cif;
+    if (ffi_prep_cif(&cif, FFI_DEFAULT_ABI, nargs, ffi_ret_type, ffi_args) != FFI_OK)
     {
-        freeNativeVar(values[i], false, true);
-        values[i] = NULL;
+        for (int i = 0; i < nargs; i++)
+        {
+            free_var(vars[i]);
+        }
+        free(ffi_args);
+        free(ffi_values);
+        free(vars);
+        runtimeError("Could not call '%s'.", name->chars);
+        return false;
     }
-    free(values);
+
+    // Call ------------------------------------
+    ffi_call(&cif, FFI_FN(fn), &ret.val, ffi_values);
+
+    // Get the result
+    Value result = from_var(&ret, retType);
+
+    // Free data
+    for (int i = 0; i < nargs; i++)
+    {
+        free_var(vars[i]);
+    }
+    free(ffi_args);
+    free(ffi_values);
+    free(vars);
 
     push(result);
 

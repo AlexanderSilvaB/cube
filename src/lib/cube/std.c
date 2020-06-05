@@ -459,12 +459,26 @@ Value strNative(int argCount, Value *args)
     if (IS_BYTES(args[0]))
     {
         ObjBytes *bytes = AS_BYTES(args[0]);
-        char *str = mp_malloc(bytes->length + 1);
+        int len = bytes->length;
+        if (len < 0)
+            len = 10;
+        char *str = NULL;
+        if (len != bytes->length)
+            str = mp_malloc(len + 5);
+        else
+            str = mp_malloc(len + 1);
         int j = 0;
-        for (int i = 0; i < bytes->length; i++)
+        for (int i = 0; i < len; i++)
         {
             if (isprint(bytes->bytes[i]) != 0 || iscntrl(bytes->bytes[i]) != 0)
                 str[j++] = bytes->bytes[i];
+        }
+        if (len != bytes->length)
+        {
+            str[j++] = ' ';
+            str[j++] = '.';
+            str[j++] = '.';
+            str[j++] = '.';
         }
         str[j] = '\0';
         Value ret = STRING_VAL(str);
@@ -1920,7 +1934,13 @@ Value writeNative(int argCount, Value *args)
             if (IS_BYTES(args[i]))
             {
                 ObjBytes *bytes = AS_BYTES(args[i]);
-                rc = writeFd(process->out, bytes->length, (char *)bytes->bytes);
+                if (bytes->length >= 0)
+                    rc = writeFd(process->out, bytes->length, (char *)bytes->bytes);
+                else
+                {
+                    runtimeError("Cannot write unsafe bytes.\n");
+                    return NULL_VAL;
+                }
             }
             else
             {

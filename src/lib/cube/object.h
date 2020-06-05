@@ -55,6 +55,7 @@
 
 #define STRING_VAL(str) (OBJ_VAL(copyString(str, strlen(str))))
 #define BYTES_VAL(data, len) (OBJ_VAL(copyBytes(data, len)))
+#define UNSAFE_VAL(data) (OBJ_VAL(transferBytes(data)))
 
 #define IS_INCREMENTAL(value) (IS_NUMBER(value) || (IS_STRING(value) && AS_STRING(value)->length == 1))
 
@@ -300,6 +301,7 @@ ObjProcess *newProcess(ObjString *path, int argCount, Value *args);
 
 bool processAlive(ObjProcess *process);
 ObjBytes *copyBytes(const void *bytes, int length);
+ObjBytes *transferBytes(void *bytes);
 void appendBytes(ObjBytes *dest, ObjBytes *src);
 
 char *objectToString(Value value, bool literal);

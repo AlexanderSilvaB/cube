@@ -37,7 +37,13 @@ static bool writeProccess(int argCount, bool newLine)
     if (IS_BYTES(data))
     {
         ObjBytes *bytes = AS_BYTES(data);
-        wrote = writeFd(process->out, bytes->length, (char *)bytes->bytes);
+        if (bytes->length >= 0)
+            wrote = writeFd(process->out, bytes->length, (char *)bytes->bytes);
+        else
+        {
+            runtimeError("Cannot write unsafe bytes.\n");
+            return false;
+        }
     }
     else
     {
