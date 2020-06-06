@@ -1,0 +1,18 @@
+native libs/libsciplot
+{
+    int32 create();
+    void save(int32, cstring);
+    void show(int32);
+    void pallete(int32, cstring);
+    void size(int32, uint32, uint32);
+    void xlabel(int32, cstring);
+    void ylabel(int32, cstring);
+    void xrange(int32, double, double);
+    void yrange(int32, double, double);
+
+    int32 grid(int32);
+    int32 border(int32);
+    int32 tics(int32);
+    int32 legend(int32);
+    int32 draw(int32, list, list);
+}
