@@ -1,18 +1,239 @@
 native libs/libsciplot
 {
-    int32 create();
-    void save(int32, cstring);
-    void show(int32);
-    void pallete(int32, cstring);
-    void size(int32, uint32, uint32);
-    void xlabel(int32, cstring);
-    void ylabel(int32, cstring);
-    void xrange(int32, double, double);
-    void yrange(int32, double, double);
+    // Plot
+    int32 create_plot();
+    void save_plot(int32, cstring);
+    void show_plot(int32);
+    void pallete_plot(int32, cstring);
+    void size_plot(int32, uint32, uint32);
+    void xlabel_plot(int32, cstring);
+    void ylabel_plot(int32, cstring);
+    void xrange_plot(int32, double, double);
+    void yrange_plot(int32, double, double);
+    void samples_plot(int32, uint32);
+    void grid_plot(int32, cbool);
+    void border_plot(int32, cbool, cbool, cbool, cbool);
+    void tics_plot(int32);
+    void legend_plot(int32);
+    int32 draw_plot(int32, list, list);
 
-    int32 grid(int32);
-    int32 border(int32);
-    int32 tics(int32);
-    int32 legend(int32);
-    int32 draw(int32, list, list);
+    // Draw
+    void title_draw(int32, cstring);
+    void linewidth_draw(int32, uint32);
+    void linestyle_draw(int32, uint32);
+    void linetype_draw(int32, uint32);
+    void linecolor_draw(int32, cstring);
+    void dashtype_draw(int32, uint32);
+}
+
+import query
+
+enum Style
+{
+    lines,
+    points,
+    linespoints,
+    impulses,
+    dots,
+    steps,
+    fsteps,
+    histeps,
+    errorbars,
+    labels,
+    xerrorbars,
+    yerrorbars,
+    xyerrorbars,
+    errorlines,
+    xerrorlines,
+    yerrorlines,
+    xyerrorlines,
+    boxes,
+    histograms,
+    filledcurves,
+    boxerrorbars,
+    boxxyerrorbars,
+    financebars,
+    candlesticks,
+    vectors,
+    image,
+    rgbimage,
+    pm3d
+}
+
+class Plot
+{
+    var p
+    func init()
+    {
+        p = create_plot()
+    }
+
+    func pallete(name)
+    {
+        pallete_plot(p, name)
+        return this
+    }
+
+    func size(w, h)
+    {
+        if(w is null)
+            w = 512
+        if(h is null)
+            h = null
+        size_plot(p, w, h)
+        return this
+    }
+
+    func xlabel(text)
+    {
+        xlabel_plot(p, text)
+        return this
+    }
+
+    func ylabel(text)
+    {
+        ylabel_plot(p, text)
+        return this
+    }
+
+    func xrange(min, max)
+    {
+        if(min is null)
+            min = -1
+        if(max is null)
+            max = 1
+        xrange_plot(p, min, max)
+        return this
+    }
+
+    func yrange(min, max)
+    {
+        if(min is null)
+            min = -1
+        if(max is null)
+            max = 1
+        yrange_plot(p, min, max)
+        return this
+    }
+
+    func grid(enabled)
+    {
+        if(enabled is null)
+            enabled = true
+        grid_plot(p, enabled)
+        return this
+    }
+
+    func border(left, top, right, bottom)
+    {
+        if(left is null)
+            left = true
+        if(top is null)
+            top = left
+        if(right is null)
+            right = left
+        if(bottom is null)
+            bottom = top
+        border_plot(p, left, top, right, bottom)
+        return this
+    }
+
+    func tics()
+    {
+        throw('Not implemented')
+    }
+
+    func legend()
+    {
+        throw('Not implemented')
+    }
+
+    func samples(sz)
+    {
+        samples_plot(p, sz)
+        return this
+    }
+
+    func draw(x, y)
+    {
+        if(x is num)
+            x = [x]
+        if(x is not list)
+            throw('Only numeric data is supported.')
+
+        if(y is num)
+            y = [y]
+        if(y is func)
+            y = query.from(x).select(y).data
+        if(y is not list)
+            throw('Only numeric data is supported.')
+
+        if(len(x) != len(y))
+            throw('x and y must be the same size.')
+
+        var id = draw_plot(p, x, y)
+        if(id == -1)
+            return null
+        
+        return Draw(id)
+    }
+
+    func show()
+    {
+        show_plot(p)
+        return this
+    }
+
+    func save(fileName)
+    {
+        save_plot(p, fileName)
+        return this
+    }
+}
+
+class Draw
+{
+    var d
+    func init(id)
+    {
+        d = id
+    }
+
+    func title(text)
+    {
+        title_draw(d, text)
+        return this
+    }
+
+    func width(value)
+    {
+        linewidth_draw(d, value)
+        return this
+    }
+
+    func style(value)
+    {
+        if(value is Style)
+            value = num(value)
+        linestyle_draw(d, value)
+        return this
+    }
+
+    func color(value)
+    {
+        linecolor_draw(d, value)
+        return this
+    }
+
+    func linetype(value)
+    {
+        linetype_draw(d, value)
+        return this
+    }
+
+    func dashtype(value)
+    {
+        dashtype_draw(d, value)
+        return this
+    }
 }
