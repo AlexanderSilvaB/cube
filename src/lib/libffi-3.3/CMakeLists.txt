@@ -21,6 +21,7 @@ file(COPY src/${TARGETDIR}/ffitarget.h DESTINATION ${CMAKE_BINARY_DIR}/include)
 
 include_directories(${CMAKE_BINARY_DIR}/include)
 include_directories(${CMAKE_BINARY_DIR})
+
 include_directories(include)
 
 add_definitions(-DFFI_BUILDING)

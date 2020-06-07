@@ -2,10 +2,8 @@
 #include <cube/cubeext.h>
 #include <map>
 
-using namespace std;
-
 static uint32_t id = 0;
-static map<uint32_t, Matrix *> matrices;
+static std::map<uint32_t, Matrix *> matrices;
 
 Matrix *getMatrix(cube_native_var *ptr)
 {
@@ -41,7 +39,7 @@ extern "C"
 
     EXPORTED void cube_release()
     {
-        for (map<uint32_t, Matrix *>::iterator it = matrices.begin(); it != matrices.end(); it++)
+        for (std::map<uint32_t, Matrix *>::iterator it = matrices.begin(); it != matrices.end(); it++)
         {
             destroy_matrix(it->second);
         }
