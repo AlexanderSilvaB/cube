@@ -7,7 +7,7 @@ add_subdirectory(src)
 
 
 # Install
-# include(GNUInstallDirs)
+include(GNUInstallDirs)
 
 include(CMakePackageConfigHelpers)
 

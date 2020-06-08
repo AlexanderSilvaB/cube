@@ -28,10 +28,10 @@ typedef union {
     uint16_t _uint16;
     uint32_t _uint32;
     uint64_t _uint64;
-    int8_t _int8;
-    int16_t _int16;
-    int32_t _int32;
-    int64_t _int64;
+    int8_t _sint8;
+    int16_t _sint16;
+    int32_t _sint32;
+    int64_t _sint64;
     float _float32;
     double _float64;
     void *_ptr;
@@ -462,19 +462,19 @@ void to_var(var_t *var, Value value, NativeTypes type, ffi_type **ffi_arg)
             break;
         case TYPE_INT8:
             *ffi_arg = &ffi_type_sint8;
-            var->val._int8 = (int8_t)(AS_NUMBER(toNumber(value)));
+            var->val._sint8 = (int8_t)(AS_NUMBER(toNumber(value)));
             break;
         case TYPE_INT16:
             *ffi_arg = &ffi_type_sint16;
-            var->val._int16 = (int16_t)(AS_NUMBER(toNumber(value)));
+            var->val._sint16 = (int16_t)(AS_NUMBER(toNumber(value)));
             break;
         case TYPE_INT32:
             *ffi_arg = &ffi_type_sint32;
-            var->val._int32 = (int32_t)(AS_NUMBER(toNumber(value)));
+            var->val._sint32 = (int32_t)(AS_NUMBER(toNumber(value)));
             break;
         case TYPE_INT64:
             *ffi_arg = &ffi_type_sint64;
-            var->val._int64 = (int64_t)(AS_NUMBER(toNumber(value)));
+            var->val._sint64 = (int64_t)(AS_NUMBER(toNumber(value)));
             break;
         case TYPE_UINT8:
             *ffi_arg = &ffi_type_uint8;
@@ -605,16 +605,16 @@ Value from_var(var_t *var, NativeTypes retType)
             result = BOOL_VAL((bool)(var->val._bool));
             break;
         case TYPE_INT8:
-            result = NUMBER_VAL((int8_t)(var->val._int8));
+            result = NUMBER_VAL((int8_t)(var->val._sint8));
             break;
         case TYPE_INT16:
-            result = NUMBER_VAL((int16_t)(var->val._int16));
+            result = NUMBER_VAL((int16_t)(var->val._sint16));
             break;
         case TYPE_INT32:
-            result = NUMBER_VAL((int32_t)(var->val._int32));
+            result = NUMBER_VAL((int32_t)(var->val._sint32));
             break;
         case TYPE_INT64:
-            result = NUMBER_VAL((uint64_t)(var->val._int64));
+            result = NUMBER_VAL((uint64_t)(var->val._sint64));
             break;
         case TYPE_UINT8:
             result = NUMBER_VAL((uint8_t)(var->val._uint8));

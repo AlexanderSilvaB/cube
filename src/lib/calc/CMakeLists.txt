@@ -7,8 +7,8 @@ set(SRC calc.c)
 
 add_library(calc SHARED ${SRC})
 set_target_properties(calc PROPERTIES
-         LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../libs/)
+         LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/libs/)
 set_target_properties(calc PROPERTIES
-         RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../libs/)
+         RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/libs/)
          
 install(TARGETS calc DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/libs)

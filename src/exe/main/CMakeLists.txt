@@ -1,5 +1,7 @@
 include_directories(../../lib)
 
+include(GNUInstallDirs)
+
 set(SRC main.c)
 
 add_executable(main ${SRC})
@@ -8,6 +10,6 @@ set_target_properties(main PROPERTIES OUTPUT_NAME cube)
 
 install(TARGETS main
     EXPORT main_Targets
-    ARCHIVE DESTINATION lib ${CMAKE_INSTALL_LIBDIR}
-    LIBRARY DESTINATION lib ${CMAKE_INSTALL_LIBDIR}
-    RUNTIME DESTINATION bin ${CMAKE_INSTALL_BINDIR})
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

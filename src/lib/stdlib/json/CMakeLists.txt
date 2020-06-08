@@ -7,6 +7,6 @@ set(SRC json.cpp Storage.cpp)
 
 add_library(json SHARED ${SRC})
 set_target_properties(json PROPERTIES
-         LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../stdlib/libs/)
+         LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/stdlib/libs/)
 set_target_properties(json PROPERTIES
-         RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../stdlib/libs/)
+         RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/stdlib/libs/)

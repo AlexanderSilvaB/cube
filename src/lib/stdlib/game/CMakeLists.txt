@@ -19,9 +19,9 @@ if (${SDL2_FOUND})
 	add_library(game SHARED ${SRC})
 	target_link_libraries(game ${SDL2_LIBRARIES})
 	set_target_properties(game PROPERTIES
-			LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../stdlib/libs/)
+			LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/stdlib/libs/)
 	set_target_properties(game PROPERTIES
-			RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../stdlib/libs/)
+			RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/stdlib/libs/)
 
 else()
     message("Couldn't find SDL2. Not building game library")

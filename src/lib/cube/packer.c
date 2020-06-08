@@ -6,6 +6,10 @@
 #include "packer.h"
 #include "util.h"
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 cube_binary_options cube_bin_options;
 
 bool pack(const char *source, const char *path, const char *output)

@@ -1,8 +1,10 @@
 include_directories(..)
 
+include(GNUInstallDirs)
 find_package(Threads)
 
 include_directories(../libffi-3.3/include)
+include_directories(${libffi_BINARY_DIR}/include)
 
 set(SRC cube.c 
         chunk.c 
@@ -50,9 +52,11 @@ target_link_libraries (cube ${CMAKE_THREAD_LIBS_INIT})
 
 set_target_properties(cube PROPERTIES PUBLIC_HEADER "${INCLUDES}")
 
+#install(FILES ${INCLUDES} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
 install(TARGETS cube
     EXPORT cube_Targets
-    ARCHIVE DESTINATION lib ${CMAKE_INSTALL_LIBDIR}
-    LIBRARY DESTINATION lib ${CMAKE_INSTALL_LIBDIR}
-    RUNTIME DESTINATION bin ${CMAKE_INSTALL_BINDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/cube)
