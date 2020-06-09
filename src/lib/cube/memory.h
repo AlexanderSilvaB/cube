@@ -27,6 +27,7 @@ void freeDictValue(dictItem *dictItem);
 void freeFile(ObjFile *file);
 void freeProcess(ObjProcess *process);
 void freeNativeFunc(ObjNativeFunc *func);
+void freeNativeStruct(ObjNativeStruct *func);
 void freeNativeLib(ObjNativeLib *lib);
 
 #endif

@@ -670,6 +670,14 @@ static bool callValue(Value callee, int argCount, ObjInstance *instance, ObjClas
                 return true;
             }
 
+            case OBJ_NATIVE_STRUCT: {
+                ObjNativeStruct *str = AS_NATIVE_STRUCT(callee);
+                Value result = createNativeStruct(str, argCount, threadFrame->ctf->stackTop - argCount);
+                threadFrame->ctf->stackTop -= argCount + 1;
+                push(result);
+                return true;
+            }
+
             default:
                 // Non-callable object type.
                 break;
@@ -4172,16 +4180,51 @@ InterpretResult run()
                 push(OBJ_VAL(func));
                 break;
             }
+            case OP_NATIVE_STRUCT: {
+                ObjNativeStruct *str = initNativeStruct();
+
+                int members = AS_NUMBER(pop());
+                for (int i = (2 * members) - 1; i >= 0; i--)
+                {
+                    writeValueArray(&str->types, peek(i));
+                    i--;
+                    writeValueArray(&str->names, peek(i));
+                }
+
+                while (members > 0)
+                {
+                    pop();
+                    pop();
+                    members--;
+                }
+
+                str->name = AS_STRING(pop());
+
+                push(OBJ_VAL(str));
+                break;
+            }
             case OP_NATIVE: {
                 ObjNativeLib *lib = initNativeLib();
 
                 int count = AS_NUMBER(pop());
-                lib->functions = count;
+                lib->functions = 0;
+                lib->structs = 0;
 
                 while (count > 0)
                 {
-                    ObjNativeFunc *func = AS_NATIVE_FUNC(pop());
-                    func->lib = lib;
+                    writeValueArray(&lib->objs, peek(0));
+                    if (IS_NATIVE_FUNC(peek(0)))
+                    {
+                        ObjNativeFunc *func = AS_NATIVE_FUNC(pop());
+                        func->lib = lib;
+                        lib->functions++;
+                    }
+                    else
+                    {
+                        ObjNativeStruct *str = AS_NATIVE_STRUCT(pop());
+                        str->lib = lib;
+                        lib->structs++;
+                    }
                     count--;
                 }
 

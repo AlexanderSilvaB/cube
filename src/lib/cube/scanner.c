@@ -447,8 +447,19 @@ static TokenType identifierType(Scanner *scanner)
                 {
                     case 'u':
                         return checkKeyword(scanner, 2, 3, "per", TOKEN_SUPER);
-                    case 't':
-                        return checkKeyword(scanner, 2, 4, "atic", TOKEN_STATIC);
+                    case 't': {
+                        if (scanner->current - scanner->start > 2)
+                        {
+                            switch (scanner->start[2])
+                            {
+                                case 'r':
+                                    return checkKeyword(scanner, 3, 3, "uct", TOKEN_STRUCT);
+                                case 'a':
+                                    return checkKeyword(scanner, 3, 3, "tic", TOKEN_STATIC);
+                            }
+                        }
+                        break;
+                    }
                     case 'w':
                         return checkKeyword(scanner, 2, 4, "itch", TOKEN_SWITCH);
                 }

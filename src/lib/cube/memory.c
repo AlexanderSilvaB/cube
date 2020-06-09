@@ -133,8 +133,18 @@ void freeObject(Obj *object)
             break;
         }
 
+        case OBJ_NATIVE_STRUCT: {
+            ObjNativeStruct *func = (ObjNativeStruct *)object;
+            freeValueArray(&func->names);
+            freeValueArray(&func->types);
+            freeNativeStruct(func);
+            FREE(ObjNativeStruct, func);
+            break;
+        }
+
         case OBJ_NATIVE_LIB: {
             ObjNativeLib *lib = (ObjNativeLib *)object;
+            freeValueArray(&lib->objs);
             freeNativeLib(lib);
             break;
         }
@@ -236,7 +246,16 @@ void freeProcess(ObjProcess *process)
 void freeNativeFunc(ObjNativeFunc *func)
 {
     func->lib->functions--;
-    if (func->lib != NULL && func->lib->functions == 0)
+    if (func->lib != NULL && func->lib->functions == 0 && func->lib->structs == 0)
+    {
+        FREE(ObjNativeLib, func->lib);
+    }
+}
+
+void freeNativeStruct(ObjNativeStruct *func)
+{
+    func->lib->structs--;
+    if (func->lib != NULL && func->lib->structs == 0 && func->lib->functions == 0)
     {
         FREE(ObjNativeLib, func->lib);
     }

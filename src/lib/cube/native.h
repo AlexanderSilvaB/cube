@@ -16,5 +16,8 @@ NativeTypes getNativeType(const char *name);
 void closeNativeLib(ObjNativeLib *lib);
 Value callNative(ObjNativeFunc *func, int argCount, Value *args);
 bool nativeLibMethods(char *method, int argCount);
+Value getDefaultValue(NativeTypes type);
+ObjNativeStruct *getNativeStruct(ObjNativeLib *lib, const char *name);
+Value createNativeStruct(ObjNativeStruct *str, int argCount, Value *args);
 
 #endif

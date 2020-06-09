@@ -257,6 +257,8 @@ int disassembleInstruction(Chunk *chunk, int offset)
             return jumpInstruction("OP_CLOSE_TRY", 1, chunk, offset);
         case OP_NATIVE_FUNC:
             return simpleInstruction("OP_NATIVE_FUNC", offset);
+        case OP_NATIVE_STRUCT:
+            return simpleInstruction("OP_NATIVE_STRUCT", offset);
         case OP_NATIVE:
             return constantInstruction("OP_NATIVE", chunk, offset);
         case OP_TEST:

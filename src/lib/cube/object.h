@@ -26,6 +26,7 @@
 #define IS_FILE(value) isObjType(value, OBJ_FILE)
 #define IS_BYTES(value) isObjType(value, OBJ_BYTES)
 #define IS_NATIVE_FUNC(value) isObjType(value, OBJ_NATIVE_FUNC)
+#define IS_NATIVE_STRUCT(value) isObjType(value, OBJ_NATIVE_STRUCT)
 #define IS_NATIVE_LIB(value) isObjType(value, OBJ_NATIVE_LIB)
 #define IS_TASK(value) isObjType(value, OBJ_TASK)
 #define IS_REQUEST(value) isObjType(value, OBJ_REQUEST)
@@ -48,6 +49,7 @@
 #define AS_BYTES(value) ((ObjBytes *)AS_OBJ(value))
 #define AS_CBYTES(value) (((ObjBytes *)AS_OBJ(value))->bytes)
 #define AS_NATIVE_FUNC(value) ((ObjNativeFunc *)AS_OBJ(value))
+#define AS_NATIVE_STRUCT(value) ((ObjNativeStruct *)AS_OBJ(value))
 #define AS_NATIVE_LIB(value) ((ObjNativeLib *)AS_OBJ(value))
 #define AS_TASK(value) ((ObjTask *)AS_OBJ(value))
 #define AS_REQUEST(value) ((ObjRequest *)AS_OBJ(value))
@@ -76,6 +78,7 @@ typedef enum
     OBJ_FILE,
     OBJ_BYTES,
     OBJ_NATIVE_FUNC,
+    OBJ_NATIVE_STRUCT,
     OBJ_NATIVE_LIB,
     OBJ_TASK,
     OBJ_REQUEST,
@@ -250,7 +253,9 @@ typedef struct
     Obj obj;
     ObjString *name;
     int functions;
+    int structs;
     void *handle;
+    ValueArray objs;
 } ObjNativeLib;
 
 typedef struct
@@ -261,6 +266,15 @@ typedef struct
     ObjNativeLib *lib;
     ValueArray params;
 } ObjNativeFunc;
+
+typedef struct
+{
+    Obj obj;
+    ObjString *name;
+    ObjNativeLib *lib;
+    ValueArray types;
+    ValueArray names;
+} ObjNativeStruct;
 
 typedef struct
 {
@@ -288,6 +302,7 @@ ObjNative *newNative(NativeFn function);
 ObjRequest *newRequest();
 ObjPackage *newPackage(ObjString *name);
 ObjNativeFunc *initNativeFunc();
+ObjNativeStruct *initNativeStruct();
 ObjNativeLib *initNativeLib();
 ObjString *takeString(char *chars, int length);
 ObjString *copyString(const char *chars, int length);

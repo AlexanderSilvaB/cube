@@ -1557,6 +1557,7 @@ ParseRule rules[] = {
     {NULL, NULL, PREC_NULL},         // TOKEN_INCLUDE
     {NULL, NULL, PREC_NULL},         // TOKEN_AS
     {NULL, NULL, PREC_NULL},         // TOKEN_NATIVE
+    {NULL, NULL, PREC_NULL},         // TOKEN_STRUCT
     {NULL, NULL, PREC_NULL},         // TOKEN_WITH
     {async, NULL, PREC_NULL},        // TOKEN_ASYNC
     {await, NULL, PREC_NULL},        // TOKEN_AWAIT
@@ -1762,10 +1763,10 @@ static void nativeFunc()
         do
         {
             arity++;
-            if (arity > 10)
-            {
-                errorAtCurrent("Cannot have more than 10 parameters.");
-            }
+            // if (arity > 10)
+            // {
+            //     errorAtCurrent("Cannot have more than 10 parameters.");
+            // }
 
             if (!match(TOKEN_VAR))
             {
@@ -1794,6 +1795,84 @@ static void nativeFunc()
     emitByte(OP_NATIVE_FUNC);
 
     setVariablePop(name);
+}
+
+static void nativeStruct()
+{
+    if (!match(TOKEN_STRUCT))
+        consume(TOKEN_STRUCT, "Expect struct type.");
+
+    consume(TOKEN_IDENTIFIER, "Expect struct name.");
+    Token name = gbcpl->parser.previous;
+    uint16_t nameConstant = identifierConstant(&gbcpl->parser.previous);
+    declareVariable();
+
+    int len = gbcpl->parser.previous.length + 1;
+    char *str = mp_malloc(sizeof(char) * len);
+    strncpy(str, gbcpl->parser.previous.start, gbcpl->parser.previous.length);
+    str[gbcpl->parser.previous.length] = '\0';
+    emitConstant(OBJ_VAL(copyString(str, strlen(str))));
+    mp_free(str);
+
+    // Compile the members list.
+    consume(TOKEN_LEFT_BRACE, "Expect '{' after struct name.");
+    int members = 0;
+
+    if (!check(TOKEN_RIGHT_PAREN))
+    {
+        do
+        {
+            members++;
+
+            // Type
+            if (!match(TOKEN_VAR))
+            {
+                if (!match(TOKEN_FUNC))
+                    consume(TOKEN_IDENTIFIER, "Expect member type.");
+            }
+            len = gbcpl->parser.previous.length + 1;
+            str = mp_malloc(sizeof(char) * len);
+            strncpy(str, gbcpl->parser.previous.start, gbcpl->parser.previous.length);
+            str[gbcpl->parser.previous.length] = '\0';
+            emitConstant(OBJ_VAL(copyString(str, strlen(str))));
+            mp_free(str);
+
+            // Name
+            consume(TOKEN_IDENTIFIER, "Expect member name.");
+            len = gbcpl->parser.previous.length + 1;
+            str = mp_malloc(sizeof(char) * len);
+            strncpy(str, gbcpl->parser.previous.start, gbcpl->parser.previous.length);
+            str[gbcpl->parser.previous.length] = '\0';
+            emitConstant(OBJ_VAL(copyString(str, strlen(str))));
+            mp_free(str);
+
+            match(TOKEN_SEMICOLON);
+
+            if (check(TOKEN_RIGHT_BRACE))
+                break;
+
+        } while (true);
+    }
+
+    consume(TOKEN_RIGHT_BRACE, "Expect '}' after parameters.");
+    match(TOKEN_SEMICOLON);
+
+    emitConstant(NUMBER_VAL(members));
+
+    emitByte(OP_NULL);
+    defineVariable(nameConstant);
+
+    emitByte(OP_NATIVE_STRUCT);
+
+    setVariablePop(name);
+}
+
+static void nativeFuncOrStruct()
+{
+    if (check(TOKEN_STRUCT))
+        nativeStruct();
+    else
+        nativeFunc();
 }
 
 static void classDeclaration()
@@ -2029,7 +2108,7 @@ static void nativeDeclaration()
     consume(TOKEN_LEFT_BRACE, "Expect '{' before native body.");
     while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF))
     {
-        nativeFunc();
+        nativeFuncOrStruct();
         count++;
     }
     consume(TOKEN_RIGHT_BRACE, "Expect '}' after native body.");
@@ -2905,6 +2984,7 @@ static void synchronize()
             case TOKEN_CLASS:
             case TOKEN_ENUM:
             case TOKEN_NATIVE:
+            case TOKEN_STRUCT:
             case TOKEN_FUNC:
             case TOKEN_STATIC:
             case TOKEN_VAR:

@@ -79,6 +79,7 @@ typedef enum
     OP_TRY,
     OP_CLOSE_TRY,
     OP_NATIVE_FUNC,
+    OP_NATIVE_STRUCT,
     OP_NATIVE,
     OP_REPL_POP,
     OP_TEST

@@ -54,7 +54,6 @@ typedef struct NativeLibPointer_st
 
 static NativeLibPointer *libPointer = NULL;
 
-
 extern linked_list *list_symbols(const char *path);
 /*
 #ifdef _WIN32
@@ -430,8 +429,9 @@ void free_var(var_t var)
     }
 }
 
-void to_var(var_t *var, Value value, NativeTypes type, ffi_type **ffi_arg)
+int to_var(var_t *var, Value value, NativeTypes type, ffi_type **ffi_arg)
 {
+    int sz = 0;
     switch (type)
     {
 
@@ -447,6 +447,7 @@ void to_var(var_t *var, Value value, NativeTypes type, ffi_type **ffi_arg)
             var->val._ptr = NATIVE_VAR();
             var->alloc = true;
             valueToNative((cube_native_var *)var->val._ptr, value);
+            sz = sizeof(void *);
         }
         break;
         case TYPE_FUNC: {
@@ -454,70 +455,262 @@ void to_var(var_t *var, Value value, NativeTypes type, ffi_type **ffi_arg)
             var->val._ptr = NATIVE_VAR();
             var->alloc = true;
             TO_NATIVE_FUNC((cube_native_var *)var->val._ptr);
+            sz = sizeof(void *);
         }
         break;
         case TYPE_VOID:
             *ffi_arg = &ffi_type_void;
             var->val._uint64 = 0;
+            sz = sizeof(void);
             break;
         case TYPE_CBOOL:
             *ffi_arg = &ffi_type_sint8;
             var->val._bool = (bool)(AS_BOOL(toBool(value)));
+            sz = sizeof(bool);
             break;
         case TYPE_INT8:
             *ffi_arg = &ffi_type_sint8;
             var->val._sint8 = (int8_t)(AS_NUMBER(toNumber(value)));
+            sz = sizeof(int8_t);
             break;
         case TYPE_INT16:
             *ffi_arg = &ffi_type_sint16;
             var->val._sint16 = (int16_t)(AS_NUMBER(toNumber(value)));
+            sz = sizeof(int16_t);
             break;
         case TYPE_INT32:
             *ffi_arg = &ffi_type_sint32;
             var->val._sint32 = (int32_t)(AS_NUMBER(toNumber(value)));
+            sz = sizeof(int32_t);
             break;
         case TYPE_INT64:
             *ffi_arg = &ffi_type_sint64;
             var->val._sint64 = (int64_t)(AS_NUMBER(toNumber(value)));
+            sz = sizeof(int64_t);
             break;
         case TYPE_UINT8:
             *ffi_arg = &ffi_type_uint8;
             var->val._uint8 = (uint8_t)(AS_NUMBER(toNumber(value)));
+            sz = sizeof(uint8_t);
             break;
         case TYPE_UINT16:
             *ffi_arg = &ffi_type_uint16;
             var->val._uint16 = (uint16_t)(AS_NUMBER(toNumber(value)));
+            sz = sizeof(uint16_t);
             break;
         case TYPE_UINT32:
             *ffi_arg = &ffi_type_uint32;
             var->val._uint32 = (uint32_t)(AS_NUMBER(toNumber(value)));
+            sz = sizeof(uint32_t);
             break;
         case TYPE_UINT64:
             *ffi_arg = &ffi_type_uint64;
             var->val._uint64 = (uint64_t)(AS_NUMBER(toNumber(value)));
+            sz = sizeof(uint64_t);
             break;
         case TYPE_FLOAT32:
             *ffi_arg = &ffi_type_float;
             var->val._float32 = (float)(AS_NUMBER(toNumber(value)));
+            sz = sizeof(float);
             break;
         case TYPE_FLOAT64:
             *ffi_arg = &ffi_type_double;
             var->val._float64 = (double)(AS_NUMBER(toNumber(value)));
+            sz = sizeof(double);
             break;
         case TYPE_CSTRING:
             *ffi_arg = &ffi_type_pointer;
             var->val._ptr = (char *)(AS_CSTRING(toString(value)));
+            sz = sizeof(char *);
             break;
         case TYPE_CBYTES:
             *ffi_arg = &ffi_type_pointer;
             var->val._ptr = (uint8_t *)(AS_CBYTES(toBytes(value)));
+            sz = sizeof(uint8_t *);
             break;
         default:
             *ffi_arg = &ffi_type_pointer;
             var->val._ptr = NATIVE_NULL();
             var->alloc = true;
+            sz = sizeof(void *);
             break;
     }
+    return sz;
+}
+
+int size_var(NativeTypes type)
+{
+    int sz = 0;
+    switch (type)
+    {
+
+        case TYPE_NULL:
+        case TYPE_BOOL:
+        case TYPE_NUMBER:
+        case TYPE_STRING:
+        case TYPE_BYTES:
+        case TYPE_LIST:
+        case TYPE_DICT:
+        case TYPE_FUNC:
+        case TYPE_VAR:
+            sz = sizeof(void *);
+            break;
+        case TYPE_VOID:
+            sz = sizeof(void);
+            break;
+        case TYPE_CBOOL:
+            sz = sizeof(bool);
+            break;
+        case TYPE_INT8:
+            sz = sizeof(int8_t);
+            break;
+        case TYPE_INT16:
+            sz = sizeof(int16_t);
+            break;
+        case TYPE_INT32:
+            sz = sizeof(int32_t);
+            break;
+        case TYPE_INT64:
+            sz = sizeof(int64_t);
+            break;
+        case TYPE_UINT8:
+            sz = sizeof(uint8_t);
+            break;
+        case TYPE_UINT16:
+            sz = sizeof(uint16_t);
+            break;
+        case TYPE_UINT32:
+            sz = sizeof(uint32_t);
+            break;
+        case TYPE_UINT64:
+            sz = sizeof(uint64_t);
+            break;
+        case TYPE_FLOAT32:
+            sz = sizeof(float);
+            break;
+        case TYPE_FLOAT64:
+            sz = sizeof(double);
+            break;
+        case TYPE_CSTRING:
+            sz = sizeof(char *);
+            break;
+        case TYPE_CBYTES:
+            sz = sizeof(uint8_t *);
+            break;
+        default:
+            sz = sizeof(void *);
+            break;
+    }
+    return sz;
+}
+
+int size_struct(ObjNativeStruct *str)
+{
+    int count = str->names.count;
+
+    int sz = 0;
+
+    for (int i = 0; i < count; i++)
+    {
+        NativeTypes type = getNativeType(AS_CSTRING(str->types.values[i]));
+        if (type == TYPE_UNKNOWN || type == TYPE_VOID)
+        {
+            ObjNativeStruct *str = getNativeStruct(str->lib, AS_CSTRING(str->types.values[i]));
+            if (str == NULL)
+            {
+                runtimeError("Invalid argument type in %s: '%s'", str->name->chars, AS_CSTRING(str->types.values[i]));
+                return -1;
+            }
+            else
+            {
+                sz += size_struct(str);
+                if (sz < 0)
+                {
+                    return -1;
+                }
+            }
+        }
+        else
+        {
+            sz += size_var(type);
+        }
+    }
+
+    return sz;
+}
+
+int to_struct(var_t *var, Value value, ObjNativeStruct *str, ffi_type **ffi_arg)
+{
+    if (!IS_DICT(value))
+    {
+        runtimeError("Invalid struct value for %s: '%s'", str->name->chars, valueType(value));
+        return -1;
+    }
+
+    ObjDict *dict = AS_DICT(value);
+
+    int count = str->names.count;
+
+    ffi_type *st_type = (ffi_type *)malloc(sizeof(ffi_type));
+    ffi_type **st_type_elements = (ffi_type **)malloc(sizeof(ffi_type *) * (count + 1));
+    var_t st_type_var;
+    int i;
+
+    st_type->size = st_type->alignment = 0;
+    st_type->type = FFI_TYPE_STRUCT;
+    st_type->elements = st_type_elements;
+
+    int sz = 0;
+    int cr = 0;
+    var->val._ptr = malloc(0);
+
+    for (i = 0; i < count; i++)
+    {
+        Value itemValue = searchDict(dict, AS_CSTRING(str->names.values[i]));
+
+        NativeTypes type = getNativeType(AS_CSTRING(str->types.values[i]));
+        if (type == TYPE_UNKNOWN || type == TYPE_VOID)
+        {
+            ObjNativeStruct *str = getNativeStruct(str->lib, AS_CSTRING(str->types.values[i]));
+            if (str == NULL)
+            {
+                free(st_type);
+                free(st_type_elements);
+                runtimeError("Invalid argument type in %s: '%s'", str->name->chars, AS_CSTRING(str->types.values[i]));
+                return -1;
+            }
+            else
+            {
+                st_type_var.alloc = false;
+                st_type_var.val._ptr = NULL;
+
+                sz = to_struct(&st_type_var, itemValue, str, &st_type_elements[i]);
+                if (sz < 0)
+                {
+                    free(st_type);
+                    free(st_type_elements);
+                    return -1;
+                }
+
+                var->val._ptr = realloc(var->val._ptr, sz + cr);
+                memcpy(var->val._ptr + cr, st_type_var.val._ptr, sz);
+                cr += sz;
+            }
+        }
+        else
+        {
+            st_type_var.alloc = false;
+
+            sz = to_var(&st_type_var, itemValue, type, &st_type_elements[i]);
+            var->val._ptr = realloc(var->val._ptr, sz + cr);
+            memcpy(var->val._ptr + cr, &st_type_var.val, sz);
+            cr += sz;
+        }
+    }
+
+    st_type_elements[count] = NULL;
+    *ffi_arg = st_type;
+    return cr;
 }
 
 ffi_type *prepare_ret_var(var_t *var, NativeTypes type)
@@ -583,6 +776,51 @@ ffi_type *prepare_ret_var(var_t *var, NativeTypes type)
     }
 
     return ffi_ret_type;
+}
+
+ffi_type *prepare_ret_struct(var_t *var, ObjNativeStruct *str)
+{
+    int count = str->names.count;
+
+    ffi_type *st_type = (ffi_type *)malloc(sizeof(ffi_type));
+    ffi_type **st_type_elements = (ffi_type **)malloc(sizeof(ffi_type *) * (count + 1));
+    int i;
+
+    st_type->size = st_type->alignment = 0;
+    st_type->type = FFI_TYPE_STRUCT;
+    st_type->elements = st_type_elements;
+
+    for (i = 0; i < count; i++)
+    {
+        NativeTypes type = getNativeType(AS_CSTRING(str->types.values[i]));
+        if (type == TYPE_UNKNOWN || type == TYPE_VOID)
+        {
+            ObjNativeStruct *str = getNativeStruct(str->lib, AS_CSTRING(str->types.values[i]));
+            if (str == NULL)
+            {
+                free(st_type);
+                free(st_type_elements);
+                runtimeError("Invalid argument type in %s: '%s'", str->name->chars, AS_CSTRING(str->types.values[i]));
+                return NULL;
+            }
+            else
+            {
+                st_type_elements[i] = prepare_ret_struct(var, str);
+            }
+        }
+        else
+        {
+            st_type_elements[i] = prepare_ret_var(var, type);
+        }
+    }
+
+    st_type_elements[count] = NULL;
+    int sz = size_struct(str);
+    if (sz < 0)
+        return NULL;
+
+    var->val._ptr = malloc(sz);
+    return st_type;
 }
 
 Value from_var(var_t *var, NativeTypes retType)
@@ -651,6 +889,58 @@ Value from_var(var_t *var, NativeTypes retType)
     return result;
 }
 
+Value from_struct(void *ptr, ObjNativeStruct *str)
+{
+    unsigned char *data = ptr;
+
+    ObjDict *dict = initDict();
+
+    int count = str->names.count;
+    int sz;
+    var_t var;
+
+    for (int i = 0; i < count; i++)
+    {
+        NativeTypes type = getNativeType(AS_CSTRING(str->types.values[i]));
+        if (type == TYPE_UNKNOWN || type == TYPE_VOID)
+        {
+            ObjNativeStruct *str = getNativeStruct(str->lib, AS_CSTRING(str->types.values[i]));
+            if (str != NULL)
+            {
+                sz = size_struct(str);
+                Value val = from_struct(data, str);
+                insertDict(dict, AS_CSTRING(str->names.values[i]), val);
+                data += sz;
+            }
+        }
+        else
+        {
+            sz = size_var(type);
+            memcpy(&var.val, data, sz);
+            data += sz;
+
+            Value val = from_var(&var, type);
+            insertDict(dict, AS_CSTRING(str->names.values[i]), val);
+        }
+    }
+
+    return OBJ_VAL(dict);
+}
+
+ObjNativeStruct *getNativeStruct(ObjNativeLib *lib, const char *name)
+{
+    for (int i = 0; i < lib->objs.count; i++)
+    {
+        if (IS_NATIVE_STRUCT(lib->objs.values[i]))
+        {
+            ObjNativeStruct *str = AS_NATIVE_STRUCT(lib->objs.values[i]);
+            if (strcmp(name, str->name->chars) == 0)
+                return str;
+        }
+    }
+    return NULL;
+}
+
 Value callNative(ObjNativeFunc *func, int argCount, Value *args)
 {
     if (!openNativeLib(func->lib))
@@ -685,36 +975,85 @@ Value callNative(ObjNativeFunc *func, int argCount, Value *args)
         NativeTypes type = getNativeType(AS_CSTRING(func->params.values[i]));
         if (type == TYPE_UNKNOWN || type == TYPE_VOID)
         {
-            free(ffi_args);
-            free(ffi_values);
-            free(vars);
-            runtimeError("Invalid argument type in %s: '%s'", func->name->chars, AS_CSTRING(func->params.values[i]));
-            return NULL_VAL;
+            ObjNativeStruct *str = getNativeStruct(func->lib, AS_CSTRING(func->params.values[i]));
+            if (str == NULL)
+            {
+                free(ffi_args);
+                free(ffi_values);
+                free(vars);
+                runtimeError("Invalid argument type in %s: '%s'", func->name->chars,
+                             AS_CSTRING(func->params.values[i]));
+                return NULL_VAL;
+            }
+            else
+            {
+                vars[i].val._ptr = NULL;
+                vars[i].alloc = false;
+
+                if (to_struct(&vars[i], args[i], str, &ffi_args[i]) < 0)
+                {
+                    free(ffi_args);
+                    free(ffi_values);
+                    free(vars);
+                    return NULL_VAL;
+                }
+
+                ffi_values[i] = vars[i].val._ptr;
+            }
         }
+        else
+        {
+            ffi_values[i] = &vars[i];
+            vars[i].alloc = false;
 
-        ffi_values[i] = &vars[i];
-        vars[i].alloc = false;
-
-        to_var(&vars[i], args[i], type, &ffi_args[i]);
+            to_var(&vars[i], args[i], type, &ffi_args[i]);
+        }
     }
 
     // Return -------------------------
     NativeTypes retType = getNativeType(func->returnType->chars);
-    if (retType == TYPE_UNKNOWN)
-    {
-        for (int i = 0; i < argCount; i++)
-        {
-            free_var(vars[i]);
-        }
-        free(ffi_args);
-        free(ffi_values);
-        free(vars);
-        runtimeError("Invalid return type in %s: '%s'", func->name->chars, func->returnType->chars);
-        return NULL_VAL;
-    }
+    var_t retVal;
+    ObjNativeStruct *_struct = NULL;
+    void *ret;
+    ffi_type *ffi_ret_type = NULL;
 
-    var_t ret;
-    ffi_type *ffi_ret_type = prepare_ret_var(&ret, retType);
+    if (retType != TYPE_UNKNOWN)
+    {
+        ffi_ret_type = prepare_ret_var(&retVal, retType);
+        ret = &retVal;
+    }
+    else
+    {
+        _struct = getNativeStruct(func->lib, func->returnType->chars);
+        if (_struct == NULL)
+        {
+            for (int i = 0; i < argCount; i++)
+            {
+                free_var(vars[i]);
+            }
+            free(ffi_args);
+            free(ffi_values);
+            free(vars);
+            runtimeError("Invalid return type in %s: '%s'", func->name->chars, func->returnType->chars);
+            return NULL_VAL;
+        }
+        else
+        {
+            ffi_ret_type = prepare_ret_struct(&retVal, _struct);
+            if (ffi_ret_type == NULL)
+            {
+                for (int i = 0; i < argCount; i++)
+                {
+                    free_var(vars[i]);
+                }
+                free(ffi_args);
+                free(ffi_values);
+                free(vars);
+                return NULL_VAL;
+            }
+            ret = retVal.val._ptr;
+        }
+    }
 
     // Prepare for call -----------------------
     ffi_cif cif;
@@ -732,10 +1071,14 @@ Value callNative(ObjNativeFunc *func, int argCount, Value *args)
     }
 
     // Call ------------------------------------
-    ffi_call(&cif, FFI_FN(fn), &ret.val, ffi_values);
+    ffi_call(&cif, FFI_FN(fn), ret, ffi_values);
 
     // Get the result
-    Value result = from_var(&ret, retType);
+    Value result = NULL_VAL;
+    if (_struct != NULL)
+        result = from_struct(ret, _struct);
+    else
+        result = from_var(ret, retType);
 
     // Free data
     for (int i = 0; i < argCount; i++)
@@ -745,6 +1088,80 @@ Value callNative(ObjNativeFunc *func, int argCount, Value *args)
     free(ffi_args);
     free(ffi_values);
     free(vars);
+
+    return result;
+}
+
+Value createNativeStruct(ObjNativeStruct *str, int argCount, Value *args)
+{
+    ObjDict *dict = initDict();
+
+    NativeTypes type;
+    Value value;
+
+    for (int i = 0; i < str->names.count; i++)
+    {
+        type = getNativeType(AS_CSTRING(str->types.values[i]));
+        value = getDefaultValue(type);
+        insertDict(dict, AS_CSTRING(str->names.values[i]), value);
+    }
+
+    int count = argCount;
+    if (str->names.count < count)
+        count = str->names.count;
+
+    for (int i = 0; i < count; i++)
+    {
+        insertDict(dict, AS_CSTRING(str->names.values[i]), args[i]);
+    }
+
+    return OBJ_VAL(dict);
+}
+
+Value getDefaultValue(NativeTypes type)
+{
+    Value result = NULL_VAL;
+
+    switch (type)
+    {
+        case TYPE_NULL:
+        case TYPE_VAR:
+        case TYPE_FUNC:
+        case TYPE_CBOOL:
+            break;
+        case TYPE_BOOL:
+            result = BOOL_VAL(false);
+            break;
+        case TYPE_NUMBER:
+        case TYPE_INT8:
+        case TYPE_INT16:
+        case TYPE_INT32:
+        case TYPE_INT64:
+        case TYPE_UINT8:
+        case TYPE_UINT16:
+        case TYPE_UINT32:
+        case TYPE_UINT64:
+        case TYPE_FLOAT32:
+        case TYPE_FLOAT64:
+            result = NUMBER_VAL(0);
+            break;
+        case TYPE_STRING:
+        case TYPE_CSTRING:
+            result = STRING_VAL("");
+            break;
+        case TYPE_BYTES:
+        case TYPE_CBYTES:
+            result = BYTES_VAL("", 0);
+            break;
+        case TYPE_LIST:
+            result = OBJ_VAL(initList());
+            break;
+        case TYPE_DICT:
+            result = OBJ_VAL(initDict());
+            break;
+        default:
+            break;
+    }
 
     return result;
 }

@@ -92,6 +92,7 @@ typedef enum
     TOKEN_INCLUDE,
     TOKEN_AS,
     TOKEN_NATIVE,
+    TOKEN_STRUCT,
     TOKEN_WITH,
     TOKEN_ASYNC,
     TOKEN_AWAIT,

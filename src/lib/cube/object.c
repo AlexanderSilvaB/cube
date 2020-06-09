@@ -318,11 +318,23 @@ ObjNativeFunc *initNativeFunc()
     return nativeFunc;
 }
 
+ObjNativeStruct *initNativeStruct()
+{
+    ObjNativeStruct *nativeStruct = ALLOCATE_OBJ(ObjNativeStruct, OBJ_NATIVE_STRUCT);
+    initValueArray(&nativeStruct->types);
+    initValueArray(&nativeStruct->names);
+    nativeStruct->name = NULL;
+    nativeStruct->lib = NULL;
+    return nativeStruct;
+}
+
 ObjNativeLib *initNativeLib()
 {
     ObjNativeLib *nativeLib = ALLOCATE_OBJ(ObjNativeLib, OBJ_NATIVE_LIB);
+    initValueArray(&nativeLib->objs);
     nativeLib->name = NULL;
     nativeLib->functions = 0;
+    nativeLib->structs = 0;
     nativeLib->handle = NULL;
     return nativeLib;
 }
@@ -568,6 +580,41 @@ char *objectToString(Value value, bool literal)
                     sprintf(str + strlen(str), "%s", AS_STRING(func->params.values[i])->chars);
             }
             sprintf(str + strlen(str), ") [");
+            if (func->lib != NULL)
+            {
+                sprintf(str + strlen(str), "%s", func->lib->name->chars);
+            }
+            sprintf(str + strlen(str), "]");
+            return str;
+        }
+
+        case OBJ_NATIVE_STRUCT: {
+            ObjNativeStruct *func = AS_NATIVE_STRUCT(value);
+
+            int len = 8 + func->name->length;
+            for (int i = 0; i < func->types.count; i++)
+            {
+                len += AS_STRING(func->types.values[i])->length + 2;
+                len += AS_STRING(func->names.values[i])->length + 3;
+            }
+            len += 4;
+            if (func->lib != NULL)
+            {
+                len += func->lib->name->length;
+            }
+
+            char *str = mp_malloc(sizeof(char) * len);
+            sprintf(str, "struct %s { ", func->name->chars);
+            for (int i = 0; i < func->types.count; i++)
+            {
+                if (i < func->types.count - 1)
+                    sprintf(str + strlen(str), "%s %s, ", AS_STRING(func->types.values[i])->chars,
+                            AS_STRING(func->names.values[i])->chars);
+                else
+                    sprintf(str + strlen(str), "%s %s", AS_STRING(func->types.values[i])->chars,
+                            AS_STRING(func->names.values[i])->chars);
+            }
+            sprintf(str + strlen(str), " } [");
             if (func->lib != NULL)
             {
                 sprintf(str + strlen(str), "%s", func->lib->name->chars);
@@ -856,6 +903,12 @@ char *objectType(Value value)
         case OBJ_NATIVE_FUNC: {
             char *str = mp_malloc(sizeof(char) * 12);
             sprintf(str, "nativefunc");
+            return str;
+        }
+
+        case OBJ_NATIVE_STRUCT: {
+            char *str = mp_malloc(sizeof(char) * 16);
+            sprintf(str, "nativestruct");
             return str;
         }
 
