@@ -190,7 +190,7 @@ bool openNativeLib(ObjNativeLib *lib)
                 return false;
             }
 
-            char *p2 = dlpath(lib->handle);
+            char *p2 = (char *)dlpath(lib->handle);
             if (p2)
                 path = p2;
 
@@ -662,7 +662,8 @@ int to_struct(var_t *var, Value value, ObjNativeStruct *str, ffi_type **ffi_arg)
 
     int sz = 0;
     int cr = 0;
-    var->val._ptr = malloc(0);
+    int cp = 128;
+    var->val._ptr = malloc(cp);
 
     for (i = 0; i < count; i++)
     {
@@ -692,7 +693,15 @@ int to_struct(var_t *var, Value value, ObjNativeStruct *str, ffi_type **ffi_arg)
                     return -1;
                 }
 
-                var->val._ptr = realloc(var->val._ptr, sz + cr);
+                if (sz + cr > cp)
+                {
+                    while (sz + cr > cp)
+                    {
+                        cp *= 2;
+                    }
+                    var->val._ptr = realloc(var->val._ptr, cp);
+                }
+
                 memcpy(var->val._ptr + cr, st_type_var.val._ptr, sz);
                 cr += sz;
             }
@@ -702,7 +711,16 @@ int to_struct(var_t *var, Value value, ObjNativeStruct *str, ffi_type **ffi_arg)
             st_type_var.alloc = false;
 
             sz = to_var(&st_type_var, itemValue, type, &st_type_elements[i]);
-            var->val._ptr = realloc(var->val._ptr, sz + cr);
+
+            if (sz + cr > cp)
+            {
+                while (sz + cr > cp)
+                {
+                    cp *= 2;
+                }
+                var->val._ptr = realloc(var->val._ptr, cp);
+            }
+
             memcpy(var->val._ptr + cr, &st_type_var.val, sz);
             cr += sz;
         }
