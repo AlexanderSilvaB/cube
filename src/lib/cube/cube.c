@@ -14,8 +14,11 @@
 #include "packer.h"
 #include "util.h"
 #include "vm.h"
+#include "linkedList.h"
 
 #include "ansi_escapes.h"
+
+extern linked_list *list_symbols(const char *path);
 
 extern Value nativeToValue(cube_native_var *var, NativeTypes *nt);
 extern void valueToNative(cube_native_var *var, Value value);
@@ -23,6 +26,8 @@ char *version_string;
 
 void start(const char *path, const char *scriptName)
 {
+	list_symbols("C:/Users/Alexander/CMakeBuilds/964c335c-d18a-0937-bac8-aca7c879eef4/install/x64-Debug (padrão)/share/cube/libs/calc.dll");
+
 #ifdef UNICODE
     setlocale(LC_ALL, "");
     setlocale(LC_CTYPE, "UTF-8");

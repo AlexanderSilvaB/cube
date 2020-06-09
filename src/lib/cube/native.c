@@ -54,11 +54,15 @@ typedef struct NativeLibPointer_st
 
 static NativeLibPointer *libPointer = NULL;
 
+
+extern linked_list *list_symbols(const char *path);
+/*
 #ifdef _WIN32
 #include "native_w32.c"
 #else
 #include "native_posix.c"
 #endif
+*/
 
 const char *dlpath(void *handle)
 {
