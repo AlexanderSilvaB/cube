@@ -63,6 +63,9 @@ void start(const char *path, const char *scriptName)
 
     addPath("libs/");
     addPath("stdlib/");
+	addPath("../share/cube/");
+	addPath("../share/cube/libs/");
+	addPath("../share/cube/stdlib/");
 
 #ifdef _WIN32
     addPath("C:/cube/share/cube/");

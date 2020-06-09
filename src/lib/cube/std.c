@@ -2281,6 +2281,27 @@ static Value skipWaitingTasksNative(int argCount, Value *args)
     return BOOL_VAL(vm.skipWaitingTasks);
 }
 
+static Value dlopenNative(int argCount, Value *args)
+{
+	if (argCount == 0)
+	{
+		runtimeError("dlopen requires a file name");
+		return NULL_VAL;
+	}
+
+	if (!IS_STRING(args[0]))
+	{
+		runtimeError("The library file name must be a string");
+		return NULL_VAL;
+	}
+
+	ObjNativeLib *lib = initNativeLib();
+	lib->functions = 0;
+	lib->name = AS_STRING(pop());
+
+	return OBJ_VAL(lib);
+}
+
 static Value assertNative(int argCount, Value *args)
 {
     bool valid = false;
@@ -2446,6 +2467,7 @@ void initStd()
     ADD_STD("getFields", getFieldsNative);
     ADD_STD("getMethods", getMethodsNative);
     ADD_STD("skipWaitingTasks", skipWaitingTasksNative);
+	ADD_STD("dlopen", dlopenNative);
     ADD_STD("assert", assertNative);
     ADD_STD("clear", clearNative);
     ADD_STD("clearb", clearbNative);
