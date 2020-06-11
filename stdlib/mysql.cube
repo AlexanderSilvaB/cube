@@ -1,6 +1,6 @@
-native libs/libsqlite
+native libs/libmysql
 {
-    int open(cstring);
+    int opendb(cstring, cstring, cstring, cstring);
     cbool close(int);
     cbool exec(int, cstring);
     list data(int);
@@ -9,14 +9,16 @@ native libs/libsqlite
 
 import sqldatabase as default
 
-class SqliteDB : DB
+class MySqlDB : DB
 {
     var id = -1
-    func init(path)
+    func init(host, user, passwd, name)
     {
-        id = open(path)
+        setKey(AUTO_INCREMENT, 'AUTO_INCREMENT')
+
+        id = opendb(host, user, passwd, name)
         if(id < 0)
-            throw("Cannot open the database '${path}'")
+            throw("Cannot connect the database '${name}'")
     }
 
     func done()

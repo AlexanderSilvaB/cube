@@ -1,10 +1,11 @@
 #include <cube/cubeext.h>
-#include <sqlite3.h>
+#include <my_global.h>
+#include <mysql.h>
 #include <vector>
 
 typedef struct
 {
-    sqlite3 *db;
+    MYSQL *db;
     char *message;
     bool closed;
     cube_native_var *data;
@@ -71,7 +72,6 @@ void prepare_db(DB *db)
 {
     if (db->message)
     {
-        sqlite3_free(db->message);
         db->message = NULL;
     }
 
@@ -86,15 +86,25 @@ void prepare_db(DB *db)
 
 extern "C"
 {
-    EXPORTED int open(char *path)
+    EXPORTED int opendb(char *host, char *user, char *passwd, char *name)
     {
         DB db;
         db.closed = false;
         db.message = NULL;
         db.data = NULL;
-        int rc = sqlite3_open(path, &db.db);
-        if (rc != SQLITE_OK)
+        db.db = mysql_init(NULL);
+        if (db.db == NULL)
+        {
+            fprintf(stderr, "%s\n", mysql_error(db.db));
             return -1;
+        }
+
+        if (mysql_real_connect(db.db, host, user, passwd, name, 0, NULL, 0) == NULL)
+        {
+            fprintf(stderr, "%s\n", mysql_error(db.db));
+            mysql_close(db.db);
+            return -1;
+        }
 
         dbs.push_back(db);
         return dbs.size() - 1;
@@ -108,7 +118,7 @@ extern "C"
 
         prepare_db(db);
 
-        sqlite3_close(db->db);
+        mysql_close(db->db);
 
         db->closed = true;
         return true;
@@ -122,73 +132,71 @@ extern "C"
 
         prepare_db(db);
 
-        cube_native_var *list = NULL;
-
-        sqlite3_stmt *stmt = NULL;
-        int rc = sqlite3_prepare_v2(db->db, sql, -1, &stmt, NULL);
-        if (rc != SQLITE_OK)
+        if (mysql_query(db->db, sql))
         {
-            db->message = (char *)sqlite3_errmsg(db->db);
+            db->message = (char *)mysql_error(db->db);
             return false;
         }
 
-        int rowCount = 0;
-        rc = sqlite3_step(stmt);
-        while (rc != SQLITE_DONE && rc != SQLITE_OK)
+        cube_native_var *list = NULL;
+
+        MYSQL_RES *result = mysql_store_result(db->db);
+        if (result == NULL)
+            return true;
+
+        int num_fields = mysql_num_fields(result);
+        if (num_fields == 0)
         {
-            rowCount++;
-            int colCount = sqlite3_column_count(stmt);
-            if (colCount == 0)
-                break;
+            mysql_free_result(result);
+            return true;
+        }
 
-            if (db->data == NULL)
-                db->data = NATIVE_NULL();
+        if (db->data == NULL)
+            db->data = NATIVE_NULL();
 
-            if (list == NULL)
-                list = db->data;
+        if (list == NULL)
+            list = db->data;
 
-            if (!IS_NATIVE_LIST(list))
-                TO_NATIVE_LIST(list);
+        if (!IS_NATIVE_LIST(list))
+            TO_NATIVE_LIST(list);
+
+        MYSQL_ROW row;
+        MYSQL_FIELD *field;
+
+        while ((row = mysql_fetch_row(result)))
+        {
+            mysql_field_seek(result, 0);
+            unsigned long *len = mysql_fetch_lengths(result);
 
             cube_native_var *item = NATIVE_DICT();
 
-            for (int colIndex = 0; colIndex < colCount; colIndex++)
+            for (int i = 0; i < num_fields; i++)
             {
-                int type = sqlite3_column_type(stmt, colIndex);
-                const char *columnName = sqlite3_column_name(stmt, colIndex);
-                if (type == SQLITE_INTEGER)
+                field = mysql_fetch_field(result);
+                if (row[i] == NULL || field->type == MYSQL_TYPE_NULL)
                 {
-                    int valInt = sqlite3_column_int(stmt, colIndex);
-                    ADD_NATIVE_DICT(item, COPY_STR(columnName), NATIVE_NUMBER(valInt));
+                    ADD_NATIVE_DICT(item, COPY_STR(field->name), NATIVE_NULL());
                 }
-                else if (type == SQLITE_FLOAT)
+                else if (IS_NUM(field->type))
                 {
-                    double valDouble = sqlite3_column_double(stmt, colIndex);
-                    ADD_NATIVE_DICT(item, COPY_STR(columnName), NATIVE_NUMBER(valDouble));
+                    double val = atof(row[i]);
+                    ADD_NATIVE_DICT(item, COPY_STR(field->name), NATIVE_NUMBER(val));
                 }
-                else if (type == SQLITE_TEXT)
+                else if (field->type == MYSQL_TYPE_BIT)
                 {
-                    const unsigned char *valChar = sqlite3_column_text(stmt, colIndex);
-                    ADD_NATIVE_DICT(item, COPY_STR(columnName), NATIVE_STRING_COPY((const char *)valChar));
+                    ADD_NATIVE_DICT(item, COPY_STR(field->name), NATIVE_BYTES_COPY(len[i], (unsigned char *)row[i]));
                 }
-                else if (type == SQLITE_BLOB)
+                else
                 {
-                    const void *data = sqlite3_column_blob(stmt, colIndex);
-                    int len = sqlite3_column_bytes(stmt, colIndex);
-                    ADD_NATIVE_DICT(item, COPY_STR(columnName), NATIVE_BYTES_COPY(len, (unsigned char *)data));
-                }
-                else if (type == SQLITE_NULL)
-                {
-                    ADD_NATIVE_DICT(item, COPY_STR(columnName), NATIVE_NULL());
+                    ADD_NATIVE_DICT(item, COPY_STR(field->name), NATIVE_STRING_COPY(row[i]));
                 }
             }
 
             ADD_NATIVE_LIST(list, item);
-            rc = sqlite3_step(stmt);
         }
+        mysql_free_result(result);
 
-        rc = sqlite3_finalize(stmt);
-        return rc == SQLITE_OK;
+        return true;
     }
 
     EXPORTED cube_native_var *data(int id)

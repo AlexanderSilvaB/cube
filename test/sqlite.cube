@@ -1,0 +1,34 @@
+import sqlite as default
+
+var db = SqliteDB('temp/db.sqlite')
+
+var rc = db.create('log', {
+                            'id' : TYPE_INTEGER | AUTO_INCREMENT | PRIMARY_KEY,
+                            'message' : TYPE_TEXT,
+                            'date' : TYPE_TEXT
+                          })
+
+
+println('Create: ', rc)
+if(!rc)
+    println(db.getError())
+
+
+rc = db.insert('log', [date(), 'Message'], ['date', 'message'])
+println('Insert: ', rc)
+if(!rc)
+    println(db.getError())
+
+rc = db.delete('log', {'id' : 9})
+println('Delete: ', rc)
+if(!rc)
+    println(db.getError())
+
+rc = db.update('log', {'id' : '2'}, {'message' : 977})
+println('Update: ', rc)
+if(!rc)
+    println(db.getError())
+
+rc = db.select('log', 'id = 1')
+println('Select:')
+println(rc)
