@@ -131,7 +131,8 @@ class Parser
             if(rule[1] is not null)
                 print('[-', rule[1],']');
             if(rule[2] is not null)
-                println(' ',rule[3]);
+                print(' ',rule[3]);
+            println()
         }
     }
 

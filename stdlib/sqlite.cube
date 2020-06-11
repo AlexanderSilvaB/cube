@@ -1,0 +1,301 @@
+native libs/libsqlite
+{
+    int open(cstring);
+    cbool close(int);
+    cbool exec(int, cstring);
+    list data(int);
+    cstring error(int);
+}
+
+var TYPE_NULL = 1 << 1
+var TYPE_INTEGER = 1 << 2
+var TYPE_REAL = 1 << 3
+var TYPE_TEXT = 1 << 4
+var TYPE_BLOB = 1 << 5
+var NOT_NULL = 1 << 6
+var PRIMARY_KEY = 1 << 7
+var FOREIGN_KEY = 1 << 8
+var AUTO_INCREMENT = 1 << 9
+var UNIQUE = 1 << 10
+
+
+class DB
+{
+    var id = -1
+    var sql = null
+    func init(path)
+    {
+        id = open(path)
+        if(id < 0)
+            throw("Cannot open the database '${path}'")
+    }
+
+    func done()
+    {
+        close(id)
+        id = -1
+    }
+
+    func create(table, desc)
+    {
+        if(table is not str)
+            throw("'${table}' is not a valid table name. Must be a string.")
+        
+        if(desc is not dict)
+            throw("'${desc}' is not a valid table description. Must be a dict.")
+
+        var sql = "CREATE TABLE ${table}(";
+        var val;
+
+        for(var colName in desc)
+        {
+            sql += colName
+            val = desc[colName]
+            if(val & TYPE_NULL != 0)
+                sql += ' NULL'
+            if(val & TYPE_INTEGER != 0)
+                sql += ' INTEGER'
+            if(val & TYPE_REAL != 0)
+                sql += ' REAL'
+            if(val & TYPE_TEXT != 0)
+                sql += ' TEXT'
+            if(val & TYPE_BLOB != 0)
+                sql += ' BLOB'
+            if(val & NOT_NULL != 0)
+                sql += ' NOT NULL'
+            if(val & PRIMARY_KEY != 0)
+                sql += ' PRIMARY KEY'
+            if(val & FOREIGN_KEY != 0)
+                sql += ' FOREIGN KEY'
+            if(val & AUTO_INCREMENT != 0)
+                sql += ' AUTOINCREMENT'
+            if(val & UNIQUE != 0)
+                sql += ' UNIQUE'
+            sql += ', '
+        }
+
+        sql = sql.substr(0, len(sql) - 2) + " )"
+        
+        return this.query(sql)
+    }
+
+    func insert(table, data, fields)
+    {
+        if(table is not str)
+            throw("'${table}' is not a valid table name. Must be a string.")
+        
+        var sql = "INSERT INTO ${table} "
+        if(data is dict)
+        {
+            var values = " VALUES( "
+            var val
+            sql += "( "
+            for(var name in data)
+            {
+                sql += name + ', '
+                val = data[name]
+                if(val is str)
+                    values += "'${val}', "
+                else
+                    values += "${val}, "
+            }
+            values = values.substr(0, len(values) - 2) + " )"
+            sql = sql.substr(0, len(sql) - 2) + " )"
+            sql += values
+        }
+        else
+        {
+            if(data is not list)
+                data = [data]
+            if(fields is not null)
+            {
+                if(fields is not list)
+                    fields = [fields]
+                
+                sql += "( "
+                for(var name in fields)
+                {
+                    sql += name + ', '
+                }
+                sql = sql.substr(0, len(sql) - 2) + " )"
+            }
+
+            sql += " VALUES ( "
+            for(var val in data)
+            {
+                if(val is str)
+                    sql += "'${val}', "
+                else
+                    sql += "${val}, "
+            }
+            sql = sql.substr(0, len(sql) - 2) + " )"
+        }
+
+        return this.query(sql)
+    }
+
+    func delete(table, where)
+    {
+        if(table is not str)
+            throw("'${table}' is not a valid table name. Must be a string.")
+
+        sql = "DELETE FROM ${table}"
+        if(where is dict)
+        {
+            var val
+            sql += " WHERE "
+            for(var name in where)
+            {
+                sql += name + ' = '
+                val = where[name]
+                if(val is str)
+                    sql += "'${val}', "
+                else
+                    sql += "${val}, "
+            }
+            sql = sql.substr(0, len(sql) - 2)
+        }
+        else if(where is str)
+        {
+            sql += " WHERE ${where}"
+        }
+
+        return this.query(sql)
+    }
+
+    func select(table, where, fields)
+    {
+        if(table is not str)
+            throw("'${table}' is not a valid table name. Must be a string.")
+        
+        sql = "SELECT "
+        if(fields is null)
+            sql += '* '
+        else
+        {
+            if(fields is not list)
+                fields = [fields]
+
+            for(var name in fields)
+            {
+                sql += "${name}, "
+            }
+            sql = sql.substr(0, len(sql) - 2) + ' '
+        }
+
+        sql += "FROM ${table}"
+
+        if(where is dict)
+        {
+            var val
+            sql += " WHERE "
+            for(var name in where)
+            {
+                sql += name + ' = '
+                val = where[name]
+                if(val is str)
+                    sql += "'${val}', "
+                else
+                    sql += "${val}, "
+            }
+            sql = sql.substr(0, len(sql) - 2)
+        }
+        else if(where is str)
+        {
+            sql += " WHERE ${where}"
+        }
+
+        var rc = this.query(sql)
+        var data = null
+        if(rc)
+            data = this.results()
+        return data
+    }
+
+    func update(table, where, data, fields)
+    {
+        if(table is not str)
+            throw("'${table}' is not a valid table name. Must be a string.")
+        
+        var sql = "UPDATE ${table} "
+        if(data is dict)
+        {
+            var val
+            sql += "SET "
+            for(var name in data)
+            {
+                sql += name + ' = '
+                val = data[name]
+                if(val is str)
+                    sql += "'${val}', "
+                else
+                    sql += "${val}, "
+            }
+            sql = sql.substr(0, len(sql) - 2)
+        }
+        else
+        {
+            if(data is not list)
+                data = [data]
+            if(fields is not null)
+            {
+                if(fields is not list)
+                    fields = [fields]
+                
+                sql += "SET "
+                var l = len(fields)
+                if(len(data) < l)
+                    l = len(data)
+                var name, val
+                for(var i = 0; i < l; i++)
+                {
+                    name = fields[i]
+                    val = data[i]
+                    if(val is str)
+                        sql += name + " = '" + val + "', "
+                    else
+                        sql += name + ' = ' + val + ', '
+                }
+                sql = sql.substr(0, len(sql) - 2)
+            }
+        }
+
+        if(where is dict)
+        {
+            var val
+            sql += " WHERE "
+            for(var name in where)
+            {
+                sql += name + ' = '
+                val = where[name]
+                if(val is str)
+                    sql += "'${val}', "
+                else
+                    sql += "${val}, "
+            }
+            sql = sql.substr(0, len(sql) - 2)
+        }
+        else if(where is str)
+        {
+            sql += " WHERE ${where}"
+        }
+
+        return this.query(sql)
+    }
+
+    func query(sql)
+    {
+        this.sql = sql
+        return exec(id, sql)
+    }
+
+    func results()
+    {
+        return data(id)
+    }
+
+    func getError()
+    {
+        return error(id)
+    }
+}

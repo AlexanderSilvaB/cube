@@ -20,6 +20,7 @@ parser.add('uninstall', 'u', str, '+', 'selects the package to uninstall');
 parser.add('list', 'l', null, 0, 'list installed packages');
 parser.add('online', 'o', null, 0, 'list online packages');
 parser.add('force', 'f', null, 0, 'force install or uninstall');
+parser.add('description', 'd', str, '+', 'gets the description of the package');
 
 parser.parse(args);
 
@@ -90,6 +91,54 @@ func uninstall(force, libs)
     {
         uninstallPackage(force, lib);
     }   
+}
+
+func description(libs)
+{
+    println('Describing: ', libs.join(' '));
+
+    var rm = []
+    for(var lib in libs)
+    {
+        if(lib.endsWith('.zip'))
+        {
+            descriptionFilePackage(lib);
+            rm.add(lib)
+        }
+    }
+
+    for(var lib in rm)
+    {
+        libs.remove(lib)
+    }
+
+    if(len(libs) == 0)
+        return;
+
+    var contents = readWeb('index.json');
+    var packages = json.parseJson(contents)['packages'];
+
+    var package = null;
+
+    for(var lib in libs)
+    {
+        if(lib.endsWith('.zip'))
+            continue;
+
+        package = null;
+        for(var p in packages)
+        {
+            if(p.endsWith('/{}'.format(lib)))
+            {
+                package = p;
+            }
+        }
+
+        if(package is null)
+            throw('Package "', lib, '" not found!');
+
+        descriptionPackage(lib, package);
+    }
 }
 
 func listPackages()
@@ -176,6 +225,18 @@ func installFilePackage(force, libFile)
         file.write(str(contents));
     }
 
+    path = os.allowedBinPath + '/' + lib;
+    if(!exists(path))
+        mkdir(path, 777);
+
+    path = os.allowedLibsPath + '/' + lib;
+    if(!exists(path))
+        mkdir(path, 777);
+    
+    path = os.allowedSamplesPath + '/' + lib;
+    if(!exists(path))
+        mkdir(path, 777);
+
     for(var f in package['files'])
     {
         print('Installing: ', f);
@@ -187,9 +248,31 @@ func installFilePackage(force, libFile)
         }
         name = paths.fileName(f);
         if(package['bin'] is list and name in package['bin'])
-            path = os.allowedBinPath;
+            path = os.allowedBinPath + '/' + lib;
         else   
-            path = os.allowedLibsPath;
+            path = os.allowedLibsPath + '/' + lib;
+
+        path += '/{}/{}'.format(name);
+        
+        with(path, 'w')
+        {
+            file.write(str(data));
+        }
+
+        println('\rInstalled: ', f, ' ');
+    }
+
+    for(var f in package['samples'])
+    {
+        print('Installing: ', f);
+        data = file.read(f);
+        if(data is null)
+        {
+            println('Failed!');
+            continue;
+        }
+        name = paths.fileName(f);
+        path = os.allowedSamplesPath + '/' + lib;
 
         path += '/{}'.format(name);
         
@@ -212,7 +295,7 @@ func installFilePackage(force, libFile)
         }
 
         name = paths.fileName(f);
-        path = os.allowedLibsPath;
+        path = os.allowedLibsPath + '/' + lib;
         path += '/{}{}'.format(name, os.libsExt);
         
 
@@ -256,6 +339,17 @@ func installPackage(force, lib, url)
         file.write(contents);
     }
 
+    path = os.allowedBinPath + '/' + lib;
+    if(!exists(path))
+        mkdir(path, 777);
+
+    path = os.allowedLibsPath + '/' + lib;
+    if(!exists(path))
+        mkdir(path, 777);
+    
+    path = os.allowedSamplesPath + '/' + lib;
+    if(!exists(path))
+        mkdir(path, 777);
 
     for(var f in package['files'])
     {
@@ -263,9 +357,27 @@ func installPackage(force, lib, url)
         data = readWeb('{}/{}'.format(url, f));
         name = paths.fileName(f);
         if(package['bin'] is list and name in package['bin'])
-            path = os.allowedBinPath;
+            path = os.allowedBinPath + '/' + lib;
         else   
-            path = os.allowedLibsPath;
+            path = os.allowedLibsPath + '/' + lib;
+
+        path += '/{}'.format(name);
+        
+        with(path, 'w')
+        {
+            file.write(data);
+        }
+
+        println('\rDownloaded: ', f, ' ');
+    }
+
+    for(var f in package['samples'])
+    {
+        print('Downloading: ', f);
+        data = readWeb('{}/{}'.format(url, f));
+        name = paths.fileName(f);
+           
+        path = os.allowedSamplesPath + '/' + lib;
 
         path += '/{}'.format(name);
         
@@ -282,7 +394,7 @@ func installPackage(force, lib, url)
         print('Downloading: ', f);
         data = readWeb('{}/native/{}/{}/{}{}'.format(url, os.name, os.arch, f, os.libsExt));
         name = paths.fileName(f);
-        path = os.allowedLibsPath;
+        path = os.allowedLibsPath + '/' + lib;
         path += '/{}{}'.format(name, os.libsExt);
         
 
@@ -292,6 +404,147 @@ func installPackage(force, lib, url)
         }
 
         println('\rDownloaded: ', f, ' ');
+    }
+}
+
+func descriptionFilePackage(libFile)
+{
+    println("File: ", libFile)
+    if(!exists(libFile))
+    {
+        println("Invalid package file.")
+        return;
+    }
+    
+    var file = zip.Zip(libFile, 'r')
+    var contents = file.read('package.json')
+    if(contents is null)
+    {
+        println("Not a valid cube package.")
+        return;
+    }
+
+    var package = json.parseJson(str(contents));
+    var lib = package['name']
+    if(lib is null)
+    {
+        println("Not a valid cube package.")
+        return;
+    }
+
+    var current = null;
+    try
+    {
+        var j = json.readJson("{}/{}.json".format(os.allowedLibsPath, lib));
+        current = j['version'];
+    }
+
+    var version = package['version'];
+    if(version is null)
+    {
+        println("Not a valid cube package.")
+        return;
+    }
+
+    var desc = package['description'];
+    var dependencies = package['dependencies'];
+
+    println('Name: ', lib)
+    println('Description: ', desc)
+    if(current is not null)
+        println('Installed version: ', current)
+    println('Available version: ', version)
+    if(dependencies is list)
+    {
+        if(len(dependencies) == 0)
+            println('Dependencies: None')
+        else
+            println('Dependencies: ', dependencies.join(' '))
+    }
+    
+    var name;
+
+    println('Files')
+    for(var f in package['files'])
+    {
+        name = paths.fileName(f);
+    
+        if(package['bin'] is list and name in package['bin'])
+            println(' *', name)
+        else   
+            println(' ', name)
+    }
+
+    println('Samples')
+    for(var f in package['samples'])
+    {
+        name = paths.fileName(f);
+        println(' ', name);
+    }
+
+
+    println('Native')
+    for(var f in package['native'])
+    {
+        name = paths.fileName(f);
+        println(' ', name);
+    }
+
+}
+
+func descriptionPackage(lib, url)
+{
+    var contents = readWeb('{}/package.json'.format(url));
+    var package = json.parseJson(contents);
+    
+    var current = null;
+    try
+    {
+        var j = json.readJson("{}/{}.json".format(os.allowedLibsPath, lib));
+        current = j['version'];
+    }
+
+    var version = package['version'];
+    var desc = package['description'];
+    var dependencies = package['dependencies'];
+
+    println('Name: ', lib)
+    println('Description: ', desc)
+    if(current is not null)
+        println('Installed version: ', current)
+    println('Available version: ', version)
+    if(dependencies is list)
+    {
+        if(len(dependencies) == 0)
+            println('Dependencies: None')
+        else
+            println('Dependencies: ', dependencies.join(' '))
+    }
+
+    var name;
+
+    println('Files')
+    for(var f in package['files'])
+    {
+        name = paths.fileName(f);
+        if(package['bin'] is list and name in package['bin'])
+            println(' *', name);
+        else   
+            println(' ', name);
+    }
+
+    println('Samples')
+    for(var f in package['samples'])
+    {
+        name = paths.fileName(f);
+        println(' ', name);
+    }
+
+    println('Native')
+    for(var f in package['native'])
+    {
+        name = paths.fileName(f);
+        println(' ', name);
     }
 }
 
@@ -312,9 +565,23 @@ func uninstallPackage(force, lib)
         print('Removing: ', f);
         name = paths.fileName(f);
         if(package['bin'] is list and name in package['bin'])
-            path = os.allowedBinPath;
+            path = os.allowedBinPath + '/' + lib;
         else   
-            path = os.allowedLibsPath;
+            path = os.allowedLibsPath + '/' + lib;
+
+        path += '/{}'.format(name);
+        
+        remove(path);
+
+        println('\rRemoved: ', f, ' ');
+    }
+
+    for(var f in package['samples'])
+    {
+        print('Removing: ', f);
+        name = paths.fileName(f);
+
+        path = os.allowedSamplesPath + '/' + lib;
 
         path += '/{}'.format(name);
         
@@ -327,7 +594,7 @@ func uninstallPackage(force, lib)
     {
         print('Removing: ', f);
         name = paths.fileName(f);
-        path = os.allowedLibsPath;
+        path = os.allowedLibsPath + '/' + lib;
         path += '/{}{}'.format(name, os.libsExt);
         
         remove(path);
@@ -335,9 +602,17 @@ func uninstallPackage(force, lib)
         println('\rRemoved: ', f, ' ');
     }
 
-    path = os.allowedLibsPath+'/'+lib+'.json';
+    path = os.allowedBinPath + '/' + lib;
     remove(path);
 
+    path = os.allowedLibsPath + '/' + lib;
+    remove(path);
+
+    path = os.allowedSamplesPath + '/' + lib;
+    remove(path);
+
+    path = os.allowedLibsPath+'/'+lib+'.json';
+    remove(path);
 }
 
 func listPackage(lib)
@@ -350,6 +625,13 @@ func listPackage(lib)
     println(package['name'], ':', package['version'], '  [', package['description'], ']');
     return true;
 }
+
+if(!exists(os.allowedBinPath))
+    mkdir(os.allowedBinPath, 777)
+if(!exists(os.allowedLibsPath))
+    mkdir(os.allowedLibsPath, 777)
+if(!exists(os.allowedSamplesPath))
+    mkdir(os.allowedSamplesPath, 777)
 
 if(parser.args['install'] is not null and len(parser.args['install']) > 0 )
 {
@@ -366,6 +648,10 @@ else if( parser.args['list'])
 else if( parser.args['online'] )
 {
     listOnlinePackages();
+}
+else if( parser.args['description'] is not null and len(parser.args['description']) > 0 )
+{
+    description(parser.args['description']);
 }
 else
 {

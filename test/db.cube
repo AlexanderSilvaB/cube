@@ -1,0 +1,22 @@
+import sqlite as default
+
+var db = DB('temp/db.sqlite')
+
+var rc = db.create('log', {
+                            'id' : TYPE_INTEGER | AUTO_INCREMENT | PRIMARY_KEY,
+                            'message' : TYPE_TEXT,
+                            'date' : TYPE_TEXT
+                          })
+
+
+rc = db.insert('log', [date(), 'Message'], ['date', 'message'])
+println(rc)
+
+rc = db.delete('log', {'id' : 9})
+println(rc)
+
+rc = db.update('log', {'id' : '98'}, {'message' : 977})
+println(rc)
+
+rc = db.select('log', 'id = 97')
+println(rc)

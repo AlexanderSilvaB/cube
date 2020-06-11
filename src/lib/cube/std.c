@@ -1485,6 +1485,8 @@ static int cube_mkdir(const char *dir, int mode)
     char *p = NULL;
     size_t len;
 
+    mode = 0775;
+
     snprintf(tmp, sizeof(tmp), "%s", dir);
     len = strlen(tmp);
     if (tmp[len - 1] == '/')
@@ -1507,6 +1509,12 @@ static int cube_mkdir(const char *dir, int mode)
 #else
     int rc = mkdir(tmp, mode);
 #endif
+    // if (rc < 0)
+    // {
+    //     char cmd[512];
+    //     sprintf(cmd, "mkdir -m %d %s", mode, tmp);
+    //     rc = system(cmd);
+    // }
     return rc;
 }
 
@@ -1518,10 +1526,10 @@ Value mkdirNative(int argCount, Value *args)
         return NULL_VAL;
     char *str = AS_CSTRING(args[0]);
     int mode = 0777;
-    if (argCount > 1 && IS_NUMBER(args[1]))
-    {
-        mode = AS_NUMBER(args[1]);
-    }
+    // if (argCount > 1 && IS_NUMBER(args[1]))
+    // {
+    //     mode = AS_NUMBER(args[1]);
+    // }
 
     char *path = fixPath(str);
     int rc = cube_mkdir(path, mode);
@@ -2283,23 +2291,30 @@ static Value skipWaitingTasksNative(int argCount, Value *args)
 
 static Value dlopenNative(int argCount, Value *args)
 {
-	if (argCount == 0)
-	{
-		runtimeError("dlopen requires a file name");
-		return NULL_VAL;
-	}
+    if (argCount == 0)
+    {
+        runtimeError("dlopen requires a file name");
+        return NULL_VAL;
+    }
 
-	if (!IS_STRING(args[0]))
-	{
-		runtimeError("The library file name must be a string");
-		return NULL_VAL;
-	}
+    if (!IS_STRING(args[0]))
+    {
+        runtimeError("The library file name must be a string");
+        return NULL_VAL;
+    }
 
-	ObjNativeLib *lib = initNativeLib();
-	lib->functions = 0;
-	lib->name = AS_STRING(pop());
+    ObjString *name = AS_STRING(pop());
+    int len = name->length + strlen(vm.nativeExtension) + 1;
+    char *str = mp_malloc(len);
+    sprintf(str, "%s%s", name->chars, vm.nativeExtension);
 
-	return OBJ_VAL(lib);
+    ObjNativeLib *lib = initNativeLib();
+    lib->functions = 0;
+    lib->name = AS_STRING(STRING_VAL(str));
+
+    mp_free(str);
+
+    return OBJ_VAL(lib);
 }
 
 static Value assertNative(int argCount, Value *args)
@@ -2467,7 +2482,7 @@ void initStd()
     ADD_STD("getFields", getFieldsNative);
     ADD_STD("getMethods", getMethodsNative);
     ADD_STD("skipWaitingTasks", skipWaitingTasksNative);
-	ADD_STD("dlopen", dlopenNative);
+    ADD_STD("dlopen", dlopenNative);
     ADD_STD("assert", assertNative);
     ADD_STD("clear", clearNative);
     ADD_STD("clearb", clearbNative);

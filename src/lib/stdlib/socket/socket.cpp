@@ -85,7 +85,8 @@ extern "C"
         if (socket == NULL)
             return ret;
 
-        AS_NATIVE_NUMBER(ret) = socket->Write((char *)AS_NATIVE_BYTES(data).bytes, AS_NATIVE_BYTES(data).length);
+        if (AS_NATIVE_BYTES(data).length > 0)
+            AS_NATIVE_NUMBER(ret) = socket->Write((char *)AS_NATIVE_BYTES(data).bytes, AS_NATIVE_BYTES(data).length);
         return ret;
     }
 

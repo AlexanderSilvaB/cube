@@ -856,9 +856,12 @@ Value from_var(var_t *var, NativeTypes retType)
         case TYPE_DICT:
         case TYPE_VAR:
         case TYPE_FUNC: {
-            NativeTypes nt;
-            result = nativeToValue((cube_native_var *)var->val._ptr, &nt);
-            freeNativeVar((cube_native_var *)var->val._ptr, false, false);
+            if (var->val._ptr)
+            {
+                NativeTypes nt;
+                result = nativeToValue((cube_native_var *)var->val._ptr, &nt);
+                freeNativeVar((cube_native_var *)var->val._ptr, false, false);
+            }
         }
         break;
         case TYPE_CBOOL:
@@ -895,10 +898,12 @@ Value from_var(var_t *var, NativeTypes retType)
             result = NUMBER_VAL((double)(var->val._float64));
             break;
         case TYPE_CSTRING:
-            result = STRING_VAL((char *)var->val._ptr);
+            if (var->val._ptr)
+                result = STRING_VAL((char *)var->val._ptr);
             break;
         case TYPE_CBYTES:
-            result = UNSAFE_VAL((uint8_t *)var->val._ptr);
+            if (var->val._ptr)
+                result = UNSAFE_VAL((uint8_t *)var->val._ptr);
             break;
         default:
             break;

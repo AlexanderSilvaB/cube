@@ -1,0 +1,23 @@
+func select(arr, fn)
+{
+    if(len(arr) == 0)
+        return null
+
+    var m = arr[0]
+    for(var i = 0; i < len(arr); i++)
+    {
+        if(fn(arr[i], m))
+            m = arr[i]
+    }
+    return m
+}
+
+func max(arr)
+{
+    return select(arr, @(c, v)  => c > v)
+}
+
+func min(arr)
+{
+    return select(arr, @(c, v)  => c < v)
+}

@@ -2542,11 +2542,28 @@ InterpretResult run()
                 if (tableSet(table, name, peek(0)))
                 {
                     tableDelete(table, name); // [delete]
-                    runtimeError("Undefined variable '%s'.", name->chars);
-                    if (!checkTry(frame))
-                        return INTERPRET_RUNTIME_ERROR;
+                    if (table != &vm.globals)
+                    {
+                        table = &vm.globals;
+                        if (tableSet(table, name, peek(0)))
+                        {
+                            tableDelete(table, name); // [delete]
+
+                            runtimeError("Undefined variable '%s'.", name->chars);
+                            if (!checkTry(frame))
+                                return INTERPRET_RUNTIME_ERROR;
+                            else
+                                break;
+                        }
+                    }
                     else
-                        break;
+                    {
+                        runtimeError("Undefined variable '%s'.", name->chars);
+                        if (!checkTry(frame))
+                            return INTERPRET_RUNTIME_ERROR;
+                        else
+                            break;
+                    }
                 }
                 break;
             }

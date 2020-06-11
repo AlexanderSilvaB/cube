@@ -36,8 +36,10 @@ else
 
 var binPath = '{}/bin'.format(installPath);
 var libsPath = '{}/libs'.format(installPath);
+var samplesPath = '{}/samples'.format(installPath);
 var userBinPath = '{}/bin'.format(userDir);
 var userLibsPath = '{}/libs'.format(userDir);
+var userSamplesPath = '{}/samples'.format(userDir);
 
 var previleged = false;
 
@@ -51,8 +53,10 @@ try
 
 var allowedBinPath = binPath;
 var allowedLibsPath = libsPath;
+var allowedSamplesPath = samplesPath;
 if(not previleged)
 {
     allowedBinPath = userBinPath;
     allowedLibsPath = userLibsPath;
+    allowedSamplesPath = userSamplesPath;
 }

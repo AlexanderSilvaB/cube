@@ -63,7 +63,9 @@
         "memory_resource": "cpp",
         "random": "cpp",
         "set": "cpp",
-        "string_view": "cpp"
+        "string_view": "cpp",
+        "valarray": "cpp",
+        "*.txx": "cpp"
     },
     "editor.formatOnSave": true
 }
