@@ -156,6 +156,7 @@ static TaskFrame *createTaskFrame(const char *name)
     taskFrame->currentFrameCount = 0;
     taskFrame->startTime = 0;
     taskFrame->endTime = 0;
+    taskFrame->busy = false;
     taskFrame->tryFrame = NULL;
     taskFrame->error = NULL;
     taskFrame->currentArgs = NULL_VAL;
@@ -2192,6 +2193,10 @@ next:
         else
             goto next;
     }
+    else if (threadFrame->ctf->busy)
+    {
+        goto next;
+    }
     else if (vm.skipWaitingTasks && threadFrame->ctf->waiting)
     {
         goto next;
@@ -2211,6 +2216,10 @@ analyse:
         {
             goto next;
         }
+    }
+    else if (threadFrame->ctf->busy)
+    {
+        goto next;
     }
     else if (threadFrame->ctf->finished)
     {

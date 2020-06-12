@@ -1,0 +1,3 @@
+[submodule "src/lib/libuv"]
+	path = src/lib/libuv
+	url = git@github.com:libuv/libuv.git

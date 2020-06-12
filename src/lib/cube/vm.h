@@ -58,6 +58,7 @@ typedef struct TaskFrame_t
     bool finished;
     bool waiting;
     bool aborted;
+    bool busy;
     struct TaskFrame_t *parent;
     char *error;
     uint64_t endTime;

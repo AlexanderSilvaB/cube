@@ -25,6 +25,10 @@ install(EXPORT ${PROJECT_NAME}_linenoise_Targets
     FILE ${PROJECT_NAME}_linenoise_Targets.cmake
     DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/cmake)
 
+install(EXPORT uv_a_Targets
+    FILE uv_a_Targets.cmake
+    DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/cmake)
+
 install(FILES "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
     DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/${PROJECT_NAME}/cmake)
 
