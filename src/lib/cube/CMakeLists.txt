@@ -4,6 +4,7 @@ include(GNUInstallDirs)
 find_package(Threads)
 
 include_directories(../libffi-3.3/include)
+include_directories(../libuv/include)
 include_directories(${libffi_BINARY_DIR}/include)
 
 set(SRC cube.c 
