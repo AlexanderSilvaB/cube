@@ -2237,93 +2237,128 @@ analyse:
     return true;
 }
 
-InterpretResult run()
+InterpretResult checkContinue(ThreadFrame **threadFrame, CallFrame **frame)
 {
-    for (;;)
+    if (!vm.running)
     {
-        // if(vm.id != vm.threadFrames[0].id)
-        // {
-        //   printf("Other\n");
-        //   continue;
-        // }
-        if (!vm.running)
+        return INTERPRET_OK;
+    }
+
+    if (!nextTask())
+    {
+        return INTERPRET_OK;
+    }
+
+    *threadFrame = currentThread();
+
+    *frame = &(*threadFrame)->ctf->frames[(*threadFrame)->ctf->frameCount - 1];
+    (*threadFrame)->frame = *frame;
+
+    if ((*threadFrame)->ctf->error != NULL)
+    {
+        if (!checkTry(*frame))
+            return INTERPRET_RUNTIME_ERROR;
+    }
+
+    if (vm.debug)
+    {
+        ObjFunction *function = (*frame)->closure->function;
+        size_t instruction = (*frame)->ip - function->chunk.code;
+        int line = getLine(&function->chunk, instruction);
+        if (line != vm.debugInfo.line || strcmp(function->path, vm.debugInfo.path) != 0)
         {
-            return INTERPRET_OK;
-        }
-
-        if (!nextTask())
-        {
-            return INTERPRET_OK;
-        }
-
-        ThreadFrame *threadFrame = currentThread();
-
-        CallFrame *frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
-        threadFrame->frame = frame;
-
-        if (threadFrame->ctf->error != NULL)
-        {
-            if (!checkTry(frame))
-                return INTERPRET_RUNTIME_ERROR;
-        }
-
-        if (vm.debug)
-        {
-            ObjFunction *function = frame->closure->function;
-            size_t instruction = frame->ip - function->chunk.code;
-            int line = getLine(&function->chunk, instruction);
-            if (line != vm.debugInfo.line || strcmp(function->path, vm.debugInfo.path) != 0)
+            vm.debugInfo.line = line;
+            vm.debugInfo.path = function->path;
+            while (!vm.continueDebug)
             {
-                vm.debugInfo.line = line;
-                vm.debugInfo.path = function->path;
-                while (!vm.continueDebug)
-                {
-                    if (vm.waitingDebug == false)
-                        vm.waitingDebug = true;
-                    cube_wait(100);
-                }
-                vm.continueDebug = false;
-                vm.waitingDebug = false;
+                if (vm.waitingDebug == false)
+                    vm.waitingDebug = true;
+                cube_wait(100);
             }
+            vm.continueDebug = false;
+            vm.waitingDebug = false;
         }
+    }
 
 #ifdef DEBUG_TRACE_EXECUTION
+    {
+        printf("Thread: %d, Task: %s\n", (*threadFrame)->id, (*threadFrame)->ctf->name);
+        int st = 0;
+        for (Value *slot = (*threadFrame)->ctf->stack; slot < (*threadFrame)->ctf->stackTop; slot++, st++)
         {
-            printf("Thread: %d, Task: %s\n", threadFrame->id, threadFrame->ctf->name);
-            int st = 0;
-            for (Value *slot = threadFrame->ctf->stack; slot < threadFrame->ctf->stackTop; slot++, st++)
-            {
-                printf("[ (%d) ", st);
-                printValue(*slot);
-                printf(" ]");
-            }
-            printf("\n");
-            disassembleInstruction(&frame->closure->function->chunk,
-                                   (int)(frame->ip - frame->closure->function->chunk.code));
+            printf("[ (%d) ", st);
+            printValue(*slot);
+            printf(" ]");
         }
+        printf("\n");
+        disassembleInstruction(&(*frame)->closure->function->chunk,
+                               (int)((*frame)->ip - (*frame)->closure->function->chunk.code));
+    }
 #endif
 
-        uint8_t instruction;
+    return INTERPRET_CONTINUE;
+}
+
+InterpretResult run()
+{
+    ThreadFrame *threadFrame;
+    CallFrame *frame;
+    InterpretResult loopResult;
+    uint8_t instruction;
+
+#ifdef USE_COMPUTED_GOTO
+
+    static void *dispatchTable[] = {
+#define OPCODE(name) &&code_##name,
+#include "opcodes.h"
+#undef OPCODE
+    };
+
+#define OPCASE(name) code_##name
+#define DISPATCH()                                                                                                     \
+    do                                                                                                                 \
+    {                                                                                                                  \
+        loopResult = checkContinue(&threadFrame, &frame);                                                              \
+        if (loopResult != INTERPRET_CONTINUE)                                                                          \
+            return loopResult;                                                                                         \
+        goto *dispatchTable[instruction = READ_BYTE()];                                                                \
+    } while (false)
+#define INTERPRET_LOOP DISPATCH();
+
+#else
+
+#define OPCASE(name) case OP_##name
+#define DISPATCH() goto loop
+#define INTERPRET_LOOP                                                                                                 \
+    loop:                                                                                                              \
+    loopResult = checkContinue(&threadFrame, &frame);                                                                  \
+    if (loopResult != INTERPRET_CONTINUE)                                                                              \
+        return loopResult;                                                                                             \
+    switch (instruction = READ_BYTE())
+
+#endif
+
+    while (true)
+    {
         bool istrue = false;
-        switch (instruction = READ_BYTE())
+        INTERPRET_LOOP
         {
-            case OP_CONSTANT: {
+            OPCASE(CONSTANT) :
+            {
                 Value constant = READ_CONSTANT();
                 push(constant);
-                break;
+                DISPATCH();
             }
 
-            case OP_NULL:
-                push(NULL_VAL);
-                break;
-            case OP_TRUE:
-                push(BOOL_VAL(true));
-                break;
-            case OP_FALSE:
-                push(BOOL_VAL(false));
-                break;
+            OPCASE(NULL) : push(NULL_VAL);
+            DISPATCH();
+            OPCASE(TRUE) : push(BOOL_VAL(true));
+            DISPATCH();
+            OPCASE(FALSE) : push(BOOL_VAL(false));
+            DISPATCH();
 
-            case OP_STRING: {
+            OPCASE(STRING) :
+            {
                 Value constant = READ_CONSTANT();
                 if (!IS_STRING(constant))
                 {
@@ -2331,7 +2366,7 @@ InterpretResult run()
                     if (!checkTry(frame))
                         return INTERPRET_RUNTIME_ERROR;
                     else
-                        break;
+                        DISPATCH();
                 }
 
                 int num = AS_NUMBER(pop());
@@ -2369,10 +2404,11 @@ InterpretResult run()
 
                 push(STRING_VAL(str));
                 mp_free(str);
-                break;
+                DISPATCH();
             }
 
-            case OP_EXPAND: {
+            OPCASE(EXPAND) :
+            {
                 Value ex = pop();
                 Value stop = pop();
                 Value step = pop();
@@ -2394,7 +2430,7 @@ InterpretResult run()
                     if (!checkTry(frame))
                         return INTERPRET_RUNTIME_ERROR;
                     else
-                        break;
+                        DISPATCH();
                 }
 
                 ObjList *list = initList();
@@ -2406,33 +2442,36 @@ InterpretResult run()
                     start = increment(start, step, stop, AS_BOOL(ex));
                 }
 
-                break;
+                DISPATCH();
             }
-            case OP_POP:
-                pop();
-                break;
+            OPCASE(POP) : pop();
+            DISPATCH();
 
-            case OP_REPL_POP: {
+            OPCASE(REPL_POP) :
+            {
                 if (frame->package == NULL)
                     vm.repl = pop();
                 else
                     pop();
             }
-            break;
+            DISPATCH();
 
-            case OP_GET_LOCAL: {
+            OPCASE(GET_LOCAL) :
+            {
                 uint16_t slot = READ_SHORT();
                 push(frame->slots[slot]);
-                break;
+                DISPATCH();
             }
 
-            case OP_SET_LOCAL: {
+            OPCASE(SET_LOCAL) :
+            {
                 uint16_t slot = READ_SHORT();
                 frame->slots[slot] = peek(0);
-                break;
+                DISPATCH();
             }
 
-            case OP_GET_GLOBAL: {
+            OPCASE(GET_GLOBAL) :
+            {
                 ObjString *name = READ_STRING();
                 Value value;
 
@@ -2441,7 +2480,7 @@ InterpretResult run()
                     if (findField(frame->instance, name, &value))
                     {
                         push(value);
-                        break;
+                        DISPATCH();
                     }
                 }
 
@@ -2460,7 +2499,7 @@ InterpretResult run()
                         package = package->parent;
                     }
                     if (package != NULL)
-                        break;
+                        DISPATCH();
                     table = &vm.globals;
                 }
 
@@ -2473,7 +2512,7 @@ InterpretResult run()
                             if (tableGet(&frame->instance->klass->methods, name, &value))
                             {
                                 push(value);
-                                break;
+                                DISPATCH();
                             }
                         }
                         if (frame->klass != NULL)
@@ -2482,21 +2521,22 @@ InterpretResult run()
                             if (findMethod(frame->klass, name, &value, &selected))
                             {
                                 push(value);
-                                break;
+                                DISPATCH();
                             }
                         }
                         runtimeError("Undefined variable '%s'.", name->chars);
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
                         else
-                            break;
+                            DISPATCH();
                     }
                 }
                 push(value);
-                break;
+                DISPATCH();
             }
 
-            case OP_DEFINE_GLOBAL: {
+            OPCASE(DEFINE_GLOBAL) :
+            {
                 ObjString *name = READ_STRING();
                 Table *table = &vm.globals;
                 if (frame->package != NULL)
@@ -2511,10 +2551,11 @@ InterpretResult run()
                 if (frame->package == NULL)
                     vm.repl = peek(0);
                 pop();
-                break;
+                DISPATCH();
             }
 
-            case OP_DEFINE_GLOBAL_FORCED: {
+            OPCASE(DEFINE_GLOBAL_FORCED) :
+            {
                 ObjString *name = READ_STRING();
 
                 linenoise_add_keyword(name->chars);
@@ -2523,10 +2564,11 @@ InterpretResult run()
                 if (frame->package == NULL)
                     vm.repl = peek(0);
                 pop();
-                break;
+                DISPATCH();
             }
 
-            case OP_SET_GLOBAL: {
+            OPCASE(SET_GLOBAL) :
+            {
                 ObjString *name = READ_STRING();
 
                 if (frame->instance != NULL)
@@ -2535,12 +2577,12 @@ InterpretResult run()
                     if (tableGet(&frame->instance->fields, name, &value))
                     {
                         tableSet(&frame->instance->fields, name, peek(0));
-                        break;
+                        DISPATCH();
                     }
                     else if (tableGet(&frame->instance->klass->staticFields, name, &value))
                     {
                         tableSet(&frame->instance->klass->staticFields, name, peek(0));
-                        break;
+                        DISPATCH();
                     }
                 }
 
@@ -2562,7 +2604,7 @@ InterpretResult run()
                             if (!checkTry(frame))
                                 return INTERPRET_RUNTIME_ERROR;
                             else
-                                break;
+                                DISPATCH();
                         }
                     }
                     else
@@ -2571,25 +2613,28 @@ InterpretResult run()
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
                         else
-                            break;
+                            DISPATCH();
                     }
                 }
-                break;
+                DISPATCH();
             }
 
-            case OP_GET_UPVALUE: {
+            OPCASE(GET_UPVALUE) :
+            {
                 uint16_t slot = READ_SHORT();
                 push(*frame->closure->upvalues[slot]->location);
-                break;
+                DISPATCH();
             }
 
-            case OP_SET_UPVALUE: {
+            OPCASE(SET_UPVALUE) :
+            {
                 uint16_t slot = READ_SHORT();
                 *frame->closure->upvalues[slot]->location = peek(0);
-                break;
+                DISPATCH();
             }
 
-            case OP_GET_PROPERTY: {
+            OPCASE(GET_PROPERTY) :
+            {
                 if (!IS_INSTANCE(peek(0)) && !IS_CLASS(peek(0)) && !IS_PACKAGE(peek(0)) && !IS_ENUM(peek(0)) &&
                     !IS_DICT(peek(0)))
                 {
@@ -2597,7 +2642,7 @@ InterpretResult run()
                     if (!checkTry(frame))
                         return INTERPRET_RUNTIME_ERROR;
                     else
-                        break;
+                        DISPATCH();
                 }
 
                 if (IS_ENUM(peek(0)))
@@ -2609,7 +2654,7 @@ InterpretResult run()
                     {
                         pop(); // enum
                         push(value);
-                        break;
+                        DISPATCH();
                     }
                     else
                     {
@@ -2617,7 +2662,7 @@ InterpretResult run()
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
                         else
-                            break;
+                            DISPATCH();
                     }
                 }
                 else if (IS_CLASS(peek(0)))
@@ -2629,7 +2674,7 @@ InterpretResult run()
                     {
                         pop(); // Instance.
                         push(value);
-                        break;
+                        DISPATCH();
                     }
                     else
                     {
@@ -2637,7 +2682,7 @@ InterpretResult run()
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
                         else
-                            break;
+                            DISPATCH();
                     }
                 }
                 else if (IS_PACKAGE(peek(0)))
@@ -2649,7 +2694,7 @@ InterpretResult run()
                     {
                         pop(); // Instance.
                         push(value);
-                        break;
+                        DISPATCH();
                     }
                     else
                     {
@@ -2657,7 +2702,7 @@ InterpretResult run()
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
                         else
-                            break;
+                            DISPATCH();
                     }
                 }
                 else if (IS_DICT(peek(0)))
@@ -2669,7 +2714,7 @@ InterpretResult run()
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
                         else
-                            break;
+                            DISPATCH();
                     }
 
                     pop();
@@ -2684,7 +2729,7 @@ InterpretResult run()
                     {
                         pop(); // Instance.
                         push(value);
-                        break;
+                        DISPATCH();
                     }
 
                     if (!bindMethod(instance->klass, name))
@@ -2692,21 +2737,22 @@ InterpretResult run()
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
                         else
-                            break;
+                            DISPATCH();
                     }
                 }
 
-                break;
+                DISPATCH();
             }
 
-            case OP_GET_PROPERTY_NO_POP: {
+            OPCASE(GET_PROPERTY_NO_POP) :
+            {
                 if (!IS_INSTANCE(peek(0)) && !IS_CLASS(peek(0)) && !IS_DICT(peek(0)))
                 {
                     runtimeError("Only dicts, instances and classes have properties.");
                     if (!checkTry(frame))
                         return INTERPRET_RUNTIME_ERROR;
                     else
-                        break;
+                        DISPATCH();
                 }
 
                 if (IS_CLASS(peek(0)))
@@ -2717,7 +2763,7 @@ InterpretResult run()
                     if (tableGet(&klass->staticFields, name, &value))
                     {
                         push(value);
-                        break;
+                        DISPATCH();
                     }
                     else
                     {
@@ -2725,7 +2771,7 @@ InterpretResult run()
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
                         else
-                            break;
+                            DISPATCH();
                     }
                 }
                 else if (IS_DICT(peek(0)))
@@ -2737,7 +2783,7 @@ InterpretResult run()
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
                         else
-                            break;
+                            DISPATCH();
                     }
 
                     push(value);
@@ -2750,27 +2796,28 @@ InterpretResult run()
                     if (tableGet(&instance->fields, name, &value))
                     {
                         push(value);
-                        break;
+                        DISPATCH();
                     }
 
                     if (!bindMethod(instance->klass, name))
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
                         else
-                            break;
+                            DISPATCH();
                 }
 
-                break;
+                DISPATCH();
             }
 
-            case OP_SET_PROPERTY: {
+            OPCASE(SET_PROPERTY) :
+            {
                 if (!IS_INSTANCE(peek(1)) && !IS_CLASS(peek(1)) && !IS_DICT(peek(1)))
                 {
                     runtimeError("Only dicts, instances and classes have properties.");
                     if (!checkTry(frame))
                         return INTERPRET_RUNTIME_ERROR;
                     else
-                        break;
+                        DISPATCH();
                 }
 
                 if (IS_CLASS(peek(1)))
@@ -2785,7 +2832,7 @@ InterpretResult run()
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
                         else
-                            break;
+                            DISPATCH();
                     }
                     else
                         tableSet(&klass->staticFields, name, value);
@@ -2798,7 +2845,7 @@ InterpretResult run()
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
                         else
-                            break;
+                            DISPATCH();
                     }
                 }
                 else
@@ -2811,10 +2858,11 @@ InterpretResult run()
                 pop();
                 push(value);
 
-                break;
+                DISPATCH();
             }
 
-            case OP_GET_SUPER: {
+            OPCASE(GET_SUPER) :
+            {
                 ObjString *name = READ_STRING();
                 ObjClass *superclass = AS_CLASS(pop());
 
@@ -2823,12 +2871,13 @@ InterpretResult run()
                     if (!checkTry(frame))
                         return INTERPRET_RUNTIME_ERROR;
                     else
-                        break;
+                        DISPATCH();
                 }
-                break;
+                DISPATCH();
             }
 
-            case OP_EQUAL: {
+            OPCASE(EQUAL) :
+            {
                 if (instanceOperation("=="))
                 {
                     frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
@@ -2840,17 +2889,18 @@ InterpretResult run()
                     Value a = pop();
                     push(BOOL_VAL(valuesEqual(a, b)));
                 }
-                break;
+                DISPATCH();
             }
 
-            case OP_GREATER:
-                BINARY_OP(BOOL_VAL, >);
-                break;
-            case OP_LESS: {
+            OPCASE(GREATER) : BINARY_OP(BOOL_VAL, >);
+            DISPATCH();
+            OPCASE(LESS) :
+            {
                 BINARY_OP(BOOL_VAL, <);
-                break;
+                DISPATCH();
             }
-            case OP_ADD: {
+            OPCASE(ADD) :
+            {
                 istrue = READ_BYTE() == OP_TRUE;
                 if (IS_STRING(peek(1)) || IS_STRING(peek(0)))
                 {
@@ -2924,59 +2974,59 @@ InterpretResult run()
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
                         else
+                            DISPATCH();
+                    }
+                }
+                DISPATCH();
+            }
+
+            OPCASE(SUBTRACT) : istrue = READ_BYTE() == OP_TRUE;
+            if (istrue && instanceOperation(".-"))
+            {
+                frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+            }
+            else if (instanceOperation("-"))
+            {
+                frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+            }
+            else if (IS_LIST(peek(1)) && istrue)
+            {
+                Value value = peek(0);
+                ObjList *list = copyList(AS_LIST(peek(1)), true);
+                for (int i = 0; i < list->values.count; i++)
+                {
+                    if (!operateValues(list->values.values[i], value, &list->values.values[i], "-"))
+                    {
+                        if (!checkTry(frame))
+                            return INTERPRET_RUNTIME_ERROR;
+                        else
                             break;
                     }
                 }
-                break;
+                pop();
+                pop();
+                push(OBJ_VAL(list));
             }
+            else if (IS_LIST(peek(1)))
+            {
+                Value rm = peek(0);
+                Value listValue = peek(1);
 
-            case OP_SUBTRACT:
-                istrue = READ_BYTE() == OP_TRUE;
-                if (istrue && instanceOperation(".-"))
-                {
-                    frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
-                }
-                else if (instanceOperation("-"))
-                {
-                    frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
-                }
-                else if (IS_LIST(peek(1)) && istrue)
-                {
-                    Value value = peek(0);
-                    ObjList *list = copyList(AS_LIST(peek(1)), true);
-                    for (int i = 0; i < list->values.count; i++)
-                    {
-                        if (!operateValues(list->values.values[i], value, &list->values.values[i], "-"))
-                        {
-                            if (!checkTry(frame))
-                                return INTERPRET_RUNTIME_ERROR;
-                            else
-                                break;
-                        }
-                    }
-                    pop();
-                    pop();
-                    push(OBJ_VAL(list));
-                }
-                else if (IS_LIST(peek(1)))
-                {
-                    Value rm = peek(0);
-                    Value listValue = peek(1);
+                ObjList *list = copyList(AS_LIST(listValue), true);
+                rmList(list, rm);
 
-                    ObjList *list = copyList(AS_LIST(listValue), true);
-                    rmList(list, rm);
+                pop();
+                pop();
 
-                    pop();
-                    pop();
-
-                    push(OBJ_VAL(list));
-                }
-                else
-                {
-                    BINARY_OP(NUMBER_VAL, -);
-                }
-                break;
-            case OP_INC: {
+                push(OBJ_VAL(list));
+            }
+            else
+            {
+                BINARY_OP(NUMBER_VAL, -);
+            }
+            DISPATCH();
+            OPCASE(INC) :
+            {
                 if (instanceOperationUnary("++"))
                 {
                     frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
@@ -2989,14 +3039,15 @@ InterpretResult run()
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
                         else
-                            break;
+                            DISPATCH();
                     }
 
                     push(NUMBER_VAL(AS_NUMBER(pop()) + 1));
                 }
-                break;
+                DISPATCH();
             }
-            case OP_DEC: {
+            OPCASE(DEC) :
+            {
                 if (instanceOperationUnary("--"))
                 {
                     frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
@@ -3009,118 +3060,117 @@ InterpretResult run()
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
                         else
-                            break;
+                            DISPATCH();
                     }
 
                     push(NUMBER_VAL(AS_NUMBER(pop()) - 1));
                 }
-                break;
+                DISPATCH();
             }
-            case OP_MULTIPLY:
-                istrue = READ_BYTE() == OP_TRUE;
-                if (istrue && instanceOperation(".*"))
+            OPCASE(MULTIPLY) : istrue = READ_BYTE() == OP_TRUE;
+            if (istrue && instanceOperation(".*"))
+            {
+                frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+            }
+            else if (instanceOperation("*"))
+            {
+                frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+            }
+            else if (IS_LIST(peek(1)) && istrue)
+            {
+                Value value = peek(0);
+                ObjList *list = copyList(AS_LIST(peek(1)), true);
+                for (int i = 0; i < list->values.count; i++)
                 {
-                    frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
-                }
-                else if (instanceOperation("*"))
-                {
-                    frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
-                }
-                else if (IS_LIST(peek(1)) && istrue)
-                {
-                    Value value = peek(0);
-                    ObjList *list = copyList(AS_LIST(peek(1)), true);
-                    for (int i = 0; i < list->values.count; i++)
+                    if (!operateValues(list->values.values[i], value, &list->values.values[i], "*"))
                     {
-                        if (!operateValues(list->values.values[i], value, &list->values.values[i], "*"))
-                        {
-                            if (!checkTry(frame))
-                                return INTERPRET_RUNTIME_ERROR;
-                            else
-                                break;
-                        }
+                        if (!checkTry(frame))
+                            return INTERPRET_RUNTIME_ERROR;
+                        else
+                            break;
                     }
-                    pop();
-                    pop();
-                    push(OBJ_VAL(list));
                 }
-                else if (IS_LIST(peek(1)) && IS_NUMBER(peek(0)))
-                {
-                    int factor = AS_NUMBER(peek(0));
-                    Value listValue = peek(1);
+                pop();
+                pop();
+                push(OBJ_VAL(list));
+            }
+            else if (IS_LIST(peek(1)) && IS_NUMBER(peek(0)))
+            {
+                int factor = AS_NUMBER(peek(0));
+                Value listValue = peek(1);
 
-                    ObjList *list = NULL;
-                    if (factor == 0)
-                        list = initList();
-                    else
-                    {
-                        list = copyList(AS_LIST(listValue), true);
-                        ObjList *clone = copyList(AS_LIST(listValue), true);
-                        for (int i = 1; i < factor; i++)
-                        {
-                            stretchList(list, clone);
-                        }
-                    }
-
-                    pop();
-                    pop();
-
-                    push(OBJ_VAL(list));
-                }
+                ObjList *list = NULL;
+                if (factor == 0)
+                    list = initList();
                 else
                 {
-                    BINARY_OP(NUMBER_VAL, *);
-                }
-                break;
-            case OP_DIVIDE:
-                istrue = READ_BYTE() == OP_TRUE;
-                if (istrue && instanceOperation("./"))
-                {
-                    frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
-                }
-                else if (instanceOperation("/"))
-                {
-                    frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
-                }
-                else if (IS_LIST(peek(1)) && istrue)
-                {
-                    Value value = peek(0);
-                    ObjList *list = copyList(AS_LIST(peek(1)), true);
-                    for (int i = 0; i < list->values.count; i++)
+                    list = copyList(AS_LIST(listValue), true);
+                    ObjList *clone = copyList(AS_LIST(listValue), true);
+                    for (int i = 1; i < factor; i++)
                     {
-                        if (!operateValues(list->values.values[i], value, &list->values.values[i], "/"))
-                        {
-                            if (!checkTry(frame))
-                                return INTERPRET_RUNTIME_ERROR;
-                            else
-                                break;
-                        }
+                        stretchList(list, clone);
                     }
-                    pop();
-                    pop();
-                    push(OBJ_VAL(list));
                 }
-                else if (IS_LIST(peek(1)) && IS_NUMBER(peek(0)))
+
+                pop();
+                pop();
+
+                push(OBJ_VAL(list));
+            }
+            else
+            {
+                BINARY_OP(NUMBER_VAL, *);
+            }
+            DISPATCH();
+            OPCASE(DIVIDE) : istrue = READ_BYTE() == OP_TRUE;
+            if (istrue && instanceOperation("./"))
+            {
+                frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+            }
+            else if (instanceOperation("/"))
+            {
+                frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+            }
+            else if (IS_LIST(peek(1)) && istrue)
+            {
+                Value value = peek(0);
+                ObjList *list = copyList(AS_LIST(peek(1)), true);
+                for (int i = 0; i < list->values.count; i++)
                 {
-                    int factor = AS_NUMBER(peek(0));
-                    Value listValue = peek(1);
-
-                    ObjList *list = copyList(AS_LIST(listValue), true);
-                    int num = list->values.count - (list->values.count / factor);
-                    shrinkList(list, num);
-
-                    pop();
-                    pop();
-
-                    push(OBJ_VAL(list));
+                    if (!operateValues(list->values.values[i], value, &list->values.values[i], "/"))
+                    {
+                        if (!checkTry(frame))
+                            return INTERPRET_RUNTIME_ERROR;
+                        else
+                            break;
+                    }
                 }
-                else
-                {
-                    BINARY_OP(NUMBER_VAL, /);
-                }
-                break;
+                pop();
+                pop();
+                push(OBJ_VAL(list));
+            }
+            else if (IS_LIST(peek(1)) && IS_NUMBER(peek(0)))
+            {
+                int factor = AS_NUMBER(peek(0));
+                Value listValue = peek(1);
 
-            case OP_MOD: {
+                ObjList *list = copyList(AS_LIST(listValue), true);
+                int num = list->values.count - (list->values.count / factor);
+                shrinkList(list, num);
+
+                pop();
+                pop();
+
+                push(OBJ_VAL(list));
+            }
+            else
+            {
+                BINARY_OP(NUMBER_VAL, /);
+            }
+            DISPATCH();
+
+            OPCASE(MOD) :
+            {
                 istrue = READ_BYTE() == OP_TRUE;
                 if (istrue && instanceOperation(".%"))
                 {
@@ -3155,10 +3205,11 @@ InterpretResult run()
 
                     push(NUMBER_VAL(fmod(a, b)));
                 }
-                break;
+                DISPATCH();
             }
 
-            case OP_POW: {
+            OPCASE(POW) :
+            {
                 istrue = READ_BYTE() == OP_TRUE;
                 if (istrue && instanceOperation(".^"))
                 {
@@ -3193,10 +3244,11 @@ InterpretResult run()
 
                     push(NUMBER_VAL(pow(a, b)));
                 }
-                break;
+                DISPATCH();
             }
 
-            case OP_SHIFT_LEFT: {
+            OPCASE(SHIFT_LEFT) :
+            {
                 if (instanceOperation("<<"))
                 {
                     frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
@@ -3207,10 +3259,11 @@ InterpretResult run()
                     double a = AS_NUMBER(pop());
                     push(NUMBER_VAL(((int)a << (int)b)));
                 }
-                break;
+                DISPATCH();
             }
 
-            case OP_SHIFT_RIGHT: {
+            OPCASE(SHIFT_RIGHT) :
+            {
                 if (instanceOperation(">>"))
                 {
                     frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
@@ -3221,10 +3274,11 @@ InterpretResult run()
                     double a = AS_NUMBER(pop());
                     push(NUMBER_VAL(((int)a >> (int)b)));
                 }
-                break;
+                DISPATCH();
             }
 
-            case OP_BINARY_AND: {
+            OPCASE(BINARY_AND) :
+            {
                 if (instanceOperation("&"))
                 {
                     frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
@@ -3235,10 +3289,11 @@ InterpretResult run()
                     double a = AS_NUMBER(pop());
                     push(NUMBER_VAL(((int)a & (int)b)));
                 }
-                break;
+                DISPATCH();
             }
 
-            case OP_BINARY_OR: {
+            OPCASE(BINARY_OR) :
+            {
                 if (instanceOperation("|"))
                 {
                     frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
@@ -3249,10 +3304,11 @@ InterpretResult run()
                     double a = AS_NUMBER(pop());
                     push(NUMBER_VAL(((int)a | (int)b)));
                 }
-                break;
+                DISPATCH();
             }
 
-            case OP_IN: {
+            OPCASE(IN) :
+            {
                 Value container = peek(0);
                 Value item = peek(1);
                 Value result;
@@ -3264,7 +3320,7 @@ InterpretResult run()
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
                         else
-                            break;
+                            DISPATCH();
                     }
                 }
                 else if (IS_BYTES(container) && IS_BYTES(item))
@@ -3275,7 +3331,7 @@ InterpretResult run()
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
                         else
-                            break;
+                            DISPATCH();
                     }
                 }
                 else if (IS_LIST(container))
@@ -3286,7 +3342,7 @@ InterpretResult run()
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
                         else
-                            break;
+                            DISPATCH();
                     }
                 }
                 else if (IS_DICT(container))
@@ -3297,7 +3353,7 @@ InterpretResult run()
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
                         else
-                            break;
+                            DISPATCH();
                     }
                 }
                 else if (IS_INSTANCE(container))
@@ -3308,7 +3364,7 @@ InterpretResult run()
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
                         else
-                            break;
+                            DISPATCH();
                     }
                 }
                 else if (IS_CLASS(container))
@@ -3319,7 +3375,7 @@ InterpretResult run()
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
                         else
-                            break;
+                            DISPATCH();
                     }
                 }
                 else if (IS_ENUM(container))
@@ -3330,7 +3386,7 @@ InterpretResult run()
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
                         else
-                            break;
+                            DISPATCH();
                     }
                 }
                 else
@@ -3341,10 +3397,11 @@ InterpretResult run()
                 pop();
                 pop();
                 push(result);
-                break;
+                DISPATCH();
             }
 
-            case OP_IS: {
+            OPCASE(IS) :
+            {
                 ObjString *type = AS_STRING(peek(0));
                 bool not = AS_BOOL(peek(1));
                 Value obj = peek(2);
@@ -3373,19 +3430,18 @@ InterpretResult run()
                 pop();
                 push(ret);
 
-                break;
+                DISPATCH();
             }
 
-            case OP_NOT:
-                if (instanceOperationUnary("!"))
-                {
-                    frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
-                }
-                else
-                    push(BOOL_VAL(isFalsey(pop())));
-                break;
+            OPCASE(NOT) : if (instanceOperationUnary("!"))
+            {
+                frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+            }
+            else push(BOOL_VAL(isFalsey(pop())));
+            DISPATCH();
 
-            case OP_NEGATE: {
+            OPCASE(NEGATE) :
+            {
                 if (instanceOperationUnary("-"))
                 {
                     frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
@@ -3398,45 +3454,49 @@ InterpretResult run()
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
                         else
-                            break;
+                            DISPATCH();
                     }
 
                     push(NUMBER_VAL(-AS_NUMBER(pop())));
                 }
-                break;
+                DISPATCH();
             }
-            break;
+            DISPATCH();
 
-            case OP_JUMP: {
+            OPCASE(JUMP) :
+            {
                 uint16_t offset = READ_SHORT();
                 frame->ip += offset;
-                break;
+                DISPATCH();
             }
 
-            case OP_JUMP_IF_FALSE: {
+            OPCASE(JUMP_IF_FALSE) :
+            {
                 uint16_t offset = READ_SHORT();
                 if (isFalsey(peek(0)))
                     frame->ip += offset;
-                break;
+                DISPATCH();
             }
 
-            case OP_LOOP: {
+            OPCASE(LOOP) :
+            {
                 uint16_t offset = READ_SHORT();
                 frame->ip -= offset;
-                break;
+                DISPATCH();
             }
 
-            case OP_BREAK: {
+            OPCASE(BREAK) :
+            {
                 uint16_t offset = READ_SHORT();
                 frame->ip += offset;
             }
-            break;
+            DISPATCH();
 
-            case OP_DUP:
-                push(peek(0));
-                break;
+            OPCASE(DUP) : push(peek(0));
+            DISPATCH();
 
-            case OP_IMPORT: {
+            OPCASE(IMPORT) :
+            {
                 Value asValue = peek(0);
                 ObjString *as = NULL;
                 if (IS_STRING(asValue))
@@ -3461,7 +3521,7 @@ InterpretResult run()
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
                         else
-                            break;
+                            DISPATCH();
                     }
 
                     int size;
@@ -3473,7 +3533,7 @@ InterpretResult run()
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
                         else
-                            break;
+                            DISPATCH();
                     }
                     int sLen = 1024;
                     s = mp_malloc(sizeof(char) * sLen);
@@ -3504,7 +3564,7 @@ InterpretResult run()
                     if (!checkTry(frame))
                         return INTERPRET_RUNTIME_ERROR;
                     else
-                        break;
+                        DISPATCH();
                 }
                 threadFrame->ctf->currentScriptName = fileName->chars;
 
@@ -3568,10 +3628,11 @@ InterpretResult run()
 
                 vm.repl = OBJ_VAL(package);
 
-                break;
+                DISPATCH();
             }
 
-            case OP_INCLUDE: {
+            OPCASE(INCLUDE) :
+            {
                 ObjFunction *function = AS_FUNCTION(READ_CONSTANT());
 
                 Value asValue = pop();
@@ -3635,17 +3696,18 @@ InterpretResult run()
 
                 vm.repl = OBJ_VAL(package);
 
-                break;
+                DISPATCH();
             }
 
-            case OP_FROM_PACKAGE: {
+            OPCASE(FROM_PACKAGE) :
+            {
                 if (!IS_STRING(peek(0)))
                 {
                     runtimeError("Variable name required to import from package");
                     if (!checkTry(frame))
                         return INTERPRET_RUNTIME_ERROR;
                     else
-                        break;
+                        DISPATCH();
                 }
                 if (!IS_PACKAGE(peek(1)))
                 {
@@ -3653,7 +3715,7 @@ InterpretResult run()
                     if (!checkTry(frame))
                         return INTERPRET_RUNTIME_ERROR;
                     else
-                        break;
+                        DISPATCH();
                 }
 
                 ObjString *name = AS_STRING(peek(0));
@@ -3683,7 +3745,7 @@ InterpretResult run()
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
                         else
-                            break;
+                            DISPATCH();
                     }
 
                     if (frame->package == NULL)
@@ -3694,17 +3756,18 @@ InterpretResult run()
 
                 pop();
                 pop();
-                break;
+                DISPATCH();
             }
 
-            case OP_REMOVE_VAR: {
+            OPCASE(REMOVE_VAR) :
+            {
                 if (!IS_STRING(peek(0)))
                 {
                     runtimeError("Variable name must be a string");
                     if (!checkTry(frame))
                         return INTERPRET_RUNTIME_ERROR;
                     else
-                        break;
+                        DISPATCH();
                 }
 
                 ObjString *name = AS_STRING(peek(0));
@@ -3718,17 +3781,18 @@ InterpretResult run()
                 // linenoise_remove_keyword(name);
 
                 pop();
-                break;
+                DISPATCH();
             }
 
-            case OP_REQUIRE: {
+            OPCASE(REQUIRE) :
+            {
                 if (!IS_STRING(peek(0)))
                 {
                     runtimeError("Require argument must be an string variable.");
                     if (!checkTry(frame))
                         return INTERPRET_RUNTIME_ERROR;
                     else
-                        break;
+                        DISPATCH();
                 }
 
                 ObjString *fileNameStr = AS_STRING(peek(0));
@@ -3760,7 +3824,7 @@ InterpretResult run()
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
                         else
-                            break;
+                            DISPATCH();
                     }
 
                     fileName = (char *)mp_malloc(sizeof(char) * (strlen(strPath) + 1));
@@ -3776,7 +3840,7 @@ InterpretResult run()
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
                         else
-                            break;
+                            DISPATCH();
                     }
                     int sLen = 1024;
                     s = mp_malloc(sizeof(char) * sLen);
@@ -3808,7 +3872,7 @@ InterpretResult run()
                     if (!checkTry(frame))
                         return INTERPRET_RUNTIME_ERROR;
                     else
-                        break;
+                        DISPATCH();
                 }
                 threadFrame->ctf->currentScriptName = fileName;
 
@@ -3822,7 +3886,7 @@ InterpretResult run()
                     if (!checkTry(frame))
                         return INTERPRET_COMPILE_ERROR;
                     else
-                        break;
+                        DISPATCH();
                 }
                 mp_free(s);
                 pop();
@@ -3858,15 +3922,17 @@ InterpretResult run()
 
                 vm.repl = OBJ_VAL(package);
 
-                break;
+                DISPATCH();
             }
 
-            case OP_NEW_LIST: {
+            OPCASE(NEW_LIST) :
+            {
                 ObjList *list = initList();
                 push(OBJ_VAL(list));
-                break;
+                DISPATCH();
             }
-            case OP_ADD_LIST: {
+            OPCASE(ADD_LIST) :
+            {
                 Value addValue = peek(0);
                 Value listValue = peek(1);
 
@@ -3876,15 +3942,17 @@ InterpretResult run()
                 pop();
                 pop();
                 push(OBJ_VAL(list));
-                break;
+                DISPATCH();
             }
 
-            case OP_NEW_DICT: {
+            OPCASE(NEW_DICT) :
+            {
                 ObjDict *dict = initDict();
                 push(OBJ_VAL(dict));
-                break;
+                DISPATCH();
             }
-            case OP_ADD_DICT: {
+            OPCASE(ADD_DICT) :
+            {
                 Value value = peek(0);
                 Value key = peek(1);
                 Value dictValue = peek(2);
@@ -3895,7 +3963,7 @@ InterpretResult run()
                     if (!checkTry(frame))
                         return INTERPRET_RUNTIME_ERROR;
                     else
-                        break;
+                        DISPATCH();
                 }
 
                 ObjDict *dict = AS_DICT(dictValue);
@@ -3907,9 +3975,10 @@ InterpretResult run()
                 pop();
                 pop();
                 push(OBJ_VAL(dict));
-                break;
+                DISPATCH();
             }
-            case OP_SUBSCRIPT: {
+            OPCASE(SUBSCRIPT) :
+            {
                 Value indexValue = peek(0);
                 Value listValue = peek(1);
                 Value result;
@@ -3925,16 +3994,17 @@ InterpretResult run()
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
                         else
-                            break;
+                            DISPATCH();
                     }
 
                     pop();
                     pop();
                     push(result);
                 }
-                break;
+                DISPATCH();
             }
-            case OP_SUBSCRIPT_ASSIGN: {
+            OPCASE(SUBSCRIPT_ASSIGN) :
+            {
                 Value assignValue = peek(0);
                 Value indexValue = peek(1);
                 Value listValue = peek(2);
@@ -3954,7 +4024,7 @@ InterpretResult run()
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
                         else
-                            break;
+                            DISPATCH();
                     }
 
                     pop();
@@ -3962,17 +4032,18 @@ InterpretResult run()
                     pop();
                     push(NULL_VAL);
                 }
-                break;
+                DISPATCH();
             }
 
-            case OP_CALL: {
+            OPCASE(CALL) :
+            {
                 int argCount = READ_BYTE();
                 if (!callValue(peek(argCount), argCount, NULL, NULL))
                 {
                     if (!checkTry(frame))
                         return INTERPRET_RUNTIME_ERROR;
                     else
-                        break;
+                        DISPATCH();
                 }
 
                 if (threadFrame->ctf->eval && IS_FUNCTION(peek(0)))
@@ -3989,15 +4060,16 @@ InterpretResult run()
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
                         else
-                            break;
+                            DISPATCH();
                     }
                 }
                 frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
                 threadFrame->ctf->eval = false;
-                break;
+                DISPATCH();
             }
 
-            case OP_INVOKE: {
+            OPCASE(INVOKE) :
+            {
                 int argCount = READ_BYTE();
                 ObjString *method = READ_STRING();
                 if (!invoke(method, argCount))
@@ -4005,13 +4077,14 @@ InterpretResult run()
                     if (!checkTry(frame))
                         return INTERPRET_RUNTIME_ERROR;
                     else
-                        break;
+                        DISPATCH();
                 }
                 frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
-                break;
+                DISPATCH();
             }
 
-            case OP_SUPER: {
+            OPCASE(SUPER) :
+            {
                 int argCount = READ_BYTE();
                 ObjString *method = READ_STRING();
                 ObjClass *superclass = AS_CLASS(pop());
@@ -4020,13 +4093,14 @@ InterpretResult run()
                     if (!checkTry(frame))
                         return INTERPRET_RUNTIME_ERROR;
                     else
-                        break;
+                        DISPATCH();
                 }
                 frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
-                break;
+                DISPATCH();
             }
 
-            case OP_CLOSURE: {
+            OPCASE(CLOSURE) :
+            {
                 ObjFunction *function = AS_FUNCTION(READ_CONSTANT());
                 ObjClosure *closure = newClosure(function);
                 closure->package = frame->package;
@@ -4044,15 +4118,15 @@ InterpretResult run()
                         closure->upvalues[i] = frame->closure->upvalues[index];
                     }
                 }
-                break;
+                DISPATCH();
             }
 
-            case OP_CLOSE_UPVALUE:
-                closeUpvalues(threadFrame->ctf->stackTop - 1);
-                pop();
-                break;
+            OPCASE(CLOSE_UPVALUE) : closeUpvalues(threadFrame->ctf->stackTop - 1);
+            pop();
+            DISPATCH();
 
-            case OP_RETURN: {
+            OPCASE(RETURN) :
+            {
                 Value result = pop();
 
                 ObjPackage *package = frame->package;
@@ -4079,7 +4153,7 @@ InterpretResult run()
                     if (threadFrame->ctf->parent != NULL)
                         threadFrame->ctf->parent->waiting = false;
                     // return INTERPRET_OK;
-                    break;
+                    DISPATCH();
                 }
 
                 /*
@@ -4099,18 +4173,20 @@ InterpretResult run()
                     push(OBJ_VAL(package));
 
                 frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
-                break;
+                DISPATCH();
             }
 
-            case OP_CLASS: {
+            OPCASE(CLASS) :
+            {
                 ObjClass *klass = newClass(READ_STRING());
                 klass->package = frame->package;
                 vm.repl = OBJ_VAL(klass);
                 push(OBJ_VAL(klass));
             }
-            break;
+            DISPATCH();
 
-            case OP_INHERIT: {
+            OPCASE(INHERIT) :
+            {
                 Value superclass = peek(1);
                 if (!IS_CLASS(superclass))
                 {
@@ -4118,7 +4194,7 @@ InterpretResult run()
                     if (!checkTry(frame))
                         return INTERPRET_RUNTIME_ERROR;
                     else
-                        break;
+                        DISPATCH();
                 }
 
                 ObjClass *subclass = AS_CLASS(peek(0));
@@ -4126,27 +4202,26 @@ InterpretResult run()
                 // tableAddAll(&AS_CLASS(superclass)->methods, &subclass->methods);
                 tableAddAll(&AS_CLASS(superclass)->fields, &subclass->fields);
                 pop(); // Subclass.
-                break;
+                DISPATCH();
             }
 
-            case OP_METHOD:
-                defineMethod(READ_STRING());
-                break;
-            case OP_PROPERTY:
-                defineProperty(READ_STRING());
-                break;
-            case OP_EXTENSION:
-                defineExtension(READ_STRING(), READ_STRING());
-                break;
+            OPCASE(METHOD) : defineMethod(READ_STRING());
+            DISPATCH();
+            OPCASE(PROPERTY) : defineProperty(READ_STRING());
+            DISPATCH();
+            OPCASE(EXTENSION) : defineExtension(READ_STRING(), READ_STRING());
+            DISPATCH();
 
-            case OP_ENUM: {
+            OPCASE(ENUM) :
+            {
                 ObjEnum *enume = newEnum(READ_STRING());
                 vm.repl = OBJ_VAL(enume);
                 push(OBJ_VAL(enume));
             }
-            break;
+            DISPATCH();
 
-            case OP_FILE: {
+            OPCASE(FILE) :
+            {
                 Value openType = pop();
                 Value fileName = pop();
 
@@ -4156,7 +4231,7 @@ InterpretResult run()
                     if (!checkTry(frame))
                         return INTERPRET_RUNTIME_ERROR;
                     else
-                        break;
+                        DISPATCH();
                 }
 
                 if (!IS_STRING(fileName))
@@ -4165,7 +4240,7 @@ InterpretResult run()
                     if (!checkTry(frame))
                         return INTERPRET_RUNTIME_ERROR;
                     else
-                        break;
+                        DISPATCH();
                 }
 
                 ObjString *openTypeString = AS_STRING(openType);
@@ -4179,13 +4254,14 @@ InterpretResult run()
                     if (!checkTry(frame))
                         return INTERPRET_RUNTIME_ERROR;
                     else
-                        break;
+                        DISPATCH();
                 }
 
                 push(OBJ_VAL(file));
-                break;
+                DISPATCH();
             }
-            case OP_NATIVE_FUNC: {
+            OPCASE(NATIVE_FUNC) :
+            {
                 ObjNativeFunc *func = initNativeFunc();
 
                 int arity = AS_NUMBER(pop());
@@ -4204,9 +4280,10 @@ InterpretResult run()
                 func->returnType = AS_STRING(pop());
 
                 push(OBJ_VAL(func));
-                break;
+                DISPATCH();
             }
-            case OP_NATIVE_STRUCT: {
+            OPCASE(NATIVE_STRUCT) :
+            {
                 ObjNativeStruct *str = initNativeStruct();
 
                 int members = AS_NUMBER(pop());
@@ -4227,9 +4304,10 @@ InterpretResult run()
                 str->name = AS_STRING(pop());
 
                 push(OBJ_VAL(str));
-                break;
+                DISPATCH();
             }
-            case OP_NATIVE: {
+            OPCASE(NATIVE) :
+            {
                 ObjNativeLib *lib = initNativeLib();
 
                 int count = AS_NUMBER(pop());
@@ -4274,9 +4352,10 @@ InterpretResult run()
                 else
                     tableSet(&frame->package->symbols, nameStr, libVal);
 
-                break;
+                DISPATCH();
             }
-            case OP_ASYNC: {
+            OPCASE(ASYNC) :
+            {
                 char *name = (char *)mp_malloc(sizeof(char) * 32);
                 name[0] = '\0';
                 sprintf(name, "Task[%d-%d]", thread_id(), threadFrame->tasksCount);
@@ -4317,17 +4396,18 @@ InterpretResult run()
                 //   cube_wait(100);
                 // }
 
-                break;
+                DISPATCH();
             }
 
-            case OP_AWAIT: {
+            OPCASE(AWAIT) :
+            {
                 if (!IS_TASK(peek(0)))
                 {
                     runtimeError("A task is required in await.");
                     if (!checkTry(frame))
                         return INTERPRET_RUNTIME_ERROR;
                     else
-                        break;
+                        DISPATCH();
                 }
 
                 threadFrame->ctf->waiting = true;
@@ -4355,7 +4435,7 @@ InterpretResult run()
                             if (!checkTry(frame))
                                 return INTERPRET_RUNTIME_ERROR;
                             else
-                                break;
+                                DISPATCH();
                         }
                         else
                             tf->parent = threadFrame->ctf;
@@ -4364,38 +4444,40 @@ InterpretResult run()
                     }
                 }
 
-                break;
+                DISPATCH();
             }
 
-            case OP_ABORT: {
+            OPCASE(ABORT) :
+            {
                 if (!IS_TASK(peek(0)))
                 {
                     runtimeError("A task is required in abort.");
                     if (!checkTry(frame))
                         return INTERPRET_RUNTIME_ERROR;
                     else
-                        break;
+                        DISPATCH();
                 }
                 ObjTask *task = AS_TASK(pop());
                 destroyTaskFrame(task->name->chars);
-                break;
+                DISPATCH();
             }
 
-            case OP_TRY: {
+            OPCASE(TRY) :
+            {
                 uint16_t catch = READ_SHORT();
                 pushTry(frame, catch);
-                break;
+                DISPATCH();
             }
 
-            case OP_CLOSE_TRY: {
+            OPCASE(CLOSE_TRY) :
+            {
                 uint16_t end = READ_SHORT();
                 frame->ip += end;
                 popTry();
-                break;
+                DISPATCH();
             }
 
-            case OP_TEST:
-                break;
+            OPCASE(TEST) : DISPATCH();
         }
         // thread_yield();
     }
@@ -4474,7 +4556,7 @@ InterpretResult compileCode(const char *source, const char *path, const char *ou
             strcat(bcPath + strlen(bcPath), ".cubec");
     }
     else
-        bcPath = output;
+        bcPath = (char *)output;
 
     FILE *file = fopen(bcPath, "wb");
     if (file == NULL)

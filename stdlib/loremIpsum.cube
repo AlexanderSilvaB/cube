@@ -1,0 +1,49 @@
+var wordsList = ["lorem", "ipsum", "dolor", "sit", "amet", "consectetuer",
+            "adipiscing", "elit", "sed", "diam", "nonummy", "nibh", "euismod",
+            "tincidunt", "ut", "laoreet", "dolore", "magna", "aliquam", "erat"];
+
+func words(n)
+{
+    if(n is null)
+        n = 80
+
+    var text = ''
+    var cur = null, last = null
+    var L = len(wordsList)
+
+    for(var i = 0 ; i < n; i++)
+    {
+        while(cur == last)
+            cur = int(random(0, L))
+        last = cur
+        text += wordsList[cur]
+        if(i < n-1)
+            text += ' '
+    }
+
+    text = text.substr(0, 1).upper() + text.from(1) + '.'
+
+    return text
+}
+
+func par(p, mw, mW)
+{
+    if(p is null)
+        p = 1
+    
+    if(mw is null)
+        mw = 80
+
+    if(mW is null)
+        mW = mw
+
+    var text = ''
+    for(var i = 0; i < p; i++)
+    {
+        text += words( int( random(mw, mW) ) )
+        if(i < p-1)
+            text += '\n'
+    }
+
+    return text
+}

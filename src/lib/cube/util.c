@@ -516,7 +516,7 @@ uint8_t *cube_bytebyte(const uint8_t *b1, const uint8_t *b2, size_t n1, size_t n
         if (b1[i] == b2[j])
         {
             if (j == 0)
-                ptr = &b1[i];
+                ptr = (uint8_t *)&b1[i];
             j++;
             if (j == n2)
                 break;

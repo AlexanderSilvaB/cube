@@ -17,6 +17,7 @@
 #include <errno.h>
 
 #include "ansi_escapes.h"
+#include "collections.h"
 #include "compiler.h"
 #include "files.h"
 #include "gc.h"
@@ -125,9 +126,42 @@ Value inputNative(int argCount, Value *args)
 
 Value randomNative(int argCount, Value *args)
 {
+    double max = 1.0;
+    double min = 0.0;
+
+    if (argCount > 0)
+    {
+        if (!IS_NUMBER(args[0]))
+        {
+            runtimeError("random only accepts numbers as parameters.");
+            return NULL_VAL;
+        }
+
+        max = AS_NUMBER(args[0]);
+    }
+
+    if (argCount > 1)
+    {
+        if (!IS_NUMBER(args[1]))
+        {
+            runtimeError("random only accepts numbers as parameters.");
+            return NULL_VAL;
+        }
+
+        min = max;
+        max = AS_NUMBER(args[1]);
+    }
+
+    if (min > max)
+    {
+        double tmp = max;
+        max = min;
+        min = tmp;
+    }
+
     int dv = 100000001;
-    double r = rand() % dv;
-    return NUMBER_VAL(r / dv);
+    double r = min + ((rand() % dv) / (double)dv) * (max - min);
+    return NUMBER_VAL(r);
 }
 
 Value seedNative(int argCount, Value *args)
@@ -2392,6 +2426,97 @@ Value clearllNative(int argCount, Value *args)
     return NULL_VAL;
 }
 
+Value getPathNative(int argCount, Value *args)
+{
+    return copyObject(OBJ_VAL(vm.paths));
+}
+
+Value setPathNative(int argCount, Value *args)
+{
+    if (argCount == 0)
+    {
+        runtimeError("setPath requires a list of paths");
+        return NULL_VAL;
+    }
+
+    if (!IS_LIST(args[0]))
+    {
+        runtimeError("setPath requires a list of paths");
+        return NULL_VAL;
+    }
+
+    ObjList *list = AS_LIST(args[0]);
+    for (int i = 0; i < list->values.count; i++)
+    {
+        if (!IS_STRING(list->values.values[i]))
+        {
+            runtimeError("A path must be a string. %s is not valid.", valueToString(list->values.values[i], true));
+            return NULL_VAL;
+        }
+    }
+
+    vm.paths->values.count = 0;
+
+    for (int i = 0; i < list->values.count; i++)
+    {
+        addPath(AS_CSTRING(list->values.values[i]));
+    }
+
+    return copyObject(OBJ_VAL(vm.paths));
+}
+
+Value addPathNative(int argCount, Value *args)
+{
+    if (argCount == 0)
+    {
+        runtimeError("addPath requires one or more paths.");
+        return NULL_VAL;
+    }
+
+    for (int i = 0; i < argCount; i++)
+    {
+        if (!IS_STRING(args[i]))
+        {
+            runtimeError("A path must be a string. %s is not valid.", valueToString(args[i], true));
+            return NULL_VAL;
+        }
+    }
+
+    ObjList *list = initList();
+    for (int i = 0; i < argCount; i++)
+    {
+        addPath(AS_CSTRING(args[i]));
+        writeValueArray(&list->values, args[i]);
+    }
+    return OBJ_VAL(list);
+}
+
+Value rmPathNative(int argCount, Value *args)
+{
+    if (argCount == 0)
+    {
+        runtimeError("rmPath requires one or more paths.");
+        return NULL_VAL;
+    }
+
+    for (int i = 0; i < argCount; i++)
+    {
+        if (!IS_STRING(args[i]))
+        {
+            runtimeError("A path must be a string. %s is not valid.", valueToString(args[i], true));
+            return NULL_VAL;
+        }
+    }
+
+    ObjList *list = initList();
+    for (int i = 0; i < argCount; i++)
+    {
+        rmList(vm.paths, args[i]);
+        writeValueArray(&list->values, args[i]);
+    }
+    return OBJ_VAL(list);
+}
+
 // Register
 linked_list *stdFnList;
 #define ADD_STD(name, fn) linked_list_add(stdFnList, createStdFn(name, fn))
@@ -2490,6 +2615,10 @@ void initStd()
     ADD_STD("clearl", clearlNative);
     ADD_STD("clearlr", clearlrNative);
     ADD_STD("clearll", clearllNative);
+    ADD_STD("getPath", getPathNative);
+    ADD_STD("setPath", setPathNative);
+    ADD_STD("addPath", addPathNative);
+    ADD_STD("rmPath", rmPathNative);
 }
 
 void destroyStd()

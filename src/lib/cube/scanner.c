@@ -759,7 +759,7 @@ Keyword *read_keyword(char **source)
     char word[32];
 
     char *src = *source;
-    int rc = sscanf(src, "%s %s\n", &key, &word);
+    int rc = sscanf(src, "%s %s\n", (char *)&key, (char *)&word);
     if (rc != 2)
         return NULL;
 
