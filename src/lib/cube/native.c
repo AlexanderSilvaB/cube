@@ -461,7 +461,7 @@ int to_var(var_t *var, Value value, NativeTypes type, ffi_type **ffi_arg)
         case TYPE_VOID:
             *ffi_arg = &ffi_type_void;
             var->val._uint64 = 0;
-            sz = sizeof(void);
+            sz = sizeof(void*);
             break;
         case TYPE_CBOOL:
             *ffi_arg = &ffi_type_sint8;
@@ -556,7 +556,7 @@ int size_var(NativeTypes type)
             sz = sizeof(void *);
             break;
         case TYPE_VOID:
-            sz = sizeof(void);
+            sz = sizeof(void*);
             break;
         case TYPE_CBOOL:
             sz = sizeof(bool);
@@ -702,7 +702,7 @@ int to_struct(var_t *var, Value value, ObjNativeStruct *str, ffi_type **ffi_arg)
                     var->val._ptr = realloc(var->val._ptr, cp);
                 }
 
-                memcpy(var->val._ptr + cr, st_type_var.val._ptr, sz);
+                memcpy((uint8_t*)var->val._ptr + cr, st_type_var.val._ptr, sz);
                 cr += sz;
             }
         }
@@ -721,7 +721,7 @@ int to_struct(var_t *var, Value value, ObjNativeStruct *str, ffi_type **ffi_arg)
                 var->val._ptr = realloc(var->val._ptr, cp);
             }
 
-            memcpy(var->val._ptr + cr, &st_type_var.val, sz);
+            memcpy((uint8_t*)var->val._ptr + cr, &st_type_var.val, sz);
             cr += sz;
         }
     }
