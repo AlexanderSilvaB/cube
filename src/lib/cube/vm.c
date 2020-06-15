@@ -31,6 +31,7 @@
 VM vm; // [one]
 
 void *threadFn(void *data);
+bool hasTask(ThreadFrame *threadFrame);
 
 #define READ_BYTE() (*frame->ip++)
 #define SKIP_BYTE() frame->ip++
@@ -117,6 +118,7 @@ static ThreadFrame *createThreadFrame()
     if (i > 0)
     {
         vm.threadFrames[i].running = false;
+        vm.threadFrames[i].destroy = false;
         int id = thread_create(threadFn, &vm.threadFrames[i]);
         if (id == 0)
         {
@@ -128,12 +130,29 @@ static ThreadFrame *createThreadFrame()
     else
     {
         int id = thread_id();
+        vm.threadFrames[i].destroy = false;
         vm.threadFrames[i].running = true;
         vm.threadFrames[i].id = thread_id();
         vm.threadFrames[i].result = INTERPRET_OK;
     }
 
     return &vm.threadFrames[i];
+}
+
+static void destroyThreadFrame(ThreadFrame *tf)
+{
+    if (tf == NULL)
+        tf = currentThread();
+
+    if (!hasTask(tf))
+    {
+        printf("Does not have task\n");
+        // tf->running = false;
+        // tf->destroy = true;
+        // thread_join(tf->id);
+        // tf->taskFrame = NULL;
+        // tf->id = 0;
+    }
 }
 
 static TaskFrame *createTaskFrame(const char *name)
@@ -157,6 +176,7 @@ static TaskFrame *createTaskFrame(const char *name)
     taskFrame->startTime = 0;
     taskFrame->endTime = 0;
     taskFrame->busy = false;
+    taskFrame->secure = false;
     taskFrame->tryFrame = NULL;
     taskFrame->error = NULL;
     taskFrame->currentArgs = NULL_VAL;
@@ -183,6 +203,28 @@ static TaskFrame *createTaskFrame(const char *name)
     }
 
     return taskFrame;
+}
+
+ThreadFrame *findThreadFrame(const char *name)
+{
+    for (int i = 0; i < MAX_THREADS; i++)
+    {
+        ThreadFrame *threadFrame = &vm.threadFrames[i];
+        TaskFrame *tf = threadFrame->taskFrame;
+        if (tf == NULL)
+            continue;
+
+        while (tf != NULL)
+        {
+            if (strcmp(name, tf->name) == 0)
+            {
+                return threadFrame;
+            }
+
+            tf = tf->next;
+        }
+    }
+    return NULL;
 }
 
 TaskFrame *findTaskFrame(const char *name)
@@ -2149,7 +2191,7 @@ static bool inherits(ObjClass *klass, ObjString *name)
     return false;
 }
 
-static bool hasTask(ThreadFrame *threadFrame)
+bool hasTask(ThreadFrame *threadFrame)
 {
     TaskFrame *tf = threadFrame->taskFrame;
     if (tf == NULL)
@@ -2181,7 +2223,12 @@ next:
         mp_free(task);
     }
     else
+    {
+        if (ctf->secure)
+            return true;
         threadFrame->ctf = threadFrame->ctf->next;
+    }
+
     if (threadFrame->ctf == NULL)
         threadFrame->ctf = threadFrame->taskFrame;
     if (threadFrame->ctf->finished)
@@ -4414,10 +4461,13 @@ InterpretResult run()
 
                 ObjTask *task = AS_TASK(pop());
                 TaskFrame *tf = findTaskFrame(task->name->chars);
+                ThreadFrame *thf = findThreadFrame(task->name->chars);
                 if (tf == NULL)
                 {
                     push(NULL_VAL);
                     threadFrame->ctf->waiting = false;
+                    destroyTaskFrame(task->name->chars);
+                    // destroyThreadFrame(thf);
                 }
                 else
                 {
@@ -4426,6 +4476,8 @@ InterpretResult run()
                         tf->parent = NULL;
                         push(tf->result);
                         threadFrame->ctf->waiting = false;
+                        destroyTaskFrame(task->name->chars);
+                        // destroyThreadFrame(thf);
                     }
                     else
                     {
@@ -4477,7 +4529,19 @@ InterpretResult run()
                 DISPATCH();
             }
 
-            OPCASE(TEST) : DISPATCH();
+            OPCASE(SECURE_START) :
+            {
+                threadFrame->ctf->secure = true;
+                DISPATCH();
+            }
+
+            OPCASE(SECURE_END) :
+            {
+                threadFrame->ctf->secure = false;
+                DISPATCH();
+            }
+
+            OPCASE(PASS) : DISPATCH();
         }
         // thread_yield();
     }
@@ -4598,7 +4662,7 @@ void *threadFn(void *data)
     ThreadFrame *threadFrame = (ThreadFrame *)data;
     threadFrame->result = INTERPRET_WAIT;
     // printf("Thread start: %d\n", thread_id());
-    while (true)
+    while (!threadFrame->destroy)
     {
         if (!threadFrame->running)
         {
@@ -4619,4 +4683,5 @@ void *threadFn(void *data)
             // printf("End\n");
         }
     }
+    return NULL;
 }

@@ -67,6 +67,38 @@ void shrinkList(ObjList *list, int num)
         list->values.count = 0;
 }
 
+static bool firstListItem(int argCount)
+{
+    if (argCount != 1)
+    {
+        runtimeError("first() takes 1 argument (%d  given)", argCount);
+        return false;
+    }
+
+    ObjList *list = AS_LIST(pop());
+    Value first = NULL_VAL;
+    if (list->values.count > 0)
+        first = list->values.values[0];
+    push(first);
+    return true;
+}
+
+static bool lastListItem(int argCount)
+{
+    if (argCount != 1)
+    {
+        runtimeError("last() takes 1 argument (%d  given)", argCount);
+        return false;
+    }
+
+    ObjList *list = AS_LIST(pop());
+    Value last = NULL_VAL;
+    if (list->values.count > 0)
+        last = list->values.values[list->values.count - 1];
+    push(last);
+    return true;
+}
+
 static bool pushListItem(int argCount)
 {
     if (argCount != 2)
@@ -528,6 +560,10 @@ bool listMethods(char *method, int argCount)
         return insertListItem(argCount);
     else if (strcmp(method, "pop") == 0)
         return popListItem(argCount);
+    else if (strcmp(method, "first") == 0)
+        return firstListItem(argCount);
+    else if (strcmp(method, "last") == 0)
+        return lastListItem(argCount);
     else if (strcmp(method, "contains") == 0)
         return containsListItem(argCount);
     else if (strcmp(method, "index") == 0)

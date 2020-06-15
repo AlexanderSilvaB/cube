@@ -100,6 +100,7 @@ typedef enum
     TOKEN_TRY,
     TOKEN_CATCH,
     TOKEN_ASSERT,
+    TOKEN_SECURE,
 
     TOKEN_DOC,
     TOKEN_PASS,

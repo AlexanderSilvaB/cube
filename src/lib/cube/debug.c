@@ -261,8 +261,12 @@ int disassembleInstruction(Chunk *chunk, int offset)
             return simpleInstruction("OP_NATIVE_STRUCT", offset);
         case OP_NATIVE:
             return constantInstruction("OP_NATIVE", chunk, offset);
-        case OP_TEST:
-            return simpleInstruction("OP_TEST", offset);
+        case OP_PASS:
+            return simpleInstruction("OP_PASS", offset);
+        case OP_SECURE_START:
+            return simpleInstruction("OP_SECURE_START", offset);
+        case OP_SECURE_END:
+            return simpleInstruction("OP_SECURE_END", offset);
         default:
             printf("Unknown opcode %d\n", instruction);
             return offset + 1;

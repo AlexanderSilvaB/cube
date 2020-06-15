@@ -59,6 +59,7 @@ typedef struct TaskFrame_t
     bool waiting;
     bool aborted;
     bool busy;
+    bool secure;
     struct TaskFrame_t *parent;
     char *error;
     uint64_t endTime;
@@ -79,6 +80,7 @@ typedef enum
 typedef struct ThreadFrame_t
 {
     bool running;
+    bool destroy;
     int tasksCount;
     int id;
     TaskFrame *taskFrame;

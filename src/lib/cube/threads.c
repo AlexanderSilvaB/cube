@@ -67,6 +67,22 @@ int thread_create(void *(*entryPoint)(void *), void *data)
     return id;
 }
 
+void thread_join(int id)
+{
+#ifdef WIN32
+    HANDLE thread; // Thread handle
+    thread = OpenThread(SYNCHRONIZE, FALSE, (DWORD)id);
+    if (thread != NULL)
+    {
+        WaitForSingleObject(thread, INFINITE);
+    }
+#else
+    void *res;
+    pthread_t thread = (pthread_t)id;
+    pthread_join(thread, &res);
+#endif
+}
+
 int thread_id()
 {
     int id;

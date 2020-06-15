@@ -19,6 +19,7 @@
 
 static char *initString = "<CUBE>";
 GlobalCompiler *gbcpl = NULL;
+bool printCode = false;
 
 void initGlobalCompiler()
 {
@@ -314,15 +315,19 @@ static ObjFunction *endCompiler()
 #ifdef DEBUG_PRINT_CODE
     if (!gbcpl->parser.hadError)
     {
-        disassembleChunk(currentChunk(), fn->name != NULL ? fn->name->chars : "<script>");
+        if (printCode)
+            disassembleChunk(currentChunk(), fn->name != NULL ? fn->name->chars : "<script>");
     }
 #endif
 
-    mp_free(gbcpl->current->locals);
-    mp_free(gbcpl->current->upvalues);
-
     gbcpl->current = gbcpl->current->enclosing;
     return fn;
+}
+
+static void freeCompilerInternals(Compiler *compiler)
+{
+    mp_free(compiler->locals);
+    mp_free(compiler->upvalues);
 }
 
 static void beginScope()
@@ -1338,6 +1343,8 @@ static void function(FunctionType type)
         emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
         emitShortAlone(compiler.upvalues[i].index);
     }
+
+    freeCompilerInternals(&compiler);
 }
 
 static void lambda(bool canAssign)
@@ -1473,6 +1480,8 @@ static void async(bool canAssign)
         emitShortAlone(compiler.upvalues[i].index);
     }
 
+    freeCompilerInternals(&compiler);
+
     emitByte(OP_ASYNC);
 }
 
@@ -1565,6 +1574,7 @@ ParseRule rules[] = {
     {NULL, NULL, PREC_NULL},         // TOKEN_TRY
     {NULL, NULL, PREC_NULL},         // TOKEN_CATCH
     {NULL, NULL, PREC_NULL},         // TOKEN_ASSERT
+    {NULL, NULL, PREC_NULL},         // TOKEN_SECURE
     {NULL, NULL, PREC_NULL},         // TOKEN_DOC
     {NULL, NULL, PREC_NULL},         // TOKEN_PASS
     {NULL, NULL, PREC_NULL},         // TOKEN_CUBE
@@ -2318,6 +2328,13 @@ static void assertDeclaration()
     }
 }
 
+static void secureDeclaration()
+{
+    emitByte(OP_SECURE_START);
+    statement();
+    emitByte(OP_SECURE_END);
+}
+
 static void varDeclaration(bool checkEnd)
 {
     uint16_t global;
@@ -2676,6 +2693,10 @@ static void includeStatement()
     emitConstant(STRING_VAL(strPath));
     // mp_free(strPath);
 
+    bool forClause = false;
+    Token module;
+    char *str = NULL;
+
     if (match(TOKEN_AS))
     {
         if (match(TOKEN_IDENTIFIER) || match(TOKEN_DEFAULT))
@@ -2687,6 +2708,28 @@ static void includeStatement()
             consume(TOKEN_IDENTIFIER, "Expect identifier after as.");
         }
     }
+    else if (match(TOKEN_FOR))
+    {
+        forClause = true;
+        str = mp_malloc(sizeof(char) * 64);
+        sprintf(str, "__temp_package_%d", gbcpl->tempId++);
+        emitConstant(OBJ_VAL(copyString(str, strlen(str))));
+        emitShort(OP_INCLUDE, makeConstant(OBJ_VAL(fn)));
+
+        module = syntheticToken(str);
+
+        do
+        {
+            if (match(TOKEN_IDENTIFIER) || match(TOKEN_STAR))
+            {
+                getVariable(module);
+                emitPreviousAsString();
+                emitByte(OP_FROM_PACKAGE);
+            }
+            else
+                errorAtCurrent("Variable name expected.");
+        } while (match(TOKEN_COMMA));
+    }
     else
     {
         emitByte(OP_NULL);
@@ -2694,7 +2737,14 @@ static void includeStatement()
 
     // consume(TOKEN_SEMICOLON, "Expect ';' after import.");
     match(TOKEN_SEMICOLON);
-    emitShort(OP_INCLUDE, makeConstant(OBJ_VAL(fn)));
+    if (!forClause)
+        emitShort(OP_INCLUDE, makeConstant(OBJ_VAL(fn)));
+    else
+    {
+        emitConstant(OBJ_VAL(copyString(str, strlen(str))));
+        emitByte(OP_REMOVE_VAR);
+        mp_free(str);
+    }
 }
 
 static void importStatement()
@@ -3002,6 +3052,7 @@ static void synchronize()
             case TOKEN_TRY:
             case TOKEN_CATCH:
             case TOKEN_DOC:
+            case TOKEN_SECURE:
             case TOKEN_PASS:
             case TOKEN_CUBE:
                 return;
@@ -3052,10 +3103,9 @@ static void declaration(bool checkEnd)
     {
         docDeclaration();
     }
-    else if (match(TOKEN_PASS))
+    else if (match(TOKEN_SECURE))
     {
-        emitByte(OP_TEST);
-        match(TOKEN_SEMICOLON);
+        secureDeclaration();
     }
     else if (match(TOKEN_ASSERT))
     {
@@ -3123,6 +3173,11 @@ static void statement()
     else if (match(TOKEN_TRY))
     {
         tryStatement();
+    }
+    else if (match(TOKEN_PASS))
+    {
+        emitByte(OP_PASS);
+        match(TOKEN_SEMICOLON);
     }
     else if (match(TOKEN_LEFT_BRACE))
     {

@@ -447,6 +447,8 @@ static TokenType identifierType(Scanner *scanner)
                 {
                     case 'u':
                         return checkKeyword(scanner, 2, 3, "per", TOKEN_SUPER);
+                    case 'e':
+                        return checkKeyword(scanner, 2, 4, "cure", TOKEN_SECURE);
                     case 't': {
                         if (scanner->current - scanner->start > 2)
                         {

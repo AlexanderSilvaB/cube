@@ -16,12 +16,12 @@
 #include "util.h"
 #include "vm.h"
 
-
 #include "ansi_escapes.h"
 
 extern Value nativeToValue(cube_native_var *var, NativeTypes *nt);
 extern void valueToNative(cube_native_var *var, Value value);
 char *version_string;
+extern bool printCode;
 
 void start(const char *path, const char *scriptName)
 {
@@ -140,6 +140,11 @@ int runCube(int argc, const char *argv[])
         else if (strcmp(argv[i], "-d") == 0)
         {
             debug = true;
+            argStart++;
+        }
+        else if (strcmp(argv[i], "-p") == 0)
+        {
+            printCode = true;
             argStart++;
         }
         else if (strcmp(argv[i], "-i") == 0)
