@@ -4517,7 +4517,9 @@ InterpretResult interpret(const char *source, const char *path)
 
     ThreadFrame *threadFrame = currentThread();
     threadFrame->taskFrame->finished = false;
+
     InterpretResult ret = run();
+
     pop();
 
     int i = 1;
@@ -4605,7 +4607,7 @@ void *threadFn(void *data)
         }
         else
         {
-            printf("Thread run: %d\n", thread_id());
+            // printf("Thread run: %d\n", thread_id());
             threadFrame->result = INTERPRET_WAIT;
             // cube_wait(1000000);
             // printf("Start\n");

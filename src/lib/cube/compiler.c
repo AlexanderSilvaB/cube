@@ -1566,6 +1566,7 @@ ParseRule rules[] = {
     {NULL, NULL, PREC_NULL},         // TOKEN_CATCH
     {NULL, NULL, PREC_NULL},         // TOKEN_ASSERT
     {NULL, NULL, PREC_NULL},         // TOKEN_DOC
+    {NULL, NULL, PREC_NULL},         // TOKEN_PASS
     {NULL, NULL, PREC_NULL},         // TOKEN_CUBE
     {NULL, NULL, PREC_NULL},         // TOKEN_ERROR
     {NULL, NULL, PREC_NULL},         // TOKEN_EOF
@@ -3001,6 +3002,7 @@ static void synchronize()
             case TOKEN_TRY:
             case TOKEN_CATCH:
             case TOKEN_DOC:
+            case TOKEN_PASS:
             case TOKEN_CUBE:
                 return;
 
@@ -3049,6 +3051,11 @@ static void declaration(bool checkEnd)
     else if (match(TOKEN_DOC))
     {
         docDeclaration();
+    }
+    else if (match(TOKEN_PASS))
+    {
+        emitByte(OP_TEST);
+        match(TOKEN_SEMICOLON);
     }
     else if (match(TOKEN_ASSERT))
     {

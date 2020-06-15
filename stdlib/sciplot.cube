@@ -60,6 +60,14 @@ enum Style
     pm3d
 }
 
+func plot(x, y)
+{
+    var plt = Plot()
+    plt.grid(true)
+    var drw = plt.draw(x, y)
+    plt.show()
+}
+
 class Plot
 {
     var p
@@ -163,8 +171,13 @@ class Plot
 
         if(y is num)
             y = [y]
-        if(y is func)
+        else if(y is func)
             y = query.from(x).select(y).data
+        else if(y is null)
+        {
+            y = x
+            x = 0...len(y)
+        }
         if(y is not list)
             throw('Only numeric data is supported.')
 

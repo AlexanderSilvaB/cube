@@ -102,6 +102,7 @@ typedef enum
     TOKEN_ASSERT,
 
     TOKEN_DOC,
+    TOKEN_PASS,
     TOKEN_CUBE,
     TOKEN_ERROR,
     TOKEN_EOF

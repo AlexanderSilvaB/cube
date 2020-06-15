@@ -500,6 +500,8 @@ static TokenType identifierType(Scanner *scanner)
                         return checkKeyword(scanner, 2, 2, "th", TOKEN_WITH);
                 }
             break;
+        case 'p':
+            return checkKeyword(scanner, 1, 3, "ass", TOKEN_PASS);
     }
 
     return TOKEN_IDENTIFIER;
