@@ -1270,6 +1270,7 @@ Value varsNative(int argCount, Value *args)
     char *titles[10];
     Table *table;
     bool isGlobal = false;
+    bool showLocals = false;
 
     if (argCount > 0 && IS_PACKAGE(args[0]))
     {
@@ -1303,9 +1304,14 @@ Value varsNative(int argCount, Value *args)
     {
         isGlobal = true;
         tables[K++] = &vm.globals;
-        titles[K - 1] = "Variables";
+        titles[K - 1] = "Global variables";
         tables[K++] = &vm.extensions;
         titles[K - 1] = "Extensions";
+
+        if (argCount > 0 && IS_BOOL(args[0]))
+        {
+            showLocals = AS_BOOL(args[0]);
+        }
     }
 
     for (int k = 0; k < K; k++)
@@ -1326,6 +1332,24 @@ Value varsNative(int argCount, Value *args)
             printf("%s : ", entry.key->chars);
             printValue(entry.value);
             printf("\n");
+        }
+    }
+
+    if (showLocals)
+    {
+        ThreadFrame *tf = currentThread();
+        Value *value = tf->ctf->stack;
+        if (value < tf->ctf->stackTop - 1)
+        {
+            printf("-----------------\nLocal variables\n-----------------\n");
+            int i = 0;
+            while (value < tf->ctf->stackTop - 1)
+            {
+                printf("%d : ", i++);
+                printValue(*value);
+                printf("\n");
+                value++;
+            }
         }
     }
 

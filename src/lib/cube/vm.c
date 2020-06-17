@@ -2224,9 +2224,8 @@ next:
     }
     else
     {
-        if (ctf->secure)
-            return true;
-        threadFrame->ctf = threadFrame->ctf->next;
+        if (!ctf->secure)
+            threadFrame->ctf = threadFrame->ctf->next;
     }
 
     if (threadFrame->ctf == NULL)
