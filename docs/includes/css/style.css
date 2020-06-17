@@ -137,6 +137,12 @@ body
     padding                     :   45px;
 }
 
+.playground
+{
+    width: calc(100vw - 200px - (2 * 45px));
+    height: calc(100vh - 80px - (2 * 45px) - 48px);
+}
+
 @media (max-width: 767px) 
 {
     .markdown-body 

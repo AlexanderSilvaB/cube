@@ -1,0 +1,9 @@
+native libs/libregex
+{
+    int32 compile(cstring);
+    cstring matchp(int32, cstring);
+    cstring match(cstring, cstring);
+    list matchpAll(int32, cstring);
+    list matchAll(cstring, cstring);
+}
+

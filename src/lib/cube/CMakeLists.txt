@@ -1,5 +1,7 @@
 include_directories(..)
 
+add_subdirectory(external)
+
 include(GNUInstallDirs)
 find_package(Threads)
 
