@@ -32,6 +32,8 @@
 #endif
 #endif
 
+typedef void (*cube_native_func)(void *, void *);
+
 typedef struct
 {
     int line;
@@ -76,6 +78,7 @@ typedef union cube_native_value_t {
     bool _bool;
     double _number;
     char *_string;
+    void *_closure;
     cube_native_bytes _bytes;
 } cube_native_value;
 
@@ -86,6 +89,7 @@ typedef struct cube_native_var_t
     bool is_list;
     bool is_dict;
     char *key;
+    cube_native_func func;
     int size;
     int capacity;
     struct cube_native_var_t **list;
@@ -99,6 +103,8 @@ typedef struct cube_native_var_t
 #define AS_NATIVE_BYTES(var) var->value._bytes
 #define IS_NATIVE_LIST(var) (var->is_list)
 #define IS_NATIVE_DICT(var) (var->is_dict)
+#define HAS_NATIVE_FUNC(var) (var->func != NULL)
+#define CALL_NATIVE_FUNC(var, ARGS) var->func(var->value._closure, ARGS)
 
 static char *COPY_STR(const char *str)
 {
@@ -116,6 +122,7 @@ static cube_native_var *NATIVE_VAR()
     var->list = NULL;
     var->dict = NULL;
     var->key = NULL;
+    var->func = NULL;
     var->size = 0;
     var->capacity = 0;
     return var;
@@ -211,10 +218,12 @@ static cube_native_var *NATIVE_DICT()
     return var;
 }
 
-static cube_native_var *NATIVE_FUNC()
+static cube_native_var *NATIVE_FUNC(cube_native_func callback, void *func)
 {
     cube_native_var *var = NATIVE_VAR();
     var->type = TYPE_FUNC;
+    var->func = callback;
+    var->value._closure = func;
     return var;
 }
 
@@ -282,9 +291,11 @@ static cube_native_var *TO_NATIVE_DICT(cube_native_var *var)
     return var;
 }
 
-static cube_native_var *TO_NATIVE_FUNC(cube_native_var *var)
+static cube_native_var *TO_NATIVE_FUNC(cube_native_var *var, cube_native_func callback, void *func)
 {
     var->type = TYPE_FUNC;
+    var->func = callback;
+    var->value._closure = func;
     return var;
 }
 
@@ -309,6 +320,13 @@ static void ADD_NATIVE_DICT(cube_native_var *dict, char *key, cube_native_var *v
         dict->capacity *= 2;
         dict->dict = (cube_native_var **)realloc(dict->dict, sizeof(cube_native_var *) * dict->capacity);
     }
+}
+
+static cube_native_var *SAVE_FUNC(cube_native_var *var)
+{
+    cube_native_var *v = NATIVE_VAR();
+    TO_NATIVE_FUNC(v, var->func, var->value._closure);
+    return v;
 }
 
 #endif

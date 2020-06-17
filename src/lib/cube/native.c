@@ -17,6 +17,7 @@
 #include "cubeext.h"
 #include "mempool.h"
 #include "native.h"
+#include "threads.h"
 #include "util.h"
 #include "vm.h"
 
@@ -55,13 +56,8 @@ typedef struct NativeLibPointer_st
 static NativeLibPointer *libPointer = NULL;
 
 extern linked_list *list_symbols(const char *path);
-/*
-#ifdef _WIN32
-#include "native_w32.c"
-#else
-#include "native_posix.c"
-#endif
-*/
+
+Value nativeToValue(cube_native_var *var, NativeTypes *nt);
 
 const char *dlpath(void *handle)
 {
@@ -155,6 +151,79 @@ void deleteNativePointer(NativeLibPointer *rm)
         parent = pt;
         pt = pt->next;
     }
+}
+
+void native_callback(void *fn, cube_native_var *argsNative)
+{
+    ObjClosure *closure = (ObjClosure *)fn;
+    if (closure == NULL)
+        return;
+
+    Value args;
+    ObjList *list = NULL;
+    NativeTypes nt;
+    if (argsNative != NULL)
+    {
+        args = nativeToValue(argsNative, &nt);
+        if (!IS_LIST(args))
+        {
+            list = initList();
+            writeValueArray(&list->values, args);
+            args = OBJ_VAL(list);
+        }
+        else
+        {
+            list = AS_LIST(args);
+        }
+    }
+    else
+    {
+        list = initList();
+        args = OBJ_VAL(list);
+    }
+
+    ThreadFrame *threadFrame = currentThread();
+
+    char *name = (char *)mp_malloc(sizeof(char) * 32);
+    name[0] = '\0';
+    sprintf(name, "Task[%d-%d]", thread_id(), threadFrame->tasksCount);
+    threadFrame->tasksCount++;
+
+    TaskFrame *tf = createTaskFrame(name);
+
+    ObjString *strTaskName = AS_STRING(STRING_VAL(name));
+    mp_free(name);
+
+    // Push the args
+    int M = closure->function->arity;
+    if (list->values.count < M)
+        M = list->values.count;
+
+    for (int i = 0; i < M; i++)
+    {
+        *tf->stackTop = list->values.values[i];
+        tf->stackTop++;
+    }
+
+    // Push the context
+    *tf->stackTop = OBJ_VAL(closure);
+    tf->stackTop++;
+
+    // Add the context to the frames stack
+
+    CallFrame *frame = &tf->frames[tf->frameCount++];
+    frame->closure = closure;
+    frame->ip = closure->function->chunk.code;
+    frame->package = threadFrame->frame->package;
+    frame->type = CALL_FRAME_TYPE_FUNCTION;
+    frame->nextPackage = NULL;
+    frame->require = false;
+
+    frame->slots = tf->stackTop - 1;
+
+    tf->currentArgs = args;
+
+    ((ThreadFrame *)tf->threadFrame)->running = true;
 }
 
 bool openNativeLib(ObjNativeLib *lib)
@@ -366,7 +435,7 @@ void valueToNative(cube_native_var *var, Value value)
     }
     else if (IS_CLOSURE(value))
     {
-        TO_NATIVE_FUNC(var);
+        TO_NATIVE_FUNC(var, (cube_native_func)native_callback, AS_CLOSURE(value));
     }
     else
     {
@@ -442,7 +511,8 @@ int to_var(var_t *var, Value value, NativeTypes type, ffi_type **ffi_arg)
         case TYPE_BYTES:
         case TYPE_LIST:
         case TYPE_DICT:
-        case TYPE_VAR: {
+        case TYPE_VAR:
+        case TYPE_FUNC: {
             *ffi_arg = &ffi_type_pointer;
             var->val._ptr = NATIVE_VAR();
             var->alloc = true;
@@ -450,18 +520,10 @@ int to_var(var_t *var, Value value, NativeTypes type, ffi_type **ffi_arg)
             sz = sizeof(void *);
         }
         break;
-        case TYPE_FUNC: {
-            *ffi_arg = &ffi_type_pointer;
-            var->val._ptr = NATIVE_VAR();
-            var->alloc = true;
-            TO_NATIVE_FUNC((cube_native_var *)var->val._ptr);
-            sz = sizeof(void *);
-        }
-        break;
         case TYPE_VOID:
             *ffi_arg = &ffi_type_void;
             var->val._uint64 = 0;
-            sz = sizeof(void*);
+            sz = sizeof(void *);
             break;
         case TYPE_CBOOL:
             *ffi_arg = &ffi_type_sint8;
@@ -556,7 +618,7 @@ int size_var(NativeTypes type)
             sz = sizeof(void *);
             break;
         case TYPE_VOID:
-            sz = sizeof(void*);
+            sz = sizeof(void *);
             break;
         case TYPE_CBOOL:
             sz = sizeof(bool);
@@ -702,7 +764,7 @@ int to_struct(var_t *var, Value value, ObjNativeStruct *str, ffi_type **ffi_arg)
                     var->val._ptr = realloc(var->val._ptr, cp);
                 }
 
-                memcpy((uint8_t*)var->val._ptr + cr, st_type_var.val._ptr, sz);
+                memcpy((uint8_t *)var->val._ptr + cr, st_type_var.val._ptr, sz);
                 cr += sz;
             }
         }
@@ -721,7 +783,7 @@ int to_struct(var_t *var, Value value, ObjNativeStruct *str, ffi_type **ffi_arg)
                 var->val._ptr = realloc(var->val._ptr, cp);
             }
 
-            memcpy((uint8_t*)var->val._ptr + cr, &st_type_var.val, sz);
+            memcpy((uint8_t *)var->val._ptr + cr, &st_type_var.val, sz);
             cr += sz;
         }
     }

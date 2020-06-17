@@ -155,7 +155,7 @@ static void destroyThreadFrame(ThreadFrame *tf)
     }
 }
 
-static TaskFrame *createTaskFrame(const char *name)
+TaskFrame *createTaskFrame(const char *name)
 {
     ThreadFrame *threadFrame = createThreadFrame();
 

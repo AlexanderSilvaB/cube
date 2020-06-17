@@ -141,6 +141,7 @@ void freeVM();
 void addPath(const char *path);
 void loadArgs(int argc, const char *argv[], int argStart);
 ThreadFrame *currentThread();
+TaskFrame *createTaskFrame(const char *name);
 
 InterpretResult interpret(const char *source, const char *path);
 InterpretResult compileCode(const char *source, const char *path, const char *output);

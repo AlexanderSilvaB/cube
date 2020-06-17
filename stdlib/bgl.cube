@@ -1,0 +1,111 @@
+native libs/libbgl
+{
+    int32 create_window(cstring, cbool, int32, int32, int32, int32, int32);
+    void select_window(int32);
+    void set_cartesian(cbool);
+    cbool is_open();
+    cbool is_fullscreen();
+    float32 window_width();
+    float32 window_height();
+    void set_background_float(float32, float32, float32);
+    void set_background_int(int32, int32, int32);
+    void set_fullscreen(cbool);
+    void toogle_fullscreen();
+    cbool capture_bgl(cstring);
+    cbool start_recording(cstring, int32);
+    void stop_recording();
+    void pause_bgl(float32);
+    void show_bgl();
+}
+
+var MODE_3D = true
+var MODE_2D = false
+
+class BGL
+{
+    static func create(name, is3d, fps, width, height, x, y)
+    {
+        if(fps is not num)
+            fps = 30
+        if(width is not num)
+            width = 0
+        if(height is not num)
+            height = width
+        if(x is not num)
+            x = -1
+        if(y is not num)
+            y = -1
+        return create_window(name, is3d, fps, width, height, x, y);
+    }
+
+    static func select(id)
+    {
+        select_window(id);
+    }
+
+    static func isOpen()
+    {
+        return is_open();
+    }
+
+    static func isFullscreen()
+    {
+        return is_fullscreen();
+    }
+
+    static func width()
+    {
+        return window_width();
+    }
+
+    static func height()
+    {
+        return window_height();
+    }
+
+    static func background(r, g, b)
+    {
+        if(r is null)
+            r = 0
+        if(g is null)
+            g = r
+        if(b is null)
+            b = g
+        
+        if(r > 1 or g > 1 or b > 1)
+            set_background_int(r, g, b)
+        else
+            set_background_float(r, g, b)
+    }
+
+
+    static func capture(fileName)
+    {
+        return capture_bgl(fileName);
+    }
+
+    static func startRecording(fileName, fps);
+    {
+        if(fps is not num)
+            fps = 30
+        return start_recording(fileName, fps);
+    }
+
+    static func stopRecording()
+    {
+        stop_recording();
+    }
+
+    static func pause(secs)
+    {   
+        if(secs is not null)
+            secs = 0
+        pause_bgl(secs)
+    }
+
+    static func show()
+    {
+        show_bgl();
+    }
+}
+

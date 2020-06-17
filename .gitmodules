@@ -4,3 +4,6 @@
 [submodule "src/lib/stdlib/regex/tiny-regex-c"]
 	path = src/lib/stdlib/regex/tiny-regex-c
 	url = git@github.com:kokke/tiny-regex-c.git
+[submodule "src/lib/stdlib/bgl/basicgl"]
+	path = src/lib/stdlib/bgl/basicgl
+	url = git@github.com:AlexanderSilvaB/BasicGL.git
