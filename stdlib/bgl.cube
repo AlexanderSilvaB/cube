@@ -16,10 +16,486 @@ native libs/libbgl
     void stop_recording();
     void pause_bgl(float32);
     void show_bgl();
+    int32 create_element(int32, cstring);
+    int32 create_plot(int32, int32, int32, cstring);
+    int32 find_element(cstring);
+    void set_animation_callback(func);
+    void set_keyboard_callback(func);
+    void set_mouse_callback(func);
+    void rotate_element(int32, float32, float32, float32);
+    void rotate_to_element(int32, float32, float32, float32);
+    void translate_element(int32, float32, float32, float32);
+    void move_element(int32, float32, float32, float32);
+    void flip_element(int32, cbool, cbool, cbool);
+    void scale_element(int32, float32, float32, float32);
+    void scale_to_element(int32, float32, float32, float32);
+    void color_element_float(int32, float32, float32, float32, float32);
+    void color_element_int(int32, int32, int32, int32, int32);
+    void wireframe_element(int32, cbool);
+    void set_text_element(int32, cstring);
+    void point_2d_element(int32, float32, float32, int32);
+    void point_3d_element(int32, float32, float32, float32, int32);
+    void line_2d_element(int32, float32, float32, float32, float32, int32);
+    void line_3d_element(int32, float32, float32, float32, float32, float32, float32, int32);
+    void triangle_2d_element(int32, float32, float32, float32, float32, float32, float32, int32);
+    void triangle_3d_element(int32, float32, float32, float32, float32, float32, float32, float32, float32, float32, int32);
+    void rectangle_2d_element(int32, float32, float32, float32, float32, int32);
+    void rectangle_3d_element(int32, float32, float32, float32, float32, float32, float32, int32);
+    void circle_2d_element(int32, float32, float32, float32);
+    void circle_3d_element(int32, float32, float32, float32, float32);
+    void glow_element(int32, float32, float32);
+    void glow_at_element(int32, int32, int32);
+    void map_element(int32);
+    void reshape_element(int32, int32, cbool);
+    float32 text_width_element(int32);
+    float32 text_height_element(int32);
+    void text_align_element(int32, int32);
+    int32 new_point_element(int32, float32, float32, float32);
+    float32 time_window();
 }
+
+var WINDOW = 0
+var DT = 1
+var KEYBOARD = 1
+var MOUSE = 1
 
 var MODE_3D = true
 var MODE_2D = false
+
+enum Mode
+{
+    M3D = true,
+    M2D = false
+}
+
+enum Elements
+{
+    CONTAINER = 0, 
+    POINT, 
+    LINE, 
+    POLYGON, 
+    TRIANGLE, 
+    RECTANGLE, 
+    CIRCLE, 
+    SEQUENCE, 
+    LOOP, 
+    CONNECTED_TRIANGLES, 
+    RADIAL_TRIANGLES, 
+    CONNECTED_RECTANGLES, 
+    SPHERE, 
+    CONE, 
+    CUBE, 
+    CYLINDER, 
+    TEAPOT, 
+    TEXT, 
+    OBJECT
+}
+
+enum Align
+{
+    LEFT = 1,
+    CENTERX = 2,
+    RIGHT = 4,
+    TOP = 8,
+    CENTERY = 16,
+    BOTTOM = 32
+}
+
+class Element
+{
+    var id
+    func init(id)
+    {
+        this.id = id
+    }
+
+    func addPoint(x, y, z)
+    {
+        if(x is not num)
+            x = 0
+        if(y is not num)
+            y = 0
+        if(z is not num)
+            z = 0
+        return new_point_element(id, x, y, z)
+    }
+
+    func add(type)
+    {
+        return Element(add_element(id, type))
+    }
+
+    func rotate(x, y, z)
+    {   
+        if(x is not num)
+            x = 0
+        if(y is not num)
+            y = 0
+        if(z is not num)
+            z = 0
+        rotate_element(id, x, y, z)
+    }
+
+    func rotateTo(x, y, z)
+    {   
+        if(x is not num)
+            x = 0
+        if(y is not num)
+            y = 0
+        if(z is not num)
+            z = 0
+        rotate_to_element(id, x, y, z)
+    }
+
+    func translate(x, y, z)
+    {   
+        if(x is not num)
+            x = 0
+        if(y is not num)
+            y = 0
+        if(z is not num)
+            z = 0
+        translate_element(id, x, y, z)
+    }
+
+    func move(x, y, z)
+    {   
+        if(x is not num)
+            x = 0
+        if(y is not num)
+            y = 0
+        if(z is not num)
+            z = 0
+        move_element(id, x, y, z)
+    }
+
+    func flip(x, y, z)
+    {   
+        if(x is not bool)
+            x = false
+        if(y is not bool)
+            y = false
+        if(z is not bool)
+            z = false
+        flip_element(id, x, y, z)
+    }
+
+    func scale(x, y, z)
+    {   
+        if(x is not num)
+            x = 0
+        if(y is not num)
+            y = x
+        if(z is not num)
+            z = y
+        scale_element(id, x, y, z)
+    }
+
+    func scaleTo(x, y, z)
+    {   
+        if(x is not num)
+            x = 0
+        if(y is not num)
+            y = x
+        if(z is not num)
+            z = y
+        scale_to_element(id, x, y, z)
+    }
+
+    func color(r, g, b, a)
+    {
+        if(r is null)
+            r = 0
+        if(g is null)
+            g = r
+        if(b is null)
+            b = g
+        if(a is null)
+        {
+            if(r > 1 or g > 1 or b > 1)
+                a = 255
+            else
+                a = 1
+        }
+        
+        if(r > 1 or g > 1 or b > 1 or a > 1)
+            color_element_int(id, r, g, b, a)
+        else
+            color_element_float(id, r, g, b, a)
+    }
+
+    func wireframe(enabled)
+    {
+        if(enabled is not bool)
+            enabled = true
+        wireframe_element(id, enabled)
+    }
+
+    func text(txt)
+    {
+        if(txt is not str)
+            txt = str(txt)
+        set_text_element(id, txt)
+    }
+
+    func point(x, y, z, index)
+    {        
+        if(z is not num)
+            point2d(x, y, index)
+        else
+            point3d(x, y, z, index)
+    }
+
+    func point2d(x, y, index)
+    {
+        if(x is not num)
+            x = 0
+        if(y is not num)
+            y = 0
+        if(index is not num)
+            index = 0
+        
+        point_2d_element(id, x, y, index)
+    }
+
+    func point3d(x, y, z, index)
+    {
+        if(x is not num)
+            x = 0
+        if(y is not num)
+            y = 0
+        if(z is not num)
+            z = 0
+        if(index is not num)
+            index = 0
+        point_3d_element(id, x, y, z, index)
+    }
+
+    func line(x1, y1, z1, x2, y2, z2, index)
+    {        
+        if(z1 is not num or z2 is not num)
+            line2d(x1, y1, x2, y2, index)
+        else
+            line3d(x1, y1, z1, x2, y2, z2, index)
+    }
+
+    func line2d(x1, y1, x2, y2, index)
+    {
+        if(x1 is not num)
+            x1 = 0
+        if(y1 is not num)
+            y1 = 0
+        if(x2 is not num)
+            x2 = 0
+        if(y2 is not num)
+            y2 = 0
+        if(index is not num)
+            index = 0
+        
+        line_2d_element(id, x1, y1, x2, y2, index)
+    }
+
+    func line2d(x1, y1, z1, x2, y2, z2, index)
+    {
+        if(x1 is not num)
+            x1 = 0
+        if(y1 is not num)
+            y1 = 0
+        if(z1 is not num)
+            z1 = 0
+        if(x2 is not num)
+            x2 = 0
+        if(y2 is not num)
+            y2 = 0
+        if(z2 is not num)
+            z2 = 0
+        if(index is not num)
+            index = 0
+        
+        line_3d_element(id, x1, y1, z1, x2, y2, z2, index)
+    }
+
+    func triangle(x1, y1, z1, x2, y2, z2, x3, y3, z3, index)
+    {        
+        if(z1 is not num or z2 is not num or z3 is not num)
+            triangle2d(x1, y1, x2, y2, x3, y3, index)
+        else
+            triangle3d(x1, y1, z1, x2, y2, z2, x3, y3, z3, index)
+    }
+
+    func triangle2d(x1, y1, x2, y2, x3, y3, index)
+    {
+        if(x1 is not num)
+            x1 = 0
+        if(y1 is not num)
+            y1 = 0
+        if(x2 is not num)
+            x2 = 0
+        if(y2 is not num)
+            y2 = 0
+        if(x3 is not num)
+            x3 = 0
+        if(y3 is not num)
+            y3 = 0
+        if(index is not num)
+            index = 0
+        
+        triangle_2d_element(id, x1, y1, x2, y2, x3, y3, index)
+    }
+
+    func triangle3d(x1, y1, z1, x2, y2, z2, x3, y3, z3, index)
+    {
+        if(x1 is not num)
+            x1 = 0
+        if(y1 is not num)
+            y1 = 0
+        if(z1 is not num)
+            z1 = 0
+        if(x2 is not num)
+            x2 = 0
+        if(y2 is not num)
+            y2 = 0
+        if(z2 is not num)
+            z2 = 0
+        if(x3 is not num)
+            x3 = 0
+        if(y3 is not num)
+            y3 = 0
+        if(z3 is not num)
+            z3 = 0
+        if(index is not num)
+            index = 0
+        
+        triangle_3d_element(id, x1, y1, z1, x2, y2, z2, x3, y3, z3, index)
+    }
+
+    func rectangle(x1, y1, z1, x2, y2, z2, index)
+    {        
+        if(z1 is not num or z2 is not num)
+            rectangle2d(x1, y1, x2, y2, index)
+        else
+            rectangle3d(x1, y1, z1, x2, y2, z2, index)
+    }
+
+    func rectangle2d(x1, y1, x2, y2, index)
+    {
+        if(x1 is not num)
+            x1 = 0
+        if(y1 is not num)
+            y1 = 0
+        if(x2 is not num)
+            x2 = 0
+        if(y2 is not num)
+            y2 = 0
+        if(index is not num)
+            index = 0
+        
+        rectangle_2d_element(id, x1, y1, x2, y2, index)
+    }
+
+    func rectangle3d(x1, y1, z1, x2, y2, z2, index)
+    {
+        if(x1 is not num)
+            x1 = 0
+        if(y1 is not num)
+            y1 = 0
+        if(z1 is not num)
+            z1 = 0
+        if(x2 is not num)
+            x2 = 0
+        if(y2 is not num)
+            y2 = 0
+        if(z2 is not num)
+            z2 = 0
+        if(index is not num)
+            index = 0
+        
+        rectangle_3d_element(id, x1, y1, z1, x2, y2, z2, index)
+    }
+
+    func circle(x, y, z, r, index)
+    {        
+        if(z is not num)
+            circle2d(x, y, r, index)
+        else
+            circle3d(z, y, z, r, index)
+    }
+
+    func circle2d(x, y, r)
+    {
+        if(x is not num)
+            x = 0
+        if(y is not num)
+            y = 0
+        if(r is not num)
+            r = 1
+        
+        circle_2d_element(id, x, y, r)
+    }
+
+    func circle3d(x, y, z, r)
+    {
+        if(x is not num)
+            x = 0
+        if(y is not num)
+            y = 0
+        if(z is not num)
+            z = 0
+        if(r is not num)
+            r = 1
+        circle_3d_element(id, x, y, z, r)
+    }
+
+    func glow(start, scale)
+    {
+        if(start is not num)
+            start = 0
+        if(scale is not num)
+            scale = 1
+        glow_element(id, start, scale)
+    }
+
+    func glowAt(index, pos)
+    {
+        if(index is not num)
+            index = 0
+        if(pos is not num)
+            pos = -1
+        glow_at_element(id, index, scale)
+    }
+
+    func map()
+    {
+        map_element(id)
+    }
+
+    func reshape(n, byElement)
+    {
+        if(n is not num)
+            n = 0
+        if(byElement is not bool)
+            byElement = true
+        reshape_element(id, n, byElement)
+    }
+
+    func textWidth()
+    {
+        return text_width_element(id)
+    }
+
+    func textHeight()
+    {
+        return text_heigth_element(id)
+    }
+
+    func alignText(align)
+    {
+        if(align is null)
+            align = Align.CENTERX
+        text_align_element(id, align)
+    }
+}
+
 
 class BGL
 {
@@ -41,6 +517,11 @@ class BGL
     static func select(id)
     {
         select_window(id);
+    }
+
+    static func cartesian(enabled)
+    {
+        set_cartesian(enabled)
     }
 
     static func isOpen()
@@ -84,7 +565,7 @@ class BGL
         return capture_bgl(fileName);
     }
 
-    static func startRecording(fileName, fps);
+    static func startRecording(fileName, fps)
     {
         if(fps is not num)
             fps = 30
@@ -105,7 +586,66 @@ class BGL
 
     static func show()
     {
-        show_bgl();
+        while(isOpen())
+        {
+            pause()
+        }
+    }
+
+    static func add(type, name)
+    {
+        if(name is not str)
+            name = "";
+        return Element(create_element(type, name))
+    }
+
+    static func plot(rows, cols, index, name)
+    {
+        if(rows is not num)
+            rows = 1
+        if(cols is not num)
+            cols = 1
+        if(index is not num)
+            index = 1
+        if(name is not str)
+            name = "";
+        return Element(create_plot(rows, cols, index, name))
+    }
+
+    static func onAnimate(fn)
+    {
+        if(fn is func)
+        {
+            set_animation_callback(fn);
+        }
+    }
+
+    static func onKeyboard(fn)
+    {
+        if(fn is func)
+        {
+            set_keyboard_callback(fn);
+        }
+    }
+
+    static func onMouse(fn)
+    {
+        if(fn is func)
+        {
+            set_mouse_callback(fn);
+        }
+    }
+
+    static func find(name)
+    {
+        if(name is not str)
+            return;
+        return Element(find_element(name))
+    }
+
+    static func time()
+    {
+        return time_window()
     }
 }
 

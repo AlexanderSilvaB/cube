@@ -1,0 +1,18 @@
+import bgl as default
+import math as m
+
+func rotate()
+{
+    var dt = args[DT]
+    
+    var teapot = BGL.find('teapot')
+
+    teapot.rotate(0, 2 * m.pi * dt, 0)
+}
+
+BGL.create("Teapot", MODE_3D)
+BGL.onAnimate(rotate)
+
+BGL.add(Elements.TEAPOT, "teapot")
+
+BGL.show()

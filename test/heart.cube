@@ -1,0 +1,32 @@
+import bgl as default
+import math as m
+
+func animate()
+{
+    var dt = args[DT]   
+    var heart = BGL.find('heart')
+
+    var scale = 0.5 + 0.5 * m.abs( m.sin( m.pi * BGL.time() ) )
+    heart.scaleTo( scale );
+}
+
+
+BGL.create("Heart", MODE_2D)
+BGL.onAnimate(animate)
+BGL.background(13, 40, 53)
+
+var heart = BGL.add(Elements.POLYGON, "heart")
+heart.reshape(360)
+heart.glow()
+
+var size = 0.03
+var t, x, y
+for(var i = 0; i < 360; i++)
+{
+    t = (i / 360.0) * 2 * m.pi
+    x = size * ( 16 * m.sin(t) * m.sin(t) * m.sin(t))
+    y = size * ( 13 * m.cos(t) - 5 * m.cos(2 * t) - 2 * m.cos(3 * t) - m.cos(4 * t))
+    heart.point(x, y, 0, i)
+}
+
+BGL.show()
