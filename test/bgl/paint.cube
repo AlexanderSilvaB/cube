@@ -1,0 +1,49 @@
+import bgl as default
+import math as m
+
+var style = Elements.Sequence
+var current
+
+func keyboard()
+{
+    if(style == Elements.Point)
+        style = Elements.Line;
+    else if(style == Elements.Line)
+        style = Elements.Sequence;
+    else if(style == Elements.Sequence)
+        style = Elements.Loop;
+    else if(style == Elements.Loop)
+        style = Elements.Polygon;  
+    else if(style == Elements.Polygon)
+        style = Elements.Point;
+}
+
+func mouse(data)
+{
+    if(data.pressed and current is null)
+    {
+        current = BGL.add(style)
+        current.reshape(0)
+    }
+    else if(data.released or data.leave)
+    {
+        current = null
+    }
+    else if(data.move and current is not null)
+    {
+        current.addPoint(data.x, data.y, 0)
+        if(current is not null)
+            current.glow();
+    }
+}
+
+BGL.create("Paint", MODE_2D)
+BGL.onKeyboard(keyboard)
+BGL.onMouse(mouse)
+
+BGL.add(Elements.Text)
+    .move(0, -0.9)
+    .align(Align.CenterX | Align.CenterY)
+    .text("Press any key to change style")
+
+BGL.show()

@@ -1,0 +1,19 @@
+import bgl as default
+
+
+BGL.create("Texture", MODE_2D)
+BGL.background(13, 40, 53)
+
+var circle1 = BGL.add(Elements.Circle)
+circle1.translate(-0.25, 0.25)
+circle1.loadTexture("test/data/mario.bmp")
+circle1.applyColors(false)
+
+var circle2 = BGL.add(Elements.Circle)
+circle2.translate(0.25, -0.25)
+circle2.loadTexture("test/data/mario.png")
+circle2.applyColors(false)
+
+BGL.capture("temp/texture.png")
+
+BGL.show()

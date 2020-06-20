@@ -1,0 +1,31 @@
+import bgl as default
+import math as m
+
+func rotate(dt)
+{
+    var teapot = BGL.find('teapot')
+    var light = BGL.light()
+
+    light.move(0, 0, 1).rotateAround(teapot, 0, m.pi * dt, 0 )
+
+    light.update()
+}
+
+func keyboard()
+{
+    var keys = args[KEYBOARD]
+    var light = BGL.light()
+
+    if(keys.char == ' ')
+        light.toggle()
+    else
+        light.glow()
+}
+
+BGL.create("Light", MODE_3D)
+BGL.onAnimate(rotate)
+BGL.onKeyboard(keyboard)
+
+BGL.add(Elements.Teapot, "teapot")
+
+BGL.show()

@@ -1,12 +1,11 @@
 import bgl as default
 import math as m
 
-func animate()
+func animate(dt, T)
 {
-    var dt = args[DT]   
     var heart = BGL.find('heart')
 
-    var scale = 0.5 + 0.5 * m.abs( m.sin( m.pi * BGL.time() ) )
+    var scale = 0.5 + 0.5 * m.abs( m.sin( m.pi * T ) )
     heart.scaleTo( scale );
 }
 
@@ -15,7 +14,7 @@ BGL.create("Heart", MODE_2D)
 BGL.onAnimate(animate)
 BGL.background(13, 40, 53)
 
-var heart = BGL.add(Elements.POLYGON, "heart")
+var heart = BGL.add(Elements.Polygon, "heart")
 heart.reshape(360)
 heart.glow()
 

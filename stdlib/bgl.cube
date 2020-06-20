@@ -3,6 +3,7 @@ native libs/libbgl
     int32 create_window(cstring, cbool, int32, int32, int32, int32, int32);
     void select_window(int32);
     void set_cartesian(cbool);
+    float32 z_plane();
     cbool is_open();
     cbool is_fullscreen();
     float32 window_width();
@@ -16,14 +17,22 @@ native libs/libbgl
     void stop_recording();
     void pause_bgl(float32);
     void show_bgl();
+
     int32 create_element(int32, cstring);
     int32 create_plot(int32, int32, int32, cstring);
     int32 find_element(cstring);
+
     void set_animation_callback(func);
     void set_keyboard_callback(func);
     void set_mouse_callback(func);
+
+    int32 add_element(int32, int32);
+
     void rotate_element(int32, float32, float32, float32);
     void rotate_to_element(int32, float32, float32, float32);
+    void rotate_to_x_element(int32, float32);
+    void rotate_to_y_element(int32, float32);
+    void rotate_to_z_element(int32, float32);
     void translate_element(int32, float32, float32, float32);
     void move_element(int32, float32, float32, float32);
     void flip_element(int32, cbool, cbool, cbool);
@@ -32,7 +41,8 @@ native libs/libbgl
     void color_element_float(int32, float32, float32, float32, float32);
     void color_element_int(int32, int32, int32, int32, int32);
     void wireframe_element(int32, cbool);
-    void set_text_element(int32, cstring);
+
+    void set_text_element(int32, cstring, int32);
     void point_2d_element(int32, float32, float32, int32);
     void point_3d_element(int32, float32, float32, float32, int32);
     void line_2d_element(int32, float32, float32, float32, float32, int32);
@@ -45,13 +55,64 @@ native libs/libbgl
     void circle_3d_element(int32, float32, float32, float32, float32);
     void glow_element(int32, float32, float32);
     void glow_at_element(int32, int32, int32);
+
     void map_element(int32);
     void reshape_element(int32, int32, cbool);
+
     float32 text_width_element(int32);
     float32 text_height_element(int32);
     void text_align_element(int32, int32);
+
     int32 new_point_element(int32, float32, float32, float32);
+
     float32 time_window();
+
+    cbool loaded_font_element(int32);
+    cbool load_font_element(int32, cstring);
+    cbool fill_font_element(int32, cbytes);
+    void default_font_element(int32, int32);
+    cbool available_texture_element(int32);
+    cbool load_texture_element(int32, cstring);
+    void fill_texture_element(int32, uint32, uint32, uint32, cbytes);
+    void update_texture_element(int32, cbytes);
+    void apply_colors_element(int32, cbool);
+    cbool get_apply_colors_element(int32);
+    cbool supports_capture_texture_element();
+    cbool capture_device_int_texture_element(int32, int32);
+    cbool capture_device_string_texture_element(int32, cstring);
+    void capture_device_texture_element(int32);
+    void auto_capture_texture_element(int32, cbool);
+    cbool get_auto_capture_texture_element(int32);
+
+
+    void rotate_light(int32, float32, float32, float32);
+    void rotate_to_light(int32, float32, float32, float32);
+    void rotate_to_x_light(int32, float32);
+    void rotate_to_y_light(int32, float32);
+    void rotate_to_z_light(int32, float32);
+    void translate_light(int32, float32, float32, float32);
+    void move_light(int32, float32, float32, float32);
+    void rotate_around_light(int32, int32, float32, float32, float32);
+    void rotate_around_to_light(int32, int32, float32, float32, float32);
+    void rotate_around_to_x_light(int32, int32, float32);
+    void rotate_around_to_y_light(int32, int32, float32);
+    void rotate_around_to_z_light(int32, int32, float32);
+    void color_light_float(int32, float32, float32, float32, float32);
+    void color_light_int(int32, int32, int32, int32, int32);
+    void glow_light(int32);
+    void positional_light(int32);
+    void directional_light(int32);
+    void toggle_light(int32);
+    cbool is_directional_light(int32);
+    void update_light(int32);
+
+    cbool available_obj_element(int32);
+    cbool load_obj_element(int32, cstring);
+    void free_obj_element(int32);
+    void flip_yz_obj_element(int32, cbool);
+    cbool get_flip_yz_obj_element(int32);
+
+    void axis_plot(int32, float32, float32, float32, float32);
 }
 
 var WINDOW = 0
@@ -70,35 +131,73 @@ enum Mode
 
 enum Elements
 {
-    CONTAINER = 0, 
-    POINT, 
-    LINE, 
-    POLYGON, 
-    TRIANGLE, 
-    RECTANGLE, 
-    CIRCLE, 
-    SEQUENCE, 
-    LOOP, 
-    CONNECTED_TRIANGLES, 
-    RADIAL_TRIANGLES, 
-    CONNECTED_RECTANGLES, 
-    SPHERE, 
-    CONE, 
-    CUBE, 
-    CYLINDER, 
-    TEAPOT, 
-    TEXT, 
-    OBJECT
+    Container = 0, 
+    Point, 
+    Line, 
+    Polygon, 
+    Triangle, 
+    Rectangle, 
+    Circle, 
+    Sequence, 
+    Loop, 
+    ConnectedTriangles, 
+    RadialTriangles, 
+    ConnectedRectangles, 
+    Sphere, 
+    Cone, 
+    Cube, 
+    Cylinder, 
+    Teapot, 
+    Text, 
+    Object
+}
+
+enum Fonts 
+{ 
+    Default8x13 = 0, 
+    Default9x15, 
+    TimesRoman10, 
+    TimesRoman24, 
+    Helvetica10, 
+    Helvetica12, 
+    Helvetica18, 
+    Custom 
 }
 
 enum Align
 {
-    LEFT = 1,
-    CENTERX = 2,
-    RIGHT = 4,
-    TOP = 8,
-    CENTERY = 16,
-    BOTTOM = 32
+    Left = 1,
+    CenterX = 2,
+    Right = 4,
+    Top = 8,
+    CenterY = 16,
+    Bottom = 32
+}
+
+enum Keys
+{
+    F1 = 1,
+    F2 = 2,
+    F3 = 3,
+    F4 = 4,
+    F5 = 5,
+    F6 = 6,
+    F7 = 7,
+    F8 = 8,
+    F9 = 9,
+    F10 = 10,
+    F11 = 11,
+    F12 = 12,
+    Esc = 27,
+    Left = 100,
+    Up = 101,
+    Right = 102,
+    Down = 103,
+    PageUp = 104,
+    PageDown = 105,
+    Home = 106,
+    End = 107,
+    Insert = 108
 }
 
 class Element
@@ -134,6 +233,7 @@ class Element
         if(z is not num)
             z = 0
         rotate_element(id, x, y, z)
+        return this
     }
 
     func rotateTo(x, y, z)
@@ -145,6 +245,31 @@ class Element
         if(z is not num)
             z = 0
         rotate_to_element(id, x, y, z)
+        return this
+    }
+
+    func rotateToX(val)
+    {   
+        if(val is not num)
+            val = 0
+        rotate_to_x_element(id, val)
+        return this
+    }
+
+    func rotateToY(val)
+    {   
+        if(val is not num)
+            val = 0
+        rotate_to_y_element(id, val)
+        return this
+    }
+
+    func rotateToZ(val)
+    {   
+        if(val is not num)
+            val = 0
+        rotate_to_z_element(id, val)
+        return this
     }
 
     func translate(x, y, z)
@@ -156,6 +281,7 @@ class Element
         if(z is not num)
             z = 0
         translate_element(id, x, y, z)
+        return this
     }
 
     func move(x, y, z)
@@ -167,6 +293,7 @@ class Element
         if(z is not num)
             z = 0
         move_element(id, x, y, z)
+        return this
     }
 
     func flip(x, y, z)
@@ -178,6 +305,7 @@ class Element
         if(z is not bool)
             z = false
         flip_element(id, x, y, z)
+        return this
     }
 
     func scale(x, y, z)
@@ -189,6 +317,7 @@ class Element
         if(z is not num)
             z = y
         scale_element(id, x, y, z)
+        return this
     }
 
     func scaleTo(x, y, z)
@@ -200,6 +329,7 @@ class Element
         if(z is not num)
             z = y
         scale_to_element(id, x, y, z)
+        return this
     }
 
     func color(r, g, b, a)
@@ -222,6 +352,7 @@ class Element
             color_element_int(id, r, g, b, a)
         else
             color_element_float(id, r, g, b, a)
+        return this
     }
 
     func wireframe(enabled)
@@ -229,13 +360,21 @@ class Element
         if(enabled is not bool)
             enabled = true
         wireframe_element(id, enabled)
+        return this
     }
 
-    func text(txt)
+    func text(txt, font)
     {
         if(txt is not str)
             txt = str(txt)
-        set_text_element(id, txt)
+        if(font is not num)
+        {
+            if(font is not Fonts)
+                font = Fonts.Default8x13
+        }
+        
+        set_text_element(id, txt, font)
+        return this
     }
 
     func point(x, y, z, index)
@@ -244,6 +383,7 @@ class Element
             point2d(x, y, index)
         else
             point3d(x, y, z, index)
+        return this
     }
 
     func point2d(x, y, index)
@@ -256,6 +396,7 @@ class Element
             index = 0
         
         point_2d_element(id, x, y, index)
+        return this
     }
 
     func point3d(x, y, z, index)
@@ -269,14 +410,15 @@ class Element
         if(index is not num)
             index = 0
         point_3d_element(id, x, y, z, index)
+        return this
     }
 
     func line(x1, y1, z1, x2, y2, z2, index)
     {        
         if(z1 is not num or z2 is not num)
-            line2d(x1, y1, x2, y2, index)
+            return line2d(x1, y1, x2, y2, index)
         else
-            line3d(x1, y1, z1, x2, y2, z2, index)
+            return line3d(x1, y1, z1, x2, y2, z2, index)
     }
 
     func line2d(x1, y1, x2, y2, index)
@@ -293,6 +435,7 @@ class Element
             index = 0
         
         line_2d_element(id, x1, y1, x2, y2, index)
+        return this
     }
 
     func line2d(x1, y1, z1, x2, y2, z2, index)
@@ -313,14 +456,15 @@ class Element
             index = 0
         
         line_3d_element(id, x1, y1, z1, x2, y2, z2, index)
+        return this
     }
 
     func triangle(x1, y1, z1, x2, y2, z2, x3, y3, z3, index)
     {        
         if(z1 is not num or z2 is not num or z3 is not num)
-            triangle2d(x1, y1, x2, y2, x3, y3, index)
+            return triangle2d(x1, y1, x2, y2, x3, y3, index)
         else
-            triangle3d(x1, y1, z1, x2, y2, z2, x3, y3, z3, index)
+            return triangle3d(x1, y1, z1, x2, y2, z2, x3, y3, z3, index)
     }
 
     func triangle2d(x1, y1, x2, y2, x3, y3, index)
@@ -341,6 +485,7 @@ class Element
             index = 0
         
         triangle_2d_element(id, x1, y1, x2, y2, x3, y3, index)
+        return this
     }
 
     func triangle3d(x1, y1, z1, x2, y2, z2, x3, y3, z3, index)
@@ -367,14 +512,15 @@ class Element
             index = 0
         
         triangle_3d_element(id, x1, y1, z1, x2, y2, z2, x3, y3, z3, index)
+        return this
     }
 
     func rectangle(x1, y1, z1, x2, y2, z2, index)
     {        
         if(z1 is not num or z2 is not num)
-            rectangle2d(x1, y1, x2, y2, index)
+            return rectangle2d(x1, y1, x2, y2, index)
         else
-            rectangle3d(x1, y1, z1, x2, y2, z2, index)
+            return rectangle3d(x1, y1, z1, x2, y2, z2, index)
     }
 
     func rectangle2d(x1, y1, x2, y2, index)
@@ -391,6 +537,7 @@ class Element
             index = 0
         
         rectangle_2d_element(id, x1, y1, x2, y2, index)
+        return this
     }
 
     func rectangle3d(x1, y1, z1, x2, y2, z2, index)
@@ -411,14 +558,15 @@ class Element
             index = 0
         
         rectangle_3d_element(id, x1, y1, z1, x2, y2, z2, index)
+        return this
     }
 
     func circle(x, y, z, r, index)
     {        
         if(z is not num)
-            circle2d(x, y, r, index)
+            return circle2d(x, y, r, index)
         else
-            circle3d(z, y, z, r, index)
+            return circle3d(z, y, z, r, index)
     }
 
     func circle2d(x, y, r)
@@ -431,6 +579,7 @@ class Element
             r = 1
         
         circle_2d_element(id, x, y, r)
+        return this
     }
 
     func circle3d(x, y, z, r)
@@ -444,6 +593,7 @@ class Element
         if(r is not num)
             r = 1
         circle_3d_element(id, x, y, z, r)
+        return this
     }
 
     func glow(start, scale)
@@ -453,6 +603,7 @@ class Element
         if(scale is not num)
             scale = 1
         glow_element(id, start, scale)
+        return this
     }
 
     func glowAt(index, pos)
@@ -462,11 +613,13 @@ class Element
         if(pos is not num)
             pos = -1
         glow_at_element(id, index, scale)
+        return this
     }
 
     func map()
     {
         map_element(id)
+        return this
     }
 
     func reshape(n, byElement)
@@ -476,6 +629,7 @@ class Element
         if(byElement is not bool)
             byElement = true
         reshape_element(id, n, byElement)
+        return this
     }
 
     func textWidth()
@@ -488,17 +642,383 @@ class Element
         return text_heigth_element(id)
     }
 
-    func alignText(align)
+    func align(align)
     {
         if(align is null)
-            align = Align.CENTERX
+            align = Align.CenterX
         text_align_element(id, align)
+        return this
+    }
+
+    func fontLoaded()
+    {
+        return loaded_font_element(id)
+    }
+
+    func loadFont(fileName)
+    {
+        if(fileName is not str)
+            fileName = str(fileName)
+        return load_font_element(id, fileName)
+    }
+
+    func fillFont(data)
+    {
+        if(data is not bytes)
+            return false
+        return fill_font_element(id, data)
+    }
+
+    func defaultFont(font)
+    {
+        if(font is not num)
+        {
+            if(font is not Fonts)
+                font = Fonts.Default8x13
+        }
+        default_font_element(id, font)
+        return this
+    }
+
+    func textureAvailable()
+    {
+        return available_texture_element(id)
+    }
+
+    func loadTexture(fileName)
+    {
+        if(fileName is not str)
+            fileName = str(fileName)
+        return load_texture_element(id, fileName)
+    }
+
+    func fillTexture(width, height, bpp, data)
+    {
+        if(width is not num or height is not num or bpp is not num)
+            return this
+        if(data is not bytes)
+            return this
+        fill_texture_element(id, width, height, bpp, data)
+        return this
+    }
+
+    func updateTexture(data)
+    {
+        if(data is not bytes)
+            return this
+        return update_texture_element(id, data)
+        return this
+    }
+
+    func applyColors(apply)
+    {
+        if(apply is null)
+            return get_apply_colors_element(id)
+        else
+            apply_colors_element(id, apply)
+        return this
+    }
+
+    func textureDevice(device)
+    {
+        if(device is null)
+            device = 0
+        if(device is num)
+            return capture_device_int_texture_element(id, device)
+        else if(device is str)
+            return capture_device_string_texture_element(id, device)
+        return false
+    }
+
+    func captureDevice()
+    {
+        capture_device_texture_element(id)
+        return this
+    }
+
+    func autoCaptureDevice(auto)
+    {
+        if(auto is null)
+            return get_auto_capture_texture_element(id)
+        else
+            auto_capture_texture_element(id, auto)
+        return this
+    }
+
+    func objAvailable()
+    {
+        return available_obj_element(id)
+    }
+
+    func loadObj(fileName)
+    {
+        if(fileName is not str)
+            fileName = str(fileName)
+        return load_obj_element(id, fileName)
+    }
+
+    func freeObj()
+    {
+        free_obj_element(id)
+        return this
+    }
+
+    func flipObj(flip)
+    {
+        if(flip is null)
+            return get_flip_yz_obj_element(id)
+        else
+            flip_yz_obj_element(id, flip)
+        return this
     }
 }
 
+class Light
+{
+    var id
+    func init(id)
+    {
+        if(id is not num)
+            id = 0
+        this.id = id
+    }
+
+    func rotate(x, y, z)
+    {   
+        if(x is not num)
+            x = 0
+        if(y is not num)
+            y = 0
+        if(z is not num)
+            z = 0
+        rotate_light(id, x, y, z)
+        return this
+    }
+
+    func rotateTo(x, y, z)
+    {   
+        if(x is not num)
+            x = 0
+        if(y is not num)
+            y = 0
+        if(z is not num)
+            z = 0
+        rotate_to_light(id, x, y, z)
+        return this
+    }
+
+    func rotateToX(val)
+    {   
+        if(val is not num)
+            val = 0
+        rotate_to_x_light(id, val)
+        return this
+    }
+
+    func rotateToY(val)
+    {   
+        if(val is not num)
+            val = 0
+        rotate_to_y_light(id, val)
+        return this
+    }
+
+    func rotateToZ(val)
+    {   
+        if(val is not num)
+            val = 0
+        rotate_to_z_light(id, val)
+        return this
+    }
+
+    func translate(x, y, z)
+    {   
+        if(x is not num)
+            x = 0
+        if(y is not num)
+            y = 0
+        if(z is not num)
+            z = 0
+        translate_light(id, x, y, z)
+        return this
+    }
+
+    func move(x, y, z)
+    {   
+        if(x is not num)
+            x = 0
+        if(y is not num)
+            y = 0
+        if(z is not num)
+            z = 0
+        move_light(id, x, y, z)
+        return this
+    }
+
+    func rotateAround(element, x, y, z)
+    {   
+        if(element is not num)
+        {
+            if(element is Element)
+            {
+                element = element.id
+            }
+        }
+        if(x is not num)
+            x = 0
+        if(y is not num)
+            y = 0
+        if(z is not num)
+            z = 0
+        rotate_around_light(id, element, x, y, z)
+        return this
+    }
+
+
+    func rotateAroundTo(element, x, y, z)
+    {   
+        if(element is not num)
+        {
+            if(element is Element)
+            {
+                element = element.id
+            }
+        }
+        if(x is not num)
+            x = 0
+        if(y is not num)
+            y = 0
+        if(z is not num)
+            z = 0
+        rotate_around_to_light(id, element, x, y, z)
+        return this
+    }
+
+    func rotateAroundToX(element, val)
+    {   
+        if(element is not num)
+        {
+            if(element is Element)
+            {
+                element = element.id
+            }
+        }
+        if(val is not num)
+            val = 0
+        rotate_around_to_x_light(id, element, val)
+        return this
+    }
+
+    func rotateAroundToY(element, val)
+    {   
+        if(element is not num)
+        {
+            if(element is Element)
+            {
+                element = element.id
+            }
+        }
+        if(val is not num)
+            val = 0
+        rotate_around_to_y_light(id, element, val)
+        return this
+    }
+
+    func rotateAroundToZ(element, val)
+    {   
+        if(val is not num)
+            val = 0
+        rotate_around_to_z_light(id, element, val)
+        return this
+    }
+
+    func color(r, g, b, a)
+    {
+        if(r is null)
+            r = 0
+        if(g is null)
+            g = r
+        if(b is null)
+            b = g
+        if(a is null)
+        {
+            if(r > 1 or g > 1 or b > 1)
+                a = 255
+            else
+                a = 1
+        }
+        
+        if(r > 1 or g > 1 or b > 1 or a > 1)
+            color_light_int(id, r, g, b, a)
+        else
+            color_light_float(id, r, g, b, a)
+        return this
+    }
+
+    func glow()
+    {
+        glow_light(id)
+        return this
+    }
+
+
+    func update()
+    {
+        update_light(id)
+        return this
+    }
+
+    func directional()
+    {
+        directional_light(id)
+        return this
+    }
+
+    func positional()
+    {
+        positional_light(id)
+        return this
+    }
+
+
+    func toggle()
+    {
+        toggle_light(id)
+        return this
+    }
+
+
+    func isDirectional()
+    {
+        return is_directional_light(id)
+    }
+}
+
+class Plot : Element
+{
+    func init(id)
+    {
+        this.id = id
+    }
+
+    func axis(minX, maxX, minY, maxY)
+    {
+        if(minX is not num)
+            minX = -1
+        if(maxX is not num)
+            maxX = 1
+        if(minY is not num)
+            minY = -1
+        if(maxY is not num)
+            maxY = 1
+        axis_plot(id, minX, maxX, minY, maxY)
+    }
+}
 
 class BGL
 {
+    static var capture_filename = null
+
     static func create(name, is3d, fps, width, height, x, y)
     {
         if(fps is not num)
@@ -522,6 +1042,11 @@ class BGL
     static func cartesian(enabled)
     {
         set_cartesian(enabled)
+    }
+
+    static func zplane()
+    {
+        return z_plane();
     }
 
     static func isOpen()
@@ -562,7 +1087,7 @@ class BGL
 
     static func capture(fileName)
     {
-        return capture_bgl(fileName);
+        BGL.capture_filename = fileName
     }
 
     static func startRecording(fileName, fps)
@@ -589,6 +1114,11 @@ class BGL
         while(isOpen())
         {
             pause()
+            if(BGL.capture_filename is not null)
+            {
+                capture_bgl(BGL.capture_filename);
+                BGL.capture_filename = null
+            }
         }
     }
 
@@ -609,7 +1139,7 @@ class BGL
             index = 1
         if(name is not str)
             name = "";
-        return Element(create_plot(rows, cols, index, name))
+        return Plot(create_plot(rows, cols, index, name))
     }
 
     static func onAnimate(fn)
@@ -646,6 +1176,18 @@ class BGL
     static func time()
     {
         return time_window()
+    }
+
+    static func light(id)
+    {
+        if(id is not num)
+            id = 0
+        return Light(id)
+    }
+
+    static func textureDeviceSupported()
+    {
+        return supports_capture_texture_element()
     }
 }
 

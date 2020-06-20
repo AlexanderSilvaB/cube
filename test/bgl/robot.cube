@@ -1,0 +1,39 @@
+import bgl as default
+import math as m
+
+BGL.create("Robot", MODE_2D)
+BGL.background(13, 40, 53)
+
+var robot = BGL.add(Elements.Container)
+robot.add(Elements.Triangle).rotateTo(0, 0, m.pi/2).scaleTo(0.5).translate(0.6, 0, 0)
+robot.add(Elements.Circle)
+robot.scaleTo(0.2).color(0, 0, 1)
+
+var x = 0, y = 0, th = 0
+var vl = 0.5
+var vth = 0
+
+var xeq, yeq, dxeq, dyeq
+var a = 0.6
+
+var t = 0
+var dt = 0.01
+while(BGL.isOpen())
+{
+    xeq = a * m.sqrt(2) * m.cos(t) / ( m.sin(t) * m.sin(t) + 1 )
+    yeq = a * m.sqrt(2) * m.cos(t) * m.sin(t) / ( m.sin(t) * m.sin(t) + 1 )
+    dxeq = xeq - x
+    dyeq = yeq - y
+    vl = m.sqrt( dxeq * dxeq + dyeq * dyeq )
+    vth = m.atan2( dyeq, dxeq ) - th
+
+    x += vl * m.cos( th + vth )
+    y += vl * m.sin( th + vth )
+    th += vth
+
+    robot.move(x, y, 0)
+    robot.rotateToZ(th)
+    BGL.pause()
+    t += dt
+}
+

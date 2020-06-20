@@ -1,0 +1,17 @@
+import bgl as default
+
+
+BGL.create("Webcam Preview", MODE_2D, 30)
+BGL.background(13, 40, 53)
+
+println("Webcam support: ", BGL.textureDeviceSupported())
+
+var rect = BGL.add(Elements.Rectangle)
+rect.scaleTo(1.8)
+rect.autoCaptureDevice(true)
+rect.applyColors(true)
+
+if(!rect.textureDevice(0))
+    println("Failed to open webcam 0")
+
+BGL.show()

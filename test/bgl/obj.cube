@@ -1,0 +1,18 @@
+import bgl as default
+import math as m
+
+func rotate(dt)
+{
+    var earth = BGL.find('earth')
+    earth.rotate(0, 0.5 * dt, 0)
+}
+
+BGL.create("Obj", MODE_3D)
+BGL.onAnimate(rotate)
+
+var earth = BGL.add(Elements.Object, "earth")
+earth.loadObj("test/data/earth_ball.obj")
+earth.flipObj(false)
+earth.scaleTo(3)
+
+BGL.show()

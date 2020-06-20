@@ -3331,8 +3331,17 @@ InterpretResult run()
                 }
                 else
                 {
-                    double b = AS_NUMBER(pop());
-                    double a = AS_NUMBER(pop());
+                    double b = 0;
+                    double a = 0;
+                    if (IS_ENUM_VALUE(peek(0)))
+                        b = AS_NUMBER(AS_ENUM_VALUE(pop())->value);
+                    else
+                        b = AS_NUMBER(pop());
+
+                    if (IS_ENUM_VALUE(peek(0)))
+                        a = AS_NUMBER(AS_ENUM_VALUE(pop())->value);
+                    else
+                        a = AS_NUMBER(pop());
                     push(NUMBER_VAL(((int)a & (int)b)));
                 }
                 DISPATCH();
@@ -3346,8 +3355,17 @@ InterpretResult run()
                 }
                 else
                 {
-                    double b = AS_NUMBER(pop());
-                    double a = AS_NUMBER(pop());
+                    double b = 0;
+                    double a = 0;
+                    if (IS_ENUM_VALUE(peek(0)))
+                        b = AS_NUMBER(AS_ENUM_VALUE(pop())->value);
+                    else
+                        b = AS_NUMBER(pop());
+
+                    if (IS_ENUM_VALUE(peek(0)))
+                        a = AS_NUMBER(AS_ENUM_VALUE(pop())->value);
+                    else
+                        a = AS_NUMBER(pop());
                     push(NUMBER_VAL(((int)a | (int)b)));
                 }
                 DISPATCH();
@@ -3466,6 +3484,14 @@ InterpretResult run()
                             ret = not? FALSE_VAL : TRUE_VAL;
                         else
                             ret = not? TRUE_VAL : FALSE_VAL;
+                    }
+                    else if (IS_ENUM_VALUE(obj))
+                    {
+                        ObjEnumValue *enumValue = AS_ENUM_VALUE(obj);
+                        if (strcmp(enumValue->enume->name->chars, type->chars) == 0)
+                        {
+                            ret = not? FALSE_VAL : TRUE_VAL;
+                        }
                     }
                     else
                         ret = not? TRUE_VAL : FALSE_VAL;

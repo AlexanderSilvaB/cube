@@ -1,0 +1,20 @@
+import bgl as default
+
+
+BGL.create("Text", MODE_2D)
+BGL.background(13, 40, 53)
+
+var textDefault = BGL.add(Elements.Text)
+textDefault.text("Hello World - Default9x15", Fonts.Default9x15)
+textDefault.align(Align.CenterX)
+textDefault.translate(0, 0.2)
+textDefault.color(1.0, 0.0, 0.0)
+
+var textCustom = BGL.add(Elements.Text)
+textCustom.text("Hello World - TrueType(arial.ttf)")
+textCustom.align(Align.CenterX)
+textCustom.loadFont("test/data/arial.ttf")
+textCustom.translate(0, -0.2)
+textCustom.color(0.0, 1.0, 0.0)
+
+BGL.show()

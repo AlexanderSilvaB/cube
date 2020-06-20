@@ -194,6 +194,10 @@ void native_callback(void *fn, cube_native_var *argsNative)
     ObjString *strTaskName = AS_STRING(STRING_VAL(name));
     mp_free(name);
 
+    // Push the context
+    *tf->stackTop = OBJ_VAL(closure);
+    tf->stackTop++;
+
     // Push the args
     int M = closure->function->arity;
     if (list->values.count < M)
@@ -205,10 +209,6 @@ void native_callback(void *fn, cube_native_var *argsNative)
         tf->stackTop++;
     }
 
-    // Push the context
-    *tf->stackTop = OBJ_VAL(closure);
-    tf->stackTop++;
-
     // Add the context to the frames stack
 
     CallFrame *frame = &tf->frames[tf->frameCount++];
@@ -219,7 +219,7 @@ void native_callback(void *fn, cube_native_var *argsNative)
     frame->nextPackage = NULL;
     frame->require = false;
 
-    frame->slots = tf->stackTop - 1;
+    frame->slots = tf->stackTop - M - 1;
 
     tf->currentArgs = args;
 

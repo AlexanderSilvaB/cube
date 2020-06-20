@@ -1,0 +1,67 @@
+import bgl as default
+import math as m
+
+var translate = false
+
+func keyboard(keys)
+{
+    if(keys.char == 'T' or keys.char == 't')
+        translate = !translate
+    else if(keys.char == 'F' || keys.char == 'f')
+    {
+        var object = BGL.find("object")
+        object.flipObj(!object.flipObj());
+    }
+    else if(keys.key == Keys.Esc)
+    {
+        var object = BGL.find("object")
+        object.move(0, 0, 0)
+        object.scaleTo(3.0)
+        object.rotateTo(0, 0, 0)
+    }
+}
+
+func mouse(data)
+{
+    var object = BGL.find("object")
+
+    if(data.move)
+    {
+        if(translate)
+            object.translate( data.dx, -data.dy )
+        else
+            object.rotate( data.dy, data.dx )
+    }
+    if(data.scroll != 0)
+        object.scale(data.scroll * 0.02)
+}
+
+var objFile = "test/data/mario.obj"
+if(len(args) > 0)
+    objFile = args[0]
+
+println("File: ", objFile)
+
+BGL.create("Viewer", MODE_3D)
+BGL.onKeyboard(keyboard)
+BGL.onMouse(mouse)
+
+var zplane = BGL.zplane()
+
+BGL.add(Elements.Text)
+    .text("Flip YZ: F")
+    .align(Align.Left | Align.Bottom)
+    .move(-1.0, -0.9, zplane)
+
+BGL.add(Elements.Text)
+    .text("Enable/Disable translate: T")
+    .align(Align.Left | Align.Bottom)
+    .move(-1.0, -1.0, zplane)
+
+var obj = BGL.add(Elements.Object, "object")
+obj.scaleTo(3)
+
+if(!obj.loadObj(objFile))
+    println("Could not open the file")
+
+BGL.show()

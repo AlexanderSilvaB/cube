@@ -5,6 +5,6 @@ BGL.create("Triangle", MODE_2D)
 BGL.background(13, 40, 53)
 BGL.cartesian(false)
 
-BGL.add(Elements.TRIANGLE)
+BGL.add(Elements.Triangle)
 
 BGL.show()

@@ -1,0 +1,21 @@
+import bgl as default
+import math as m
+
+func rotate(dt)
+{
+    var snowman = BGL.find('snowman')
+
+    snowman.rotate(0, 2 * m.pi * dt, 0)
+}
+
+BGL.create("Snowman", MODE_3D)
+BGL.onAnimate(rotate)
+
+var snowman = BGL.add(Elements.Container, "snowman")
+snowman.add(Elements.Sphere).translate(0, -0.8)
+snowman.add(Elements.Sphere).scaleTo(0.3).translate(0, 0.45)
+snowman.add(Elements.Sphere).scaleTo(0.06).translate(-0.1, 0.5, 0.3).color(0.0)
+snowman.add(Elements.Sphere).scaleTo(0.06).translate( 0.1, 0.5, 0.3).color(0.0)
+snowman.add(Elements.Cone).scaleTo(0.1, 0.1, 0.2).translate( 0.0, 0.4, 0.3).color(204, 78, 0)
+
+BGL.show()

@@ -1,0 +1,10 @@
+import bgl as default
+import math as m
+
+BGL.create("Plot", MODE_2D)
+BGL.background(13, 40, 53)
+
+var plt = BGL.plot()
+plt.color(255, 0, 0)
+
+BGL.show()
