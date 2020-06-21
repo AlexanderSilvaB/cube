@@ -350,6 +350,22 @@ extern "C"
             element->rgb((unsigned char)r, g, b, a);
     }
 
+    EXPORTED void color_point_element_float(int index, int point, float r, float g, float b, float a)
+    {
+        ElementPtr element = findElementByIndex(index);
+        if (element == NULL)
+            return;
+        element->points.rgb(point, r, g, b, a);
+    }
+
+    EXPORTED void color_point_element_int(int index, int point, int r, int g, int b, int a)
+    {
+        ElementPtr element = findElementByIndex(index);
+        if (element == NULL)
+            return;
+        element->points.rgb(point, (unsigned char)r, g, b, a);
+    }
+
     EXPORTED void wireframe_element(int index, bool wireframe)
     {
         ElementPtr element = findElementByIndex(index);

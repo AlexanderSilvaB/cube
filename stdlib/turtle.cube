@@ -1,0 +1,322 @@
+import bgl as default
+import math
+
+enum Types
+{
+    Point = 1, 
+    Line, 
+    Polygon, 
+    Triangle, 
+    Rectangle, 
+    Circle, 
+    Sequence, 
+    Loop, 
+    ConnectedTriangles, 
+    RadialTriangles, 
+    ConnectedRectangles
+}
+
+var width = 0, height = 0, size = 0
+var x = 0, y = 0, head = 0
+var penColor = [255, 0, 0]
+var penDown = true
+var ratio = 1.0
+var animated = false
+var speed = 100
+var glow = false
+var visible = true
+var pathType = Types.Sequence
+var glyphAngle = 1.57
+var glyphScale = 0
+
+var glyph;
+var path;
+
+func init(title, w, h, type)
+{
+    if(title is null)
+        title = 'Turtle'
+    if(w is not num)
+        w = 600
+    if(h is not num)
+        h = 600
+    if(type is not Types)
+        type = Types.Sequence
+
+    width = w
+    height = h
+    size = math.max(width, height)
+    ratio = 4 / size
+    pathType = type
+
+    BGL.create(title, Modes.M2D, width, height)    
+    
+    background('gray')
+
+    glyph = BGL.add(Elements.Triangle)
+    glyph.scaleTo(0)
+
+    glyphScale = 200 / size
+
+    initPath()
+}
+
+func initPath()
+{
+    path = BGL.add(pathType)
+    path.addPoint(x * ratio, y * ratio)
+    if(glow)
+        path.glow()
+    else
+        path.colorPoint(0, penColor[0], penColor[1], penColor[2])
+}
+
+func getColor(name)
+{
+    if(name == 'red')
+        return [255, 0, 0]
+    else if(name == 'blue')
+        return [0, 0, 255]
+    else if(name == 'green')
+        return [0, 255, 0]
+    else if(name == 'cyan')
+        return [0, 255, 255]
+    else if(name == 'yellow')
+        return [255, 255, 0]
+    else if(name == 'magenta')
+        return [255, 0, 255]
+    else if(name == 'black')
+        return [0, 0, 0]
+    else if(name == 'white')
+        return [255, 255, 255]
+    else if(name == 'gray')
+        return [150, 150, 150]
+    return [255, 0, 0]
+}
+
+func background(r, g, b)
+{
+    if(r is str)
+        r = getColor(r)
+
+    if(r is list)
+    {
+        b = r[2]
+        g = r[1]
+        r = r[0]
+    }
+
+    if(r is not num)
+        r = 0
+    if(g is not num)
+        g = 0
+    if(b is not num)
+        b = 0
+    BGL.background(r, g, b)
+}
+
+func color(r, g, b)
+{
+    if(r is str)
+        r = getColor(r)
+
+    if(r is list)
+    {
+        b = r[2]
+        g = r[1]
+        r = r[0]
+    }
+
+    if(r is not num)
+        r = 0
+    if(g is not num)
+        g = 0
+    if(b is not num)
+        b = 0
+    
+    penColor = [r, g, b]
+}
+
+func draw()
+{
+    if(visible)
+    {
+        glyph.scaleTo(glyphScale)
+        glyph.move(x * ratio, y * ratio, 0)
+        glyph.rotateTo(0, 0, head + glyphAngle)
+    }
+    else
+        glyph.scaleTo(0)
+}
+
+func step()
+{
+    draw()
+    BGL.pause()
+}
+
+func show()
+{
+    draw()
+    BGL.show()
+}
+
+func pen(down)
+{
+    penDown = bool(down)
+    if(down)
+    {
+        if(path is null)
+        {
+            initPath()
+        }
+    }
+    else
+        path = null
+}
+
+func _forward(dist)
+{
+    var lx = x + dist * cos(head)
+    var ly = y + dist * sin(head)
+
+    if(penDown and path is not null)
+    {
+        var line = path.addPoint(lx * ratio, ly * ratio)
+        if(glow)
+            path.glow()
+        else
+            path.colorPoint(line, penColor[0], penColor[1], penColor[2])
+    }
+
+    x = lx
+    y = ly
+
+    if(animated)
+        step()
+}
+
+func forward(dist)
+{
+    if(animated)
+    {
+        for(var i = 0; i < dist; i += speed)
+        {
+            _forward(math.min(speed, dist - i));
+        }
+    }
+    else
+    {
+        _forward(dist)
+    }
+}
+var fd = forward
+
+func backward(size)
+{
+    turn(180)
+    forward(size)
+}
+var back = backward
+var bk = backward
+
+func left(size)
+{
+    turn(90)
+    forward(size)
+}
+var lt = left
+
+func right(size)
+{
+    turn(-90)
+    forward(size)
+}
+var rt = right
+
+func turn(deg)
+{
+    head += deg * 0.0174533
+    if(animated)
+        step()
+}
+
+func home()
+{
+    goto(0, 0)
+    head = 0
+}
+
+func goto(gx, gy)
+{
+    if(gx is not num)
+        gx = 0
+    if(gy is not num)
+        gy = 0
+        
+    var dx = gx - x
+    var dy = gy - y
+    var p = math.sqrt(dx*dx + dy*dy)
+    head = atan2(dy, dx)
+    forward(p)
+}
+
+func distance(gx, gy)
+{
+    if(gx is not num)
+        gx = 0
+    if(gy is not num)
+        gy = 0
+        
+    var dx = gx - x
+    var dy = gy - y
+    var p = math.sqrt(dx*dx + dy*dy)
+    return p
+}
+
+func angle(gx, gy)
+{
+    if(gx is not num)
+        gx = 0
+    if(gy is not num)
+        gy = 0
+        
+    var dx = gx - x
+    var dy = gy - y
+    var a = atan2(dy, dx) * 57.2958
+    return a
+}
+
+func position()
+{
+    return [x, y]
+}
+
+var pos = position
+
+func heading()
+{
+    return head * 57.2958
+}
+
+func polygon(sides, radius)
+{
+    if(sides is not num)
+        sides = 8
+    if(radius is not num)
+        radius = 100
+
+    var size = (6.28 * radius) / sides
+
+    var inc = 360 / sides
+    for(var i = 0; i < sides; i++)
+    {
+        turtle.forward(size)
+        turtle.turn(inc)
+    }
+}
+
+func circle(radius)
+{
+    polygon(36, radius)
+}

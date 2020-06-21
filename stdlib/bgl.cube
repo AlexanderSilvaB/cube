@@ -40,6 +40,8 @@ native libs/libbgl
     void scale_to_element(int32, float32, float32, float32);
     void color_element_float(int32, float32, float32, float32, float32);
     void color_element_int(int32, int32, int32, int32, int32);
+    void color_point_element_float(int32, int32, float32, float32, float32, float32);
+    void color_point_element_int(int32, int32, int32, int32, int32, int32);
     void wireframe_element(int32, cbool);
 
     void set_text_element(int32, cstring, int32);
@@ -123,7 +125,7 @@ var MOUSE = 1
 var MODE_3D = true
 var MODE_2D = false
 
-enum Mode
+enum Modes
 {
     M3D = true,
     M2D = false
@@ -355,6 +357,31 @@ class Element
         return this
     }
 
+    func colorPoint(point, r, g, b, a)
+    {
+        if(point is not num)
+            point = 0
+        if(r is null)
+            r = 0
+        if(g is null)
+            g = r
+        if(b is null)
+            b = g
+        if(a is null)
+        {
+            if(r > 1 or g > 1 or b > 1)
+                a = 255
+            else
+                a = 1
+        }
+        
+        if(r > 1 or g > 1 or b > 1 or a > 1)
+            color_point_element_int(id, point, r, g, b, a)
+        else
+            color_point_element_float(id, point, r, g, b, a)
+        return this
+    }
+
     func wireframe(enabled)
     {
         if(enabled is not bool)
@@ -414,7 +441,7 @@ class Element
     }
 
     func line(x1, y1, z1, x2, y2, z2, index)
-    {        
+    {   
         if(z1 is not num or z2 is not num)
             return line2d(x1, y1, x2, y2, index)
         else
@@ -433,12 +460,11 @@ class Element
             y2 = 0
         if(index is not num)
             index = 0
-        
         line_2d_element(id, x1, y1, x2, y2, index)
         return this
     }
 
-    func line2d(x1, y1, z1, x2, y2, z2, index)
+    func line3d(x1, y1, z1, x2, y2, z2, index)
     {
         if(x1 is not num)
             x1 = 0
@@ -1107,6 +1133,12 @@ class BGL
         if(secs is not null)
             secs = 0
         pause_bgl(secs)
+
+        if(BGL.capture_filename is not null)
+        {
+            capture_bgl(BGL.capture_filename);
+            BGL.capture_filename = null
+        }
     }
 
     static func show()
@@ -1114,11 +1146,6 @@ class BGL
         while(isOpen())
         {
             pause()
-            if(BGL.capture_filename is not null)
-            {
-                capture_bgl(BGL.capture_filename);
-                BGL.capture_filename = null
-            }
         }
     }
 

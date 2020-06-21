@@ -1,0 +1,24 @@
+import turtle
+
+turtle.init("Turtle Graphics")
+turtle.background('black')
+
+turtle.animated = true
+turtle.glow = true
+turtle.speed = 10
+turtle.visible = true
+
+var rounds = 5
+var angle = 360 / rounds
+
+for(var i = 0; i < rounds; i++)
+{
+    turtle.pen(true)
+    turtle.polygon(6)
+    turtle.turn(angle)
+    turtle.pen(false)
+}
+
+turtle.visible = false
+
+turtle.show()

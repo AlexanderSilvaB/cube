@@ -2857,9 +2857,9 @@ InterpretResult run()
 
             OPCASE(SET_PROPERTY) :
             {
-                if (!IS_INSTANCE(peek(1)) && !IS_CLASS(peek(1)) && !IS_DICT(peek(1)))
+                if (!IS_INSTANCE(peek(1)) && !IS_CLASS(peek(1)) && !IS_DICT(peek(1)) && !IS_PACKAGE(peek(1)))
                 {
-                    runtimeError("Only dicts, instances and classes have properties.");
+                    runtimeError("Only packages, dicts, instances and classes have properties.");
                     if (!checkTry(frame))
                         return INTERPRET_RUNTIME_ERROR;
                     else
@@ -2882,6 +2882,23 @@ InterpretResult run()
                     }
                     else
                         tableSet(&klass->staticFields, name, value);
+                }
+                else if (IS_PACKAGE(peek(1)))
+                {
+                    ObjPackage *package = AS_PACKAGE(peek(1));
+                    ObjString *name = READ_STRING();
+                    Value value = peek(0);
+                    Value holder;
+                    if (!tableGet(&package->symbols, name, &holder))
+                    {
+                        runtimeError("Field not found on package.");
+                        if (!checkTry(frame))
+                            return INTERPRET_RUNTIME_ERROR;
+                        else
+                            DISPATCH();
+                    }
+                    else
+                        tableSet(&package->symbols, name, value);
                 }
                 else if (IS_DICT(peek(1)))
                 {
