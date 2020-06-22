@@ -16,7 +16,8 @@ enum Types
     ConnectedRectangles
 }
 
-var width = 0, height = 0, size = 0
+var width = 0, height = 0
+var dim = 0
 var x = 0, y = 0, head = 0
 var penColor = [255, 0, 0]
 var penDown = true
@@ -28,9 +29,10 @@ var visible = true
 var pathType = Types.Sequence
 var glyphAngle = 1.57
 var glyphScale = 0
+var stroke = 1
 
-var glyph;
-var path;
+var glyph = null;
+var path = null;
 
 func init(title, w, h, type)
 {
@@ -45,30 +47,47 @@ func init(title, w, h, type)
 
     width = w
     height = h
-    size = math.max(width, height)
-    ratio = 4 / size
+    dim = math.max(width, height)
+    ratio = 4 / dim
     pathType = type
 
     BGL.create(title, Modes.M2D, width, height)    
     
-    background('gray')
+    background('black')
+    color('white')
 
+    glyphScale = 200 / dim
+
+    initGlyph()
+}
+
+func initGlyph()
+{
     glyph = BGL.add(Elements.Triangle)
-    glyph.scaleTo(0)
-
-    glyphScale = 200 / size
-
-    initPath()
+    glyph.scaleTo(glyphScale)
 }
 
 func initPath()
 {
     path = BGL.add(pathType)
+    path.stroke(stroke)
     path.addPoint(x * ratio, y * ratio)
     if(glow)
         path.glow()
     else
         path.colorPoint(0, penColor[0], penColor[1], penColor[2])
+}
+
+func size(sz)
+{
+    glyphScale = (5 * sz) / dim
+    if(glyph is not null)
+        glyph.scaleTo(glyphScale)
+}
+
+func stamp()
+{
+    initGlyph()
 }
 
 func getColor(name)
@@ -114,6 +133,7 @@ func background(r, g, b)
         b = 0
     BGL.background(r, g, b)
 }
+var bg = background
 
 func color(r, g, b)
 {
@@ -136,17 +156,17 @@ func color(r, g, b)
     
     penColor = [r, g, b]
 }
+var cl = color
 
 func draw()
 {
+    glyph.visible(visible)
     if(visible)
     {
-        glyph.scaleTo(glyphScale)
         glyph.move(x * ratio, y * ratio, 0)
         glyph.rotateTo(0, 0, head + glyphAngle)
     }
-    else
-        glyph.scaleTo(0)
+       
 }
 
 func step()
@@ -177,6 +197,9 @@ func pen(down)
 
 func _forward(dist)
 {
+    if(path is null)
+        initPath()
+
     var lx = x + dist * cos(head)
     var ly = y + dist * sin(head)
 
@@ -291,13 +314,14 @@ func position()
 {
     return [x, y]
 }
-
 var pos = position
 
 func heading()
 {
     return head * 57.2958
 }
+var hd = heading
+
 
 func polygon(sides, radius)
 {

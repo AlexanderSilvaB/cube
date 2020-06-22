@@ -628,6 +628,38 @@ extern "C"
         return element->applyColors;
     }
 
+    EXPORTED void stroke_element(int index, float stroke)
+    {
+        ElementPtr element = findElementByIndex(index);
+        if (element == NULL)
+            return;
+        element->stroke = stroke;
+    }
+
+    EXPORTED float get_stroke_element(int index)
+    {
+        ElementPtr element = findElementByIndex(index);
+        if (element == NULL)
+            return 0;
+        return element->stroke;
+    }
+
+    EXPORTED void visible_element(int index, bool visible)
+    {
+        ElementPtr element = findElementByIndex(index);
+        if (element == NULL)
+            return;
+        element->visible = visible;
+    }
+
+    EXPORTED bool get_visible_element(int index)
+    {
+        ElementPtr element = findElementByIndex(index);
+        if (element == NULL)
+            return false;
+        return element->visible;
+    }
+
     EXPORTED bool supports_capture_texture_element()
     {
         return Texture::supportsCapture();

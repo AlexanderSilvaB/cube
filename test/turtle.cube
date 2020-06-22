@@ -7,8 +7,9 @@ turtle.animated = true
 turtle.glow = true
 turtle.speed = 10
 turtle.visible = true
+turtle.pathType = turtle.Types.Polygon
 
-var rounds = 5
+var rounds = 6
 var angle = 360 / rounds
 
 for(var i = 0; i < rounds; i++)

@@ -1,0 +1,22 @@
+import turtle
+
+turtle.init("Turtle Graphics")
+
+turtle.animated = true
+turtle.speed = 100
+turtle.size(10)
+turtle.glow = true
+
+var radius = 10
+var sides = 36
+var size = 0
+var inc = 360 / sides
+for(var i = 0; i < sides * 12; i++)
+{
+    size = (6.28 * radius) / sides
+    turtle.forward(size)
+    turtle.turn(inc)
+    radius += 0.5
+}
+
+turtle.show()

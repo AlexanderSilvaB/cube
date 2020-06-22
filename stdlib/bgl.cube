@@ -79,6 +79,10 @@ native libs/libbgl
     void update_texture_element(int32, cbytes);
     void apply_colors_element(int32, cbool);
     cbool get_apply_colors_element(int32);
+    void stroke_element(int32, float32);
+    float32 get_stroke_element(int32);
+    void visible_element(int32, cbool);
+    cbool get_visible_element(int32);
     cbool supports_capture_texture_element();
     cbool capture_device_int_texture_element(int32, int32);
     cbool capture_device_string_texture_element(int32, cstring);
@@ -742,6 +746,24 @@ class Element
             return get_apply_colors_element(id)
         else
             apply_colors_element(id, apply)
+        return this
+    }
+
+    func stroke(value)
+    {
+        if(value is null)
+            return get_stroke_element(id)
+        else
+            stroke_element(id, value)
+        return this
+    }
+
+    func visible(value)
+    {
+        if(value is null)
+            return get_visible_element(id)
+        else
+            visible_element(id, value)
         return this
     }
 
