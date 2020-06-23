@@ -12,6 +12,52 @@ func select(arr, fn)
     return m
 }
 
+func apply(arr, fn)
+{
+    var ret = []
+    for(var i = 0; i < len(arr); i++)
+    {
+        ret.add(fn(arr[i]))
+    }
+    return ret
+}
+
+func where(arr, fn)
+{
+    if(len(arr) == 0)
+        return []
+
+    var ret = []
+    for(var i = 0; i < len(arr); i++)
+    {
+        if(fn(arr[i]))
+            ret.add(arr[i])
+    }
+    return ret
+}
+
+
+func sum(arr)
+{
+    var ret = 0
+    for(var i = 0; i < len(arr); i++)
+    {
+        ret += arr[i]
+    }
+    return ret
+}
+
+func distance(ar1, ar2)
+{
+    if(len(ar1) != len(ar2))
+        return 0
+    var ar = (ar1 .- ar2) .^ 2
+    println('AR: ', ar)
+    println('AR1: ', ar1)
+    println('AR2: ', ar2)
+    return sum(ar)
+}
+
 func max(arr)
 {
     return select(arr, @(c, v)  => c > v)

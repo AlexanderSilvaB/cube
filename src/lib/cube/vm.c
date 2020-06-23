@@ -2973,14 +2973,43 @@ InterpretResult run()
                 {
                     Value value = peek(0);
                     ObjList *list = copyList(AS_LIST(peek(1)), true);
-                    for (int i = 0; i < list->values.count; i++)
+                    if (!IS_LIST(value))
                     {
-                        if (!operateValues(list->values.values[i], value, &list->values.values[i], "+"))
+                        for (int i = 0; i < list->values.count; i++)
                         {
+                            if (!operateValues(list->values.values[i], value, &list->values.values[i], "+"))
+                            {
+                                if (!checkTry(frame))
+                                    return INTERPRET_RUNTIME_ERROR;
+                                else
+                                    break;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        ObjList *list2 = AS_LIST(value);
+                        if (list2->values.count != list->values.count)
+                        {
+                            runtimeError("Lists size doesn't match.");
                             if (!checkTry(frame))
                                 return INTERPRET_RUNTIME_ERROR;
                             else
-                                break;
+                                DISPATCH();
+                        }
+                        else
+                        {
+                            for (int i = 0; i < list2->values.count; i++)
+                            {
+                                value = list2->values.values[i];
+                                if (!operateValues(list->values.values[i], value, &list->values.values[i], "+"))
+                                {
+                                    if (!checkTry(frame))
+                                        return INTERPRET_RUNTIME_ERROR;
+                                    else
+                                        break;
+                                }
+                            }
                         }
                     }
                     pop();
@@ -3043,51 +3072,83 @@ InterpretResult run()
                 DISPATCH();
             }
 
-            OPCASE(SUBTRACT) : istrue = READ_BYTE() == OP_TRUE;
-            if (istrue && instanceOperation(".-"))
+            OPCASE(SUBTRACT) :
             {
-                frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
-            }
-            else if (instanceOperation("-"))
-            {
-                frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
-            }
-            else if (IS_LIST(peek(1)) && istrue)
-            {
-                Value value = peek(0);
-                ObjList *list = copyList(AS_LIST(peek(1)), true);
-                for (int i = 0; i < list->values.count; i++)
+                istrue = READ_BYTE() == OP_TRUE;
+                if (istrue && instanceOperation(".-"))
                 {
-                    if (!operateValues(list->values.values[i], value, &list->values.values[i], "-"))
-                    {
-                        if (!checkTry(frame))
-                            return INTERPRET_RUNTIME_ERROR;
-                        else
-                            break;
-                    }
+                    frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
                 }
-                pop();
-                pop();
-                push(OBJ_VAL(list));
-            }
-            else if (IS_LIST(peek(1)))
-            {
-                Value rm = peek(0);
-                Value listValue = peek(1);
+                else if (instanceOperation("-"))
+                {
+                    frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+                }
+                else if (IS_LIST(peek(1)) && istrue)
+                {
+                    Value value = peek(0);
+                    ObjList *list = copyList(AS_LIST(peek(1)), true);
+                    if (!IS_LIST(value))
+                    {
+                        for (int i = 0; i < list->values.count; i++)
+                        {
+                            if (!operateValues(list->values.values[i], value, &list->values.values[i], "-"))
+                            {
+                                if (!checkTry(frame))
+                                    return INTERPRET_RUNTIME_ERROR;
+                                else
+                                    break;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        ObjList *list2 = AS_LIST(value);
+                        if (list2->values.count != list->values.count)
+                        {
+                            runtimeError("Lists size doesn't match.");
+                            if (!checkTry(frame))
+                                return INTERPRET_RUNTIME_ERROR;
+                            else
+                                DISPATCH();
+                        }
+                        else
+                        {
+                            for (int i = 0; i < list2->values.count; i++)
+                            {
+                                value = list2->values.values[i];
+                                if (!operateValues(list->values.values[i], value, &list->values.values[i], "-"))
+                                {
+                                    if (!checkTry(frame))
+                                        return INTERPRET_RUNTIME_ERROR;
+                                    else
+                                        break;
+                                }
+                            }
+                        }
+                    }
+                    pop();
+                    pop();
+                    push(OBJ_VAL(list));
+                }
+                else if (IS_LIST(peek(1)))
+                {
+                    Value rm = peek(0);
+                    Value listValue = peek(1);
 
-                ObjList *list = copyList(AS_LIST(listValue), true);
-                rmList(list, rm);
+                    ObjList *list = copyList(AS_LIST(listValue), true);
+                    rmList(list, rm);
 
-                pop();
-                pop();
+                    pop();
+                    pop();
 
-                push(OBJ_VAL(list));
+                    push(OBJ_VAL(list));
+                }
+                else
+                {
+                    BINARY_OP(NUMBER_VAL, -);
+                }
+                DISPATCH();
             }
-            else
-            {
-                BINARY_OP(NUMBER_VAL, -);
-            }
-            DISPATCH();
             OPCASE(INC) :
             {
                 if (instanceOperationUnary("++"))
@@ -3143,14 +3204,43 @@ InterpretResult run()
             {
                 Value value = peek(0);
                 ObjList *list = copyList(AS_LIST(peek(1)), true);
-                for (int i = 0; i < list->values.count; i++)
+                if (!IS_LIST(value))
                 {
-                    if (!operateValues(list->values.values[i], value, &list->values.values[i], "*"))
+                    for (int i = 0; i < list->values.count; i++)
                     {
+                        if (!operateValues(list->values.values[i], value, &list->values.values[i], "*"))
+                        {
+                            if (!checkTry(frame))
+                                return INTERPRET_RUNTIME_ERROR;
+                            else
+                                break;
+                        }
+                    }
+                }
+                else
+                {
+                    ObjList *list2 = AS_LIST(value);
+                    if (list2->values.count != list->values.count)
+                    {
+                        runtimeError("Lists size doesn't match.");
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
                         else
-                            break;
+                            DISPATCH();
+                    }
+                    else
+                    {
+                        for (int i = 0; i < list2->values.count; i++)
+                        {
+                            value = list2->values.values[i];
+                            if (!operateValues(list->values.values[i], value, &list->values.values[i], "*"))
+                            {
+                                if (!checkTry(frame))
+                                    return INTERPRET_RUNTIME_ERROR;
+                                else
+                                    break;
+                            }
+                        }
                     }
                 }
                 pop();
@@ -3198,14 +3288,43 @@ InterpretResult run()
             {
                 Value value = peek(0);
                 ObjList *list = copyList(AS_LIST(peek(1)), true);
-                for (int i = 0; i < list->values.count; i++)
+                if (!IS_LIST(value))
                 {
-                    if (!operateValues(list->values.values[i], value, &list->values.values[i], "/"))
+                    for (int i = 0; i < list->values.count; i++)
                     {
+                        if (!operateValues(list->values.values[i], value, &list->values.values[i], "/"))
+                        {
+                            if (!checkTry(frame))
+                                return INTERPRET_RUNTIME_ERROR;
+                            else
+                                break;
+                        }
+                    }
+                }
+                else
+                {
+                    ObjList *list2 = AS_LIST(value);
+                    if (list2->values.count != list->values.count)
+                    {
+                        runtimeError("Lists size doesn't match.");
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
                         else
-                            break;
+                            DISPATCH();
+                    }
+                    else
+                    {
+                        for (int i = 0; i < list2->values.count; i++)
+                        {
+                            value = list2->values.values[i];
+                            if (!operateValues(list->values.values[i], value, &list->values.values[i], "/"))
+                            {
+                                if (!checkTry(frame))
+                                    return INTERPRET_RUNTIME_ERROR;
+                                else
+                                    break;
+                            }
+                        }
                     }
                 }
                 pop();
@@ -3247,14 +3366,43 @@ InterpretResult run()
                 {
                     Value value = peek(0);
                     ObjList *list = copyList(AS_LIST(peek(1)), true);
-                    for (int i = 0; i < list->values.count; i++)
+                    if (!IS_LIST(value))
                     {
-                        if (!operateValues(list->values.values[i], value, &list->values.values[i], "%"))
+                        for (int i = 0; i < list->values.count; i++)
                         {
+                            if (!operateValues(list->values.values[i], value, &list->values.values[i], "%"))
+                            {
+                                if (!checkTry(frame))
+                                    return INTERPRET_RUNTIME_ERROR;
+                                else
+                                    break;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        ObjList *list2 = AS_LIST(value);
+                        if (list2->values.count != list->values.count)
+                        {
+                            runtimeError("Lists size doesn't match.");
                             if (!checkTry(frame))
                                 return INTERPRET_RUNTIME_ERROR;
                             else
-                                break;
+                                DISPATCH();
+                        }
+                        else
+                        {
+                            for (int i = 0; i < list2->values.count; i++)
+                            {
+                                value = list2->values.values[i];
+                                if (!operateValues(list->values.values[i], value, &list->values.values[i], "%"))
+                                {
+                                    if (!checkTry(frame))
+                                        return INTERPRET_RUNTIME_ERROR;
+                                    else
+                                        break;
+                                }
+                            }
                         }
                     }
                     pop();
@@ -3286,14 +3434,43 @@ InterpretResult run()
                 {
                     Value value = peek(0);
                     ObjList *list = copyList(AS_LIST(peek(1)), true);
-                    for (int i = 0; i < list->values.count; i++)
+                    if (!IS_LIST(value))
                     {
-                        if (!operateValues(list->values.values[i], value, &list->values.values[i], "^"))
+                        for (int i = 0; i < list->values.count; i++)
                         {
+                            if (!operateValues(list->values.values[i], value, &list->values.values[i], "^"))
+                            {
+                                if (!checkTry(frame))
+                                    return INTERPRET_RUNTIME_ERROR;
+                                else
+                                    break;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        ObjList *list2 = AS_LIST(value);
+                        if (list2->values.count != list->values.count)
+                        {
+                            runtimeError("Lists size doesn't match.");
                             if (!checkTry(frame))
                                 return INTERPRET_RUNTIME_ERROR;
                             else
-                                break;
+                                DISPATCH();
+                        }
+                        else
+                        {
+                            for (int i = 0; i < list2->values.count; i++)
+                            {
+                                value = list2->values.values[i];
+                                if (!operateValues(list->values.values[i], value, &list->values.values[i], "^"))
+                                {
+                                    if (!checkTry(frame))
+                                        return INTERPRET_RUNTIME_ERROR;
+                                    else
+                                        break;
+                                }
+                            }
                         }
                     }
                     pop();

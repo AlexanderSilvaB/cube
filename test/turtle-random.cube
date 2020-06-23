@@ -1,0 +1,30 @@
+import turtle
+
+var width = 600
+var height = 600
+var side = 50
+var angle = 90
+
+turtle.init("Turtle Graphics", width, height)
+
+turtle.animated = true
+turtle.speed = 10
+turtle.size(10)
+turtle.glow = true
+
+var next
+while(turtle.running())
+{
+    turtle.forward(side)
+
+    if(random() < 0.5)
+        turtle.turn(angle)
+    else
+        turtle.turn(-angle)
+    
+    next = turtle.next(side)
+    if(not turtle.inside(next))
+        turtle.turn(180)
+}
+
+turtle.show()

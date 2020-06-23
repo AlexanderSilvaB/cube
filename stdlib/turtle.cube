@@ -20,16 +20,18 @@ var width = 0, height = 0
 var dim = 0
 var x = 0, y = 0, head = 0
 var penColor = [255, 0, 0]
-var penDown = true
+var isPenDown = true
 var ratio = 1.0
-var animated = false
-var speed = 100
-var glow = false
+var animated = true
+var speed = 20
+var glow = true
 var visible = true
 var pathType = Types.Sequence
 var glyphAngle = 1.57
 var glyphScale = 0
 var stroke = 1
+var pathInited = false
+var bounds = null
 
 var glyph = null;
 var path = null;
@@ -50,13 +52,14 @@ func init(title, w, h, type)
     dim = math.max(width, height)
     ratio = 4 / dim
     pathType = type
+    bounds = [-width/2, height/2, width/2, -height/2] 
 
-    BGL.create(title, Modes.M2D, width, height)    
+    BGL.create(title, Modes.M2D, width, height)   
     
     background('black')
     color('white')
 
-    glyphScale = 200 / dim
+    glyphScale = 100 / dim
 
     initGlyph()
 }
@@ -69,13 +72,32 @@ func initGlyph()
 
 func initPath()
 {
+    pathInited = true
     path = BGL.add(pathType)
     path.stroke(stroke)
-    path.addPoint(x * ratio, y * ratio)
+    var p = path.addPoint(x * ratio, y * ratio)
     if(glow)
         path.glow()
     else
-        path.colorPoint(0, penColor[0], penColor[1], penColor[2])
+        path.colorPoint(p, penColor[0], penColor[1], penColor[2])
+}
+
+func running()
+{
+    return BGL.isOpen()
+}
+
+func inside(x, y)
+{
+    if(x is list)
+    {
+        y = x[1]
+        x = x[0]
+    }
+
+    if(x < bounds[0] or x > bounds[2] or y > bounds[1] or y < bounds[3])
+        return false
+    return true
 }
 
 func size(sz)
@@ -183,7 +205,8 @@ func show()
 
 func pen(down)
 {
-    penDown = bool(down)
+    pathInited = true
+    isPenDown = bool(down)
     if(down)
     {
         if(path is null)
@@ -195,16 +218,26 @@ func pen(down)
         path = null
 }
 
+func penDown()
+{
+    pen(true)
+}
+
+func penUp()
+{
+    pen(false)
+}
+
 func _forward(dist)
 {
-    if(path is null)
-        initPath()
-
     var lx = x + dist * cos(head)
     var ly = y + dist * sin(head)
 
-    if(penDown and path is not null)
+    if(isPenDown and (path is not null or pathInited == false))
     {
+        if(path is null)
+            initPath()
+
         var line = path.addPoint(lx * ratio, ly * ratio)
         if(glow)
             path.glow()
@@ -217,6 +250,16 @@ func _forward(dist)
 
     if(animated)
         step()
+}
+
+func next(dist, deg)
+{
+    var h = head
+    if(angle is num)
+        h += deg * 0.0174533
+    var lx = x + dist * cos(h)
+    var ly = y + dist * sin(h)
+    return [lx, ly]
 }
 
 func forward(dist)
@@ -310,14 +353,20 @@ func angle(gx, gy)
     return a
 }
 
-func position()
+func position(vx, vy)
 {
+    if(vx is num)
+        x = vx
+    if(vy is num)
+        y = vy
     return [x, y]
 }
 var pos = position
 
-func heading()
+func heading(value)
 {
+    if(value is num)
+        head = value * 0.0174533
     return head * 57.2958
 }
 var hd = heading

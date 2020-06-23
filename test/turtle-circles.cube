@@ -1,17 +1,30 @@
 import turtle
 
-turtle.init("Turtle Graphics")
+turtle.init("Turtle Graphics - Circles")
 
 turtle.animated = true
 turtle.speed = 100
 turtle.size(10)
 turtle.glow = true
 
+turtle.penUp()
+turtle.goto(-300, -300)
+turtle.penDown()
+
+turtle.goto(300, -300)
+turtle.goto(300, 300)
+turtle.goto(-300, 300)
+turtle.goto(-300, -300)
+
+turtle.penUp()
+turtle.home()
+turtle.penDown()
+
 var radius = 10
 var sides = 36
 var size = 0
 var inc = 360 / sides
-for(var i = 0; i < sides * 12; i++)
+for(var i = 0; i < sides * 16; i++)
 {
     size = (6.28 * radius) / sides
     turtle.forward(size)

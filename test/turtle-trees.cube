@@ -1,0 +1,38 @@
+import turtle
+
+var side = 100
+var angle = 45
+
+turtle.init()
+
+turtle.animated = true
+turtle.speed = 10
+
+func draw(x, y, head, dir, size)
+{
+    if(size < 8)
+        return;
+
+    turtle.penUp()
+    turtle.heading(head)
+    turtle.pos(x, y)
+
+    turtle.penDown()
+    turtle.turn(dir)
+    turtle.forward(size)
+
+    x = turtle.x
+    y = turtle.y
+    head = turtle.heading()
+   
+    draw(x, y, head,  angle,  size * 0.66)
+    draw(x, y, head, -angle, size * 0.66)
+}
+
+
+for(var i in 0..90...360)
+    draw(0, 0, i, 0, side)
+
+turtle.visible = false
+
+turtle.show()
