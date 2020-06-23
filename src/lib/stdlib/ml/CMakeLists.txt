@@ -6,9 +6,9 @@ add_definitions(-DWIN_EXPORT)
 add_subdirectory(mles)
 set_property(TARGET mles PROPERTY POSITION_INDEPENDENT_CODE ON)
 
-include_directories(mles/src/lib/mles)
+include_directories(mles/src/lib)
 
-set(SRC ml.c)
+set(SRC ml.cpp nn.cpp dataset.cpp)
 
 add_library(ml SHARED ${SRC})
 target_link_libraries(ml mles)

@@ -1,5 +1,403 @@
 native libs/libml
 {
-    
+    // structs
+    struct TrainingSettings
+    {
+        int32 epochs;
+        float64 maxError;
+        float64 learningRate;
+        int32 batch;
+        int32 localMinimaLimit;
+        cbool allowReset;
+    }
+
+    struct TrainingResults
+    {
+        cbool finished;
+        uint32 epochs;
+        float64 error;
+        float64 elapsedTime;
+        int32 errorCode; 
+    }
+
+    // Dataset
+    int32 dataset_create(uint32, uint32);
+    void dataset_remove(int32);
+    uint32 dataset_input_size(int32);
+    uint32 dataset_output_size(int32);
+    void dataset_clear(int32);
+    cbool dataset_add(int32, list, list);
+    cbool dataset_add_entry(int32, list);
+    void dataset_print(int32);
+    int32 nn_create_dataset(int32);
+    list dataset_create_input(int32);
+    list dataset_create_output(int32);
+    list dataset_create_entry(int32);
+    uint32 dataset_size(int32);
+    list dataset_get_input(int32, uint32);
+    list dataset_get_output(int32, uint32);
+    int dataset_to_testset(int32);
+    int dataset_load(cstring);
+    cbool dataset_save(int32, cstring);
+    int dataset_from_csv(cstring, cbool, int32);
+    cbool dataset_to_csv(int32, cstring);
+    void dataset_binarize(int32, float64);
+    void dataset_classify(int32);
+    void dataset_binarize_to_max(int32);
+    list dataset_split(int32, float64);
+
+    // NN
+    int32 nn_create(uint32, uint32);
+    void nn_remove(int32);
+    void nn_build(int32);
+    void nn_verbose(int32, cbool);
+    void nn_output_activation(int32, cstring);
+    void nn_default_activation(int32, cstring);
+    int32 nn_load(cstring);
+    cbool nn_save(int32, cstring);
+    void nn_add_layer(int32, uint32, cstring);
+    void nn_insert_layer(int32, uint32, uint32, cstring);
+    void nn_change_layer(int32, uint32, uint32, cstring);
+    void nn_remove_layer(int32, uint32);
+    void nn_print(int32);
+    list nn_create_input(int32);
+    list nn_create_output(int32);
+    list nn_test(list);
+    cbool nn_test_dataset(int32, int32);
+    TrainingResults nn_train(int32, int32, TrainingSettings);
 }
 
+class DataSet
+{
+    var id
+    func init(input, output)
+    {
+        if(input is num and output is null)
+        {
+            this.id = input
+        }
+        else
+        {
+            input = num(input)
+            output = num(output)
+            this.id = dataset_create(input, output)
+        }
+    }
+
+    func inputSize()
+    {
+        return dataset_input_size(id)
+    }
+
+    func outputSize()
+    {
+        return dataset_output_size(id)
+    }
+
+    func size()
+    {
+        return dataset_size(id)
+    }
+
+    func len()
+    {
+        return this.size()
+    }
+
+    func clear()
+    {
+        return dataset_clear(id)
+    }
+
+    func add(input, output)
+    {
+        if(input is not list)
+            input = [input]
+        if(output is not list)
+        {
+            if(output is not null)
+                output = [output]
+        }
+        return dataset_add(id, input, output)
+    }
+
+    func addEntry(entry)
+    {
+        if(entry is not list)
+            entry = [entry]
+        return dataset_add_entry(id, entry)
+    }
+
+    func print()
+    {
+        return dataset_print(id)
+    }
+
+    func input()
+    {
+        return dataset_create_input(id)
+    }
+
+    func output()
+    {
+        return dataset_create_output(id)
+    }
+
+    func entry()
+    {
+        return dataset_create_entry(id)
+    }
+
+    func getInput(pos)
+    {
+        pos = num(pos)
+        return dataset_get_input(id, pos)
+    }
+
+    func geOutput(pos)
+    {
+        pos = num(pos)
+        return dataset_get_output(id, pos)
+    }
+
+    func getEntry(pos)
+    {
+        pos = num(pos)
+        var input = this.getInput(pos)
+        var output = this.getOutput(pos)
+        return (input + output)
+    }
+
+    func [](pos)
+    {
+        return this.getEntry(pos)
+    }
+
+    func toTest()
+    {
+        var nid = dataset_to_testset(id)
+        return DataSet(nid, null)
+    }
+
+    static func load(fileName)
+    {
+        if(fileName is not str)
+            return null
+        var nid = dataset_load(fileName)
+        return DataSet(nid, null)
+    }
+
+    static func fromCSV(fileName, header, chucksize)
+    {
+        if(fileName is not str)
+            return null
+
+        if(header is not bool)
+            header = true
+        
+        if(chucksize is not num)
+            chucksize = -1
+
+        var nid = dataset_from_csv(fileName, header, chucksize)
+        return DataSet(nid, null)
+    }
+
+    func save(fileName)
+    {
+        if(fileName is not str)
+            return false
+        return dataset_save(id, fileName)
+    }
+
+    func toCSV(fileName)
+    {
+        if(fileName is not str)
+            return false
+        return dataset_to_csv(id, fileName)
+    }
+
+    func binarize(threshold)
+    {
+        if(threshold is not num)
+            threshold = 0.5
+        dataset_binarize(id, threshold)
+        return this
+    }
+
+    func binarizeToMax()
+    {
+        dataset_binarize_to_max(id)
+        return this
+    }
+
+    func classify()
+    {
+        dataset_classify(id)
+        return this
+    }
+
+    func split(ratio)
+    {
+        if(ratio is not num)
+            ratio = 0.8
+        var ids = dataset_split(id, ratio)
+        if(ids is null)
+            return null
+        return [DataSet(ids[0], null), DataSet(ids[1], null)]
+    }
+}
+
+class NN
+{
+    var id
+    func init(input, output)
+    {
+        if(input is num and output is null)
+        {
+            this.id = input
+        }
+        else
+        {
+            input = num(input)
+            output = num(output)
+            this.id = nn_create(input, output)
+        }
+    }
+
+    func build()
+    {
+        nn_build(id)
+        return this
+    }
+
+    func verbose(enabled)
+    {
+        if(enabled is null)
+            enabled = true
+        enabled = bool(enabled)
+        nn_verbose(id, enabled)
+        return this
+    }
+
+    func outputActivation(name)
+    {
+        if(name is not str)
+            return this
+        nn_output_activation(id, name)
+        return this
+    }
+
+    func defaultActivation(name)
+    {
+        if(name is not str)
+            return this
+        nn_default_activation(id, name)
+        return this
+    }
+
+    static func load(fileName)
+    {
+        if(fileName is not str)
+            return null
+        var nid = nn_load(fileName)
+        return NN(nid, null)
+    }
+
+    func save(fileName)
+    {
+        if(fileName is not str)
+            return false
+        return nn_save(id, fileName)        
+    }
+
+    func addLayer(size, name)
+    {
+        if(size is not num)
+            return this;
+        if(name is not str)
+            name = ""
+        nn_add_layer(id, size, name)
+        return this
+    }
+
+    func insertLayer(pos, size, name)
+    {
+        if(size is not num)
+            return this;
+        pos = num(pos)
+        if(name is not str)
+            name = ""
+        nn_insert_layer(id, pos, size, name)
+        return this
+    }
+
+    func changeLayer(pos, size, name)
+    {
+        if(size is not num)
+            return this;
+        pos = num(pos)
+        if(name is not str)
+            name = ""
+        nn_change_layer(id, pos, size, name)
+        return this
+    }
+
+    func removeLayer(pos)
+    {
+        pos = num(pos)
+        nn_remove_layer(id, pos)
+        return this
+    }
+
+    func print()
+    {
+        nn_print(id)
+    }
+
+    func input()
+    {
+        return nn_create_input(id)
+    }
+
+    func output()
+    {
+        return nn_create_output(id)
+    }
+
+    func dataset()
+    {
+        return DataSet(nn_create_dataset(id), null)
+    }
+
+    func test(data)
+    {
+        if(data is not list)
+            data = [data]
+        return nn_test(id, data)
+    }
+
+    func testDataset(data)
+    {
+        if(data is not DataSet)
+            return false
+        return nn_test_dataset(id, data.id)
+    }
+
+    func train(data, settings)
+    {
+        if(data is not DataSet)
+            return null
+        if(settings is not dict)
+        {
+            settings = TrainingSettings()
+            settings.epochs = 10000
+            settings.maxError = 0.01
+            settings.learningRate = 0.01
+            settings.batch = -1
+            settings.localMinimaLimit = 10
+            settings.allowReset = true
+        }
+
+        return nn_train(id, data.id, settings)
+    }
+}
