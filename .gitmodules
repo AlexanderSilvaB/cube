@@ -1,6 +1,3 @@
-[submodule "src/lib/libuv"]
-	path = src/lib/libuv
-	url = git@github.com:libuv/libuv.git
 [submodule "src/lib/stdlib/regex/tiny-regex-c"]
 	path = src/lib/stdlib/regex/tiny-regex-c
 	url = git@github.com:kokke/tiny-regex-c.git
