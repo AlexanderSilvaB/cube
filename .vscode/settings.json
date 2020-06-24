@@ -70,5 +70,15 @@
         "hash_set": "cpp",
         "unordered_set": "cpp"
     },
-    "editor.formatOnSave": true
+    "editor.formatOnSave": true,
+    "files.watcherExclude": {
+        "**/.git/objects/**": true,
+        "**/.git/subtree-cache/**": true,
+        "**/node_modules/**": true,
+        "**/.hg/store/**": true,
+        "src/lib/stdlib/bgl/basicgl": true,
+        "src/lib/stdlib/ml/mles": true,
+        "src/lib/stdlib/game/SDL2-2.0.12": true,
+        "src/lib/libffi-3.3": true
+    }
 }

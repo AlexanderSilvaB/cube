@@ -41,6 +41,44 @@ void clear_nn()
     nns.clear();
 }
 
+TrainingSettings getTrainingSettings(cube_native_var *var)
+{
+    TrainingSettings settings;
+
+    if (IS_NATIVE_DICT(var))
+    {
+        for (int i = 0; i < var->size; i++)
+        {
+            string key(var->dict[i]->key);
+            if (key == "epochs")
+                settings.epochs = AS_NATIVE_NUMBER(var->dict[i]);
+            else if (key == "maxError")
+                settings.maxError = AS_NATIVE_NUMBER(var->dict[i]);
+            else if (key == "learningRate")
+                settings.learningRate = AS_NATIVE_NUMBER(var->dict[i]);
+            else if (key == "batch")
+                settings.batch = AS_NATIVE_NUMBER(var->dict[i]);
+            else if (key == "localMinimaLimit")
+                settings.localMinimaLimit = AS_NATIVE_NUMBER(var->dict[i]);
+            else if (key == "allowReset")
+                settings.allowReset = AS_NATIVE_BOOL(var->dict[i]);
+        }
+    }
+
+    return settings;
+}
+
+cube_native_var *getTrainingResults(TrainingResults results)
+{
+    cube_native_var *var = NATIVE_DICT();
+    ADD_NATIVE_DICT(var, COPY_STR("error"), NATIVE_NUMBER(results.error));
+    ADD_NATIVE_DICT(var, COPY_STR("elapsedTime"), NATIVE_NUMBER(results.elapsedTime));
+    ADD_NATIVE_DICT(var, COPY_STR("errorCode"), NATIVE_NUMBER(results.errorCode));
+    ADD_NATIVE_DICT(var, COPY_STR("epochs"), NATIVE_NUMBER(results.epochs));
+    ADD_NATIVE_DICT(var, COPY_STR("finished"), NATIVE_BOOL(results.finished));
+    return var;
+}
+
 extern "C"
 {
     EXPORTED int nn_create(unsigned int in, unsigned int out)
@@ -69,20 +107,32 @@ extern "C"
         nn->verbose(verbose);
     }
 
-    EXPORTED void nn_output_activation(int id, const char *name)
+    EXPORTED void nn_output_activation(int id, const char *name, cube_native_var *args)
     {
         NN *nn = findNN(id);
         if (nn == NULL)
             return;
-        nn->setOutputActivation(name);
+        vector<double> params;
+        if (IS_NATIVE_LIST(args))
+        {
+            for (int i = 0; i < args->size; i++)
+                params.push_back(AS_NATIVE_NUMBER(args->list[i]));
+        }
+        nn->setOutputActivationVec(name, params);
     }
 
-    EXPORTED void nn_default_activation(int id, const char *name)
+    EXPORTED void nn_default_activation(int id, const char *name, cube_native_var *args)
     {
         NN *nn = findNN(id);
         if (nn == NULL)
             return;
-        nn->setDefaultActivation(name);
+        vector<double> params;
+        if (IS_NATIVE_LIST(args))
+        {
+            for (int i = 0; i < args->size; i++)
+                params.push_back(AS_NATIVE_NUMBER(args->list[i]));
+        }
+        nn->setDefaultActivationVec(name, params);
     }
 
     EXPORTED int nn_load(const char *fileName)
@@ -107,28 +157,46 @@ extern "C"
         return nn->save(fileName);
     }
 
-    EXPORTED void nn_add_layer(int id, unsigned int size, const char *name)
+    EXPORTED void nn_add_layer(int id, unsigned int size, const char *name, cube_native_var *args)
     {
         NN *nn = findNN(id);
         if (nn == NULL)
             return;
-        nn->addLayer(size, name);
+        vector<double> params;
+        if (IS_NATIVE_LIST(args))
+        {
+            for (int i = 0; i < args->size; i++)
+                params.push_back(AS_NATIVE_NUMBER(args->list[i]));
+        }
+        nn->addLayerVec(size, name, params);
     }
 
-    EXPORTED void nn_insert_layer(int id, unsigned int pos, unsigned int size, const char *name)
+    EXPORTED void nn_insert_layer(int id, unsigned int pos, unsigned int size, const char *name, cube_native_var *args)
     {
         NN *nn = findNN(id);
         if (nn == NULL)
             return;
-        nn->insertLayer(pos, size, name);
+        vector<double> params;
+        if (IS_NATIVE_LIST(args))
+        {
+            for (int i = 0; i < args->size; i++)
+                params.push_back(AS_NATIVE_NUMBER(args->list[i]));
+        }
+        nn->insertLayerVec(pos, size, name, params);
     }
 
-    EXPORTED void nn_change_layer(int id, unsigned int pos, unsigned int size, const char *name)
+    EXPORTED void nn_change_layer(int id, unsigned int pos, unsigned int size, const char *name, cube_native_var *args)
     {
         NN *nn = findNN(id);
         if (nn == NULL)
             return;
-        nn->changeLayer(pos, size, name);
+        vector<double> params;
+        if (IS_NATIVE_LIST(args))
+        {
+            for (int i = 0; i < args->size; i++)
+                params.push_back(AS_NATIVE_NUMBER(args->list[i]));
+        }
+        nn->changeLayerVec(pos, size, name, params);
     }
 
     EXPORTED void nn_remove_layer(int id, unsigned int pos)
@@ -175,6 +243,54 @@ extern "C"
             ADD_NATIVE_LIST(list, NATIVE_NUMBER(0));
 
         return list;
+    }
+
+    EXPORTED void nn_set_input_transformation(int id, cube_native_var *aList, cube_native_var *bList)
+    {
+        NN *nn = findNN(id);
+        if (nn == NULL)
+            return;
+
+        if (!IS_NATIVE_LIST(aList) || !IS_NATIVE_LIST(bList))
+            return;
+
+        Eigen::VectorXd a = nn->createInputVector();
+        if (a.size() != aList->size || a.size() != bList->size)
+            return;
+
+        Eigen::VectorXd b = nn->createInputVector();
+
+        for (int i = 0; i < a.size(); i++)
+        {
+            a[i] = AS_NATIVE_NUMBER(aList->list[i]);
+            b[i] = AS_NATIVE_NUMBER(bList->list[i]);
+        }
+
+        nn->setInputTransformation(a, b);
+    }
+
+    EXPORTED void nn_set_output_transformation(int id, cube_native_var *aList, cube_native_var *bList)
+    {
+        NN *nn = findNN(id);
+        if (nn == NULL)
+            return;
+
+        if (!IS_NATIVE_LIST(aList) || !IS_NATIVE_LIST(bList))
+            return;
+
+        Eigen::VectorXd a = nn->createOutputVector();
+        if (a.size() != aList->size || a.size() != bList->size)
+            return;
+
+        Eigen::VectorXd b = nn->createOutputVector();
+
+        for (int i = 0; i < a.size(); i++)
+        {
+            a[i] = AS_NATIVE_NUMBER(aList->list[i]);
+            b[i] = AS_NATIVE_NUMBER(bList->list[i]);
+        }
+
+        nn->setOutputTransformation(a, b);
     }
 
     EXPORTED int nn_create_dataset(int id)
@@ -228,7 +344,7 @@ extern "C"
         return true;
     }
 
-    EXPORTED TrainingResults nn_train(int id, int dataId, TrainingSettings settings)
+    EXPORTED cube_native_var *nn_train(int id, int dataId, cube_native_var *dictSettings)
     {
         TrainingResults results;
         results.error = 1.0f;
@@ -239,13 +355,14 @@ extern "C"
 
         NN *nn = findNN(id);
         if (nn == NULL)
-            return results;
+            return getTrainingResults(results);
 
         DataSet *data = findDataset(dataId);
         if (data == NULL)
-            return results;
+            return getTrainingResults(results);
 
+        TrainingSettings settings = getTrainingSettings(dictSettings);
         results = nn->train(*data, settings);
-        return results;
+        return getTrainingResults(results);
     }
 }

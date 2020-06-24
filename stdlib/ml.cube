@@ -1,25 +1,5 @@
 native libs/libml
 {
-    // structs
-    struct TrainingSettings
-    {
-        int32 epochs;
-        float64 maxError;
-        float64 learningRate;
-        int32 batch;
-        int32 localMinimaLimit;
-        cbool allowReset;
-    }
-
-    struct TrainingResults
-    {
-        cbool finished;
-        uint32 epochs;
-        float64 error;
-        float64 elapsedTime;
-        int32 errorCode; 
-    }
-
     // Dataset
     int32 dataset_create(uint32, uint32);
     void dataset_remove(int32);
@@ -36,10 +16,11 @@ native libs/libml
     uint32 dataset_size(int32);
     list dataset_get_input(int32, uint32);
     list dataset_get_output(int32, uint32);
+    uint32 dataset_get_output_max_index(int32, uint32);
     int dataset_to_testset(int32);
     int dataset_load(cstring);
     cbool dataset_save(int32, cstring);
-    int dataset_from_csv(cstring, cbool, int32);
+    cbool dataset_from_csv(int32, cstring, cbool, int32);
     cbool dataset_to_csv(int32, cstring);
     void dataset_binarize(int32, float64);
     void dataset_classify(int32);
@@ -51,20 +32,34 @@ native libs/libml
     void nn_remove(int32);
     void nn_build(int32);
     void nn_verbose(int32, cbool);
-    void nn_output_activation(int32, cstring);
-    void nn_default_activation(int32, cstring);
+    void nn_output_activation(int32, cstring, list);
+    void nn_default_activation(int32, cstring, list);
     int32 nn_load(cstring);
     cbool nn_save(int32, cstring);
-    void nn_add_layer(int32, uint32, cstring);
-    void nn_insert_layer(int32, uint32, uint32, cstring);
-    void nn_change_layer(int32, uint32, uint32, cstring);
+    void nn_add_layer(int32, uint32, cstring, list);
+    void nn_insert_layer(int32, uint32, uint32, cstring, list);
+    void nn_change_layer(int32, uint32, uint32, cstring, list);
     void nn_remove_layer(int32, uint32);
+    void nn_set_input_transformation(int32, list, list);
+    void nn_set_output_transformation(int32, list, list);
     void nn_print(int32);
     list nn_create_input(int32);
     list nn_create_output(int32);
     list nn_test(list);
     cbool nn_test_dataset(int32, int32);
-    TrainingResults nn_train(int32, int32, TrainingSettings);
+    dict nn_train(int32, int32, dict);
+}
+
+func TrainingSettings()
+{
+    var settings = {}
+    settings.epochs = 10000
+    settings.maxError = 0.01
+    settings.learningRate = 0.01
+    settings.batch = -1
+    settings.localMinimaLimit = 10
+    settings.allowReset = true 
+    return settings
 }
 
 class DataSet
@@ -160,6 +155,12 @@ class DataSet
         return dataset_get_output(id, pos)
     }
 
+    func getMaxOutput(pos)
+    {
+        pos = num(pos)
+        return dataset_get_output_max_index(id, pos)
+    }
+
     func getEntry(pos)
     {
         pos = num(pos)
@@ -184,13 +185,15 @@ class DataSet
         if(fileName is not str)
             return null
         var nid = dataset_load(fileName)
+        if(nid < 0)
+            return null
         return DataSet(nid, null)
     }
 
-    static func fromCSV(fileName, header, chucksize)
+    func fromCSV(fileName, header, chucksize)
     {
         if(fileName is not str)
-            return null
+            return false
 
         if(header is not bool)
             header = true
@@ -198,8 +201,7 @@ class DataSet
         if(chucksize is not num)
             chucksize = -1
 
-        var nid = dataset_from_csv(fileName, header, chucksize)
-        return DataSet(nid, null)
+        return dataset_from_csv(id, fileName, header, chucksize)
     }
 
     func save(fileName)
@@ -279,19 +281,27 @@ class NN
         return this
     }
 
-    func outputActivation(name)
+    func outputActivation(name, params)
     {
         if(name is not str)
             return this
-        nn_output_activation(id, name)
+        if(params is null)
+            params = []
+        else if(params is not list)
+            params = [params]
+        nn_output_activation(id, name, params)
         return this
     }
 
-    func defaultActivation(name)
+    func defaultActivation(name, params)
     {
         if(name is not str)
             return this
-        nn_default_activation(id, name)
+        if(params is null)
+            params = []
+        else if(params is not list)
+            params = [params]
+        nn_default_activation(id, name, params)
         return this
     }
 
@@ -300,6 +310,8 @@ class NN
         if(fileName is not str)
             return null
         var nid = nn_load(fileName)
+        if(nid < 0)
+            return null
         return NN(nid, null)
     }
 
@@ -310,35 +322,43 @@ class NN
         return nn_save(id, fileName)        
     }
 
-    func addLayer(size, name)
+    func addLayer(size, name, params)
     {
         if(size is not num)
             return this;
         if(name is not str)
             name = ""
-        nn_add_layer(id, size, name)
+        if(params is null)
+            params = []
+        else if(params is not list)
+            params = [params]
+        nn_add_layer(id, size, name, params)
         return this
     }
 
-    func insertLayer(pos, size, name)
+    func insertLayer(pos, size, name, params)
     {
         if(size is not num)
             return this;
         pos = num(pos)
         if(name is not str)
             name = ""
-        nn_insert_layer(id, pos, size, name)
+        if(params is null)
+            params = []
+        else if(params is not list)
+            params = [params]
+        nn_insert_layer(id, pos, size, name, params)
         return this
     }
 
-    func changeLayer(pos, size, name)
+    func changeLayer(pos, size, name, params)
     {
         if(size is not num)
             return this;
         pos = num(pos)
         if(name is not str)
             name = ""
-        nn_change_layer(id, pos, size, name)
+        nn_change_layer(id, pos, size, name, params)
         return this
     }
 
@@ -346,6 +366,26 @@ class NN
     {
         pos = num(pos)
         nn_remove_layer(id, pos)
+        return this
+    }
+
+    func inputTransformation(a, b)
+    {
+        if(a is not list)
+            a = [a]
+        if(b is not list)
+            b = [b]
+        nn_set_input_transformation(id, a, b)
+        return this
+    }
+
+    func outputTransformation(a, b)
+    {
+        if(a is not list)
+            a = [a]
+        if(b is not list)
+            b = [b]
+        nn_set_output_transformation(id, a, b)
         return this
     }
 
@@ -371,6 +411,10 @@ class NN
 
     func test(data)
     {
+        if(data is DataSet)
+        {
+            return nn_test_dataset(id, data.id)
+        }
         if(data is not list)
             data = [data]
         return nn_test(id, data)
@@ -388,15 +432,7 @@ class NN
         if(data is not DataSet)
             return null
         if(settings is not dict)
-        {
             settings = TrainingSettings()
-            settings.epochs = 10000
-            settings.maxError = 0.01
-            settings.learningRate = 0.01
-            settings.batch = -1
-            settings.localMinimaLimit = 10
-            settings.allowReset = true
-        }
 
         return nn_train(id, data.id, settings)
     }

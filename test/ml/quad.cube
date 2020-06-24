@@ -1,0 +1,74 @@
+import ml as default
+
+var x, y
+
+var nn = NN.load("temp/quad")
+if(nn is null)
+{
+    nn = NN(2, 4)
+    nn.defaultActivation("sigmoid")
+    nn.verbose(true)
+    nn.addLayer(4)
+    nn.addLayer(6)
+    nn.addLayer(4)
+    nn.build()
+
+    var trainingSet = nn.dataset()
+
+    var op1, op2, op3, op4, entry
+    for(var i = 0; i < 1000; i++)
+    {
+        x = random(-1000, 1000)
+        y = random(-1000, 1000)
+        op1 = 0
+        op2 = 0
+        op3 = 0
+        op4 = 0
+        if(x >= 0 && y >= 0)
+            op1 = 1
+        else if(x < 0 && y >= 0)
+            op2 = 1
+        else if(x < 0 && y < 0)
+            op3 = 1
+        else
+            op4 = 1
+
+        entry = [ x, y, op1, op2, op3, op4 ]
+        trainingSet.add(entry)
+    }
+
+    println("Training set: ")
+    trainingSet.print()
+
+    println("Training...")
+    var settings = TrainingSettings()
+    settings.epochs = -1
+    settings.batch = -1
+    settings.maxError = 0.01
+    var results = nn.train(trainingSet, settings)
+    println("Training results: ")
+    println(results)
+
+    nn.save("temp/quad")
+}
+
+// Using the model
+var testSet = nn.dataset()
+
+println("Evaluation: Enter values for X,Y between -100 and 100")
+println("To exit use X or Y equals 0")
+var pred, data
+
+while(true)
+{
+    x = int(input("X: "))
+    y = int(input("Y: "))
+    if(x == 0 || y == 0)
+        break
+    testSet.clear();
+    data = [ x, y, 0, 0, 0, 0 ]
+    testSet.add(data)
+    nn.test(testSet)
+    pred = testSet.getMaxOutput(0)
+    println("Result: ", pred + 1, "° quad")
+}

@@ -1,0 +1,46 @@
+import ml as default
+
+var nn = NN(2, 1)
+nn.defaultActivation("relu")
+nn.outputActivation("linear", 1)
+nn.verbose(true)
+nn.addLayer(3)
+nn.addLayer(5)
+nn.addLayer(3)
+nn.build()
+
+var trainingSet = nn.dataset()
+var testSet = nn.dataset()
+
+var x1, x2, entry
+for(var y = 0; y < 1; y += 0.01)
+{
+    x1 = sin(3.14 * y)
+    x2 = cos(3.14 * y)
+    entry = [ x1, x2, y ]
+    if( int(y * 100) % 5 == 0 )
+        trainingSet.add(entry)
+    else
+        testSet.add(entry)
+}
+
+println("Training set: ")
+trainingSet.print()
+
+println("Training...")
+var settings = TrainingSettings()
+settings.epochs = -1
+settings.batch = 10
+settings.learningRate = 0.1
+settings.maxError = 0.005
+var results = nn.train(trainingSet, settings)
+
+println("Training results: ")
+println(results)
+
+nn.test(testSet);
+
+println("Test results: ")
+testSet.print()
+
+nn.save("temp/sincos")

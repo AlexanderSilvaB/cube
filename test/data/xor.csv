@@ -1,0 +1,5 @@
+in1,in2,out
+OFF,OFF,OFF
+OFF,ON,ON
+ON,OFF,ON
+ON,ON,OFF

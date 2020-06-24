@@ -1,0 +1,12 @@
+import ml as default
+
+var nn = NN(2, 1)
+
+var dataset = nn.dataset()
+if(dataset.fromCSV("test/data/xor.csv"))
+{
+    dataset.print()
+    dataset.save("temp/xor")
+    var dataset = DataSet.load("temp/xor")
+    dataset.print()
+}

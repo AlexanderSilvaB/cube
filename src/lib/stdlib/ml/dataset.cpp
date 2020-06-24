@@ -220,6 +220,15 @@ extern "C"
         return list;
     }
 
+    EXPORTED unsigned int dataset_get_output_max_index(int id, unsigned int pos)
+    {
+        DataSet *ds = findDataset(id);
+        if (ds == NULL)
+            return 0;
+
+        return ds->getOutputMaxIndex(pos);
+    }
+
     EXPORTED int dataset_to_testset(int id)
     {
         DataSet *ds = findDataset(id);
@@ -252,18 +261,12 @@ extern "C"
         return ds->save(fileName);
     }
 
-    EXPORTED int dataset_from_csv(const char *fileName, bool header, int chucksize)
+    EXPORTED bool dataset_from_csv(int id, const char *fileName, bool header, int chucksize)
     {
-        int id = createDataset(0, 0);
         DataSet *ds = findDataset(id);
         if (ds == NULL)
-            return -1;
-        if (ds->fromCSV(fileName, header, chucksize) == false)
-        {
-            deleteDataset(id);
-            return -1;
-        }
-        return id;
+            return false;
+        return ds->fromCSV(fileName, header, chucksize);
     }
 
     EXPORTED bool dataset_to_csv(int id, const char *fileName)

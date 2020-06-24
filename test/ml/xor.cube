@@ -1,0 +1,60 @@
+import ml as default
+
+
+// Construct the NN model
+println("Creating NN1...")
+var nn1 = NN(2, 1)
+nn1.verbose(false)
+nn1.defaultActivation("relu")
+nn1.addLayer(2)
+nn1.build()
+nn1.print()
+
+var trainingSet = nn1.dataset()
+var entry = trainingSet.entry()
+
+entry = [0, 0, 0]
+trainingSet.add(entry)
+entry = [0, 1, 1]
+trainingSet.add(entry)
+entry = [1, 0, 1]
+trainingSet.add(entry)
+entry = [1, 1, 0]
+trainingSet.add(entry)
+
+println("Training set: ")
+trainingSet.print()
+
+println("Training NN1...")
+
+var settings = TrainingSettings()
+settings.epochs = 100000
+settings.maxError = 0.000001
+
+var results = nn1.train(trainingSet, settings)
+
+println("Training results NN1:")
+println(results)
+
+var testSet1 = trainingSet.toTest()
+nn1.test(testSet1)
+testSet1.binarize()
+
+println("Test results NN1: ")
+testSet1.print()
+
+println("Saving NN1...")
+nn1.save("temp/xor")
+
+
+// Testing NN 2
+println("Loading NN2...")
+
+var nn2 = NN.load("temp/xor")
+
+var testSet2 = trainingSet.toTest()
+nn2.test(testSet2)
+testSet2.binarize()
+
+println("Test results NN2: ")
+testSet2.print()
