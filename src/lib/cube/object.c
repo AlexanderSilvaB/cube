@@ -635,17 +635,27 @@ char *objectToString(Value value, bool literal)
 
         case OBJ_BYTES: {
             ObjBytes *bytes = AS_BYTES(value);
-            int len = bytes->length;
-            if (len < 0)
-                len = 10;
-            char *bytesString = mp_malloc(sizeof(unsigned char) * 8 * len);
-            bytesString[0] = '\0';
-            for (int i = 0; i < len; i++)
+            char *bytesString = NULL;
+            if (bytes->length < 0)
             {
-                snprintf(bytesString + strlen(bytesString), 6, "0x%X ", (unsigned char)bytes->bytes[i]);
+                bytesString = mp_malloc(sizeof(unsigned char) * 32);
+                snprintf(bytesString, 31, "%p", bytes->bytes);
             }
-            if (len != bytes->length)
-                snprintf(bytesString + strlen(bytesString), 6, "... ");
+            else
+            {
+
+                int len = bytes->length;
+                if (len < 0)
+                    len = 10;
+                bytesString = mp_malloc(sizeof(unsigned char) * 8 * len);
+                bytesString[0] = '\0';
+                for (int i = 0; i < len; i++)
+                {
+                    snprintf(bytesString + strlen(bytesString), 6, "0x%X ", (unsigned char)bytes->bytes[i]);
+                }
+                if (len != bytes->length)
+                    snprintf(bytesString + strlen(bytesString), 6, "... ");
+            }
             return bytesString;
         }
 
@@ -877,8 +887,11 @@ char *objectType(Value value)
         }
 
         case OBJ_BYTES: {
-            char *str = mp_malloc(sizeof(char) * 7);
-            snprintf(str, 6, "bytes");
+            char *str = mp_malloc(sizeof(char) * 10);
+            if (AS_BYTES(value)->length < 0)
+                snprintf(str, 9, "pointer");
+            else
+                snprintf(str, 7, "bytes");
             return str;
         }
 

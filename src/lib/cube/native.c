@@ -1299,6 +1299,8 @@ NativeTypes getNativeType(const char *name)
         return TYPE_CSTRING;
     else if (strcmp(name, "uchar_array") == 0 || strcmp(name, "cbytes") == 0 || strcmp(name, "raw") == 0)
         return TYPE_CBYTES;
+    else if (strcmp(name, "pointer") == 0)
+        return TYPE_CBYTES;
 
     return TYPE_UNKNOWN;
 }

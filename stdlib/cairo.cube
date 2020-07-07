@@ -1,0 +1,81 @@
+// Image Surfaces
+native libs/libbgl
+{
+    int32 cairo_format_stride_for_width(uint32, int32);
+    raw cairo_image_surface_create(uint32, int32, int32);
+    raw cairo_image_surface_create_for_data(cbytes, uint32, int32, int32, int32);
+    raw cairo_image_surface_get_data(raw);
+    uint32 cairo_image_surface_get_format(raw);
+    int32 cairo_image_surface_get_width(raw);
+    int32 cairo_image_surface_get_height(raw);
+    int32 cairo_image_surface_get_stride(raw);
+}
+
+// cairo_surface_t
+native libs/libbgl
+{
+    raw cairo_surface_create_similar(raw, uint32, int32, int32);
+    raw cairo_surface_create_similar_image(raw, uint32, int32, int32);
+    raw cairo_surface_create_for_rectangle(raw, float64, float64, float64, float64);
+    raw cairo_surface_reference(raw);
+    void cairo_surface_destroy(raw);
+    uint32 cairo_surface_status(raw);
+    void cairo_surface_finish(raw);
+    void cairo_surface_flush(raw);
+    raw cairo_surface_get_device(raw);
+    
+
+    
+    
+
+    raw cairo_create(raw);
+    void cairo_destroy(raw);
+    void cairo_set_source_rgb(raw, float64, float64, float64);
+    
+    void cairo_select_font_face(raw, cstring, uint32, uint32);
+    void cairo_set_font_size(raw, float64);
+    void cairo_show_text(raw, cstring);
+    
+
+    void cairo_move_to(raw, float64, float64);
+
+    uint32 cairo_surface_write_to_png(raw, cstring);
+
+}
+
+enum Status
+{
+    // https://www.cairographics.org/manual/cairo-Error-handling.html#cairo-status-t
+    Success = 0
+}
+
+enum Content
+{
+    Color = 0,
+    Alpha, 
+    ColorAlpha
+}
+
+enum Format
+{
+    Invalid = 0, 
+    ARGB32,
+    RGB24,
+    A8,
+    A1,
+    RGB16_565,
+    RGB30
+}
+
+enum FontSlant
+{
+    Normal = 0,
+    Italic,
+    Oblique
+}
+
+enum FontWeight
+{
+    Normal = 0,
+    Bold
+}
