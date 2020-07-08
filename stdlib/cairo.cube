@@ -1,5 +1,5 @@
-// Image Surfaces
-native libs/libbgl
+// Image Surfaces — Rendering to memory buffers
+native libcairo
 {
     int32 cairo_format_stride_for_width(uint32, int32);
     raw cairo_image_surface_create(uint32, int32, int32);
@@ -11,9 +11,23 @@ native libs/libbgl
     int32 cairo_image_surface_get_stride(raw);
 }
 
-// cairo_surface_t
-native libs/libbgl
+// cairo_surface_t — Base class for surfaces
+native libcairo
 {
+    struct UserDataKey
+    {
+        int32 unused;
+    }
+
+    struct RectangleInt
+    {
+        int32 x;
+        int32 y;
+        int32 width;
+        int32 height;
+    }
+    // func uint32 cairo_destroy_func_t(raw data);
+
     raw cairo_surface_create_similar(raw, uint32, int32, int32);
     raw cairo_surface_create_similar_image(raw, uint32, int32, int32);
     raw cairo_surface_create_for_rectangle(raw, float64, float64, float64, float64);
@@ -23,24 +37,262 @@ native libs/libbgl
     void cairo_surface_finish(raw);
     void cairo_surface_flush(raw);
     raw cairo_surface_get_device(raw);
+    // void cairo_surface_get_font_options(raw, ptr<cairo_font_options_t>);
+    uint32 cairo_surface_get_content(raw);
+    void cairo_surface_mark_dirty(raw);
+    void cairo_surface_mark_dirty_rectangle(raw, int32, int32, int32, int32);
+    void cairo_surface_set_device_offset(raw, float64, float64);
+    // void cairo_surface_get_device_offset(raw, ptr<float64>, ptr<float64>);
+    // void cairo_surface_get_device_scale(raw, ptr<float64>, ptr<float64>);
+    void cairo_surface_set_device_scale(raw, float64, float64);
+    void cairo_surface_set_fallback_resolution(raw, float64, float64);
+    // void cairo_surface_get_fallback_resolution(raw, ptr<float64>, ptr<float64>);
+    uint32 cairo_surface_get_type(raw);
+    uint32 cairo_surface_get_reference_count(raw);
+    // uint32 cairo_surface_set_user_data(raw, raw, cbytes, cairo_destroy_func_t);
+    cbytes cairo_surface_get_user_data(raw, raw);
+    void cairo_surface_copy_page(raw);
+    void cairo_surface_show_page(raw);
+    cbool cairo_surface_has_show_text_glyphs(raw);
+    // uint32 cairo_surface_set_mime_data(raw, cstring, cbytes, uint64, cairo_destroy_func_t, raw);
+    // void cairo_surface_get_mime_data(raw, cstring, ptr<cbytes>, ptr<uint64>);
+    cbool cairo_surface_supports_mime_type(raw, cstring);
+    raw cairo_surface_map_to_image(raw, raw);
+    void cairo_surface_unmap_image(raw, raw);
+}
+     
     
-
-    
-    
-
+// cairo_t — The cairo drawing context
+native libcairo
+{
     raw cairo_create(raw);
+    raw cairo_reference(raw);
     void cairo_destroy(raw);
+    uint32 cairo_status(raw);
+    void cairo_save(raw);
+    void cairo_restore(raw);
+    raw cairo_get_target(raw);
+    void cairo_push_group(raw);
+    void cairo_push_group_with_content(raw, uint32);
+    raw cairo_pop_group(raw);
+    void cairo_pop_group_to_source(raw);
+    raw cairo_get_group_target(raw);
     void cairo_set_source_rgb(raw, float64, float64, float64);
-    
+    void cairo_set_source_rgba(raw, float64, float64, float64, float64);
+    void cairo_set_source(raw, raw);
+    void cairo_set_source_surface(raw, raw, float64, float64);
+    raw cairo_get_source(raw);
+    void cairo_set_antialias(raw, uint32);
+    uint32 cairo_get_antialias(raw);
+    void cairo_set_dash(raw, cbytes, int32, float64);
+    int32 cairo_get_dash_count(raw);
+    // void cairo_get_dash(raw, ptr<float64>, ptr<float64>);
+    void cairo_set_fill_rule(raw, uint32);
+    uint32 cairo_get_fill_rule(raw);
+    void cairo_set_line_cap(raw, uint32);
+    uint32 cairo_get_line_cap(raw);
+    void cairo_set_line_join(raw, uint32);
+    uint32 cairo_get_line_join(raw);
+    void cairo_set_line_width(raw, float64);
+    float64 cairo_get_line_width(raw);
+    void cairo_set_miter_limit(raw, float64);
+    float64 cairo_get_miter_limit(raw);
+    void cairo_set_operator(raw, uint32);
+    uint32 cairo_get_operator(raw);
+    void cairo_set_tolerance(raw, float64);
+    float64 cairo_get_tolerance(raw);
+    void cairo_clip(raw);
+    void cairo_clip_preserve(raw);
+    // void cairo_clip_extents(raw, ptr<float64>, ptr<float64>, ptr<float64>, ptr<float64>);
+    cbool cairo_in_clip(raw, float64, float64);
+    void cairo_reset_clip(raw);
+    // void cairo_rectangle_list_destroy(ptr<cairo_rectangle_list_t>);
+    // ptr<cairo_rectangle_list_t> cairo_copy_clip_rectangle_list(raw);
+    void cairo_fill(raw);
+    void cairo_fill_preserve(raw);
+    // void cairo_fill_extents(raw, ptr<float64>, ptr<float64>, ptr<float64>, ptr<float64>);
+    cbool cairo_in_fill(raw, float64, float64);
+    void cairo_mask(raw, raw);
+    void cairo_mask_surface(raw, raw, float64, float64);
+    void cairo_paint(raw);
+    void cairo_paint_with_alpha(raw, float64);
+    void cairo_stroke(raw);
+    void cairo_stroke_preserve(raw);
+    // void cairo_stroke_extents(raw, ptr<float64>, ptr<float64>, ptr<float64>, ptr<float64>);
+    cbool cairo_in_stroke(raw, float64, float64);
+    void cairo_copy_page(raw);
+    void cairo_show_page(raw);
+    uint32 cairo_get_reference_count(raw);
+    // uint32 cairo_set_user_data(raw, raw, cbytes, cairo_destroy_func_t);
+    cbytes cairo_get_user_data(raw, raw);
+}
+
+// text — Rendering text and glyphs
+native libcairo
+{ 
+    struct Glyph
+    {
+        uint64 index;
+        float64 x;
+        float64 y;
+    }
+
     void cairo_select_font_face(raw, cstring, uint32, uint32);
     void cairo_set_font_size(raw, float64);
+    void cairo_set_font_matrix(raw, raw);
+    void cairo_get_font_matrix(raw, raw);
+    void cairo_set_font_options(raw, raw);
+    void cairo_get_font_options(raw, raw);
+    void cairo_set_font_face(raw, raw);
+    raw cairo_get_font_face(raw);
+    void cairo_set_scaled_font(raw, raw);
+    raw cairo_get_scaled_font(raw);
     void cairo_show_text(raw, cstring);
+    void cairo_show_glyphs(raw, raw, int32);
+    void cairo_show_text_glyphs(raw, cstring, int32, raw, int32, raw, int32, uint32);
+    void cairo_font_extents(raw, raw);
+    void cairo_text_extents(raw, cstring, raw);
+    void cairo_glyph_extents(raw, raw, int32, raw);
+    raw cairo_toy_font_face_create(cstring, uint32, uint32);
+    cstring cairo_toy_font_face_get_family(raw);
+    uint32 cairo_toy_font_face_get_slant(raw);
+    uint32 cairo_toy_font_face_get_weight(raw);
+    raw cairo_glyph_allocate(int32);
+    void cairo_glyph_free(raw);
+    raw cairo_text_cluster_allocate(int32);
+    void cairo_text_cluster_free(raw);
+}
+
     
+// Paths — Creating paths and manipulating path data
+native libcairo
+{ 
+    struct Path
+    {
+        uint32 status;
+        // ptr<cairo_path_data_t> data;
+        int32 num_data;
+    }
 
+    raw cairo_copy_path(raw);
+    raw cairo_copy_path_flat(raw);
+    void cairo_path_destroy(raw);
+    void cairo_append_path(raw, raw);
+    cbool cairo_has_current_point(raw);
+    // void cairo_get_current_point(raw, ptr<float64>, ptr<float64>);
+    void cairo_new_path(raw);
+    void cairo_new_sub_path(raw);
+    void cairo_close_path(raw);
+    void cairo_arc(raw, float64, float64, float64, float64, float64);
+    void cairo_arc_negative(raw, float64, float64, float64, float64, float64);
+    void cairo_curve_to(raw, float64, float64, float64, float64, float64, float64);
+    void cairo_line_to(raw, float64, float64);
     void cairo_move_to(raw, float64, float64);
+    void cairo_rectangle(raw, float64, float64, float64, float64);
+    void cairo_glyph_path(raw, raw, int32);
+    void cairo_text_path(raw, cstring);
+    void cairo_rel_curve_to(raw, float64, float64, float64, float64, float64, float64);
+    void cairo_rel_line_to(raw, float64, float64);
+    void cairo_rel_move_to(raw, float64, float64);
+    // void cairo_path_extents(raw, ptr<float64>, ptr<float64>, ptr<float64>, ptr<float64>);
+}
 
-    uint32 cairo_surface_write_to_png(raw, cstring);
+// Pcairo_pattern_t — Sources for drawing
+native libcairo
+{ 
+    void cairo_pattern_add_color_stop_rgb(raw pattern, float64 offset, float64 red, float64 green, float64 blue);
+    void cairo_pattern_add_color_stop_rgba(raw pattern, float64 offset, float64 red, float64 green, float64 blue, float64 alpha);
+    // uint32 cairo_pattern_get_color_stop_count(raw pattern, ptr<int32> count);
+    // uint32 cairo_pattern_get_color_stop_rgba(raw pattern, int32 index, ptr<float64> red, ptr<float64> green, ptr<float64> blue, ptr<float64> alpha);
+    raw cairo_pattern_create_rgb(float64 red, float64 green, float64 blue);
+    raw cairo_pattern_create_rgba(float64 red, float64 green, float64 blue, float64 alpha);
+    // uint32 cairo_pattern_get_rgba(raw pattern, ptr<float64> red, ptr<float64> green, ptr<float64> blue, ptr<float64> alpha);
+    raw cairo_pattern_create_for_surface(raw surface);
+    // uint32 cairo_pattern_get_surface(raw pattern, ptr<raw> surface);
+    raw cairo_pattern_create_linear(float64 x0, float64 y0, float64 x1, float64 y1);
+    // uint32 cairo_pattern_get_linear_points(raw pattern, ptr<float64> x0, ptr<float64> y0, ptr<float64> x1, ptr<float64> y1);
+    raw cairo_pattern_create_radial(float64 cx0, float64 cy0, float64 radius0, float64 cx1, float64 cy1, float64 radius1);
+    // uint32 cairo_pattern_get_radial_circles(raw pattern, ptr<float64> cx0, ptr<float64> cy0, ptr<float64> radius0, ptr<float64> cx1, ptr<float64> cy1, ptr<float64> radius1);
+    raw cairo_pattern_create_mesh();
+    void cairo_mesh_pattern_begin_patch(raw pattern);
+    void cairo_mesh_pattern_end_patch(raw pattern);
+    void cairo_mesh_pattern_move_to(raw pattern, float64 x, float64 y);
+    void cairo_mesh_pattern_line_to(raw pattern, float64 x, float64 y);
+    void cairo_mesh_pattern_curve_to(raw pattern, float64 x1, float64 y1, float64 x2, float64 y2, float64 x3, float64 y3);
+    void cairo_mesh_pattern_set_control_point(raw pattern, uint32 point_num, float64 x, float64 y);
+    void cairo_mesh_pattern_set_corner_color_rgb(raw pattern, uint32 corner_num, float64 red, float64 green, float64 blue);
+    void cairo_mesh_pattern_set_corner_color_rgba(raw pattern, uint32 corner_num, float64 red, float64 green, float64 blue, float64 alpha);
+    // uint32 cairo_mesh_pattern_get_patch_count(raw pattern, ptr<int32> count);
+    raw cairo_mesh_pattern_get_path(raw pattern, uint32 patch_num);
+    // uint32 cairo_mesh_pattern_get_control_point(raw pattern, uint32 patch_num, uint32 point_num, ptr<float64> x, ptr<float64> y);
+    // uint32 cairo_mesh_pattern_get_corner_color_rgba(raw pattern, uint32 patch_num, uint32 corner_num, ptr<float64> red, ptr<float64> green, ptr<float64> blue, ptr<float64> alpha);
+    raw cairo_pattern_reference(raw pattern);
+    void cairo_pattern_destroy(raw pattern);
+    uint32 cairo_pattern_status(raw pattern);
+    void cairo_pattern_set_extend(raw pattern, uint32 extend);
+    uint32 cairo_pattern_get_extend(raw pattern);
+    void cairo_pattern_set_filter(raw pattern, uint32 filter);
+    uint32 cairo_pattern_get_filter(raw pattern);
+    void cairo_pattern_set_matrix(raw pattern, raw matrix);
+    void cairo_pattern_get_matrix(raw pattern, raw matrix);
+    uint32 cairo_pattern_get_type(raw pattern);
+    uint32 cairo_pattern_get_reference_count(raw pattern);
+    // uint32 cairo_pattern_set_user_data(raw pattern, raw key, cbytes user_data, cairo_destroy_func_t destroy);
+    cbytes cairo_pattern_get_user_data(raw pattern, raw key);
+}
 
+// PNG Support — Reading and writing PNG images
+native libcairo
+{ 
+    // func uint32 cairo_read_func_t(raw closure, cbytes data, uint32 length);
+    // func uint32 cairo_write_func_t(raw closure, cbytes data, uint32 length);
+
+    raw cairo_image_surface_create_from_png(cstring fileName);
+    // raw cairo_image_surface_create_from_png_stream(cairo_read_func_t read_func, raw closure);
+    uint32 cairo_surface_write_to_png(raw surface, cstring fileName);
+    // uint32 cairo_surface_write_to_png_stream(raw surface, cairo_write_func_t erite_func, raw closure);
+}
+
+
+// cairo_matrix_t — Generic matrix operations
+native libcairo
+{ 
+    struct Matrix
+    {
+        float64 xx; float64 yx;
+        float64 xy; float64 yy;
+        float64 x0; float64 y0;
+    }
+
+    void cairo_matrix_init(raw matrix, float64 xx, float64 yx, float64 xy, float64 yy, float64 x0, float64 y0);
+    void cairo_matrix_init_identity(raw matrix);
+    void cairo_matrix_init_translate(raw matrix, float64 tx, float64 ty);
+    void cairo_matrix_init_scale(raw matrix, float64 sx, float64 sy);
+    void cairo_matrix_init_rotate(raw matrix, float64 radians);
+    void cairo_matrix_translate(raw matrix, float64 tx, float64 ty);
+    void cairo_matrix_scale(raw matrix, float64 sx, float64 sy);
+    void cairo_matrix_rotate(raw matrix, float64 radians);
+    uint32 cairo_matrix_invert(raw matrix);
+    void cairo_matrix_multiply(raw result, raw a, raw b);
+    // void cairo_matrix_transform_distance(raw matrix, ptr<float64> dx, ptr<float64> dy);
+    // void cairo_matrix_transform_point(raw matrix, ptr<float64> x, ptr<float64> y);
+}
+
+
+// Transformations — Manipulating the current transformation matrix
+native libcairo
+{
+    void cairo_translate(raw cr, float64 tx, float64 ty);
+    void cairo_scale(raw cr, float64 sx, float64 sy);
+    void cairo_rotate(raw cr, float64 angle);
+    void cairo_transform(raw cr, raw matrix);
+    void cairo_set_matrix(raw cr, raw matrix);
+    void cairo_get_matrix(raw cr, raw matrix);
+    void cairo_identity_matrix(raw cr);
+    // void cairo_user_to_device(raw cr, ptr<float64> x, ptr<float64> y);
+    // void cairo_user_to_device_distance(raw cr, ptr<float64> dx, ptr<float64> dy);
+    // void cairo_device_to_user(raw cr, ptr<float64> x, ptr<float64> y);
+    // void cairo_device_to_user_distance(raw cr, ptr<float64> dx, ptr<float64> dy);
 }
 
 enum Status
@@ -54,6 +306,76 @@ enum Content
     Color = 0,
     Alpha, 
     ColorAlpha
+}
+
+enum SurfaceType
+{
+    Image = 0,
+    PDF
+}
+
+enum Antialias
+{
+    Default = 0,
+    None,
+    Gray,
+    Subpixel,
+    Fast, 
+    Good, 
+    Best
+}
+
+enum FillRule
+{
+    Winding = 0,
+    EvenOdd
+}
+
+enum LineCap
+{
+    Butt = 0,
+    Round,
+    Square
+}
+
+enum LineJoin
+{
+    Miter = 0,
+    Round,
+    Bevel
+}
+
+enum Operator
+{
+    Clear = 0,
+    Source,
+    Over,
+    In,
+    Out,
+    Atop,
+    Dest,
+    DestOver,
+    DestIn,
+    DestOut,
+    DestAtop,
+    Xor,
+    Add,
+    Saturate,
+    Multiply,
+    Screen,
+    Overlay,
+    Darken,
+    Lighten,
+    ColorDodge,
+    ColorBurn,
+    HardLight,
+    SoftLight,
+    Difference,
+    Exclusion,
+    HslHue,
+    HslSaturation,
+    HslColor,
+    HslLuminosity
 }
 
 enum Format
@@ -78,4 +400,32 @@ enum FontWeight
 {
     Normal = 0,
     Bold
+}
+
+enum Extend
+{
+    None = 0,
+    Repeat,
+    Reflect,
+    Pad
+}
+
+enum Filter
+{
+    Fast = 0,
+    Good,
+    Best,
+    Nearest,
+    Bilinear,
+    Gaussian
+}
+
+enum PatternType
+{
+    Solid = 0,
+    Surface,
+    Linear,
+    Radial,
+    Mesh,
+    RasterSource
 }

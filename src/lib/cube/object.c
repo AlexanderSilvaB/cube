@@ -304,7 +304,9 @@ ObjDict *initDict()
     dict->capacity = 8;
     dict->count = 0;
     dict->items = mp_calloc(dict->capacity, sizeof(*dict->items));
-
+    dict->dataPtr = NULL;
+    dict->dataSize = 0;
+    dict->str = NULL;
     return dict;
 }
 
@@ -1040,11 +1042,6 @@ Value copyObject(Value value)
     {
         ObjList *newList = copyList(AS_LIST(value), true);
         return OBJ_VAL(newList);
-    }
-    else if (IS_DICT(value))
-    {
-        ObjDict *newDict = copyDict(AS_DICT(value), true);
-        return OBJ_VAL(newDict);
     }
     else if (IS_DICT(value))
     {

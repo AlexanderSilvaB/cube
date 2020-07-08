@@ -156,6 +156,9 @@ struct sObjDict
     int capacity;
     int count;
     dictItem **items;
+    void *str;
+    void *dataPtr;
+    int dataSize;
 };
 
 #define FILE_MODE_READ 0x1

@@ -11,11 +11,11 @@ if (Cairo_FOUND)
 
         include_directories(${Cairo_INCLUDE_DIRS})
         
-        add_library(cairo SHARED ${SRC})
-        target_link_libraries(cairo ${Cairo_LIBRARIES})
-        set_target_properties(cairo PROPERTIES
+        add_library(cairo_cube SHARED ${SRC})
+        target_link_libraries(cairo_cube ${Cairo_LIBRARIES})
+        set_target_properties(cairo_cube PROPERTIES
                 LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/stdlib/libs/)
-        set_target_properties(cairo PROPERTIES
+        set_target_properties(cairo_cube PROPERTIES
                 RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/stdlib/libs/)
 else()
 	MESSAGE("Couldn't find libCairo. Not building cairo library")

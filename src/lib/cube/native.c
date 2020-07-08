@@ -587,11 +587,100 @@ int to_var(var_t *var, Value value, NativeTypes type, ffi_type **ffi_arg)
             break;
         case TYPE_CBYTES:
             *ffi_arg = &ffi_type_pointer;
-            var->val._ptr = (uint8_t *)(AS_CBYTES(toBytes(value)));
+            if (IS_DICT(value) && AS_DICT(value)->dataSize > 0)
+                var->val._ptr = AS_DICT(value)->dataPtr;
+            else
+                var->val._ptr = (uint8_t *)(AS_CBYTES(toBytes(value)));
             sz = sizeof(uint8_t *);
             break;
         default:
             *ffi_arg = &ffi_type_pointer;
+            var->val._ptr = NATIVE_NULL();
+            var->alloc = true;
+            sz = sizeof(void *);
+            break;
+    }
+    return sz;
+}
+
+int alloc_var(var_t *var, Value value, NativeTypes type)
+{
+    int sz = 0;
+    switch (type)
+    {
+
+        case TYPE_NULL:
+        case TYPE_BOOL:
+        case TYPE_NUMBER:
+        case TYPE_STRING:
+        case TYPE_BYTES:
+        case TYPE_LIST:
+        case TYPE_DICT:
+        case TYPE_VAR:
+        case TYPE_FUNC: {
+            var->val._ptr = NATIVE_VAR();
+            var->alloc = true;
+            valueToNative((cube_native_var *)var->val._ptr, value);
+            sz = sizeof(void *);
+        }
+        break;
+        case TYPE_VOID:
+            var->val._uint64 = 0;
+            sz = sizeof(void *);
+            break;
+        case TYPE_CBOOL:
+            var->val._bool = (bool)(AS_BOOL(toBool(value)));
+            sz = sizeof(bool);
+            break;
+        case TYPE_INT8:
+            var->val._sint8 = (int8_t)(AS_NUMBER(toNumber(value)));
+            sz = sizeof(int8_t);
+            break;
+        case TYPE_INT16:
+            var->val._sint16 = (int16_t)(AS_NUMBER(toNumber(value)));
+            sz = sizeof(int16_t);
+            break;
+        case TYPE_INT32:
+            var->val._sint32 = (int32_t)(AS_NUMBER(toNumber(value)));
+            sz = sizeof(int32_t);
+            break;
+        case TYPE_INT64:
+            var->val._sint64 = (int64_t)(AS_NUMBER(toNumber(value)));
+            sz = sizeof(int64_t);
+            break;
+        case TYPE_UINT8:
+            var->val._uint8 = (uint8_t)(AS_NUMBER(toNumber(value)));
+            sz = sizeof(uint8_t);
+            break;
+        case TYPE_UINT16:
+            var->val._uint16 = (uint16_t)(AS_NUMBER(toNumber(value)));
+            sz = sizeof(uint16_t);
+            break;
+        case TYPE_UINT32:
+            var->val._uint32 = (uint32_t)(AS_NUMBER(toNumber(value)));
+            sz = sizeof(uint32_t);
+            break;
+        case TYPE_UINT64:
+            var->val._uint64 = (uint64_t)(AS_NUMBER(toNumber(value)));
+            sz = sizeof(uint64_t);
+            break;
+        case TYPE_FLOAT32:
+            var->val._float32 = (float)(AS_NUMBER(toNumber(value)));
+            sz = sizeof(float);
+            break;
+        case TYPE_FLOAT64:
+            var->val._float64 = (double)(AS_NUMBER(toNumber(value)));
+            sz = sizeof(double);
+            break;
+        case TYPE_CSTRING:
+            var->val._ptr = (char *)(AS_CSTRING(toString(value)));
+            sz = sizeof(char *);
+            break;
+        case TYPE_CBYTES:
+            var->val._ptr = (uint8_t *)(AS_CBYTES(toBytes(value)));
+            sz = sizeof(uint8_t *);
+            break;
+        default:
             var->val._ptr = NATIVE_NULL();
             var->alloc = true;
             sz = sizeof(void *);
@@ -791,6 +880,127 @@ int to_struct(var_t *var, Value value, ObjNativeStruct *str, ffi_type **ffi_arg)
     st_type_elements[count] = NULL;
     *ffi_arg = st_type;
     return cr;
+}
+
+int alloc_struct(void **ptr_, Value value, ObjNativeStruct *str)
+{
+    if (!IS_DICT(value))
+    {
+        return -1;
+    }
+
+    ObjDict *dict = AS_DICT(value);
+
+    int count = str->names.count;
+    int i;
+
+    int sz = 0;
+    int cr = 0;
+    int cp = 128;
+    void *ptr = mp_malloc(cp);
+
+    for (i = 0; i < count; i++)
+    {
+        Value itemValue = searchDict(dict, AS_CSTRING(str->names.values[i]));
+
+        NativeTypes type = getNativeType(AS_CSTRING(str->types.values[i]));
+        if (type == TYPE_UNKNOWN || type == TYPE_VOID)
+        {
+            ObjNativeStruct *str = getNativeStruct(str->lib, AS_CSTRING(str->types.values[i]));
+            if (str == NULL)
+                return -1;
+            else
+            {
+                void *_ptr = NULL;
+                sz = alloc_struct(&_ptr, itemValue, str);
+                if (sz < 0)
+                {
+                    return -1;
+                }
+
+                if (sz + cr > cp)
+                {
+                    while (sz + cr > cp)
+                    {
+                        cp *= 2;
+                    }
+                    ptr = realloc(ptr, cp);
+                }
+
+                memcpy((uint8_t *)ptr + cr, _ptr, sz);
+                cr += sz;
+            }
+        }
+        else
+        {
+            var_t st_type_var;
+            st_type_var.alloc = false;
+            sz = alloc_var(&st_type_var, itemValue, type);
+
+            if (sz + cr > cp)
+            {
+                while (sz + cr > cp)
+                {
+                    cp *= 2;
+                }
+                ptr = realloc(ptr, cp);
+            }
+
+            memcpy((uint8_t *)ptr + cr, &st_type_var.val, sz);
+            cr += sz;
+        }
+    }
+
+    *ptr_ = ptr;
+
+    return cr;
+}
+
+void write_struct(void *ptr, ObjDict *dict)
+{
+    unsigned char *data = ptr;
+    if (data == NULL)
+        data = dict->dataPtr;
+    if (data == NULL)
+        return;
+
+    ObjNativeStruct *str = (ObjNativeStruct *)dict->str;
+    if (str == NULL)
+        return;
+
+    int count = str->names.count;
+    int i;
+
+    int sz = 0;
+
+    for (i = 0; i < count; i++)
+    {
+        Value itemValue = searchDict(dict, AS_CSTRING(str->names.values[i]));
+
+        NativeTypes type = getNativeType(AS_CSTRING(str->types.values[i]));
+        if (type == TYPE_UNKNOWN || type == TYPE_VOID)
+        {
+            ObjNativeStruct *str = getNativeStruct(str->lib, AS_CSTRING(str->types.values[i]));
+            if (str == NULL)
+                return;
+            else
+            {
+                sz = size_struct(str);
+                Value val = searchDict(dict, AS_CSTRING(str->types.values[i]));
+                if (IS_DICT(val))
+                    write_struct(data, AS_DICT(val));
+                data += sz;
+            }
+        }
+        else
+        {
+            var_t st_type_var;
+            st_type_var.alloc = false;
+            sz = alloc_var(&st_type_var, itemValue, type);
+            memcpy(data, &st_type_var.val, sz);
+            data += sz;
+        }
+    }
 }
 
 ffi_type *prepare_ret_var(var_t *var, NativeTypes type)
@@ -1012,6 +1222,52 @@ Value from_struct(void *ptr, ObjNativeStruct *str)
     return OBJ_VAL(dict);
 }
 
+void read_struct(void *ptr, ObjDict *dict)
+{
+    unsigned char *data = ptr;
+    if (data == NULL)
+        data = dict->dataPtr;
+    if (data == NULL)
+        return;
+
+    ObjNativeStruct *str = (ObjNativeStruct *)dict->str;
+    if (str == NULL)
+        return;
+
+    int count = str->names.count;
+    int sz;
+    var_t var;
+
+    for (int i = 0; i < count; i++)
+    {
+        NativeTypes type = getNativeType(AS_CSTRING(str->types.values[i]));
+        if (type == TYPE_UNKNOWN || type == TYPE_VOID)
+        {
+            ObjNativeStruct *str = getNativeStruct(str->lib, AS_CSTRING(str->types.values[i]));
+            if (str != NULL)
+            {
+                sz = size_struct(str);
+                Value val = searchDict(dict, AS_CSTRING(str->types.values[i]));
+                if (IS_DICT(val))
+                {
+                    read_struct(data, AS_DICT(val));
+                    insertDict(dict, AS_CSTRING(str->names.values[i]), val);
+                }
+                data += sz;
+            }
+        }
+        else
+        {
+            sz = size_var(type);
+            memcpy(&var.val, data, sz);
+            data += sz;
+
+            Value val = from_var(&var, type);
+            insertDict(dict, AS_CSTRING(str->names.values[i]), val);
+        }
+    }
+}
+
 ObjNativeStruct *getNativeStruct(ObjNativeLib *lib, const char *name)
 {
     for (int i = 0; i < lib->objs.count; i++)
@@ -1091,6 +1347,10 @@ Value callNative(ObjNativeFunc *func, int argCount, Value *args)
             ffi_values[i] = &vars[i];
             vars[i].alloc = false;
 
+            if (IS_DICT(args[i]) && AS_DICT(args[i])->str != NULL)
+            {
+                write_struct(NULL, AS_DICT(args[i]));
+            }
             to_var(&vars[i], args[i], type, &ffi_args[i]);
         }
     }
@@ -1158,6 +1418,19 @@ Value callNative(ObjNativeFunc *func, int argCount, Value *args)
     // Call ------------------------------------
     ffi_call(&cif, FFI_FN(fn), ret, ffi_values);
 
+    // Get references
+    for (int i = 0; i < argCount; i++)
+    {
+        NativeTypes type = getNativeType(AS_CSTRING(func->params.values[i]));
+        if (type == TYPE_CBYTES)
+        {
+            if (IS_DICT(args[i]) && AS_DICT(args[i])->str != NULL)
+            {
+                read_struct(NULL, AS_DICT(args[i]));
+            }
+        }
+    }
+
     // Get the result
     Value result = NULL_VAL;
     if (_struct != NULL)
@@ -1199,6 +1472,9 @@ Value createNativeStruct(ObjNativeStruct *str, int argCount, Value *args)
     {
         insertDict(dict, AS_CSTRING(str->names.values[i]), args[i]);
     }
+
+    dict->dataSize = alloc_struct(&dict->dataPtr, OBJ_VAL(dict), str);
+    dict->str = str;
 
     return OBJ_VAL(dict);
 }

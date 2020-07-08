@@ -1791,6 +1791,8 @@ static void nativeFunc()
             emitConstant(OBJ_VAL(copyString(str, strlen(str))));
             mp_free(str);
 
+            match(TOKEN_IDENTIFIER);
+
         } while (match(TOKEN_COMMA));
     }
 
