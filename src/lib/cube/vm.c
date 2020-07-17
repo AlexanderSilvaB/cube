@@ -4531,11 +4531,15 @@ InterpretResult run()
                 ObjNativeFunc *func = initNativeFunc();
 
                 int arity = AS_NUMBER(pop());
-                for (int i = arity - 1; i >= 0; i--)
+
+                for (int i = (arity * 3) - 1; i >= 0; i -= 3)
                 {
+                    writeValueArray(&func->hasDefaults, peek(i - 2));
+                    writeValueArray(&func->defaults, peek(i - 1));
                     writeValueArray(&func->params, peek(i));
                 }
 
+                arity *= 3;
                 while (arity > 0)
                 {
                     pop();

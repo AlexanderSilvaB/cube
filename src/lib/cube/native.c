@@ -1302,17 +1302,37 @@ Value callNative(ObjNativeFunc *func, int argCount, Value *args)
 
     if (func->params.count != argCount)
     {
-        runtimeError("Invalid number of arguments: required '%d'", func->params.count);
-        return NULL_VAL;
+        bool valid = true;
+        for (int i = argCount; i < func->params.count; i++)
+        {
+            if (AS_BOOL(func->hasDefaults.values[i]) == false)
+            {
+                valid = false;
+                break;
+            }
+        }
+        if (!valid || argCount > func->params.count)
+        {
+            runtimeError("Invalid number of arguments: required '%d'", func->params.count);
+            return NULL_VAL;
+        }
     }
 
-    // Arguments ------------------------
-    ffi_type **ffi_args = (ffi_type **)malloc(sizeof(ffi_type *) * argCount);
-    void **ffi_values = (void **)malloc(sizeof(void *) * argCount);
-    var_t *vars = (var_t *)malloc(sizeof(var_t) * argCount);
+    int count = func->params.count;
 
-    for (int i = 0; i < argCount; i++)
+    // Arguments ------------------------
+    ffi_type **ffi_args = (ffi_type **)malloc(sizeof(ffi_type *) * count);
+    void **ffi_values = (void **)malloc(sizeof(void *) * count);
+    var_t *vars = (var_t *)malloc(sizeof(var_t) * count);
+    Value val;
+
+    for (int i = 0; i < func->params.count; i++)
     {
+        if (i < argCount)
+            val = args[i];
+        else
+            val = func->defaults.values[i];
+
         NativeTypes type = getNativeType(AS_CSTRING(func->params.values[i]));
         if (type == TYPE_UNKNOWN || type == TYPE_VOID)
         {
@@ -1331,7 +1351,7 @@ Value callNative(ObjNativeFunc *func, int argCount, Value *args)
                 vars[i].val._ptr = NULL;
                 vars[i].alloc = false;
 
-                if (to_struct(&vars[i], args[i], str, &ffi_args[i]) < 0)
+                if (to_struct(&vars[i], val, str, &ffi_args[i]) < 0)
                 {
                     free(ffi_args);
                     free(ffi_values);
@@ -1347,11 +1367,11 @@ Value callNative(ObjNativeFunc *func, int argCount, Value *args)
             ffi_values[i] = &vars[i];
             vars[i].alloc = false;
 
-            if (IS_DICT(args[i]) && AS_DICT(args[i])->str != NULL)
+            if (IS_DICT(val) && AS_DICT(val)->str != NULL)
             {
-                write_struct(NULL, AS_DICT(args[i]));
+                write_struct(NULL, AS_DICT(val));
             }
-            to_var(&vars[i], args[i], type, &ffi_args[i]);
+            to_var(&vars[i], val, type, &ffi_args[i]);
         }
     }
 
@@ -1372,7 +1392,7 @@ Value callNative(ObjNativeFunc *func, int argCount, Value *args)
         _struct = getNativeStruct(func->lib, func->returnType->chars);
         if (_struct == NULL)
         {
-            for (int i = 0; i < argCount; i++)
+            for (int i = 0; i < count; i++)
             {
                 free_var(vars[i]);
             }
@@ -1387,7 +1407,7 @@ Value callNative(ObjNativeFunc *func, int argCount, Value *args)
             ffi_ret_type = prepare_ret_struct(&retVal, _struct);
             if (ffi_ret_type == NULL)
             {
-                for (int i = 0; i < argCount; i++)
+                for (int i = 0; i < count; i++)
                 {
                     free_var(vars[i]);
                 }
@@ -1402,9 +1422,9 @@ Value callNative(ObjNativeFunc *func, int argCount, Value *args)
 
     // Prepare for call -----------------------
     ffi_cif cif;
-    if (ffi_prep_cif(&cif, FFI_DEFAULT_ABI, argCount, ffi_ret_type, ffi_args) != FFI_OK)
+    if (ffi_prep_cif(&cif, FFI_DEFAULT_ABI, count, ffi_ret_type, ffi_args) != FFI_OK)
     {
-        for (int i = 0; i < argCount; i++)
+        for (int i = 0; i < count; i++)
         {
             free_var(vars[i]);
         }
@@ -1439,7 +1459,7 @@ Value callNative(ObjNativeFunc *func, int argCount, Value *args)
         result = from_var(ret, retType);
 
     // Free data
-    for (int i = 0; i < argCount; i++)
+    for (int i = 0; i < count; i++)
     {
         free_var(vars[i]);
     }

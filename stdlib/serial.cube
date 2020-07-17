@@ -1,0 +1,179 @@
+var SKIP = -1;
+
+var NBLOCK = -1;
+var BLOCK = 0;
+
+var NONE = 0;
+var ODD = 1;
+var EVEN = 2;
+
+var STOP1 = 1;
+var STOP2 = 2;
+
+var DATA5 = 5;
+var DATA6 = 6;
+var DATA7 = 7;
+var DATA8 = 8;
+
+var CTS = 0;
+var RTS = 1;
+
+var XOFF = 0;
+var XON = 1;
+
+var NCAN = 0;
+var CAN = 1;
+
+
+
+native libs/libserial
+{
+    list list_serial();
+    int32 open_serial(cstring device);
+    void close_serial(int32 fd);
+    int32 configure_serial(int32 fd, int32 baudrate = SKIP, int32 timeout = SKIP, int32 parity = SKIP, int32 stopBits = SKIP, int32 dataBits = SKIP, int32 rts = SKIP, int32 xon = SKIP, int32 can = SKIP);
+    int32 write_serial(int32 fd, cbytes data, uint32 len);
+    bytes read_serial(int32 fd, uint32 len);
+}
+
+import os
+
+class Serial
+{
+    var fd = -1;
+
+    static func list()
+    {
+        return list_serial();
+    }
+
+    func init(device, baudrate, timeout, parity, stopBits, dataBits, rts, xon, can)
+    {
+        if(device is num)
+        {
+            var devices = list_serial();
+            if(device >= 0 and device < len(devices))
+                device = devices[device];
+        }
+
+        if(device is not str)
+            throw('Invalid device: ', device)
+
+        if(baudrate is null)
+            baudrate = 9600;
+        if(timeout is null)
+            timeout = 1000;
+        if(parity is null)
+            parity = 'N';
+        if(stopBits is null)
+            stopBits = 1;
+        if(dataBits is null)
+            dataBits = 8;
+        if(rts is null)
+            rts = false;
+        if(xon is null)
+            xon = false;
+        if(can is null)
+            can = false;
+        
+        if(parity is str)
+            parity = {'N' : NONE, 'n' : NONE, 'O' : ODD, 'o' : ODD, 'E' : EVEN, 'e' : EVEN}[parity];
+        
+        if(baudrate is not num)
+            throw('Invalid baudrate: ', baudrate);
+        if(timeout is not num)
+            throw('Invalid timeout: ', timeout);
+        if(parity is not num)
+            throw('Invalid parity: ', parity);
+        if(stopBits is not num)
+            throw('Invalid stop bits: ', stopBits);
+        if(dataBits is not num)
+            throw('Invalid data size: ', dataBits);
+        if(rts is not bool)
+            throw('Invalid rts/cts: ', rts);
+        if(xon is not bool)
+            throw('Invalid xon/xoff: ', xon);
+        if(can is not bool)
+            throw('Invalid canonical mode: ', can);
+
+        this.device = device;
+        this.baudrate = baudrate;
+        this.timeout = timeout;
+        this.parity = ['N', 'O', 'E'][parity];
+        this.stopBits = stopBits;
+        this.dataBits = dataBits;
+        this.rts = rts;
+        this.xon = xon;
+        this.can = can;
+        
+        this.open();
+    }
+
+    func isOpen()
+    {
+        return fd >= 0;
+    }
+
+    func open()
+    {
+        this.fd = open_serial(this.device);
+        if(this.isOpen())
+        {
+            configure_serial(this.fd, this.baudrate, 
+                this.timeout, this.parity, this.stopBits, 
+                this.dataBits, this.rts, this.xon, this.can);
+        }
+
+        return this.isOpen();
+    }
+
+    func close()
+    {
+        if(this.isOpen())
+        {
+            close_serial(this.fd);
+            this.fd = -1;
+        }
+    }
+
+    func read(n)
+    {
+        if(n is null)
+            n = 1;
+        n = num(n);
+
+        return read_serial(this.fd, n);
+    }
+
+    func write(data)
+    {
+        data = bytes(data);
+        return write_serial(this.fd, data, len(data));
+    }
+
+    func readLine(limit)
+    {
+        if(limit is null)
+            limit = 0;
+
+        var data = bytes()
+        var rd = this.read(1)
+        var end = bytes('\n')
+
+        while(rd != end and rd != null)
+        {
+            data.append(rd);
+            rd = this.read(1);
+            if(limit > 0 and len(data) >= limit)
+                break;
+        }
+        return data;
+    }
+
+    func str()
+    {
+        var is_open = this.isOpen();
+        return "Serial<open=${is_open}>( device='${device}', baudrate=${baudrate}, " +
+            "bytesize=${dataBits}, parity=${parity}, stopbits=${stopBits}, xonxoff=${xon}, rtscts=${rts}, caninical=${can}";
+    }
+}

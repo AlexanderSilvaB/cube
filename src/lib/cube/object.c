@@ -314,6 +314,8 @@ ObjNativeFunc *initNativeFunc()
 {
     ObjNativeFunc *nativeFunc = ALLOCATE_OBJ(ObjNativeFunc, OBJ_NATIVE_FUNC);
     initValueArray(&nativeFunc->params);
+    initValueArray(&nativeFunc->hasDefaults);
+    initValueArray(&nativeFunc->defaults);
     nativeFunc->name = NULL;
     nativeFunc->returnType = NULL;
     nativeFunc->lib = NULL;

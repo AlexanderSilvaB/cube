@@ -1793,6 +1793,17 @@ static void nativeFunc()
 
             match(TOKEN_IDENTIFIER);
 
+            if (match(TOKEN_EQUAL))
+            {
+                expression();
+                emitByte(OP_TRUE);
+            }
+            else
+            {
+                emitByte(OP_NULL);
+                emitByte(OP_FALSE);
+            }
+
         } while (match(TOKEN_COMMA));
     }
 

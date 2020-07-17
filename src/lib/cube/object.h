@@ -268,6 +268,7 @@ typedef struct
     ObjString *returnType;
     ObjNativeLib *lib;
     ValueArray params;
+    ValueArray hasDefaults, defaults;
 } ObjNativeFunc;
 
 typedef struct

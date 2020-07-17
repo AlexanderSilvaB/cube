@@ -768,6 +768,29 @@ static bool atBytes(int argCount)
     return true;
 }
 
+static bool appendBytesFn(int argCount)
+{
+    if (argCount != 2)
+    {
+        runtimeError("append() takes 2 arguments (%d  given)", argCount);
+        return false;
+    }
+
+    ObjBytes *append = AS_BYTES(toBytes(pop()));
+    ObjBytes *bytes = AS_BYTES(pop());
+
+    if (bytes->length < 0 || append->length < 0)
+    {
+        runtimeError("Unsafe bytes are not allowed in 'append'.\n");
+        return false;
+    }
+
+    appendBytes(bytes, append);
+
+    push(NULL_VAL);
+    return true;
+}
+
 bool bytesMethods(char *method, int argCount)
 {
     if (strcmp(method, "split") == 0)
@@ -802,6 +825,8 @@ bool bytesMethods(char *method, int argCount)
         return copyToManualBytes(argCount);
     else if (strcmp(method, "at") == 0)
         return atBytes(argCount);
+    else if (strcmp(method, "append") == 0)
+        return appendBytesFn(argCount);
 
     runtimeError("Bytes has no method %s()", method);
     return false;
