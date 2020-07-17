@@ -129,9 +129,9 @@ void mark_roots()
     markCompilerRoots();
     mark_object((Obj *)vm.initString);
     mark_object((Obj *)vm.paths);
-    mark_object((Obj *)vm.packages);
+    mark_object((Obj *)vm.modules);
     mark_value(vm.repl);
-    mark_object((Obj *)vm.stdPackage);
+    mark_object((Obj *)vm.stdModule);
 }
 
 void mark_value(Value val)
@@ -169,7 +169,7 @@ void mark_object(Obj *object)
         case OBJ_CLASS: {
             ObjClass *klass = (ObjClass *)object;
             mark_object((Obj *)klass->name);
-            mark_object((Obj *)klass->package);
+            mark_object((Obj *)klass->module);
             mark_object((Obj *)klass->super);
             markTable(&klass->methods);
             markTable(&klass->fields);
@@ -194,10 +194,10 @@ void mark_object(Obj *object)
             break;
         }
 
-        case OBJ_PACKAGE: {
-            ObjPackage *package = (ObjPackage *)object;
-            mark_object((Obj *)package->name);
-            markTable(&package->symbols);
+        case OBJ_MODULE: {
+            ObjModule *module = (ObjModule *)object;
+            mark_object((Obj *)module->name);
+            markTable(&module->symbols);
             break;
         }
 
@@ -210,7 +210,7 @@ void mark_object(Obj *object)
         case OBJ_CLOSURE: {
             ObjClosure *closure = (ObjClosure *)object;
             mark_object((Obj *)closure->function);
-            mark_object((Obj *)closure->package);
+            mark_object((Obj *)closure->module);
             for (int i = 0; i < closure->upvalueCount; i++)
             {
                 mark_object((Obj *)closure->upvalues[i]);

@@ -349,9 +349,9 @@ void runtimeError(const char *format, ...)
         }
         else
         {
-            if (frame->package != NULL)
+            if (frame->module != NULL)
             {
-                sprintf(str + strlen(str), "%s.", frame->package->name->chars);
+                sprintf(str + strlen(str), "%s.", frame->module->name->chars);
             }
 
             sprintf(str + strlen(str), "%s(): ", function->name->chars);
@@ -371,15 +371,15 @@ void runtimeError(const char *format, ...)
     threadFrame->ctf->error = str;
 }
 
-static void defineNative(const char *name, NativeFn function, ObjPackage *package)
+static void defineNative(const char *name, NativeFn function, ObjModule *module)
 {
     ThreadFrame *threadFrame = currentThread();
     push(OBJ_VAL(copyString(name, (int)strlen(name))));
     push(OBJ_VAL(newNative(function)));
     tableSet(&vm.globals, AS_STRING(threadFrame->ctf->stack[0]), threadFrame->ctf->stack[1]);
-    if (package != NULL)
+    if (module != NULL)
     {
-        tableSet(&package->symbols, AS_STRING(threadFrame->ctf->stack[0]), threadFrame->ctf->stack[1]);
+        tableSet(&module->symbols, AS_STRING(threadFrame->ctf->stack[0]), threadFrame->ctf->stack[1]);
     }
     pop();
     pop();
@@ -427,7 +427,7 @@ void initVM(const char *path, const char *scriptName)
     initTable(&vm.strings);
     initTable(&vm.extensions);
     vm.paths = initList();
-    vm.packages = initList();
+    vm.modules = initList();
     addPath(path);
 
     vm.extension = ".cube";
@@ -446,16 +446,16 @@ void initVM(const char *path, const char *scriptName)
 
     // STD
     initStd();
-    vm.stdPackage = newPackage(AS_STRING(STRING_VAL("std")));
-    tableSet(&vm.globals, vm.stdPackage->name, OBJ_VAL(vm.stdPackage));
+    vm.stdModule = newModule(AS_STRING(STRING_VAL("std")));
+    tableSet(&vm.globals, vm.stdModule->name, OBJ_VAL(vm.stdModule));
     ObjProcess *io = defaultProcess();
-    tableSet(&vm.stdPackage->symbols, AS_STRING(STRING_VAL("io")), OBJ_VAL(io));
+    tableSet(&vm.stdModule->symbols, AS_STRING(STRING_VAL("io")), OBJ_VAL(io));
     do
     {
         std_fn *stdFn = linked_list_get(stdFnList);
         if (stdFn != NULL)
         {
-            defineNative(stdFn->name, stdFn->fn, vm.stdPackage);
+            defineNative(stdFn->name, stdFn->fn, vm.stdModule);
             linenoise_add_keyword(stdFn->name);
         }
     } while (linked_list_next(&stdFnList));
@@ -500,7 +500,7 @@ void addPath(const char *path)
         mp_free(pathStr);
 }
 
-ObjPackage *findPackage()
+ObjModule *findModule()
 {
     return NULL;
 }
@@ -569,8 +569,8 @@ static bool call(ObjClosure *closure, int argCount, ObjInstance *instance, ObjCl
     frame->closure = closure;
     frame->ip = closure->function->chunk.code;
     frame->type = CALL_FRAME_TYPE_FUNCTION;
-    frame->package = closure->package ? closure->package : (threadFrame->frame ? threadFrame->frame->package : NULL);
-    frame->nextPackage = NULL;
+    frame->module = closure->module ? closure->module : (threadFrame->frame ? threadFrame->frame->module : NULL);
+    frame->nextModule = NULL;
     frame->require = false;
     frame->instance = instance;
     frame->klass = klass;
@@ -586,10 +586,10 @@ static bool call(ObjClosure *closure, int argCount, ObjInstance *instance, ObjCl
     {
         frame->klass = threadFrame->frame->klass;
     }
-    if (threadFrame->frame && threadFrame->frame->nextPackage != NULL)
+    if (threadFrame->frame && threadFrame->frame->nextModule != NULL)
     {
-        frame->package = threadFrame->frame->nextPackage;
-        threadFrame->frame->nextPackage = NULL;
+        frame->module = threadFrame->frame->nextModule;
+        threadFrame->frame->nextModule = NULL;
     }
 
     frame->slots = threadFrame->ctf->stackTop - argCount - 1;
@@ -656,7 +656,7 @@ static bool callValue(Value callee, int argCount, ObjInstance *instance, ObjClas
                 // Replace the bound method with the receiver so it's in the
                 // right slot when the method is called.
                 threadFrame->ctf->stackTop[-argCount - 1] = bound->receiver;
-                threadFrame->frame->nextPackage = threadFrame->frame->package;
+                threadFrame->frame->nextModule = threadFrame->frame->module;
                 return call(bound->method, argCount, instance, klass);
             }
 
@@ -671,7 +671,7 @@ static bool callValue(Value callee, int argCount, ObjInstance *instance, ObjClas
                 ObjClass *selected;
                 if (findMethod(klass, vm.initString, &initializer, &selected))
                 {
-                    threadFrame->frame->nextPackage = klass->package ? klass->package : threadFrame->frame->package;
+                    threadFrame->frame->nextModule = klass->module ? klass->module : threadFrame->frame->module;
                     return call(AS_CLOSURE(initializer), argCount, instance, instance->klass);
                 }
                 else if (argCount != 0)
@@ -794,7 +794,7 @@ static bool invokeFromClass(ObjClass *klass, ObjString *name, int argCount, ObjI
     }
 
     ThreadFrame *threadFrame = currentThread();
-    threadFrame->frame->nextPackage = klass->package ? klass->package : threadFrame->frame->package;
+    threadFrame->frame->nextModule = klass->module ? klass->module : threadFrame->frame->module;
     return call(AS_CLOSURE(method), argCount, instance, selected);
 }
 
@@ -825,22 +825,22 @@ static bool invoke(ObjString *name, int argCount)
         }
 
         ThreadFrame *threadFrame = currentThread();
-        threadFrame->frame->nextPackage = klass->package ? klass->package : threadFrame->frame->package;
+        threadFrame->frame->nextModule = klass->module ? klass->module : threadFrame->frame->module;
         return callValue(method, argCount, NULL, klass);
     }
 
-    else if (IS_PACKAGE(receiver))
+    else if (IS_MODULE(receiver))
     {
-        ObjPackage *package = AS_PACKAGE(receiver);
+        ObjModule *module = AS_MODULE(receiver);
         Value func;
-        if (!tableGet(&package->symbols, name, &func))
+        if (!tableGet(&module->symbols, name, &func))
         {
-            runtimeError("Undefined field '%s' in '%s'.", name->chars, package->name->chars);
+            runtimeError("Undefined field '%s' in '%s'.", name->chars, module->name->chars);
             return false;
         }
 
         ThreadFrame *threadFrame = currentThread();
-        threadFrame->frame->nextPackage = package;
+        threadFrame->frame->nextModule = module;
         return callValue(func, argCount, NULL, NULL);
     }
     else if (hasExtension(receiver, name))
@@ -880,8 +880,7 @@ static bool invoke(ObjString *name, int argCount)
     {
         ThreadFrame *threadFrame = currentThread();
         threadFrame->ctf->stackTop[-argCount - 1] = value;
-        threadFrame->frame->nextPackage =
-            instance->klass->package ? instance->klass->package : threadFrame->frame->package;
+        threadFrame->frame->nextModule = instance->klass->module ? instance->klass->module : threadFrame->frame->module;
         return callValue(value, argCount, instance, instance->klass);
     }
 
@@ -1477,7 +1476,7 @@ bool envVariable(ObjString *name, Value *value)
     }
     else if (strcmp(name->chars, "__std__") == 0)
     {
-        *value = OBJ_VAL(vm.stdPackage);
+        *value = OBJ_VAL(vm.stdModule);
         return true;
     }
     return false;
@@ -2495,7 +2494,7 @@ InterpretResult run()
 
             OPCASE(REPL_POP) :
             {
-                if (frame->package == NULL)
+                if (frame->module == NULL)
                     vm.repl = pop();
                 else
                     pop();
@@ -2531,20 +2530,20 @@ InterpretResult run()
                 }
 
                 Table *table = &vm.globals;
-                if (frame->package != NULL)
+                if (frame->module != NULL)
                 {
-                    ObjPackage *package = frame->package;
-                    while (package != NULL)
+                    ObjModule *module = frame->module;
+                    while (module != NULL)
                     {
-                        table = &package->symbols;
+                        table = &module->symbols;
                         if (tableGet(table, name, &value))
                         {
                             push(value);
                             break;
                         }
-                        package = package->parent;
+                        module = module->parent;
                     }
-                    if (package != NULL)
+                    if (module != NULL)
                         DISPATCH();
                     table = &vm.globals;
                 }
@@ -2585,16 +2584,16 @@ InterpretResult run()
             {
                 ObjString *name = READ_STRING();
                 Table *table = &vm.globals;
-                if (frame->package != NULL)
+                if (frame->module != NULL)
                 {
-                    table = &frame->package->symbols;
-                    linenoise_add_keyword_2(frame->package->name->chars, name->chars);
+                    table = &frame->module->symbols;
+                    linenoise_add_keyword_2(frame->module->name->chars, name->chars);
                 }
                 else
                     linenoise_add_keyword(name->chars);
 
                 tableSet(table, name, peek(0));
-                if (frame->package == NULL)
+                if (frame->module == NULL)
                     vm.repl = peek(0);
                 pop();
                 DISPATCH();
@@ -2607,7 +2606,7 @@ InterpretResult run()
                 linenoise_add_keyword(name->chars);
 
                 tableSet(&vm.globals, name, peek(0));
-                if (frame->package == NULL)
+                if (frame->module == NULL)
                     vm.repl = peek(0);
                 pop();
                 DISPATCH();
@@ -2633,8 +2632,8 @@ InterpretResult run()
                 }
 
                 Table *table = &vm.globals;
-                if (frame->package != NULL)
-                    table = &frame->package->symbols;
+                if (frame->module != NULL)
+                    table = &frame->module->symbols;
 
                 if (tableSet(table, name, peek(0)))
                 {
@@ -2681,10 +2680,10 @@ InterpretResult run()
 
             OPCASE(GET_PROPERTY) :
             {
-                if (!IS_INSTANCE(peek(0)) && !IS_CLASS(peek(0)) && !IS_PACKAGE(peek(0)) && !IS_ENUM(peek(0)) &&
+                if (!IS_INSTANCE(peek(0)) && !IS_CLASS(peek(0)) && !IS_MODULE(peek(0)) && !IS_ENUM(peek(0)) &&
                     !IS_DICT(peek(0)))
                 {
-                    runtimeError("Only instances, classes, enums, dicts and packages have properties.");
+                    runtimeError("Only instances, classes, enums, dicts and modules have properties.");
                     if (!checkTry(frame))
                         return INTERPRET_RUNTIME_ERROR;
                     else
@@ -2731,12 +2730,12 @@ InterpretResult run()
                             DISPATCH();
                     }
                 }
-                else if (IS_PACKAGE(peek(0)))
+                else if (IS_MODULE(peek(0)))
                 {
-                    ObjPackage *package = AS_PACKAGE(peek(0));
+                    ObjModule *module = AS_MODULE(peek(0));
                     ObjString *name = READ_STRING();
                     Value value;
-                    if (tableGet(&package->symbols, name, &value))
+                    if (tableGet(&module->symbols, name, &value))
                     {
                         pop(); // Instance.
                         push(value);
@@ -2744,7 +2743,7 @@ InterpretResult run()
                     }
                     else
                     {
-                        runtimeError("Field not found on package.");
+                        runtimeError("Field not found on module.");
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
                         else
@@ -2857,9 +2856,9 @@ InterpretResult run()
 
             OPCASE(SET_PROPERTY) :
             {
-                if (!IS_INSTANCE(peek(1)) && !IS_CLASS(peek(1)) && !IS_DICT(peek(1)) && !IS_PACKAGE(peek(1)))
+                if (!IS_INSTANCE(peek(1)) && !IS_CLASS(peek(1)) && !IS_DICT(peek(1)) && !IS_MODULE(peek(1)))
                 {
-                    runtimeError("Only packages, dicts, instances and classes have properties.");
+                    runtimeError("Only modules, dicts, instances and classes have properties.");
                     if (!checkTry(frame))
                         return INTERPRET_RUNTIME_ERROR;
                     else
@@ -2883,22 +2882,22 @@ InterpretResult run()
                     else
                         tableSet(&klass->staticFields, name, value);
                 }
-                else if (IS_PACKAGE(peek(1)))
+                else if (IS_MODULE(peek(1)))
                 {
-                    ObjPackage *package = AS_PACKAGE(peek(1));
+                    ObjModule *module = AS_MODULE(peek(1));
                     ObjString *name = READ_STRING();
                     Value value = peek(0);
                     Value holder;
-                    if (!tableGet(&package->symbols, name, &holder))
+                    if (!tableGet(&module->symbols, name, &holder))
                     {
-                        runtimeError("Field not found on package.");
+                        runtimeError("Field not found on module.");
                         if (!checkTry(frame))
                             return INTERPRET_RUNTIME_ERROR;
                         else
                             DISPATCH();
                     }
                     else
-                        tableSet(&package->symbols, name, value);
+                        tableSet(&module->symbols, name, value);
                 }
                 else if (IS_DICT(peek(1)))
                 {
@@ -3275,48 +3274,25 @@ InterpretResult run()
                 BINARY_OP(NUMBER_VAL, *);
             }
             DISPATCH();
-            OPCASE(DIVIDE) : istrue = READ_BYTE() == OP_TRUE;
-            if (istrue && instanceOperation("./"))
+            OPCASE(DIVIDE) :
             {
-                frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
-            }
-            else if (instanceOperation("/"))
-            {
-                frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
-            }
-            else if (IS_LIST(peek(1)) && istrue)
-            {
-                Value value = peek(0);
-                ObjList *list = copyList(AS_LIST(peek(1)), true);
-                if (!IS_LIST(value))
+                istrue = READ_BYTE() == OP_TRUE;
+                if (istrue && instanceOperation("./"))
                 {
-                    for (int i = 0; i < list->values.count; i++)
-                    {
-                        if (!operateValues(list->values.values[i], value, &list->values.values[i], "/"))
-                        {
-                            if (!checkTry(frame))
-                                return INTERPRET_RUNTIME_ERROR;
-                            else
-                                break;
-                        }
-                    }
+                    frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
                 }
-                else
+                else if (instanceOperation("/"))
                 {
-                    ObjList *list2 = AS_LIST(value);
-                    if (list2->values.count != list->values.count)
+                    frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+                }
+                else if (IS_LIST(peek(1)) && istrue)
+                {
+                    Value value = peek(0);
+                    ObjList *list = copyList(AS_LIST(peek(1)), true);
+                    if (!IS_LIST(value))
                     {
-                        runtimeError("Lists size doesn't match.");
-                        if (!checkTry(frame))
-                            return INTERPRET_RUNTIME_ERROR;
-                        else
-                            DISPATCH();
-                    }
-                    else
-                    {
-                        for (int i = 0; i < list2->values.count; i++)
+                        for (int i = 0; i < list->values.count; i++)
                         {
-                            value = list2->values.values[i];
                             if (!operateValues(list->values.values[i], value, &list->values.values[i], "/"))
                             {
                                 if (!checkTry(frame))
@@ -3326,30 +3302,93 @@ InterpretResult run()
                             }
                         }
                     }
+                    else
+                    {
+                        ObjList *list2 = AS_LIST(value);
+                        if (list2->values.count != list->values.count)
+                        {
+                            runtimeError("Lists size doesn't match.");
+                            if (!checkTry(frame))
+                                return INTERPRET_RUNTIME_ERROR;
+                            else
+                                DISPATCH();
+                        }
+                        else
+                        {
+                            for (int i = 0; i < list2->values.count; i++)
+                            {
+                                value = list2->values.values[i];
+                                if (!operateValues(list->values.values[i], value, &list->values.values[i], "/"))
+                                {
+                                    if (!checkTry(frame))
+                                        return INTERPRET_RUNTIME_ERROR;
+                                    else
+                                        break;
+                                }
+                            }
+                        }
+                    }
+                    pop();
+                    pop();
+                    push(OBJ_VAL(list));
                 }
-                pop();
-                pop();
-                push(OBJ_VAL(list));
+                else if (IS_LIST(peek(1)) && IS_NUMBER(peek(0)))
+                {
+                    int factor = AS_NUMBER(peek(0));
+                    Value listValue = peek(1);
+
+                    ObjList *list = copyList(AS_LIST(listValue), true);
+                    int num = list->values.count - (list->values.count / factor);
+                    shrinkList(list, num);
+
+                    pop();
+                    pop();
+
+                    push(OBJ_VAL(list));
+                }
+                else
+                {
+                    BINARY_OP(NUMBER_VAL, /);
+                }
+                DISPATCH();
             }
-            else if (IS_LIST(peek(1)) && IS_NUMBER(peek(0)))
+
+            OPCASE(RECEIVE) :
             {
-                int factor = AS_NUMBER(peek(0));
-                Value listValue = peek(1);
-
-                ObjList *list = copyList(AS_LIST(listValue), true);
-                int num = list->values.count - (list->values.count / factor);
-                shrinkList(list, num);
-
-                pop();
-                pop();
-
-                push(OBJ_VAL(list));
+                Value def = pop();
+                Value cur = pop();
+                if (IS_NULL(cur))
+                    push(def);
+                else
+                    push(cur);
+                DISPATCH();
             }
-            else
+
+            OPCASE(QUESTION) :
             {
-                BINARY_OP(NUMBER_VAL, /);
+                bool hasFalse = AS_BOOL(pop());
+                if (hasFalse)
+                {
+                    Value false_val = pop();
+                    Value true_val = pop();
+                    Value cond = toBool(pop());
+                    if (AS_BOOL(cond) == true)
+                        push(true_val);
+                    else
+                        push(false_val);
+                }
+                else
+                {
+                    Value val = pop();
+                    Value cond = pop();
+                    if (IS_NULL(cond))
+                        push(val);
+                    else
+                        push(cond);
+                }
+
+                DISPATCH();
             }
-            DISPATCH();
 
             OPCASE(MOD) :
             {
@@ -3859,20 +3898,20 @@ InterpretResult run()
                 pop();
                 pop();
 
-                ObjPackage *package = frame->package;
+                ObjModule *module = frame->module;
                 if (name != NULL)
                 {
                     ObjString *nameStr = AS_STRING(STRING_VAL(name));
-                    package = newPackage(nameStr);
-                    if (frame->package != NULL)
+                    module = newModule(nameStr);
+                    if (frame->module != NULL)
                     {
-                        package->parent = frame->package;
+                        module->parent = frame->module;
                     }
                     linenoise_add_keyword(name);
-                    if (frame->package == NULL)
-                        tableSet(&vm.globals, nameStr, OBJ_VAL(package));
+                    if (frame->module == NULL)
+                        tableSet(&vm.globals, nameStr, OBJ_VAL(module));
                     else
-                        tableSet(&frame->package->symbols, nameStr, OBJ_VAL(package));
+                        tableSet(&frame->module->symbols, nameStr, OBJ_VAL(module));
                     mp_free(name);
                 }
 
@@ -3887,12 +3926,12 @@ InterpretResult run()
                 frame->ip = closure->function->chunk.code;
                 frame->closure = closure;
                 frame->slots = threadFrame->ctf->stackTop - 1;
-                frame->package = package;
-                frame->type = CALL_FRAME_TYPE_PACKAGE;
-                frame->nextPackage = NULL;
+                frame->module = module;
+                frame->type = CALL_FRAME_TYPE_MODULE;
+                frame->nextModule = NULL;
                 frame->require = false;
 
-                vm.repl = OBJ_VAL(package);
+                vm.repl = OBJ_VAL(module);
 
                 DISPATCH();
             }
@@ -3927,20 +3966,20 @@ InterpretResult run()
 
                 threadFrame->ctf->currentScriptName = fileName->chars;
 
-                ObjPackage *package = frame->package;
+                ObjModule *module = frame->module;
                 if (name != NULL)
                 {
                     ObjString *nameStr = AS_STRING(STRING_VAL(name));
-                    package = newPackage(nameStr);
-                    if (frame->package != NULL)
+                    module = newModule(nameStr);
+                    if (frame->module != NULL)
                     {
-                        package->parent = frame->package;
+                        module->parent = frame->module;
                     }
                     linenoise_add_keyword(name);
-                    if (frame->package == NULL)
-                        tableSet(&vm.globals, nameStr, OBJ_VAL(package));
+                    if (frame->module == NULL)
+                        tableSet(&vm.globals, nameStr, OBJ_VAL(module));
                     else
-                        tableSet(&frame->package->symbols, nameStr, OBJ_VAL(package));
+                        tableSet(&frame->module->symbols, nameStr, OBJ_VAL(module));
                     mp_free(name);
                 }
 
@@ -3955,29 +3994,29 @@ InterpretResult run()
                 frame->ip = closure->function->chunk.code;
                 frame->closure = closure;
                 frame->slots = threadFrame->ctf->stackTop - 1;
-                frame->package = package;
-                frame->type = CALL_FRAME_TYPE_PACKAGE;
-                frame->nextPackage = NULL;
+                frame->module = module;
+                frame->type = CALL_FRAME_TYPE_MODULE;
+                frame->nextModule = NULL;
                 frame->require = false;
 
-                vm.repl = OBJ_VAL(package);
+                vm.repl = OBJ_VAL(module);
 
                 DISPATCH();
             }
 
-            OPCASE(FROM_PACKAGE) :
+            OPCASE(FROM_MODULE) :
             {
                 if (!IS_STRING(peek(0)))
                 {
-                    runtimeError("Variable name required to import from package");
+                    runtimeError("Variable name required to import from module");
                     if (!checkTry(frame))
                         return INTERPRET_RUNTIME_ERROR;
                     else
                         DISPATCH();
                 }
-                if (!IS_PACKAGE(peek(1)))
+                if (!IS_MODULE(peek(1)))
                 {
-                    runtimeError("Package name required to import variables");
+                    runtimeError("Module name required to import variables");
                     if (!checkTry(frame))
                         return INTERPRET_RUNTIME_ERROR;
                     else
@@ -3985,27 +4024,27 @@ InterpretResult run()
                 }
 
                 ObjString *name = AS_STRING(peek(0));
-                ObjPackage *package = AS_PACKAGE(peek(1));
+                ObjModule *module = AS_MODULE(peek(1));
 
                 if (strcmp(name->chars, "*") == 0)
                 {
                     Entry entry;
                     int i = 0;
-                    while (iterateTable(&package->symbols, &entry, &i))
+                    while (iterateTable(&module->symbols, &entry, &i))
                     {
                         if (entry.key == NULL)
                             continue;
 
-                        if (frame->package == NULL)
+                        if (frame->module == NULL)
                             tableSet(&vm.globals, entry.key, entry.value);
                         else
-                            tableSet(&frame->package->symbols, entry.key, entry.value);
+                            tableSet(&frame->module->symbols, entry.key, entry.value);
                     }
                 }
                 else
                 {
                     Value value;
-                    if (!tableGet(&package->symbols, name, &value))
+                    if (!tableGet(&module->symbols, name, &value))
                     {
                         runtimeError("'%s' does not exists.", name->chars);
                         if (!checkTry(frame))
@@ -4014,10 +4053,10 @@ InterpretResult run()
                             DISPATCH();
                     }
 
-                    if (frame->package == NULL)
+                    if (frame->module == NULL)
                         tableSet(&vm.globals, name, value);
                     else
-                        tableSet(&frame->package->symbols, name, value);
+                        tableSet(&frame->module->symbols, name, value);
                 }
 
                 pop();
@@ -4039,10 +4078,10 @@ InterpretResult run()
                 ObjString *name = AS_STRING(peek(0));
                 bool success = false;
 
-                if (frame->package == NULL)
+                if (frame->module == NULL)
                     success = tableDelete(&vm.globals, name);
                 else
-                    success = tableDelete(&frame->package->symbols, name);
+                    success = tableDelete(&frame->module->symbols, name);
 
                 // linenoise_remove_keyword(name);
 
@@ -4158,15 +4197,15 @@ InterpretResult run()
                 pop();
                 pop();
 
-                ObjPackage *package = NULL;
+                ObjModule *module = NULL;
                 ObjString *nameStr = AS_STRING(STRING_VAL(name));
-                package = newPackage(nameStr);
-                if (frame->package != NULL)
+                module = newModule(nameStr);
+                if (frame->module != NULL)
                 {
-                    package->parent = frame->package;
+                    module->parent = frame->module;
                 }
                 // linenoise_add_keyword(name);
-                // tableSet(&vm.globals, nameStr, OBJ_VAL(package));
+                // tableSet(&vm.globals, nameStr, OBJ_VAL(module));
                 if (name != NULL)
                     mp_free(name);
 
@@ -4181,12 +4220,12 @@ InterpretResult run()
                 frame->ip = closure->function->chunk.code;
                 frame->closure = closure;
                 frame->slots = threadFrame->ctf->stackTop - 1;
-                frame->type = CALL_FRAME_TYPE_PACKAGE;
-                frame->package = package;
-                frame->nextPackage = NULL;
+                frame->type = CALL_FRAME_TYPE_MODULE;
+                frame->module = module;
+                frame->nextModule = NULL;
                 frame->require = true;
 
-                vm.repl = OBJ_VAL(package);
+                vm.repl = OBJ_VAL(module);
 
                 DISPATCH();
             }
@@ -4369,7 +4408,7 @@ InterpretResult run()
             {
                 ObjFunction *function = AS_FUNCTION(READ_CONSTANT());
                 ObjClosure *closure = newClosure(function);
-                closure->package = frame->package;
+                closure->module = frame->module;
                 push(OBJ_VAL(closure));
                 for (int i = 0; i < closure->upvalueCount; i++)
                 {
@@ -4395,10 +4434,10 @@ InterpretResult run()
             {
                 Value result = pop();
 
-                ObjPackage *package = frame->package;
-                if (frame->package != NULL)
+                ObjModule *module = frame->module;
+                if (frame->module != NULL)
                 {
-                    frame->package = NULL;
+                    frame->module = NULL;
                 }
 
                 CallFrameType type = frame->type;
@@ -4431,12 +4470,12 @@ InterpretResult run()
                 */
 
                 threadFrame->ctf->stackTop = frame->slots;
-                if (type != CALL_FRAME_TYPE_PACKAGE)
+                if (type != CALL_FRAME_TYPE_MODULE)
                 {
                     push(result);
                 }
-                else if (frame->require && package != NULL)
-                    push(OBJ_VAL(package));
+                else if (frame->require && module != NULL)
+                    push(OBJ_VAL(module));
 
                 frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
                 DISPATCH();
@@ -4445,7 +4484,7 @@ InterpretResult run()
             OPCASE(CLASS) :
             {
                 ObjClass *klass = newClass(READ_STRING());
-                klass->package = frame->package;
+                klass->module = frame->module;
                 vm.repl = OBJ_VAL(klass);
                 push(OBJ_VAL(klass));
             }
@@ -4617,10 +4656,10 @@ InterpretResult run()
                 else
                     nameStr = AS_STRING(STRING_VAL(getFileDisplayName(lib->name->chars)));
 
-                if (frame->package == NULL)
+                if (frame->module == NULL)
                     tableSet(&vm.globals, nameStr, libVal);
                 else
-                    tableSet(&frame->package->symbols, nameStr, libVal);
+                    tableSet(&frame->module->symbols, nameStr, libVal);
 
                 DISPATCH();
             }
@@ -4650,9 +4689,9 @@ InterpretResult run()
                 CallFrame *frame = &tf->frames[tf->frameCount++];
                 frame->closure = closure;
                 frame->ip = closure->function->chunk.code;
-                frame->package = threadFrame->frame->package;
+                frame->module = threadFrame->frame->module;
                 frame->type = CALL_FRAME_TYPE_FUNCTION;
-                frame->nextPackage = NULL;
+                frame->nextModule = NULL;
                 frame->require = false;
 
                 frame->slots = tf->stackTop - 1;

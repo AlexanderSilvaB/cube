@@ -17,7 +17,7 @@
 typedef enum
 {
     CALL_FRAME_TYPE_FUNCTION,
-    CALL_FRAME_TYPE_PACKAGE
+    CALL_FRAME_TYPE_MODULE
 } CallFrameType;
 
 typedef struct
@@ -28,8 +28,8 @@ typedef struct
     ObjInstance *instance;
     ObjClass *klass;
     CallFrameType type;
-    ObjPackage *package;
-    ObjPackage *nextPackage;
+    ObjModule *module;
+    ObjModule *nextModule;
     bool require;
 } CallFrame;
 
@@ -104,8 +104,8 @@ typedef struct
     Table extensions;
     ObjString *initString;
     ObjList *paths;
-    ObjPackage *stdPackage;
-    ObjList *packages;
+    ObjModule *stdModule;
+    ObjList *modules;
 
     const char *argsString;
     const char *extension;

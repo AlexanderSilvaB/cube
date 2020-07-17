@@ -3,7 +3,7 @@
 cube
 {
     title = "Cubix",
-    description = "The cube package manager",
+    description = "The cube module manager",
     bin = "cubix"
 }
 
@@ -14,17 +14,17 @@ import paths;
 import zip;
 import parser as default;
 
-var parser = Parser('Cubix', 'The cube package manager', '0.1');
-parser.add('install', 'i', str, '+', 'selects the package to install');
-parser.add('uninstall', 'u', str, '+', 'selects the package to uninstall');
-parser.add('list', 'l', null, 0, 'list installed packages');
-parser.add('online', 'o', null, 0, 'list online packages');
+var parser = Parser('Cubix', 'The cube module manager', '0.1');
+parser.add('install', 'i', str, '+', 'selects the module to install');
+parser.add('uninstall', 'u', str, '+', 'selects the module to uninstall');
+parser.add('list', 'l', null, 0, 'list installed modules');
+parser.add('online', 'o', null, 0, 'list online modules');
 parser.add('force', 'f', null, 0, 'force install or uninstall');
-parser.add('description', 'd', str, '+', 'gets the description of the package');
+parser.add('description', 'd', str, '+', 'gets the description of the module');
 
 parser.parse(args);
 
-var address = 'https://raw.githubusercontent.com/AlexanderSilvaB/cube-packages/master/';
+var address = 'https://raw.githubusercontent.com/AlexanderSilvaB/cube-modules/master/';
 
 func readWeb(request)
 {
@@ -44,7 +44,7 @@ func install(force, libs)
     {
         if(lib.endsWith('.zip'))
         {
-            installFilePackage(force, lib);
+            installFileModule(force, lib);
             rm.add(lib)
         }
     }
@@ -58,28 +58,28 @@ func install(force, libs)
         return;
 
     var contents = readWeb('index.json');
-    var packages = json.parseJson(contents)['packages'];
+    var modules = json.parseJson(contents)['modules'];
 
-    var package = null;
+    var module = null;
 
     for(var lib in libs)
     {
         if(lib.endsWith('.zip'))
             continue;
 
-        package = null;
-        for(var p in packages)
+        module = null;
+        for(var p in modules)
         {
             if(p.endsWith('/{}'.format(lib)))
             {
-                package = p;
+                module = p;
             }
         }
 
-        if(package is null)
-            throw('Package "', lib, '" not found!');
+        if(module is null)
+            throw('Module "', lib, '" not found!');
 
-        installPackage(force, lib, package);
+        installModule(force, lib, module);
     }
 }
 
@@ -89,7 +89,7 @@ func uninstall(force, libs)
 
     for(var lib in libs)
     {
-        uninstallPackage(force, lib);
+        uninstallModule(force, lib);
     }   
 }
 
@@ -102,7 +102,7 @@ func description(libs)
     {
         if(lib.endsWith('.zip'))
         {
-            descriptionFilePackage(lib);
+            descriptionFileModule(lib);
             rm.add(lib)
         }
     }
@@ -116,32 +116,32 @@ func description(libs)
         return;
 
     var contents = readWeb('index.json');
-    var packages = json.parseJson(contents)['packages'];
+    var modules = json.parseJson(contents)['modules'];
 
-    var package = null;
+    var module = null;
 
     for(var lib in libs)
     {
         if(lib.endsWith('.zip'))
             continue;
 
-        package = null;
-        for(var p in packages)
+        module = null;
+        for(var p in modules)
         {
             if(p.endsWith('/{}'.format(lib)))
             {
-                package = p;
+                module = p;
             }
         }
 
-        if(package is null)
-            throw('Package "', lib, '" not found!');
+        if(module is null)
+            throw('Module "', lib, '" not found!');
 
-        descriptionPackage(lib, package);
+        descriptionModule(lib, module);
     }
 }
 
-func listPackages()
+func listModules()
 {
     var files = ls(os.allowedLibsPath);
     var size = 0;
@@ -149,48 +149,48 @@ func listPackages()
     {
         if(file.endsWith('.json'))
         {
-            if(listPackage(file))
+            if(listModule(file))
                 ++size;
         }
     }
     
     if(size == 0)
-        println("No packages found");
+        println("No modules found");
 }
 
-func listOnlinePackages()
+func listOnlineModules()
 {
     var contents = readWeb('index.json');
-    var packages = json.parseJson(contents)['packages'];
-    for(var p in packages)
+    var modules = json.parseJson(contents)['modules'];
+    for(var p in modules)
     {
         print(p.split('/')[-1], ', ');
     }
     println('\b\b  ');
 }
 
-func installFilePackage(force, libFile)
+func installFileModule(force, libFile)
 {
     println("File: ", libFile)
     if(!exists(libFile))
     {
-        println("Invalid package file.")
+        println("Invalid module file.")
         return;
     }
     
     var file = zip.Zip(libFile, 'r')
-    var contents = file.read('package.json')
+    var contents = file.read('module.json')
     if(contents is null)
     {
-        println("Not a valid cube package.")
+        println("Not a valid cube module.")
         return;
     }
 
-    var package = json.parseJson(str(contents));
-    var lib = package['name']
+    var module = json.parseJson(str(contents));
+    var lib = module['name']
     if(lib is null)
     {
-        println("Not a valid cube package.")
+        println("Not a valid cube module.")
         return;
     }
 
@@ -201,10 +201,10 @@ func installFilePackage(force, libFile)
         current = j['version'];
     }
 
-    var version = package['version'];
+    var version = module['version'];
     if(version is null)
     {
-        println("Not a valid cube package.")
+        println("Not a valid cube module.")
         return;
     }
 
@@ -237,7 +237,7 @@ func installFilePackage(force, libFile)
     if(!exists(path))
         mkdir(path, 777);
 
-    for(var f in package['files'])
+    for(var f in module['files'])
     {
         print('Installing: ', f);
         data = file.read(f);
@@ -247,7 +247,7 @@ func installFilePackage(force, libFile)
             continue;
         }
         name = paths.fileName(f);
-        if(package['bin'] is list and name in package['bin'])
+        if(module['bin'] is list and name in module['bin'])
             path = os.allowedBinPath + '/' + lib;
         else   
             path = os.allowedLibsPath + '/' + lib;
@@ -262,7 +262,7 @@ func installFilePackage(force, libFile)
         println('\rInstalled: ', f, ' ');
     }
 
-    for(var f in package['samples'])
+    for(var f in module['samples'])
     {
         print('Installing: ', f);
         data = file.read(f);
@@ -284,7 +284,7 @@ func installFilePackage(force, libFile)
         println('\rInstalled: ', f, ' ');
     }
 
-    for(var f in package['native'])
+    for(var f in module['native'])
     {
         print('Installing: ', f);
         data = file.read('native/{}/{}/{}{}'.format(os.name, os.arch, f, os.libsExt));
@@ -309,10 +309,10 @@ func installFilePackage(force, libFile)
 
 }
 
-func installPackage(force, lib, url)
+func installModule(force, lib, url)
 {
-    var contents = readWeb('{}/package.json'.format(url));
-    var package = json.parseJson(contents);
+    var contents = readWeb('{}/module.json'.format(url));
+    var module = json.parseJson(contents);
     
     var current = null;
     try
@@ -321,7 +321,7 @@ func installPackage(force, lib, url)
         current = j['version'];
     }
 
-    var version = package['version'];
+    var version = module['version'];
     println("{} [{} -> {}]\t".format(lib, current, version));
     if(not force and current == version)
     {
@@ -351,12 +351,12 @@ func installPackage(force, lib, url)
     if(!exists(path))
         mkdir(path, 777);
 
-    for(var f in package['files'])
+    for(var f in module['files'])
     {
         print('Downloading: ', f);
         data = readWeb('{}/{}'.format(url, f));
         name = paths.fileName(f);
-        if(package['bin'] is list and name in package['bin'])
+        if(module['bin'] is list and name in module['bin'])
             path = os.allowedBinPath + '/' + lib;
         else   
             path = os.allowedLibsPath + '/' + lib;
@@ -371,7 +371,7 @@ func installPackage(force, lib, url)
         println('\rDownloaded: ', f, ' ');
     }
 
-    for(var f in package['samples'])
+    for(var f in module['samples'])
     {
         print('Downloading: ', f);
         data = readWeb('{}/{}'.format(url, f));
@@ -389,7 +389,7 @@ func installPackage(force, lib, url)
         println('\rDownloaded: ', f, ' ');
     }
 
-    for(var f in package['native'])
+    for(var f in module['native'])
     {
         print('Downloading: ', f);
         data = readWeb('{}/native/{}/{}/{}{}'.format(url, os.name, os.arch, f, os.libsExt));
@@ -407,28 +407,28 @@ func installPackage(force, lib, url)
     }
 }
 
-func descriptionFilePackage(libFile)
+func descriptionFileModule(libFile)
 {
     println("File: ", libFile)
     if(!exists(libFile))
     {
-        println("Invalid package file.")
+        println("Invalid module file.")
         return;
     }
     
     var file = zip.Zip(libFile, 'r')
-    var contents = file.read('package.json')
+    var contents = file.read('module.json')
     if(contents is null)
     {
-        println("Not a valid cube package.")
+        println("Not a valid cube module.")
         return;
     }
 
-    var package = json.parseJson(str(contents));
-    var lib = package['name']
+    var module = json.parseJson(str(contents));
+    var lib = module['name']
     if(lib is null)
     {
-        println("Not a valid cube package.")
+        println("Not a valid cube module.")
         return;
     }
 
@@ -439,15 +439,15 @@ func descriptionFilePackage(libFile)
         current = j['version'];
     }
 
-    var version = package['version'];
+    var version = module['version'];
     if(version is null)
     {
-        println("Not a valid cube package.")
+        println("Not a valid cube module.")
         return;
     }
 
-    var desc = package['description'];
-    var dependencies = package['dependencies'];
+    var desc = module['description'];
+    var dependencies = module['dependencies'];
 
     println('Name: ', lib)
     println('Description: ', desc)
@@ -465,18 +465,18 @@ func descriptionFilePackage(libFile)
     var name;
 
     println('Files')
-    for(var f in package['files'])
+    for(var f in module['files'])
     {
         name = paths.fileName(f);
     
-        if(package['bin'] is list and name in package['bin'])
+        if(module['bin'] is list and name in module['bin'])
             println(' *', name)
         else   
             println(' ', name)
     }
 
     println('Samples')
-    for(var f in package['samples'])
+    for(var f in module['samples'])
     {
         name = paths.fileName(f);
         println(' ', name);
@@ -484,7 +484,7 @@ func descriptionFilePackage(libFile)
 
 
     println('Native')
-    for(var f in package['native'])
+    for(var f in module['native'])
     {
         name = paths.fileName(f);
         println(' ', name);
@@ -492,10 +492,10 @@ func descriptionFilePackage(libFile)
 
 }
 
-func descriptionPackage(lib, url)
+func descriptionModule(lib, url)
 {
-    var contents = readWeb('{}/package.json'.format(url));
-    var package = json.parseJson(contents);
+    var contents = readWeb('{}/module.json'.format(url));
+    var module = json.parseJson(contents);
     
     var current = null;
     try
@@ -504,9 +504,9 @@ func descriptionPackage(lib, url)
         current = j['version'];
     }
 
-    var version = package['version'];
-    var desc = package['description'];
-    var dependencies = package['dependencies'];
+    var version = module['version'];
+    var desc = module['description'];
+    var dependencies = module['dependencies'];
 
     println('Name: ', lib)
     println('Description: ', desc)
@@ -524,34 +524,34 @@ func descriptionPackage(lib, url)
     var name;
 
     println('Files')
-    for(var f in package['files'])
+    for(var f in module['files'])
     {
         name = paths.fileName(f);
-        if(package['bin'] is list and name in package['bin'])
+        if(module['bin'] is list and name in module['bin'])
             println(' *', name);
         else   
             println(' ', name);
     }
 
     println('Samples')
-    for(var f in package['samples'])
+    for(var f in module['samples'])
     {
         name = paths.fileName(f);
         println(' ', name);
     }
 
     println('Native')
-    for(var f in package['native'])
+    for(var f in module['native'])
     {
         name = paths.fileName(f);
         println(' ', name);
     }
 }
 
-func uninstallPackage(force, lib)
+func uninstallModule(force, lib)
 {
-    var package = json.readJson("{}/{}.json".format(os.allowedLibsPath, lib));
-    if(package == null or len(package) == 0)
+    var module = json.readJson("{}/{}.json".format(os.allowedLibsPath, lib));
+    if(module == null or len(module) == 0)
     {
         println("Not found!");
         return;
@@ -560,11 +560,11 @@ func uninstallPackage(force, lib)
     var name;
     var path;
 
-    for(var f in package['files'])
+    for(var f in module['files'])
     {
         print('Removing: ', f);
         name = paths.fileName(f);
-        if(package['bin'] is list and name in package['bin'])
+        if(module['bin'] is list and name in module['bin'])
             path = os.allowedBinPath + '/' + lib;
         else   
             path = os.allowedLibsPath + '/' + lib;
@@ -576,7 +576,7 @@ func uninstallPackage(force, lib)
         println('\rRemoved: ', f, ' ');
     }
 
-    for(var f in package['samples'])
+    for(var f in module['samples'])
     {
         print('Removing: ', f);
         name = paths.fileName(f);
@@ -590,7 +590,7 @@ func uninstallPackage(force, lib)
         println('\rRemoved: ', f, ' ');
     }
 
-    for(var f in package['native'])
+    for(var f in module['native'])
     {
         print('Removing: ', f);
         name = paths.fileName(f);
@@ -615,14 +615,14 @@ func uninstallPackage(force, lib)
     remove(path);
 }
 
-func listPackage(lib)
+func listModule(lib)
 {
     var path = '{}/{}'.format(os.allowedLibsPath, lib);
-    var package = json.readJson(path);
-    if(package is null or len(package) == 0)
+    var module = json.readJson(path);
+    if(module is null or len(module) == 0)
         return false;
 
-    println(package['name'], ':', package['version'], '  [', package['description'], ']');
+    println(module['name'], ':', module['version'], '  [', module['description'], ']');
     return true;
 }
 
@@ -643,11 +643,11 @@ else if( parser.args['uninstall'] is not null and len(parser.args['uninstall']) 
 }
 else if( parser.args['list'])
 {
-    listPackages();
+    listModules();
 }
 else if( parser.args['online'] )
 {
-    listOnlinePackages();
+    listOnlineModules();
 }
 else if( parser.args['description'] is not null and len(parser.args['description']) > 0 )
 {

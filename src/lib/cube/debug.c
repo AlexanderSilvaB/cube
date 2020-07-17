@@ -164,6 +164,10 @@ int disassembleInstruction(Chunk *chunk, int offset)
             return simpleInstruction("OP_MULTIPLY", offset);
         case OP_DIVIDE:
             return simpleInstruction("OP_DIVIDE", offset);
+        case OP_RECEIVE:
+            return simpleInstruction("OP_RECEIVE", offset);
+        case OP_QUESTION:
+            return simpleInstruction("OP_QUESTION", offset);
         case OP_MOD:
             return simpleInstruction("OP_MOD", offset);
         case OP_POW:
@@ -225,8 +229,8 @@ int disassembleInstruction(Chunk *chunk, int offset)
             return simpleInstruction("OP_IMPORT", offset);
         case OP_INCLUDE:
             return simpleInstruction("OP_INCLUDE", offset);
-        case OP_FROM_PACKAGE:
-            return simpleInstruction("OP_FROM_PACKAGE", offset);
+        case OP_FROM_MODULE:
+            return simpleInstruction("OP_FROM_MODULE", offset);
         case OP_REMOVE_VAR:
             return simpleInstruction("OP_REMOVE_VAR", offset);
         case OP_REQUIRE:

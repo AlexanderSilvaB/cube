@@ -49,6 +49,16 @@ class Serial
 
     func init(device, baudrate, timeout, parity, stopBits, dataBits, rts, xon, can)
     {
+        device ?= 0;
+        baudrate ?= 9600;
+        timeout ?= 1000;
+        parity ?= 'N';
+        stopBits ?= 1;
+        dataBits ?= 8;
+        rts ?= false;
+        xon ?= false;
+        can ?= false;
+
         if(device is num)
         {
             var devices = list_serial();
@@ -58,23 +68,6 @@ class Serial
 
         if(device is not str)
             throw('Invalid device: ', device)
-
-        if(baudrate is null)
-            baudrate = 9600;
-        if(timeout is null)
-            timeout = 1000;
-        if(parity is null)
-            parity = 'N';
-        if(stopBits is null)
-            stopBits = 1;
-        if(dataBits is null)
-            dataBits = 8;
-        if(rts is null)
-            rts = false;
-        if(xon is null)
-            xon = false;
-        if(can is null)
-            can = false;
         
         if(parity is str)
             parity = {'N' : NONE, 'n' : NONE, 'O' : ODD, 'o' : ODD, 'E' : EVEN, 'e' : EVEN}[parity];
@@ -138,8 +131,7 @@ class Serial
 
     func read(n)
     {
-        if(n is null)
-            n = 1;
+        n ?= 1;
         n = num(n);
 
         return read_serial(this.fd, n);
@@ -153,9 +145,7 @@ class Serial
 
     func readLine(limit)
     {
-        if(limit is null)
-            limit = 0;
-
+        limit ?= 0;
         var data = bytes()
         var rd = this.read(1)
         var end = bytes('\n')

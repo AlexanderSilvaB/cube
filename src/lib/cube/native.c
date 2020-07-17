@@ -214,9 +214,9 @@ void native_callback(void *fn, cube_native_var *argsNative)
     CallFrame *frame = &tf->frames[tf->frameCount++];
     frame->closure = closure;
     frame->ip = closure->function->chunk.code;
-    frame->package = threadFrame->frame->package;
+    frame->module = threadFrame->frame->module;
     frame->type = CALL_FRAME_TYPE_FUNCTION;
-    frame->nextPackage = NULL;
+    frame->nextModule = NULL;
     frame->require = false;
 
     frame->slots = tf->stackTop - M - 1;

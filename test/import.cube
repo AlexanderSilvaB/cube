@@ -1,10 +1,10 @@
 /* 
-    Every imported file is loaded as a package at runtime
-    The statement 'import math' imports 'math.cube' as a package named 'math' 
-    A package name can be changed using the 'as' keyword. E.g: 'import math as m'
-    Packages are acessible by calling packageName.function. E.g: 'math.sin'
-    To import a package without a name and thus globally in the current context,
-    use the name 'default' for the package. E.g: 'import math as default'.
+    Every imported file is loaded as a module at runtime
+    The statement 'import math' imports 'math.cube' as a module named 'math' 
+    A module name can be changed using the 'as' keyword. E.g: 'import math as m'
+    Modules are acessible by calling moduleName.function. E.g: 'math.sin'
+    To import a module without a name and thus globally in the current context,
+    use the name 'default' for the module. E.g: 'import math as default'.
 */
 
 import math;

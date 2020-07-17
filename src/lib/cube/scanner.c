@@ -679,6 +679,12 @@ Token scanToken(Scanner *scanner)
             else
                 return makeToken(scanner, TOKEN_STAR);
         }
+        case '?': {
+            if (match(scanner, '='))
+                return makeToken(scanner, TOKEN_RECEIVE);
+            else
+                return makeToken(scanner, TOKEN_QUESTION);
+        }
         case '^':
             return makeToken(scanner, TOKEN_POW);
         case '!':
@@ -687,9 +693,7 @@ Token scanToken(Scanner *scanner)
             return makeToken(scanner, match(scanner, '=') ? TOKEN_EQUAL_EQUAL : TOKEN_EQUAL);
         case '<': {
             if (match(scanner, '<'))
-            {
                 return makeToken(scanner, TOKEN_SHIFT_LEFT);
-            }
             else
                 return makeToken(scanner, match(scanner, '=') ? TOKEN_LESS_EQUAL : TOKEN_LESS);
         }

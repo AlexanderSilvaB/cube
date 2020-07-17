@@ -1272,9 +1272,9 @@ Value varsNative(int argCount, Value *args)
     bool isGlobal = false;
     bool showLocals = false;
 
-    if (argCount > 0 && IS_PACKAGE(args[0]))
+    if (argCount > 0 && IS_MODULE(args[0]))
     {
-        tables[K++] = &(AS_PACKAGE(args[0])->symbols);
+        tables[K++] = &(AS_MODULE(args[0])->symbols);
         titles[K - 1] = "Symbols";
     }
     else if (argCount > 0 && IS_CLASS(args[0]))
@@ -1321,6 +1321,27 @@ Value varsNative(int argCount, Value *args)
         if (table->count <= 0)
             continue;
         printf("-----------------\n%s\n-----------------\n", titles[k]);
+
+        if (isGlobal && k == 0)
+        {
+            ThreadFrame *tf = currentThread();
+
+            printf("__name__ : ");
+            printValue(STRING_VAL(tf->ctf->currentScriptName));
+            printf("\n");
+
+            printf("%s : ", vm.argsString);
+            printValue(tf->ctf->currentArgs);
+            printf("\n");
+
+            printf("__ans__ : ");
+            printValue(vm.repl);
+            printf("\n");
+
+            printf("__std__ : ");
+            printValue(OBJ_VAL(vm.stdModule));
+            printf("\n");
+        }
 
         while (iterateTable(table, &entry, &i))
         {

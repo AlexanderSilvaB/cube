@@ -52,7 +52,7 @@ ObjClass *newClass(ObjString *name)
 {
     ObjClass *klass = ALLOCATE_OBJ(ObjClass, OBJ_CLASS);
     klass->name = name;
-    klass->package = NULL;
+    klass->module = NULL;
     klass->super = NULL;
     initTable(&klass->methods);
     initTable(&klass->fields);
@@ -85,13 +85,13 @@ ObjTask *newTask(ObjString *name)
     return task;
 }
 
-ObjPackage *newPackage(ObjString *name)
+ObjModule *newModule(ObjString *name)
 {
-    ObjPackage *package = ALLOCATE_OBJ(ObjPackage, OBJ_PACKAGE);
-    package->name = name;
-    initTable(&package->symbols);
-    package->parent = NULL;
-    return package;
+    ObjModule *module = ALLOCATE_OBJ(ObjModule, OBJ_MODULE);
+    module->name = name;
+    initTable(&module->symbols);
+    module->parent = NULL;
+    return module;
 }
 
 ObjClosure *newClosure(ObjFunction *function)
@@ -106,7 +106,7 @@ ObjClosure *newClosure(ObjFunction *function)
     closure->function = function;
     closure->upvalues = upvalues;
     closure->upvalueCount = function->upvalueCount;
-    closure->package = NULL;
+    closure->module = NULL;
     return closure;
 }
 
@@ -467,11 +467,11 @@ char *objectToString(Value value, bool literal)
             return classString;
         }
 
-        case OBJ_PACKAGE: {
-            ObjPackage *package = AS_PACKAGE(value);
-            char *packageString = mp_malloc(sizeof(char) * (package->name->length + 14));
-            snprintf(packageString, package->name->length + 13, "<package %s>", package->name->chars);
-            return packageString;
+        case OBJ_MODULE: {
+            ObjModule *module = AS_MODULE(value);
+            char *moduleString = mp_malloc(sizeof(char) * (module->name->length + 14));
+            snprintf(moduleString, module->name->length + 13, "<module %s>", module->name->chars);
+            return moduleString;
         }
 
         case OBJ_BOUND_METHOD: {
@@ -841,9 +841,9 @@ char *objectType(Value value)
             return str;
         }
 
-        case OBJ_PACKAGE: {
+        case OBJ_MODULE: {
             char *str = mp_malloc(sizeof(char) * 9);
-            snprintf(str, 8, "package");
+            snprintf(str, 8, "module");
             return str;
         }
 

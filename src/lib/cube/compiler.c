@@ -579,6 +579,13 @@ static void namedVariable(Token name, bool canAssign)
         expression();
         emitShort(setOp, (uint16_t)arg);
     }
+    else if (canAssign && match(TOKEN_RECEIVE))
+    {
+        namedVariable(name, false);
+        expression();
+        emitByte(OP_RECEIVE);
+        emitShort(setOp, (uint16_t)arg);
+    }
     else if (canAssign && match(TOKEN_INC))
     {
         namedVariable(name, false);
@@ -1434,7 +1441,7 @@ static void static_(bool canAssign)
 
 static void require(bool canAssign)
 {
-    consume(TOKEN_LEFT_PAREN, "In 'require' a package name must be passed between parentesis.");
+    consume(TOKEN_LEFT_PAREN, "In 'require' a module name must be passed between parentesis.");
     uint8_t argCount = argumentList();
     if (argCount != 1)
         error("Required accepts only one parameter.");
@@ -1528,6 +1535,8 @@ ParseRule rules[] = {
     {NULL, binary, PREC_EQUALITY},   // TOKEN_SHIFT_RIGHT
     {NULL, binary, PREC_EQUALITY},   // TOKEN_BINARY_AND
     {NULL, binary, PREC_EQUALITY},   // TOKEN_BINARY_OR
+    {NULL, NULL, PREC_NULL},         // TOKEN_RECEIVE
+    {NULL, NULL, PREC_NULL},         // TOKEN_QUESTION
     {variable, NULL, PREC_NULL},     // TOKEN_IDENTIFIER
     {string, NULL, PREC_NULL},       // TOKEN_STRING
     {number, NULL, PREC_NULL},       // TOKEN_NUMBER
@@ -1616,6 +1625,19 @@ static ParseRule *getRule(TokenType type)
 static void expression()
 {
     parsePrecedence(PREC_ASSIGNMENT);
+
+    if (match(TOKEN_QUESTION))
+    {
+        expression();
+        if (match(TOKEN_COLON))
+        {
+            expression();
+            emitByte(OP_TRUE);
+        }
+        else
+            emitByte(OP_FALSE);
+        emitByte(OP_QUESTION);
+    }
 }
 
 static void method(bool isStatic)
@@ -2725,7 +2747,7 @@ static void includeStatement()
     {
         forClause = true;
         str = mp_malloc(sizeof(char) * 64);
-        sprintf(str, "__temp_package_%d", gbcpl->tempId++);
+        sprintf(str, "__temp_module_%d", gbcpl->tempId++);
         emitConstant(OBJ_VAL(copyString(str, strlen(str))));
         emitShort(OP_INCLUDE, makeConstant(OBJ_VAL(fn)));
 
@@ -2737,7 +2759,7 @@ static void includeStatement()
             {
                 getVariable(module);
                 emitPreviousAsString();
-                emitByte(OP_FROM_PACKAGE);
+                emitByte(OP_FROM_MODULE);
             }
             else
                 errorAtCurrent("Variable name expected.");
@@ -2787,7 +2809,7 @@ static void importStatement()
     {
         forClause = true;
         str = mp_malloc(sizeof(char) * 64);
-        sprintf(str, "__temp_package_%d", gbcpl->tempId++);
+        sprintf(str, "__temp_module_%d", gbcpl->tempId++);
         emitConstant(OBJ_VAL(copyString(str, strlen(str))));
         emitByte(OP_IMPORT);
 
@@ -2799,7 +2821,7 @@ static void importStatement()
             {
                 getVariable(module);
                 emitPreviousAsString();
-                emitByte(OP_FROM_PACKAGE);
+                emitByte(OP_FROM_MODULE);
             }
             else
                 errorAtCurrent("Variable name expected.");

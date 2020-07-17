@@ -1,7 +1,7 @@
 /* 
     The 'require' keyword works just like 'import' excepts
-    that it is a function so the package name can be any variable.
-    The loaded package is returned and will not have a name at least that 
+    that it is a function so the module name can be any variable.
+    The loaded module is returned and will not have a name at least that 
     the returned value is assigned to a variable.
 */
 

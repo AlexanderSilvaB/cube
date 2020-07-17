@@ -15,7 +15,7 @@
 #define IS_CLASS(value) isObjType(value, OBJ_CLASS)
 #define IS_ENUM(value) isObjType(value, OBJ_ENUM)
 #define IS_ENUM_VALUE(value) isObjType(value, OBJ_ENUM_VALUE)
-#define IS_PACKAGE(value) isObjType(value, OBJ_PACKAGE)
+#define IS_MODULE(value) isObjType(value, OBJ_MODULE)
 #define IS_CLOSURE(value) isObjType(value, OBJ_CLOSURE)
 #define IS_FUNCTION(value) isObjType(value, OBJ_FUNCTION)
 #define IS_INSTANCE(value) isObjType(value, OBJ_INSTANCE)
@@ -36,7 +36,7 @@
 #define AS_CLASS(value) ((ObjClass *)AS_OBJ(value))
 #define AS_ENUM(value) ((ObjEnum *)AS_OBJ(value))
 #define AS_ENUM_VALUE(value) ((ObjEnumValue *)AS_OBJ(value))
-#define AS_PACKAGE(value) ((ObjPackage *)AS_OBJ(value))
+#define AS_MODULE(value) ((ObjModule *)AS_OBJ(value))
 #define AS_CLOSURE(value) ((ObjClosure *)AS_OBJ(value))
 #define AS_FUNCTION(value) ((ObjFunction *)AS_OBJ(value))
 #define AS_INSTANCE(value) ((ObjInstance *)AS_OBJ(value))
@@ -67,7 +67,7 @@ typedef enum
     OBJ_CLASS,
     OBJ_ENUM,
     OBJ_ENUM_VALUE,
-    OBJ_PACKAGE,
+    OBJ_MODULE,
     OBJ_CLOSURE,
     OBJ_FUNCTION,
     OBJ_INSTANCE,
@@ -193,13 +193,13 @@ typedef struct sUpvalue
     struct sUpvalue *next;
 } ObjUpvalue;
 
-typedef struct sObjPackage
+typedef struct sObjModule
 {
     Obj obj;
     ObjString *name;
     Table symbols;
-    struct sObjPackage *parent;
-} ObjPackage;
+    struct sObjModule *parent;
+} ObjModule;
 
 typedef struct
 {
@@ -207,14 +207,14 @@ typedef struct
     ObjFunction *function;
     ObjUpvalue **upvalues;
     int upvalueCount;
-    ObjPackage *package;
+    ObjModule *module;
 } ObjClosure;
 
 typedef struct sObjClass
 {
     Obj obj;
     ObjString *name;
-    ObjPackage *package;
+    ObjModule *module;
     Table methods;
     Table fields;
     Table staticFields;
@@ -304,7 +304,7 @@ ObjFunction *newFunction(bool isStatic);
 ObjInstance *newInstance(ObjClass *klass);
 ObjNative *newNative(NativeFn function);
 ObjRequest *newRequest();
-ObjPackage *newPackage(ObjString *name);
+ObjModule *newModule(ObjString *name);
 ObjNativeFunc *initNativeFunc();
 ObjNativeStruct *initNativeStruct();
 ObjNativeLib *initNativeLib();

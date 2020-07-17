@@ -9,6 +9,7 @@ static HANDLE handles[MAX_PORTS];
 static void init_serial();
 static int add_port(HANDLE port);
 static HANDLE get_port(int fd);
+static void remove_port(int fd);
 
 int open_serial(const char *device)
 {
@@ -24,6 +25,7 @@ void close_serial(int fd)
     if (port == INVALID_HANDLE_VALUE)
         return;
     CloseHandle(port);
+    remove_port(fd);
 }
 
 int configure_serial(int fd, int baudrate, int timeout, int parity, int stopBits, int dataBits, int rts, int xon,
@@ -221,6 +223,12 @@ static HANDLE get_port(int fd)
     if (fd < 0 || fd >= MAX_PORTS)
         return INVALID_HANDLE_VALUE;
     return handles[fd];
+}
+
+static void remove_port(int fd)
+{
+    if (fd >= 0 && fd < MAX_PORTS)
+        handles[fd] = NULL;
 }
 
 static int parse_serial_speed(int baudrate)
