@@ -23,7 +23,7 @@ extern void valueToNative(cube_native_var *var, Value value);
 char *version_string;
 extern bool printCode;
 
-void start(const char *path, const char *scriptName)
+void start(const char *path, const char *scriptName, const char *rootPath)
 {
 
 #ifdef UNICODE
@@ -64,6 +64,24 @@ void start(const char *path, const char *scriptName)
             addPath(folder);
     }
 
+    if (rootPath != NULL)
+    {
+        vm.rootPath = STRING_VAL(rootPath);
+        addPath(rootPath);
+
+        char *newPath = (char *)mp_malloc(sizeof(char) * (strlen(rootPath) + 10));
+
+        strcpy(newPath, rootPath);
+        strcat(newPath, "/libs/");
+        addPath(newPath);
+
+        strcpy(newPath, rootPath);
+        strcat(newPath, "/stdlib/");
+        addPath(newPath);
+
+        mp_free(newPath);
+    }
+
     addPath("libs/");
     addPath("stdlib/");
     addPath("../share/cube/");
@@ -100,7 +118,17 @@ void stop()
 
 void startCube(int argc, const char *argv[])
 {
-    start(argv[0], "__main__");
+    const char *rootPath = NULL;
+    for (int i = 1; i < argc; i++)
+    {
+        if (strcmp(argv[i], "-r") == 0 || strcmp(argv[i], "--root") == 0)
+        {
+            i++;
+            rootPath = argv[i];
+            break;
+        }
+    }
+    start(argv[0], "__main__", rootPath);
 }
 
 int runCube(int argc, const char *argv[])
@@ -119,38 +147,44 @@ int runCube(int argc, const char *argv[])
         {
             fileName = argv[i];
             argStart++;
+            break;
         }
-        else if (strcmp(argv[i], "-o") == 0)
+        else if (strcmp(argv[i], "-o") == 0 || strcmp(argv[i], "--output") == 0)
         {
             i++;
             output = argv[i];
             argStart += 2;
         }
-        else if (strcmp(argv[i], "-c") == 0)
+        else if (strcmp(argv[i], "-c") == 0 || strcmp(argv[i], "--compile") == 0)
         {
             execute = false;
             argStart++;
         }
-        else if (strcmp(argv[i], "-b") == 0)
+        else if (strcmp(argv[i], "-b") == 0 || strcmp(argv[i], "--binary") == 0)
         {
             binary = true;
             execute = false;
             argStart++;
         }
-        else if (strcmp(argv[i], "-d") == 0)
+        else if (strcmp(argv[i], "-d") == 0 || strcmp(argv[i], "--debug") == 0)
         {
             debug = true;
             argStart++;
         }
-        else if (strcmp(argv[i], "-p") == 0)
+        else if (strcmp(argv[i], "-p") == 0 || strcmp(argv[i], "--print") == 0)
         {
             printCode = true;
             argStart++;
         }
-        else if (strcmp(argv[i], "-i") == 0)
+        else if (strcmp(argv[i], "-i") == 0 || strcmp(argv[i], "--include") == 0)
         {
             forceInclude = true;
             argStart++;
+        }
+        else if (strcmp(argv[i], "-r") == 0 || strcmp(argv[i], "--root") == 0)
+        {
+            i++;
+            argStart += 2;
         }
     }
 

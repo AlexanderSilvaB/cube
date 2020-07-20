@@ -1,0 +1,13 @@
+import serial
+
+var ser = serial.Serial("/dev/zero");
+
+println(ser.str())
+
+var data = ser.read(10)
+println(data);
+
+var written = ser.write(data)
+println(written)
+
+ser.close()

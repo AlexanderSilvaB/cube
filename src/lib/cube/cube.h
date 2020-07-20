@@ -12,7 +12,7 @@
 int repl();
 int runFile(const char *path, const char *output, bool execute, bool binary);
 int runCode(const char *source, const char *path, int argc, const char *argv[]);
-void start(const char *path, const char *scriptName);
+void start(const char *path, const char *scriptName, const char *rootPath);
 void stop();
 int runCube(int argc, const char *argv[]);
 void startCube(int argc, const char *argv[]);

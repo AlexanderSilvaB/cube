@@ -106,6 +106,7 @@ typedef struct
     ObjList *paths;
     ObjModule *stdModule;
     ObjList *modules;
+    Value rootPath;
 
     const char *argsString;
     const char *extension;

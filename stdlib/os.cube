@@ -34,6 +34,13 @@ else
     binExt = '';
 }
 
+if(__root__ is not null)
+{
+    mkdir(__root__);
+    installPath = __root__;
+    userDir = __root__;
+}
+
 var binPath = '{}/bin'.format(installPath);
 var libsPath = '{}/libs'.format(installPath);
 var samplesPath = '{}/samples'.format(installPath);

@@ -400,6 +400,7 @@ void initVM(const char *path, const char *scriptName)
     vm.repl = NULL_VAL;
     vm.print = false;
     vm.skipWaitingTasks = false;
+    vm.rootPath = NULL_VAL;
 
     memset(vm.threadFrames, '\0', sizeof(ThreadFrame) * MAX_THREADS);
 
@@ -1477,6 +1478,11 @@ bool envVariable(ObjString *name, Value *value)
     else if (strcmp(name->chars, "__std__") == 0)
     {
         *value = OBJ_VAL(vm.stdModule);
+        return true;
+    }
+    else if (strcmp(name->chars, "__root__") == 0)
+    {
+        *value = vm.rootPath;
         return true;
     }
     return false;
