@@ -19,6 +19,7 @@
 #include "ansi_escapes.h"
 #include "collections.h"
 #include "compiler.h"
+#include "external/cJSON/cJSON.h"
 #include "files.h"
 #include "gc.h"
 #include "memory.h"
@@ -745,6 +746,43 @@ Value listNative(int argCount, Value *args)
     return OBJ_VAL(list);
 }
 
+Value jsonToValue(cJSON *json)
+{
+    if (cJSON_IsTrue(json))
+        return TRUE_VAL;
+    else if (cJSON_IsFalse(json))
+        return FALSE_VAL;
+    else if (cJSON_IsNull(json))
+        return NULL_VAL;
+    else if (cJSON_IsNumber(json))
+        return NUMBER_VAL(json->valuedouble);
+    else if (cJSON_IsString(json))
+        return STRING_VAL(json->string);
+    else if (cJSON_IsArray(json))
+    {
+        ObjList *list = initList();
+        cJSON *child = json->child;
+        while (child != NULL)
+        {
+            addList(list, jsonToValue(child));
+            child = child->next;
+        }
+        return OBJ_VAL(list);
+    }
+    else if (cJSON_IsObject(json))
+    {
+        ObjDict *dict = initDict();
+        cJSON *child = json->child;
+        while (child != NULL)
+        {
+            insertDict(dict, child->string, jsonToValue(child));
+            child = child->next;
+        }
+        return OBJ_VAL(dict);
+    }
+    return NULL_VAL;
+}
+
 Value dictNative(int argCount, Value *args)
 {
     if (argCount != 3)
@@ -798,6 +836,21 @@ Value dictNative(int argCount, Value *args)
                     request->pops = 1;
                     return OBJ_VAL(request);
                 }
+            }
+            else if (IS_STRING(args[0]))
+            {
+                char *str = AS_CSTRING(args[0]);
+                cJSON *json = cJSON_Parse(str);
+                if (json == NULL || !cJSON_IsObject(json))
+                {
+                    runtimeError("Invalid dict string.");
+                    return NULL_VAL;
+                }
+
+                Value value = jsonToValue(json);
+
+                cJSON_Delete(json);
+                return value;
             }
         }
         else if (argCount % 2 == 0)
