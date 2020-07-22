@@ -29,8 +29,8 @@ var line = window.draw(Line(CX, 0, CX, H));
 
 var ball = window.draw(Circle(CX, CY, R));
 ball.speed = 200;
-ball.left = random() > 0.5;
-ball.up = random() > 0.5;
+ball.left = rand() > 0.5;
+ball.up = rand() > 0.5;
 
 var bar1 = window.draw(Rect(MinX - BW - R/2, CY - BH/2, BW, BH));
 bar1.speed = 0;
@@ -79,8 +79,8 @@ window.onUpdate(@(window, fps, dt, T)
         score2.text += 1;
         score2.update();
         ball.speed = 200;
-        ball.left = random() > 0.5;
-        ball.up = random() > 0.5;
+        ball.left = rand() > 0.5;
+        ball.up = rand() > 0.5;
         ball.x = CX;
         ball.y = CY;
         ball.update();
@@ -91,8 +91,8 @@ window.onUpdate(@(window, fps, dt, T)
         score1.text += 1;
         score1.update();
         ball.speed = 200;
-        ball.left = random() > 0.5;
-        ball.up = random() > 0.5;
+        ball.left = rand() > 0.5;
+        ball.up = rand() > 0.5;
         ball.x = CX;
         ball.y = CY;
         ball.update();

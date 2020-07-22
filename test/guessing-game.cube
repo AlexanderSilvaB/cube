@@ -2,7 +2,7 @@ func guessingGame()
 {
     seed();
     var userInput, tries = 0
-    var guess = int(random() * 10)
+    var guess = int(rand() * 10)
 
     println("Guess the number I've picked!")
 

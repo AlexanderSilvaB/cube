@@ -4,16 +4,20 @@ import libCreator as default
 var path = 'temp/test.h'
 with(path, 'w')
 {
-    file.write('void print();
-                int add(int a, int b);');
+    file.write('struct st{char a; char b;};
+                void print();
+                int add(int a, int b);
+                char* toString();
+                struct st getSt();
+                bool setSt(struct st* v);');
 }
 
 // Create the library header
 var lib = LibCreator(path)
 
 // Generate the library code
-var code = lib.generate()
-println(code)
+var done = lib.generate()
+println(done)
 
 // Save the library code
 lib.save()

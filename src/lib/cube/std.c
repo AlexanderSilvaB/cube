@@ -125,7 +125,7 @@ Value inputNative(int argCount, Value *args)
     return OBJ_VAL(copyString(str, strlen(str)));
 }
 
-Value randomNative(int argCount, Value *args)
+Value randNative(int argCount, Value *args)
 {
     double max = 1.0;
     double min = 0.0;
@@ -134,7 +134,7 @@ Value randomNative(int argCount, Value *args)
     {
         if (!IS_NUMBER(args[0]))
         {
-            runtimeError("random only accepts numbers as parameters.");
+            runtimeError("rand only accepts numbers as parameters.");
             return NULL_VAL;
         }
 
@@ -145,7 +145,7 @@ Value randomNative(int argCount, Value *args)
     {
         if (!IS_NUMBER(args[1]))
         {
-            runtimeError("random only accepts numbers as parameters.");
+            runtimeError("rand only accepts numbers as parameters.");
             return NULL_VAL;
         }
 
@@ -163,6 +163,50 @@ Value randomNative(int argCount, Value *args)
     int dv = 100000001;
     double r = min + ((rand() % dv) / (double)dv) * (max - min);
     return NUMBER_VAL(r);
+}
+
+double rand_gen()
+{
+    // return a uniformly distributed random value
+    return ((double)(rand()) + 1.) / ((double)(RAND_MAX) + 1.);
+}
+
+double normalRandom()
+{
+    // return a normally distributed random value
+    double v1 = rand_gen();
+    double v2 = rand_gen();
+    return cos(2 * 3.14 * v2) * sqrt(-2. * log(v1));
+}
+
+Value randnNative(int argCount, Value *args)
+{
+    double sigma = 1.0;
+    double mu = 0.0;
+
+    if (argCount > 0)
+    {
+        if (!IS_NUMBER(args[0]))
+        {
+            runtimeError("randn only accepts numbers as parameters.");
+            return NULL_VAL;
+        }
+
+        sigma = AS_NUMBER(args[0]);
+    }
+
+    if (argCount > 1)
+    {
+        if (!IS_NUMBER(args[1]))
+        {
+            runtimeError("randn only accepts numbers as parameters.");
+            return NULL_VAL;
+        }
+
+        mu = AS_NUMBER(args[1]);
+    }
+
+    return NUMBER_VAL((normalRandom() * sqrt(sigma) + mu));
 }
 
 Value seedNative(int argCount, Value *args)
@@ -593,6 +637,62 @@ Value hexNative(int argCount, Value *args)
     sprintf(hex_string, "%X", hex);
 
     return STRING_VAL(hex_string);
+}
+
+Value binNative(int argCount, Value *args)
+{
+    if (argCount == 0)
+        return STRING_VAL("00000000");
+    if (IS_INSTANCE(args[0]))
+    {
+        Value method;
+        if (tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("bin")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+
+        if (tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("bin")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+    }
+    else if (IS_CLASS(args[0]))
+    {
+        Value method;
+        if (tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("bin")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+    }
+
+    int bin = (int)AS_NUMBER(toNumber(args[0]));
+    char bin_string[33];
+    int len = 4;
+    if (bin < 1 << 8)
+        len = 1;
+    else if (bin < 1 << 16)
+        len = 2;
+
+    bin_string[0] = '\0';
+
+    for (int i = 8 * len; i >= 0; i--)
+    {
+        if ((bin >> i) & 0x1)
+            strcat(bin_string, "1");
+        else
+            strcat(bin_string, "0");
+    }
+
+    return STRING_VAL(bin_string);
 }
 
 Value charNative(int argCount, Value *args)
@@ -1480,9 +1580,9 @@ Value pwdNative(int argCount, Value *args)
 {
     char cCurrentPath[FILENAME_MAX];
     Value ret = NULL_VAL;
-    if (GetCurrentDir(cCurrentPath, sizeof(cCurrentPath)))
+    if (GetCurrentDir(cCurrentPath, FILENAME_MAX))
     {
-        cCurrentPath[sizeof(cCurrentPath) - 1] = '\0';
+        cCurrentPath[FILENAME_MAX - 1] = '\0';
         ret = STRING_VAL(cCurrentPath);
     }
     return ret;
@@ -2638,7 +2738,8 @@ void initStd()
     ADD_STD("print", printNative);
     ADD_STD("println", printlnNative);
     ADD_STD("throw", throwNative);
-    ADD_STD("random", randomNative);
+    ADD_STD("rand", randNative);
+    ADD_STD("randn", randnNative);
     ADD_STD("seed", seedNative);
     ADD_STD("wait", waitNative);
     ADD_STD("sin", sinNative);
@@ -2659,6 +2760,7 @@ void initStd()
     ADD_STD("int", intNative);
     ADD_STD("str", strNative);
     ADD_STD("hex", hexNative);
+    ADD_STD("bin", binNative);
     ADD_STD("char", charNative);
     ADD_STD("list", listNative);
     ADD_STD("dict", dictNative);

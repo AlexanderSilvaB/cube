@@ -1,12 +1,63 @@
 import scanner as default
 import paths as default
 
+var supportedTypes = [  "void", "void*",
+                        "char", "char*",
+                        "unsigned char", "unsigned char*",
+                        "int8_t", "int8_t*",
+                        "uint8_t", "uint8_t*",
+                        "bool", "bool*",
+                        "short", "short*",
+                        "unsigned short", "unsigned short*",
+                        "int16_t", "int16_t*",
+                        "uint16_t", "uint16_t*",
+                        "int", "int*",
+                        "unsigned int", "unsigned int*",
+                        "int32_t", "int32_t*",
+                        "uint32_t", "uint32_t*",
+                        "long", "long*",
+                        "unsigned long", "unsigned long*",
+                        "int64_t", "int64_t*",
+                        "uint64_t", "uint64_t*",
+                        "long long", "long long*",
+                        "float", "float*",
+                        "float32_t", "float32_t*",
+                        "double", "double*",
+                        "float64_t", "float64_t*"]
+
+var numberTypes =   [   "char",
+                        "unsigned char",
+                        "int8_t",
+                        "uint8_t",
+                        "short",
+                        "unsigned short",
+                        "int16_t",
+                        "uint16_t",
+                        "int",
+                        "unsigned int",
+                        "int32_t",
+                        "uint32_t",
+                        "long",
+                        "unsigned long",
+                        "int64_t",
+                        "uint64_t",
+                        "long long",
+                        "float",
+                        "float32_t",
+                        "double",
+                        "float64_t"]
+
 class LibCreator
 {
-    var scanner, hFile, code
+    var scanner
+    var hFile, lFile
+    var codeC, codeCube
+    var types
 
     func init(hFile)
     {
+        types = copy(supportedTypes)
+
         var file = open(hFile, 'r')
         if(file is null)
             throw('Invalid file')
@@ -15,87 +66,168 @@ class LibCreator
         file.close()
 
         this.hFile = hFile
+        this.lFile = changeExtension(fileName(hFile), "").substr(0, -1)
+
         scanner = Scanner(text)
     }
 
     func generate()
     {
-        var code = '#include <cube/cubeext.h>\n#include "${hFile}"\n\n'
+        var codeC = '#include <cube/cubeext.h>\n#include "${hFile}"\n\n'
+        var codeCube = 'native ${lFile}\n{\n\t//Declared functions - Without types conversion, no generated C file needed\n';
+        var codeCubeNew = '\n\t//Generated functions\n\t//Not always needed, you can remove if only primitive types are used\n'
+        var add = false
         var fnCode = ''
-        var arg
+        var lineCode = ''
+        var arg, tp
 
         var fn = this.__readFunc()
         while(fn is not null)
         {
-            if(fn[0] == 'void')
-                fnCode = 'EXPORTED void cube_' + fn[1] + '('
-            else
-                fnCode = 'EXPORTED cube_native_var* cube_' + fn[1] + '('
-            for(var i = 0; i < len(fn[2]); i++)
+            if(fn[0] == 'struct')
             {
-                arg = fn[2][i]
-                fnCode += 'cube_native_var* _' + arg[1]
-                if(i < len(fn[2]) - 1)
-                    fnCode += ', '
-            }
-            fnCode += ')\n{\n'
+                lineCode = '\tstruct ' + fn[1] + '\n\t{\n';
 
-            if(fn[0] != 'void')
-                fnCode += '\tcube_native_var *result = NATIVE_NULL();\n'
+                for(var i = 0; i < len(fn[2]); i++)
+                {
+                    arg = fn[2][i]
+                    if(arg[0] == 'bool')
+                        arg[0] = 'cbool'
+                    else if(arg[0] == 'char*' or arg[0] == 'int8_t*')
+                        arg[0] = 'cstring'
+                    else if(arg[0] == 'unsigned char*' or arg[0] == 'uint8_t*')
+                        arg[0] = 'cbytes'
+                    else if(arg[0].endsWith('*'))
+                        arg[0] = 'raw'
+                    lineCode += '\t\t' + arg[0] + ' ' + arg[1] + ';\n'
+                }
 
-            for(var i = 0; i < len(fn[2]); i++)
-            {
-                arg = fn[2][i]
-                fnCode += '\t' + arg[0] + ' ' + arg[1] + ' = '
-                if(arg[0] == 'bool')
-                    fnCode += 'AS_NATIVE_BOOL(_' + arg[1] + ');\n'
-                else if(this.__isNumberType(arg[0]))
-                    fnCode += 'AS_NATIVE_NUMBER(_' + arg[1] + ');\n'
-                else 
-                    fnCode += 'AS_NATIVE_STRING(_' + arg[1] + ');\n'
-            }
+                lineCode += '\t}\n'
 
-            if(fn[0] != 'void')
-            {
-                fnCode += '\n\t' + fn[0] + ' res = '
+                codeCube += lineCode
             }
             else
-                fnCode += '\t'
-            
-            fnCode += fn[1] + '('
-            for(var i = 0; i < len(fn[2]); i++)
             {
-                arg = fn[2][i]
-                fnCode += arg[1]
-                if(i < len(fn[2]) - 1)
-                    fnCode += ', '
+                if(fn[0] == 'void')
+                    fnCode = 'EXPORTED void cube_' + fn[1] + '('
+                else
+                    fnCode = 'EXPORTED cube_native_var* cube_' + fn[1] + '('
+
+                tp = fn[0]
+                if(tp == 'bool')
+                    tp = 'cbool'
+                else if(tp == 'char*' or tp == 'int8_t*')
+                    tp = 'cstring'
+                else if(tp == 'unsigned char*' or tp == 'uint8_t*')
+                    tp = 'cbytes'
+                else if(tp.endsWith('*'))
+                    tp = 'raw'
+
+                lineCode = '\t' + tp + ' ' + fn[1] + '('
+                codeCubeNew += '\t' + this.__safeType(fn[0]) + ' cube_' + fn[1] + '('
+
+                for(var i = 0; i < len(fn[2]); i++)
+                {
+                    arg = fn[2][i]
+                    fnCode += 'cube_native_var* _' + arg[1]
+
+                    if(arg[0] == 'bool')
+                        lineCode += 'cbool'
+                    else if(arg[0] == 'char*' or arg[0] == 'int8_t*')
+                        lineCode += 'cstring'
+                    else if(arg[0] == 'unsigned char*' or arg[0] == 'uint8_t*')
+                        lineCode += 'cbytes'
+                    else if(arg[0].endsWith('*'))
+                        lineCode += 'raw'
+                    else
+                        lineCode += arg[0];
+
+                    lineCode += ' ' + arg[1]
+                    codeCubeNew += this.__safeType(arg[0]) + ' ' + arg[1]
+                    if(i < len(fn[2]) - 1)
+                    {
+                        fnCode += ', '
+                        lineCode += ', '
+                        codeCubeNew += ', '
+                    }
+                }
+                fnCode += ')\n{\n'
+                lineCode += ');\n'
+                codeCubeNew += ');\n'
+
+                if(fn[0] != 'void')
+                    fnCode += '\tcube_native_var *result = NATIVE_NULL();\n'
+
+                for(var i = 0; i < len(fn[2]); i++)
+                {
+                    arg = fn[2][i]
+                    if(arg[0] in supportedTypes)
+                        fnCode += '\t' + arg[0] + ' ' + arg[1] + ' = '
+                    else
+                        fnCode += '\tstruct ' + arg[0] + ' ' + arg[1] + ' = '
+                    if(arg[0] == 'bool')
+                        fnCode += 'AS_NATIVE_BOOL(_' + arg[1] + ');\n'
+                    else if(this.__isNumberType(arg[0]))
+                        fnCode += 'AS_NATIVE_NUMBER(_' + arg[1] + ');\n'
+                    else if(this.__isStringType(arg[0]))
+                        fnCode += 'AS_NATIVE_STRING(_' + arg[1] + ');\n'
+                    else 
+                        fnCode += 'NULL; // TODO - Fill this variable\n'
+                }
+
+                if(fn[0] != 'void')
+                {
+                    if(fn[0] in supportedTypes)
+                        fnCode += '\n\t' + fn[0] + ' res = '
+                    else
+                        fnCode += '\n\tstruct ' + fn[0] + ' res = '
+                }
+                else
+                    fnCode += '\t'
+                
+                fnCode += fn[1] + '('
+                for(var i = 0; i < len(fn[2]); i++)
+                {
+                    arg = fn[2][i]
+                    fnCode += arg[1]
+                    if(i < len(fn[2]) - 1)
+                        fnCode += ', '
+                }
+                fnCode += ');\n'
+
+                if(fn[0] != 'void')
+                {
+                    if(fn[0] == 'bool')
+                        fnCode += '\n\tTO_NATIVE_BOOL(result, res);\n'
+                    else if(this.__isNumberType(fn[0]))
+                        fnCode += '\n\tTO_NATIVE_NUMBER(result, res);\n'
+                    else if(this.__isStringType(fn[0]))
+                        fnCode += '\n\tTO_NATIVE_STRING(result, res);\n'
+                    else
+                        fnCode += '\n\t // // TODO - Fill the result variable'
+                }
+
+
+
+                if(fn[0] != 'void')
+                    fnCode += '\n\treturn result;\n'
+
+                fnCode += '}\n\n'
+
+                codeC += fnCode
+                codeCube += lineCode
             }
-            fnCode += ');\n'
-
-            if(fn[0] != 'void')
-            {
-                if(arg[0] == 'bool')
-                    fnCode += '\n\tTO_NATIVE_BOOL(result, res);\n'
-                else if(this.__isNumberType(arg[0]))
-                    fnCode += '\n\tTO_NATIVE_NUMBER(result, res);\n'
-                else 
-                    fnCode += '\n\tTO_NATIVE_STRING(result, res);\n'
-            }
-
-
-
-            if(fn[0] != 'void')
-                fnCode += '\n\treturn result;\n'
-
-            fnCode += '}\n\n'
-
-            code += fnCode
 
             fn = this.__readFunc()
         }
 
-        this.code = code
-        return code
+        codeCube += codeCubeNew
+
+        codeCube += '}';
+
+        this.codeC = codeC
+        this.codeCube = codeCube
+        return true
     }
 
     func save(path)
@@ -103,15 +235,28 @@ class LibCreator
         if(path is null)
         {
             path = hFile
-            path = changeExtension(path, 'cube.c')
+            path = changeExtension(path, 'cube')
         }
         
-        var file = open(path, 'w')
-        if(file is null)
+        var fileCube = open(path, 'w')
+        if(fileCube is null)
             return false
+
+        path = changeExtension(path, 'cube.c')
+        var fileC = open(path, 'w')
+
+
+        if(fileC is null)
+        {
+            fileCube.close()
+            return false
+        }
         
-        file.write(code)
-        file.close()
+        fileCube.write(codeCube)
+        fileCube.close()
+        
+        fileC.write(codeC)
+        fileC.close()
 
         return true
     }
@@ -121,7 +266,8 @@ class LibCreator
         var token, line
 
         var fnType, fnName, fnArgs
-        var fnArg
+        var fnArg, ret
+        var readName = false, name = null
 
         while(not this.scanner.eof())
         {
@@ -143,10 +289,37 @@ class LibCreator
                 continue
             }
 
+            if(token.type == TokenType.ID and token.value == "typedef")
+            {
+                token = this.scanner.next()
+                readName = true
+            }
+
+            if(token.type == TokenType.ID and token.value == "struct")
+            {
+                if(readName == false)
+                {
+                    token = this.scanner.next()
+                    token.value = this.__checkPointer(token.value)
+                    name = token.value
+                    if(token.type == TokenType.ID and not this.__isValidType(name))
+                    {
+                        return this.__readStruct(name)
+                    }
+                }
+                else
+                {
+                    return this.__readStruct(null)
+                }
+                readName = false
+                name = null
+            }
+
             if(token.type == TokenType.ID and fnType == null)
             {
                 if(this.__isValidType(token.value))
                 {
+                    token.value = this.__checkPointer(token.value)   
                     fnType = token.value
                     continue
                 }
@@ -166,6 +339,7 @@ class LibCreator
             {
                 if(len(fnArg) == 0 and this.__isValidType(token.value))
                 {
+                    token.value = this.__checkPointer(token.value)
                     fnArg.add(token.value)
                     continue
                 }
@@ -192,11 +366,99 @@ class LibCreator
             }
             else if(token.type == TokenType.SYM and token.value == ';' and fnArgs is list)
             {
-                return [fnType, fnName, fnArgs]
+                ret = [fnType, fnName, fnArgs]
                 fnType = null
                 fnName = null
                 fnArgs = null
                 fnArg = null
+                return ret
+            }
+        
+            println('Invalid token')
+            println(token.str())
+            return null
+        }
+
+        return null
+    }
+
+    func __readStruct(name)
+    {
+        var token, line
+
+        var curr = []
+        var members, ret
+
+        while(not this.scanner.eof())
+        {
+            token = this.scanner.next()
+            if(token == null)
+                continue
+
+            if(line is not null)
+            {
+                if(line == token.line)
+                    continue
+                else
+                    line = null
+            }
+
+            if(token.type == TokenType.SYM and token.value == '{')
+            {
+                members = []
+                continue
+            }
+            else if(token.type == TokenType.SYM and token.value == '}' and members is list)
+            {
+                if(name is null)
+                {
+                    token = this.scanner.next()
+                    if(token.type == TokenType.ID and not this.__isValidType(token.value))
+                    {
+                        name = this.__checkPointer(token.value)   
+                    }
+                    else
+                    {
+                        println('Invalid token')
+                        println(token.str())
+                        return null
+                    }
+                }
+
+                ret = ['struct', name, members]
+                this.types.add(name)
+                this.types.add(name+'*')
+                members = null
+                continue
+            }
+            else if(token.type == TokenType.SYM and token.value == ';' and members is list)
+            {
+                if(curr is list and len(curr) == 2)
+                {
+                    members.add(curr)
+                }
+                curr = []
+                continue
+            }
+            else if(token.type == TokenType.SYM and token.value == ';' and ret is not null)
+            {
+                return ret
+            }
+            else if(token.type == TokenType.ID and not this.__isValidType(token.value))
+            {
+                println('Invalid token')
+                println(token.str())
+                return null
+            }
+            
+            token.value = this.__checkPointer(token.value)
+            curr.add(token.value)
+            
+            token = this.scanner.next()
+            
+            if(token.type == TokenType.ID and len(curr) == 1)
+            {
+                curr.add(token.value);
                 continue
             }
         
@@ -208,22 +470,42 @@ class LibCreator
         return null
     }
 
+    func __checkPointer(name)
+    {
+        var token = this.scanner.peek()
+        if(token.type == TokenType.SYM and token.value == '*')
+        {
+            this.scanner.next()
+            name += '*'
+        }
+        return name
+    }
+
     func __isValidType(value)
     {
-        return (value == 'void' or
-            value == 'int' or
-            value == 'float' or
-            value == 'double' or
-            value == 'char*')
+        return (value in types)
     }
 
     func __isNumberType(value)
     {
-        return (value == 'void' or
-            value == 'bool' or
-            value == 'int' or
-            value == 'float' or
-            value == 'double' or
-            value == 'char*')
+        return (value in numberTypes)
+    }
+
+    func __isStringType(value)
+    {
+        return (value == 'char*' or value == 'int8_t*')
+    }
+
+    func __safeType(type)
+    {
+        if(type == 'char*' or type == 'int8_t*')
+            type = 'str'
+        else if(type == 'unsigned char*' or type == 'uint8_t*')
+            type = 'bytes'
+        else if(type.endsWith('*'))
+            type = 'raw'
+        else if(!(type in supportedTypes))
+            type = 'dict'
+        return type
     }
 }

@@ -18,8 +18,8 @@ if(nn is null)
     var op1, op2, op3, op4, entry
     for(var i = 0; i < 1000; i++)
     {
-        x = random(-1000, 1000)
-        y = random(-1000, 1000)
+        x = rand(-1000, 1000)
+        y = rand(-1000, 1000)
         op1 = 0
         op2 = 0
         op3 = 0

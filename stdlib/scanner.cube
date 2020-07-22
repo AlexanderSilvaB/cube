@@ -42,6 +42,21 @@ class Scanner
         return isempty(this.current)
     }
 
+    func peek()
+    {
+        var text = this.text
+        var current = this.current
+        var line = this.line
+
+        var n = this.next()
+
+        this.text = text
+        this.current = current
+        this.line = line
+
+        return n
+    }
+
     func next()
     {
         var token, c;

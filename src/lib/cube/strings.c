@@ -294,6 +294,14 @@ static bool substrString(int argCount)
         return false;
     }
 
+    if (start < 0)
+        start = string->length + start;
+
+    if (length < 0)
+    {
+        length = string->length + length;
+    }
+
     if (start + length > string->length)
     {
         length = string->length - start;
@@ -325,6 +333,9 @@ static bool fromString(int argCount)
         runtimeError("start index out of bounds", start);
         return false;
     }
+
+    if (start < 0)
+        start = string->length + start;
 
     int length = string->length - start;
 

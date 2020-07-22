@@ -7,7 +7,7 @@ func get(server, client, request, data)
     var response;
     if(isempty(request) or request == '/')
     {
-        var rand = int(random() * 10000000);
+        var rand = int(rand() * 10000000);
         println("Sending randomic number: ", rand);
         response = '<html><body><center><h3>Random number: {}</h3><h4>Nothing requested</h4><h5>Client: {}</h5><p>Cube HTTP Server</p></center></body></html>'.format(rand, client);
     }

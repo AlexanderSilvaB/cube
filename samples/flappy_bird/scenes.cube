@@ -188,8 +188,8 @@ class GamePlayScene : Scene
             rect = game.display.rect(top[i])
             if(rect[0] < -rect[2])
             {
-                x = width + random() * width
-                y =  0.5 * height * random()
+                x = width + rand() * width
+                y =  0.5 * height * rand()
                 game.display.move(top[i], x, -y)
                 game.display.move(bottom[i], x, height - y - 50)
                 points[i] = false

@@ -10,8 +10,8 @@ var y = abs(x);
 println('abs({}) = {}'.format(x, y));
 
 seed();
-x = int(random() * 1000);
-y = int(random() * 1000);
+x = int(rand() * 1000);
+y = int(rand() * 1000);
 println('min({}, {}) = {}\nmax({}, {}) = {}'.format(x, y, min(x, y), x, y, max(x, y)));
 
 x = 57;

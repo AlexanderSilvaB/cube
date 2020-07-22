@@ -14,7 +14,7 @@ func words(n)
     for(var i = 0 ; i < n; i++)
     {
         while(cur == last)
-            cur = int(random(0, L))
+            cur = int(rand(0, L))
         last = cur
         text += wordsList[cur]
         if(i < n-1)
@@ -40,7 +40,7 @@ func par(p, mw, mW)
     var text = ''
     for(var i = 0; i < p; i++)
     {
-        text += words( int( random(mw, mW) ) )
+        text += words( int( rand(mw, mW) ) )
         if(i < p-1)
             text += '\n'
     }

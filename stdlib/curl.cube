@@ -96,7 +96,7 @@ enum Option
     ProxyUserPwd = 10006,
     Put = 54,
     Quote = 10028,
-    RandomFile = 10076,
+    randFile = 10076,
     Range = 10007,
     ReadData = 10009,
     ReadFunction = 20012,

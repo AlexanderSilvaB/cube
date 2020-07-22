@@ -36,7 +36,7 @@ func qsort(data, fn)
 
 func shuffle(data)
 {
-    return qsort(data, @(a, b) => ((0.5 - random()) < 0))
+    return qsort(data, @(a, b) => ((0.5 - rand()) < 0))
 }
 
 func reverse(data)

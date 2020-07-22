@@ -44,6 +44,21 @@ func min()
     if(len(args) == 0)
         return null;
 
+    if(args[0] is list)
+    {
+        var L = args[0]
+        if(len(L) == 0)
+            return null
+
+        var m = L[0];
+        for(var a in L)
+        {
+            if(a < m)
+                m = a;
+        }
+        return m;
+    }
+
     var m = args[0];
     for(var a in args)
     {
@@ -58,6 +73,21 @@ func max(a, b)
     if(len(args) == 0)
         return null;
 
+    if(args[0] is list)
+    {
+        var L = args[0]
+        if(len(L) == 0)
+            return null
+
+        var m = L[0];
+        for(var a in L)
+        {
+            if(a > m)
+                m = a;
+        }
+        return m;
+    }
+
     var m = args[0];
     for(var a in args)
     {
@@ -65,4 +95,33 @@ func max(a, b)
             m = a;
     }
     return m;
+}
+
+func linspace(m, M, N)
+{
+    if(m is null)
+        m = 0
+    if(M is null)
+        M = 100
+    if(N is null)
+        N = 100
+    
+    if(m > M)
+    {
+        var tmp = m
+        m = M
+        M = tmp
+    }
+
+    if(N <= 0)
+        return []
+
+    var inc = (M - m) / N
+    var ret = [0] * N
+    for(var i = 0; i < N; i++)
+    {
+        ret[i] = i * inc + m
+    }
+    
+    return ret
 }

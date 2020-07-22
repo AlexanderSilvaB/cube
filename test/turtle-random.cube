@@ -17,7 +17,7 @@ while(turtle.running())
 {
     turtle.forward(side)
 
-    if(random() < 0.5)
+    if(rand() < 0.5)
         turtle.turn(angle)
     else
         turtle.turn(-angle)
