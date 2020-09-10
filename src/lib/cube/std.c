@@ -206,7 +206,7 @@ Value randnNative(int argCount, Value *args)
         mu = AS_NUMBER(args[1]);
     }
 
-    return NUMBER_VAL((normalRandom() * sqrt(sigma) + mu));
+    return NUMBER_VAL((normalRandom() * sigma + mu));
 }
 
 Value seedNative(int argCount, Value *args)
@@ -740,6 +740,13 @@ Value charNative(int argCount, Value *args)
         str[0] = (char)value;
 
     return STRING_VAL(str);
+}
+
+Value xorNative(int argCount, Value *args)
+{
+    Value a = intNative(argCount, args);
+    Value b = intNative(argCount - 1, args + 1);
+    return NUMBER_VAL((int)AS_NUMBER(a) ^ (int)AS_NUMBER(b));
 }
 
 Value listNative(int argCount, Value *args)
@@ -1399,9 +1406,11 @@ Value lenNative(int argCount, Value *args)
             return OBJ_VAL(request);
         }
     }
+    else if (IS_NULL(args[0]))
+        return NUMBER_VAL(0);
 
     // runtimeError("Unsupported type passed to len()", argCount);
-    return NUMBER_VAL(0);
+    return NUMBER_VAL(1);
 }
 
 Value typeNative(int argCount, Value *args)
@@ -2772,6 +2781,7 @@ void initStd()
     ADD_STD("round", roundNative);
     ADD_STD("pow", powNative);
     ADD_STD("exp", expNative);
+    ADD_STD("xor", xorNative);
     ADD_STD("len", lenNative);
     ADD_STD("type", typeNative);
     ADD_STD("vars", varsNative);

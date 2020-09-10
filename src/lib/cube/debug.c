@@ -164,10 +164,12 @@ int disassembleInstruction(Chunk *chunk, int offset)
             return simpleInstruction("OP_MULTIPLY", offset);
         case OP_DIVIDE:
             return simpleInstruction("OP_DIVIDE", offset);
-        case OP_RECEIVE:
-            return simpleInstruction("OP_RECEIVE", offset);
+        case OP_NULLABLE:
+            return simpleInstruction("OP_NULLABLE", offset);
         case OP_QUESTION:
             return simpleInstruction("OP_QUESTION", offset);
+        case OP_SWAP:
+            return simpleInstruction("OP_SWAP", offset);
         case OP_MOD:
             return simpleInstruction("OP_MOD", offset);
         case OP_POW:

@@ -18,6 +18,9 @@ var floor = __std__.floor;
 var round = __std__.round;
 var pow = __std__.pow;
 var exp = __std__.exp;
+var rand = __std__.rand
+var randn = __std__.randn
+var seed = __std__.seed
 
 func deg(x) 
 {   
@@ -97,21 +100,17 @@ func max(a, b)
     return m;
 }
 
+func sign(x)
+{
+    return x < 0 ? -1 : 1
+}
+
 func linspace(m, M, N)
 {
-    if(m is null)
-        m = 0
-    if(M is null)
-        M = 100
-    if(N is null)
-        N = 100
-    
-    if(m > M)
-    {
-        var tmp = m
-        m = M
-        M = tmp
-    }
+    m ?= 0
+    M ?= 100
+    N ?= 100
+    m <-> M
 
     if(N <= 0)
         return []
@@ -123,5 +122,26 @@ func linspace(m, M, N)
         ret[i] = i * inc + m
     }
     
+    return ret
+}
+
+func logspace(m, M, N)
+{
+    m ?= 0
+    M ?= 100
+    N ?= 100
+    m <-> M
+
+    if(N <= 0)
+        return []
+        
+    var inc = (M - m) / (N - 1)
+    var delta = m;
+    var ret = [0] * N
+    for(var i = 0; i < N; i++)
+    {
+        ret[i] = 10 ^ delta
+        delta += inc
+    }
     return ret
 }

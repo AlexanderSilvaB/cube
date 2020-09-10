@@ -394,10 +394,11 @@ Value toNumber(Value value)
     else if (IS_BYTES(value))
     {
         ObjBytes *bytes = AS_BYTES(value);
-        char b[sizeof(uint32_t)];
         int len = bytes->length > sizeof(uint32_t) || bytes->length < 0 ? sizeof(uint32_t) : bytes->length;
-        memcpy(b, bytes->bytes, len);
-        uint32_t value = *((uint32_t *)b);
+        uint32_t value = 0;
+        for (int i = 0; i < len; i++)
+            value |= bytes->bytes[i] << (i * 8);
+
         return NUMBER_VAL(value);
     }
     else if (IS_ENUM_VALUE(value) && IS_NUMBER(AS_ENUM_VALUE(value)->value))

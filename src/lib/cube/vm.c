@@ -2960,8 +2960,11 @@ InterpretResult run()
                 DISPATCH();
             }
 
-            OPCASE(GREATER) : BINARY_OP(BOOL_VAL, >);
-            DISPATCH();
+            OPCASE(GREATER) :
+            {
+                BINARY_OP(BOOL_VAL, >);
+                DISPATCH();
+            }
             OPCASE(LESS) :
             {
                 BINARY_OP(BOOL_VAL, <);
@@ -3359,7 +3362,7 @@ InterpretResult run()
                 DISPATCH();
             }
 
-            OPCASE(RECEIVE) :
+            OPCASE(NULLABLE) :
             {
                 Value def = pop();
                 Value cur = pop();
@@ -3393,6 +3396,25 @@ InterpretResult run()
                         push(cond);
                 }
 
+                DISPATCH();
+            }
+
+            OPCASE(SWAP) :
+            {
+                Value b = peek(0);
+                Value a = peek(1);
+                BINARY_OP(BOOL_VAL, >);
+                bool swap = AS_BOOL(pop());
+                if (swap)
+                {
+                    push(a);
+                    push(b);
+                }
+                else
+                {
+                    push(b);
+                    push(a);
+                }
                 DISPATCH();
             }
 
@@ -3540,9 +3562,9 @@ InterpretResult run()
                 }
                 else
                 {
-                    double b = AS_NUMBER(pop());
-                    double a = AS_NUMBER(pop());
-                    push(NUMBER_VAL(((int)a << (int)b)));
+                    int b = AS_NUMBER(toNumber(pop()));
+                    int a = AS_NUMBER(toNumber(pop()));
+                    push(NUMBER_VAL((a << b)));
                 }
                 DISPATCH();
             }
@@ -3555,9 +3577,9 @@ InterpretResult run()
                 }
                 else
                 {
-                    double b = AS_NUMBER(pop());
-                    double a = AS_NUMBER(pop());
-                    push(NUMBER_VAL(((int)a >> (int)b)));
+                    int b = AS_NUMBER(toNumber(pop()));
+                    int a = AS_NUMBER(toNumber(pop()));
+                    push(NUMBER_VAL((a >> b)));
                 }
                 DISPATCH();
             }
@@ -3570,18 +3592,18 @@ InterpretResult run()
                 }
                 else
                 {
-                    double b = 0;
-                    double a = 0;
+                    int b = 0;
+                    int a = 0;
                     if (IS_ENUM_VALUE(peek(0)))
                         b = AS_NUMBER(AS_ENUM_VALUE(pop())->value);
                     else
-                        b = AS_NUMBER(pop());
+                        b = AS_NUMBER(toNumber(pop()));
 
                     if (IS_ENUM_VALUE(peek(0)))
                         a = AS_NUMBER(AS_ENUM_VALUE(pop())->value);
                     else
-                        a = AS_NUMBER(pop());
-                    push(NUMBER_VAL(((int)a & (int)b)));
+                        a = AS_NUMBER(toNumber(pop()));
+                    push(NUMBER_VAL((a & b)));
                 }
                 DISPATCH();
             }
@@ -3594,18 +3616,18 @@ InterpretResult run()
                 }
                 else
                 {
-                    double b = 0;
-                    double a = 0;
+                    int b = 0;
+                    int a = 0;
                     if (IS_ENUM_VALUE(peek(0)))
                         b = AS_NUMBER(AS_ENUM_VALUE(pop())->value);
                     else
-                        b = AS_NUMBER(pop());
+                        b = AS_NUMBER(toNumber(pop()));
 
                     if (IS_ENUM_VALUE(peek(0)))
                         a = AS_NUMBER(AS_ENUM_VALUE(pop())->value);
                     else
-                        a = AS_NUMBER(pop());
-                    push(NUMBER_VAL(((int)a | (int)b)));
+                        a = AS_NUMBER(toNumber(pop()));
+                    push(NUMBER_VAL((a | b)));
                 }
                 DISPATCH();
             }

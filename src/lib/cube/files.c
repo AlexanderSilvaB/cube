@@ -137,19 +137,41 @@ static bool readFile(int argCount)
 
 static bool readFileBytes(int argCount)
 {
-    if (argCount != 2)
+    if (argCount < 1 || argCount > 2)
     {
-        runtimeError("readBytes() takes 1 argument (%d given)", argCount);
+        runtimeError("readBytes(|n|) takes 0 or 1 argument (%d given)", argCount);
         return false;
     }
 
-    int size = (int)AS_NUMBER(toNumber(pop()));
+    int size = -1;
+    size_t fileSize = 0;
+    if (argCount > 1)
+    {
+        size = AS_NUMBER(pop());
+        fileSize = size;
+    }
+
     ObjFile *file = AS_FILE(pop());
 
     if (!FILE_CAN_READ(file))
     {
         runtimeError("File is not readable!");
         return false;
+    }
+
+    if (size < 0)
+    {
+        size_t currentPosition = ftell(file->file);
+        // Calculate file size
+        fseek(file->file, 0L, SEEK_END);
+        fileSize = ftell(file->file);
+        rewind(file->file);
+
+        // Reset cursor position
+        if (currentPosition < fileSize)
+            fileSize -= currentPosition;
+        fseek(file->file, currentPosition, SEEK_SET);
+        size = fileSize;
     }
 
     char *buffer = (char *)mp_malloc(size + 1);

@@ -579,11 +579,11 @@ static void namedVariable(Token name, bool canAssign)
         expression();
         emitShort(setOp, (uint16_t)arg);
     }
-    else if (canAssign && match(TOKEN_RECEIVE))
+    else if (canAssign && match(TOKEN_NULLABLE))
     {
         namedVariable(name, false);
         expression();
-        emitByte(OP_RECEIVE);
+        emitByte(OP_NULLABLE);
         emitShort(setOp, (uint16_t)arg);
     }
     else if (canAssign && match(TOKEN_INC))
@@ -601,6 +601,20 @@ static void namedVariable(Token name, bool canAssign)
         emitShort(setOp, (uint16_t)arg);
         emitConstant(NUMBER_VAL(1));
         emitBytes(OP_ADD, OP_FALSE);
+    }
+    else if (match(TOKEN_SWAP))
+    {
+        if (match(TOKEN_IDENTIFIER))
+        {
+            int arg1 = getVariable(name);
+            int arg2 = getVariable(gbcpl->parser.previous);
+            emitByte(OP_SWAP);
+            setVariablePop(name);
+            emitByte(OP_POP);
+            setVariablePop(gbcpl->parser.previous);
+        }
+        else
+            errorAtCurrent("Expected variable name after swap operator '<->'.");
     }
     else
     {
@@ -958,8 +972,50 @@ static void number(bool canAssign)
 
 static void byte(bool canAssign)
 {
-    char *string = NULL;
+    const char *string = NULL;
+    size_t len = gbcpl->parser.previous.length - 2;
+    string = gbcpl->parser.previous.start + 2;
 
+    int dlength = len / 2;
+    if (len % 2 != 0)
+        dlength++;
+
+    uint8_t *data = mp_malloc(dlength);
+
+    char b = 0, c = 0;
+    int i = 0, j = 0;
+    while (i < len)
+    {
+        c = string[len - i - 1];
+        if (c >= '0' && c <= '9')
+            c = (c - '0');
+        else if (c >= 'A' && c <= 'F')
+            c = (10 + (c - 'A'));
+        else if (c >= 'a' && c <= 'f')
+            c = (10 + (c - 'a'));
+        else
+        {
+            errorAtCurrent("Invalid hex characters.");
+            break;
+        }
+
+        if (i % 2 == 0)
+            b = c;
+        else
+        {
+            b |= (c << 4);
+            data[j] = b;
+            b = 0;
+            j++;
+        }
+        i++;
+    }
+    if (len % 2 != 0)
+        data[j] = b;
+
+    emitConstant(BYTES_VAL(data, dlength));
+    mp_free(data);
+    /*
     size_t slength = gbcpl->parser.previous.length - 2;
     if ((slength % 2) != 0) // must be even
     {
@@ -974,6 +1030,7 @@ static void byte(bool canAssign)
         string = mp_malloc(slength);
         memcpy(string, gbcpl->parser.previous.start + 2, slength);
     }
+
 
     size_t dlength = slength / 2;
 
@@ -1004,6 +1061,7 @@ static void byte(bool canAssign)
     emitConstant(BYTES_VAL(data, dlength));
     mp_free(data);
     mp_free(string);
+    */
     // return data;
     // emitConstant(BYTES_VAL(gbcpl->parser.previous.start, gbcpl->parser.previous.length));
 }
@@ -1535,8 +1593,9 @@ ParseRule rules[] = {
     {NULL, binary, PREC_EQUALITY},   // TOKEN_SHIFT_RIGHT
     {NULL, binary, PREC_EQUALITY},   // TOKEN_BINARY_AND
     {NULL, binary, PREC_EQUALITY},   // TOKEN_BINARY_OR
-    {NULL, NULL, PREC_NULL},         // TOKEN_RECEIVE
+    {NULL, NULL, PREC_NULL},         // TOKEN_NULLABLE
     {NULL, NULL, PREC_NULL},         // TOKEN_QUESTION
+    {NULL, NULL, PREC_NULL},         // TOKEN_SWAP
     {variable, NULL, PREC_NULL},     // TOKEN_IDENTIFIER
     {string, NULL, PREC_NULL},       // TOKEN_STRING
     {number, NULL, PREC_NULL},       // TOKEN_NUMBER
