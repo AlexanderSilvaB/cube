@@ -1,0 +1,60 @@
+import ui as default;
+
+class App
+{
+    var startFrame;
+    var lastFrame;
+    var FPS;
+
+    func main()
+    {
+        return 0;
+    }
+
+    func start()
+    {
+        UI.start();
+        this.FPS = UI.FPS;
+
+        this.startFrame = clock();
+        this.lastFrame = this.startFrame;
+
+        var ret = this.main();
+        this.stop();
+        exit(ret)
+    }
+
+    func stop()
+    {
+        UI.stop();
+    }
+
+    func run()
+    {
+        this.startFrame = clock();
+        this.lastFrame = this.startFrame;
+
+        while(this.running())
+        {
+            this.update();
+        }
+        return 0;
+    }
+
+    func running()
+    {
+        return UI.running();
+    }
+
+    func update()
+    {
+        var current = clock();
+        var dt = current - this.lastFrame;
+        var fps = 1 / dt;
+        var delay = int(1000 / this.FPS);
+
+        UI.cycle(fps, dt, current - this.startFrame);
+        this.lastFrame = clock();
+        wait(delay);
+    }
+}

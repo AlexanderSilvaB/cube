@@ -2560,8 +2560,14 @@ InterpretResult run()
                     {
                         if (frame->instance != NULL)
                         {
-                            if (tableGet(&frame->instance->klass->methods, name, &value))
+                            ObjClass *selected;
+                            if (findMethod(frame->instance->klass, name, &value, &selected))
                             {
+                                if (IS_CLOSURE(value))
+                                {
+                                    ObjClosure *closure = AS_CLOSURE(value);
+                                    closure->instance = frame->instance;
+                                }
                                 push(value);
                                 DISPATCH();
                             }
@@ -4371,23 +4377,51 @@ InterpretResult run()
             OPCASE(CALL) :
             {
                 int argCount = READ_BYTE();
-                if (!callValue(peek(argCount), argCount, NULL, NULL))
+                Value callee = peek(argCount);
+                if (IS_CLOSURE(callee) && AS_CLOSURE(callee)->instance != NULL)
                 {
-                    if (!checkTry(frame))
-                        return INTERPRET_RUNTIME_ERROR;
-                    else
-                        DISPATCH();
-                }
+                    ObjClosure *closure = AS_CLOSURE(callee);
+                    ObjInstance *instance = closure->instance;
+                    ObjString *name = closure->function->name;
+                    closure->instance = NULL;
 
-                if (threadFrame->ctf->eval && IS_FUNCTION(peek(0)))
-                {
-                    argCount = 0;
+                    ObjList *args = NULL;
+                    Value arg;
 
-                    ObjFunction *function = AS_FUNCTION(peek(0));
-                    ObjClosure *closure = newClosure(function);
+                    if (argCount > 0)
+                    {
+                        args = initList();
+                        for (int i = argCount - 1; i >= 0; i--)
+                        {
+                            arg = pop();
+                            writeValueArray(&args->values, arg);
+                        }
+                    }
+
                     pop();
-                    push(OBJ_VAL(closure));
 
+                    push(OBJ_VAL(instance));
+
+                    if (args != NULL)
+                    {
+                        for (int i = args->values.count - 1; i >= 0; i--)
+                        {
+                            arg = args->values.values[i];
+                            push(arg);
+                        }
+                    }
+
+                    if (!invokeFromClass(instance->klass, closure->function->name, argCount, instance))
+                    {
+                        if (!checkTry(frame))
+                            return INTERPRET_RUNTIME_ERROR;
+                        else
+                            DISPATCH();
+                    }
+                    frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+                }
+                else
+                {
                     if (!callValue(peek(argCount), argCount, NULL, NULL))
                     {
                         if (!checkTry(frame))
@@ -4395,9 +4429,27 @@ InterpretResult run()
                         else
                             DISPATCH();
                     }
+
+                    if (threadFrame->ctf->eval && IS_FUNCTION(peek(0)))
+                    {
+                        argCount = 0;
+
+                        ObjFunction *function = AS_FUNCTION(peek(0));
+                        ObjClosure *closure = newClosure(function);
+                        pop();
+                        push(OBJ_VAL(closure));
+
+                        if (!callValue(peek(argCount), argCount, NULL, NULL))
+                        {
+                            if (!checkTry(frame))
+                                return INTERPRET_RUNTIME_ERROR;
+                            else
+                                DISPATCH();
+                        }
+                    }
+                    frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+                    threadFrame->ctf->eval = false;
                 }
-                frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
-                threadFrame->ctf->eval = false;
                 DISPATCH();
             }
 

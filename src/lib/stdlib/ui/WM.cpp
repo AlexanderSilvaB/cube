@@ -483,6 +483,16 @@ List WM::GetProperty(int id, const char *objName, const char *propName)
     if (window == NULL)
         return list;
 
+    if (objName == NULL || objName[0] == '\0')
+    {
+        QVariant val = get_prop(window, propName);
+        if (val.isValid())
+        {
+            list.push_back(val.toString().toStdString());
+        }
+        return list;
+    }
+
     QList<QWidget *> widgets = window->findChildren<QWidget *>(objName);
 
     if (widgets.count() > 0)
@@ -523,6 +533,11 @@ bool WM::SetProperty(int id, const char *objName, const char *propName, const ch
     if (window == NULL)
         return success;
 
+    if (objName == NULL || objName[0] == '\0')
+    {
+        return set_prop(window, propName, value);
+    }
+
     QList<QWidget *> widgets = window->findChildren<QWidget *>(objName);
 
     if (widgets.count() > 0)
@@ -555,6 +570,12 @@ Dict WM::GetProperties(int id, const char *objName)
     if (window == NULL)
         return dict;
 
+    if (objName == NULL || objName[0] == '\0')
+    {
+        get_props(window, dict);
+        return dict;
+    }
+
     QList<QWidget *> widgets = window->findChildren<QWidget *>(objName);
 
     if (widgets.count() > 0)
@@ -578,6 +599,15 @@ Dict WM::GetProperties(int id, const char *objName)
     }
 
     return dict;
+}
+
+void WM::Resize(int id, int winWidth, int winHeight)
+{
+    QWidget *window = getWindow(id);
+    if (window == NULL)
+        return;
+
+    window->resize(winWidth, winHeight);
 }
 
 // Shapes

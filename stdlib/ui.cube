@@ -13,6 +13,7 @@ native libs/libui
     list ui_get_property(num, str, str);
     bool ui_set_property(num, str, str, str);
     dict ui_get_obj(num, str);
+    void ui_resize_window(num, num, num);
     void ui_antialias(num, bool);
     void ui_rm_shape(num, num);
     num ui_add_shape(num, dict);
@@ -20,6 +21,7 @@ native libs/libui
 }
 
 import ui/shapes as default;
+import ui/widget as default;
 
 class UI
 {
@@ -155,7 +157,28 @@ class Window
 
     func load(fileName)
     {
-        return ui_load(this.id, fileName);
+        if(fileName is str)
+            return ui_load(this.id, fileName);
+        else if(fileName is Widget)
+        {
+            var widget = fileName
+            fileName = widget.generate()
+            if(fileName is null)
+                return false
+
+            this.resize(widget.width, widget.height)
+
+            this.set(null, 'x', widget.x)
+            this.set(null, 'y', widget.y)
+            if(widget is Form)
+                this.set(null, 'windowTitle', widget.title)
+
+            var success = this.load(fileName)
+            if(success)
+                widget.register(this)
+            return success
+        }
+        return false
     }
 
     func antialias(enabled)
@@ -163,10 +186,26 @@ class Window
         ui_antialias(this.id, enabled);
     }
 
+    func resize(width, height)
+    {
+        ui_resize_window(this. id, width, height)
+    }
+
     func on(obj, event, action)
     {
         if(obj is null)
             obj = '';
+        else if(obj is Widget)
+            obj = obj.name
+        else if(obj is class)
+        {
+            obj = obj()
+            if(obj is Widget)
+                obj = obj.type
+            else
+                return false
+        }
+
         var onId = '{}:{}'.format(obj, event);
         this.actions[onId] = action;
 
@@ -180,16 +219,46 @@ class Window
 
     func obj(name)
     {
+        if(name is null)
+            name = '';
+        else if(name is null)
+            return false
+        else if(name is Widget)
+            name = name.name
         return ui_get_obj(this.id, name);
     }
 
     func get(obj, prop)
     {
+        if(obj is null)
+            obj = '';
+        else if(obj is Widget)
+            obj = obj.name
+        else if(obj is class)
+        {
+            obj = obj()
+            if(obj is Widget)
+                obj = obj.type
+            else
+                return false
+        }
         return ui_get_property(this.id, obj, prop);
     }
 
     func set(obj, prop, value)
     {
+        if(obj is null)
+            obj = '';
+        else if(obj is Widget)
+            obj = obj.name
+        else if(obj is class)
+        {
+            obj = obj()
+            if(obj is Widget)
+                obj = obj.type
+            else
+                return false
+        }
         return ui_set_property(this.id, obj, prop, value);
     }
 

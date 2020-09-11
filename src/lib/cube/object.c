@@ -107,6 +107,7 @@ ObjClosure *newClosure(ObjFunction *function)
     closure->upvalues = upvalues;
     closure->upvalueCount = function->upvalueCount;
     closure->module = NULL;
+    closure->instance = NULL;
     return closure;
 }
 

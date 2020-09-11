@@ -44,9 +44,11 @@ if(__root__ is not null)
 var binPath = '{}/bin'.format(installPath);
 var libsPath = '{}/libs'.format(installPath);
 var samplesPath = '{}/samples'.format(installPath);
+var tempPath = '{}/temp'.format(installPath);
 var userBinPath = '{}/bin'.format(userDir);
 var userLibsPath = '{}/libs'.format(userDir);
 var userSamplesPath = '{}/samples'.format(userDir);
+var userTempPath = '{}/temp'.format(userDir);
 
 var previleged = false;
 
@@ -61,9 +63,16 @@ try
 var allowedBinPath = binPath;
 var allowedLibsPath = libsPath;
 var allowedSamplesPath = samplesPath;
+var allowedTempPath = tempPath
 if(not previleged)
 {
     allowedBinPath = userBinPath;
     allowedLibsPath = userLibsPath;
     allowedSamplesPath = userSamplesPath;
+    allowedTempPath = userTempPath;
+
+    mkdir(allowedBinPath)
+    mkdir(allowedLibsPath)
+    mkdir(allowedSamplesPath)
+    mkdir(allowedTempPath)
 }

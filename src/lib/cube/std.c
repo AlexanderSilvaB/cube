@@ -36,6 +36,31 @@
 #define S_ISDIR(mode) (((mode)&S_IFMT) == S_IFDIR)
 #endif
 
+Value hashNative(int argCount, Value *args)
+{
+    int code = 0;
+    if (argCount > 0)
+        code = (int)&args[0];
+    else
+        code = rand();
+
+    char str[128];
+    sprintf(str, "%d", code);
+
+    uint32_t hash = 5381;
+    int c;
+
+    int i = 0;
+    c = str[i++];
+    while (c != '\0')
+    {
+        hash = ((hash << 5) + hash) + c;
+        c = str[i++];
+    }
+
+    return NUMBER_VAL(hash);
+}
+
 Value clockNative(int argCount, Value *args)
 {
     return NUMBER_VAL((cube_clock() * 1e-9));
@@ -2740,6 +2765,7 @@ void initStd()
 {
     stdFnList = linked_list_create();
 
+    ADD_STD("hash", hashNative);
     ADD_STD("clock", clockNative);
     ADD_STD("time", timeNative);
     ADD_STD("exit", exitNative);

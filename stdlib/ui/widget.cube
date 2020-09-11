@@ -1,0 +1,151 @@
+import xml as default
+import os
+
+class Widget
+{
+    var type
+    var name
+    var x, y
+    var width, height
+    var on
+
+    func init(type, attrib, children, on)
+    {
+        if(type is not str)
+            type = 'QWidget'
+
+        if(attrib is not dict)
+            attrib = {}
+
+        this.type = type
+
+        name = attrib.get('name', hash(attrib))
+        x = num( attrib.get('x', 0) )
+        y = num( attrib.get('y', 0) )
+        width = num( attrib.get('width', 100) )
+        height = num( attrib.get('height', 100) )
+
+        if(children is list)
+            this.children = children
+        else if(children is Widget)
+            this.children = [children]
+        else
+            this.children = []
+
+        if(on is not dict)
+            on = {}
+        this.on = on
+    }
+
+    func toXML(parent)
+    {
+        var widget = XMLElement('widget')
+        widget.attrib['class'] = type
+        widget.attrib['name'] = name
+        widget.add(XMLElement('property', '', {'name' : 'geometry'},
+        [
+            XMLElement('rect', '', {},
+            [
+                XMLElement('x', x),
+                XMLElement('y', y),
+                XMLElement('width', width),
+                XMLElement('height', height)
+            ])
+        ]))
+
+        for(var child in children)
+        {
+            child.toXML(widget)
+        }
+
+        parent.add(widget)
+        return widget
+    }
+
+    func generate()
+    {
+        var fileName = os.allowedTempPath + '/' + hash(this) + '.ui'
+        
+        var xml = XML()
+        xml.root = XMLElement('ui', '', {'version' : '4.0'})
+        toXML(xml.root)
+        xml.root.add(XMLElement('resources'))
+        xml.root.add(XMLElement('connections'))
+
+        if(xml.save(fileName))
+            return fileName
+        return null
+    }
+
+    func register(window)
+    {
+        var fn
+        for(var key in on)
+        {
+            fn = on[key]
+            if(key is str and fn is func)
+            {
+                window.on(name, key, fn)
+            }
+        }
+
+        for(var child in children)
+        {
+            child.register(window)
+        }
+    }
+}
+
+class Form : Widget
+{
+    var title
+    func init(attrib, children, on)
+    {
+        if(attrib is not dict)
+            attrib = {}
+
+        title = attrib.get('title', 'Window')
+        super.init('QWidget', attrib, children, on)
+    }
+
+    func toXML(parent)
+    {
+        parent.add(XMLElement('class', 'Form'))
+        var form = super.toXML(parent)
+        form.add(XMLElement('property', '', {'name' : 'windowTitle'},
+        [
+            XMLElement('string', title)
+        ]))
+    }
+}
+
+class Edit : Widget
+{
+    func init(attrib, children, on)
+    {
+        super.init('QLineEdit', attrib, children, on)
+    }
+}
+
+class Button : Widget
+{
+    var text
+    func init(attrib, children, on)
+    {
+        if(attrib is not dict)
+            attrib = {}
+
+        text = attrib.get('text', 'Button')
+
+        super.init('QPushButton', attrib, children, on)
+    }
+
+    func toXML(parent)
+    {
+        var button = super.toXML(parent)
+        button.add(XMLElement('property', '', {'name' : 'text'},
+        [
+            XMLElement('string', text)
+        ]))
+    }
+}

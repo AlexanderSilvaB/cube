@@ -504,15 +504,77 @@ int to_var(var_t *var, Value value, NativeTypes type, ffi_type **ffi_arg)
     switch (type)
     {
 
-        case TYPE_NULL:
-        case TYPE_BOOL:
-        case TYPE_NUMBER:
-        case TYPE_STRING:
-        case TYPE_BYTES:
-        case TYPE_LIST:
-        case TYPE_DICT:
-        case TYPE_VAR:
+        case TYPE_NULL: {
+            *ffi_arg = &ffi_type_pointer;
+            var->val._ptr = NATIVE_VAR();
+            var->alloc = true;
+            sz = sizeof(void *);
+        }
+        break;
+        case TYPE_BOOL: {
+            *ffi_arg = &ffi_type_pointer;
+            var->val._ptr = NATIVE_VAR();
+            var->alloc = true;
+            valueToNative((cube_native_var *)var->val._ptr, toBool(value));
+            sz = sizeof(void *);
+        }
+        break;
+        case TYPE_NUMBER: {
+            *ffi_arg = &ffi_type_pointer;
+            var->val._ptr = NATIVE_VAR();
+            var->alloc = true;
+            valueToNative((cube_native_var *)var->val._ptr, toNumber(value));
+            sz = sizeof(void *);
+        }
+        break;
+        case TYPE_STRING: {
+            *ffi_arg = &ffi_type_pointer;
+            var->val._ptr = NATIVE_VAR();
+            var->alloc = true;
+            valueToNative((cube_native_var *)var->val._ptr, toString(value));
+            sz = sizeof(void *);
+        }
+        break;
+        case TYPE_BYTES: {
+            *ffi_arg = &ffi_type_pointer;
+            var->val._ptr = NATIVE_VAR();
+            var->alloc = true;
+            valueToNative((cube_native_var *)var->val._ptr, toBytes(value));
+            sz = sizeof(void *);
+        }
+        break;
+        case TYPE_LIST: {
+            *ffi_arg = &ffi_type_pointer;
+            var->val._ptr = NATIVE_VAR();
+            var->alloc = true;
+            if (IS_LIST(value))
+                valueToNative((cube_native_var *)var->val._ptr, value);
+            else
+                TO_NATIVE_LIST((cube_native_var *)var->val._ptr);
+            sz = sizeof(void *);
+        }
+        break;
+        case TYPE_DICT: {
+            *ffi_arg = &ffi_type_pointer;
+            var->val._ptr = NATIVE_VAR();
+            var->alloc = true;
+            if (IS_DICT(value))
+                valueToNative((cube_native_var *)var->val._ptr, value);
+            else
+                TO_NATIVE_DICT((cube_native_var *)var->val._ptr);
+            sz = sizeof(void *);
+        }
+        break;
         case TYPE_FUNC: {
+            *ffi_arg = &ffi_type_pointer;
+            var->val._ptr = NATIVE_VAR();
+            var->alloc = true;
+            if (IS_CLOSURE(value))
+                valueToNative((cube_native_var *)var->val._ptr, value);
+            sz = sizeof(void *);
+        }
+        break;
+        case TYPE_VAR: {
             *ffi_arg = &ffi_type_pointer;
             var->val._ptr = NATIVE_VAR();
             var->alloc = true;

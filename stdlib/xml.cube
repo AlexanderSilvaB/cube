@@ -1,0 +1,517 @@
+class XML
+{
+    var version = "1.0"
+    var encoding = "UTF-8"
+    var root = null
+
+    func init(version, encoding, root)
+    {
+        if(version is not null)
+            this.version = version
+        if(encoding is not null)
+            this.encoding = encoding
+        if(root is XMLElement)
+            this.root = root
+    }
+
+    func load(fileName)
+    {
+        var file = open(fileName, 'r')
+        if(file is null)
+            return false
+        
+        var text = file.read()
+        file.close()
+
+        return parse(text)
+    }
+
+    func parse(text)
+    {
+        var data = __xml(text)
+        if(data is null)
+            return false
+
+        text = data[0]
+        var version = data[1]
+        var encoding = data[2]
+
+        if(text is null)
+            return false
+
+        if(len(text) == 0)
+        {
+            this.encoding = encoding
+            this.version = version
+            return true
+        }
+
+        var root = XMLElement()
+        if(root.parse(text))
+        {
+            this.version = version
+            this.encoding = encoding
+            this.root = root
+            return true
+        }
+        return false
+    }
+
+    func save(fileName)
+    {
+        var text = this.str()
+
+        var file = open(fileName, 'w')
+        if(file is null)
+            return false
+        
+        file.write(text)
+        file.close()
+        return true
+    }
+
+    func str()
+    {
+        var text = '<?xml version="${version}" encoding="${encoding}"?>\n'
+        if(root is not null)
+            text += root.str()
+        return text
+    }
+
+    static func __text(text)
+    {
+        text = __skip(text)
+        var i = 0
+        var valid = true
+        while(i < len(text) and valid)
+        {
+            if(text[i] == '<')
+                valid = false
+            else
+                i++
+        }
+        return [text.substr(0, i), text.from(i)]
+    }
+
+    static func __skip(text)
+    {
+        var i = 0
+        var valid = true
+        while(i < len(text) and valid)
+        {
+            if(!isspace(text[i]))
+                valid = false
+            else
+                i++
+        }
+        if(i == len(text))
+            return ""
+        return text.from(i)
+    }
+
+    static func __string(text)
+    {
+        var i = 1
+        var valid = true
+        while(i < len(text) and valid)
+        {
+            if(text[i] == '"')
+                valid = false
+            else
+                i++
+        }
+
+        return [text.substr(1, i - 1), text.from(i + 1)]
+    }
+
+    static func __word(text)
+    {
+        text = XML.__skip(text)
+
+        var valid = true
+        var i = 0   
+        while(i < len(text) and valid)
+        {
+            if(!ischar(text[i]))
+                valid = false;
+            else
+                i++
+        }
+        
+        return [text.substr(0, i), text.from(i)]
+    }
+
+    static func __token(text)
+    {
+        text = __skip(text)
+        if(len(text) == 0)
+            return [null, text]
+
+        if(text[0] == '<')
+            return ['<', text.from(1)]
+        else if(text[0] == '>')
+            return ['>', text.from(1)]
+        else if(text[0] == '=')
+            return ['=', text.from(1)]
+        else if(text[0] == '?')
+            return ['?', text.from(1)]
+        else if(text[0] == '/')
+            return ['/', text.from(1)]
+        else if(text[0] == '"')
+        {
+            return __string(text)
+        }
+        else
+        {
+            return __word(text)
+        }
+    }
+
+    func __xml(text)
+    {
+        var version = this.version
+        var encoding = this.encoding
+        var name
+        var token = __token(text)
+        var id = token[0]
+        text = token[1]
+
+        if(id != '<')
+            return null
+
+        token = __token(text)
+        id = token[0]
+        text = token[1]
+
+        if(id != '?')
+            return null
+
+        token = __token(text)
+        id = token[0]
+        text = token[1]
+
+        if(id != 'xml')
+            return null
+
+        token = __token(text)
+        id = token[0]
+        text = token[1]
+        if(id == 'version' or id == 'encoding')
+        {
+            name = id
+            token = __token(text)
+            id = token[0]
+            text = token[1]
+            if(id == '=')
+            {
+                token = __token(text)
+                id = token[0]
+                text = token[1]
+                if(name == 'version')
+                    version = id
+                else
+                    encoding = id
+            }
+        }
+
+        token = __token(text)
+        id = token[0]
+        text = token[1]
+        if(id == 'version' or id == 'encoding')
+        {
+            var name = id
+            token = __token(text)
+            id = token[0]
+            text = token[1]
+            if(id == '=')
+            {
+                token = __token(text)
+                id = token[0]
+                text = token[1]
+                if(name == 'version')
+                    version = id
+                else
+                    encoding = id
+            }
+        }
+
+        token = __token(text)
+        id = token[0]
+        text = token[1]
+
+        if(id != '?')
+            return null
+
+        token = __token(text)
+        id = token[0]
+        text = token[1]
+
+        if(id != '>')
+            return null
+
+        return [XML.__skip(text), version, encoding]
+    }
+}
+
+class XMLElement
+{
+    var tag
+    var attrib
+    var text
+    var children
+
+    func init(tag, text, attrib, children)
+    {
+        if(tag is str)
+            this.tag = tag
+        if(text is not null)
+            this.text = str(text)
+        else
+            this.text= ""
+        if(attrib is dict)
+            this.attrib = attrib
+        else
+            this.attrib = {}
+        if(children is list)
+        {
+            this.children = []
+            for(var child in children)
+            {
+                if(child is XMLElement)
+                    this.children.add(child)
+            }
+        }
+        else
+            this.children = []
+    }
+
+    func get(key)
+    {
+        return attrib[key]
+    }
+
+    func set(key, value)
+    {
+        attrib[key] = value
+        return this
+    }
+
+    func len()
+    {
+        return len(children)
+    }
+
+    func add(child)
+    {
+        if(child is XMLElement)
+        {
+            children.add(child)
+        }
+        else if(child is list)
+        {
+            for(var i in child)
+            {
+                this.add(i)
+            }
+        }
+        return this
+    }
+
+    func [](i)
+    {
+        if(i < len(children))
+            return children[i]
+        return null
+    }
+
+    func [=](i, value)
+    {
+        if(i < len(children))
+            children[i] = value
+    }
+
+    func parse(text)
+    {
+        text = __parse(text)
+        if(text == null)
+            return false
+        return true
+    }
+
+    func __parse(text)
+    {
+        var tag = null
+        var attrib = {}
+        var txt = ""
+        var children = []
+
+        var token = XML.__token(text)
+        var id = token[0]
+        text = token[1]
+
+        if(id != '<')
+            return null
+
+        token = XML.__token(text)
+        id = token[0]
+        text = token[1]
+
+        tag = id
+
+        token = XML.__token(text)
+        id = token[0]
+        text = token[1]
+        if(id == '/')
+        {
+            token = XML.__token(text)
+            id = token[0]
+            text = token[1]
+            if(id != '>')
+                return null
+
+            this.tag = tag
+            this.attrib = attrib
+            this.text = txt
+            this.children = children
+            return text
+        }
+
+        var name, value = true
+        while(id != '>')
+        {
+            name = id
+
+            token = XML.__token(text)
+            id = token[0]
+            text = token[1]
+
+            if(id == '=')
+            {
+                token = XML.__token(text)
+                id = token[0]
+                text = token[1]
+
+                value = id
+
+                token = XML.__token(text)
+                id = token[0]
+                text = token[1]
+            }
+
+            attrib[name] = value
+        }
+
+        if(id != '>')
+            return null
+        
+        token = XML.__text(text)
+        txt = token[0]
+        text = token[1]
+
+        var valid = true
+        var child = null
+        while(valid)
+        {
+            token = XML.__token(text)
+            id = token[0]
+            text = token[1]
+
+            if(id != '<')
+            {
+                valid = false
+                text = null
+            }
+            else
+            {
+                token = XML.__token(text)
+                id = token[0]
+                text = token[1]
+
+                if(id == '/')
+                {
+                    token = XML.__token(text)
+                    id = token[0]
+                    text = token[1]
+
+                    if(id != tag)
+                    {
+                        valid = false
+                        text = null
+                    }
+                    else
+                    {
+                        token = XML.__token(text)
+                        id = token[0]
+                        text = token[1]
+
+                        if(id != '>')
+                            text = null
+                        valid = false
+                    }
+                }
+                else
+                {
+                    text = '<${id}' + text
+                    child = XMLElement()
+                    text = child.__parse(text)
+                    if(text is not null)
+                        children.add(child)
+                }
+            }
+        }
+
+        if(text is not null)
+        {
+            this.tag = tag
+            this.attrib = attrib
+            this.children = children
+            this.text = txt
+        }
+
+
+        return text
+    }
+
+    func str()
+    {
+        if(tag is not str or len(tag) == 0)
+            return ""
+        
+        var value
+        var text = "<${tag}"
+        if(len(this.text) == 0 and len(attrib) == 0 and len(children) == 0)
+        {
+            text += "/>\n"
+            return text
+        }
+
+        if(attrib is dict)
+        {
+            for(var key in attrib)
+            {
+                value = attrib[key]
+                text += ' ${key}="${value}"'
+            }
+        }
+        text += ">"
+        if(this.text is not null and len(this.text) > 0)
+            text += this.text
+
+        if(len(children) > 0)
+        {
+            text += '\n'
+            for(var i = 0; i < len(children); i++)
+            {
+                text += children[i].str()
+            }
+        }
+
+        text += "</${tag}>\n"
+        return text
+    }
+
+    func __tag()
+    {
+
+    }
+}

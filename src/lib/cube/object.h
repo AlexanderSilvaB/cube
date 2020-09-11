@@ -201,15 +201,6 @@ typedef struct sObjModule
     struct sObjModule *parent;
 } ObjModule;
 
-typedef struct
-{
-    Obj obj;
-    ObjFunction *function;
-    ObjUpvalue **upvalues;
-    int upvalueCount;
-    ObjModule *module;
-} ObjClosure;
-
 typedef struct sObjClass
 {
     Obj obj;
@@ -227,6 +218,16 @@ typedef struct
     ObjClass *klass;
     Table fields;
 } ObjInstance;
+
+typedef struct
+{
+    Obj obj;
+    ObjFunction *function;
+    ObjUpvalue **upvalues;
+    int upvalueCount;
+    ObjModule *module;
+    ObjInstance *instance;
+} ObjClosure;
 
 typedef struct
 {

@@ -116,6 +116,11 @@ extern "C"
         return ret;
     }
 
+    EXPORTED void ui_resize_window(cube_native_var *id, cube_native_var *width, cube_native_var *height)
+    {
+        wm->Resize(AS_NATIVE_NUMBER(id), AS_NATIVE_NUMBER(width), AS_NATIVE_NUMBER(height));
+    }
+
     EXPORTED cube_native_var *ui_on_event(cube_native_var *id, cube_native_var *objName, cube_native_var *eventName)
     {
         bool success = wm->RegisterEvent(AS_NATIVE_NUMBER(id), AS_NATIVE_STRING(objName), AS_NATIVE_STRING(eventName));
