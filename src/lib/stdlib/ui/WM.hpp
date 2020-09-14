@@ -41,6 +41,9 @@ class WM
     List GetProperty(int id, const char *objName, const char *propName);
     bool SetProperty(int id, const char *objName, const char *propName, const char *value);
     Dict GetProperties(int id, const char *objName);
+    List GetMethods(int id, const char *objName);
+    std::string GetMethod(int id, const char *objName, const char *methodName);
+    bool CallMethod(int id, const char *objName, const char *methodName, const List &arguments, List &ret);
     void Resize(int id, int winWidth = 1024, int winHeight = 768);
 
     void SetAntialias(int id, bool antialias);

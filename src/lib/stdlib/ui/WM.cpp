@@ -475,6 +475,184 @@ static void get_props(QObject *o, Dict &dict)
     } while ((mo = mo->superClass()));
 }
 
+static void get_methods(QObject *o, List &list)
+{
+    auto mo = o->metaObject();
+    do
+    {
+        for (int i = mo->methodOffset(); i < mo->methodCount(); ++i)
+        {
+            list.push_back(QString::fromLatin1(mo->method(i).methodSignature()).toStdString());
+        }
+    } while ((mo = mo->superClass()));
+}
+
+static string get_method(QObject *o, const char *name)
+{
+    auto mo = o->metaObject();
+    string m_name;
+
+    do
+    {
+        for (int i = mo->methodOffset(); i < mo->methodCount(); ++i)
+        {
+            m_name = QString::fromLatin1(mo->method(i).name()).toStdString();
+            if (strcmp(name, m_name.c_str()) == 0)
+            {
+                m_name = QString::fromLatin1(mo->method(i).methodSignature()).toStdString();
+                return m_name;
+            }
+        }
+    } while ((mo = mo->superClass()));
+    return "";
+}
+
+static bool call(QObject *object, QMetaMethod metaMethod, QVariantList &args, QVariant &ret)
+{
+    // Convert the arguments
+
+    QVariantList converted;
+
+    // We need enough arguments to perform the conversion.
+
+    QList<QByteArray> methodTypes = metaMethod.parameterTypes();
+    if (methodTypes.size() < args.size())
+    {
+        // qWarning() << "Insufficient arguments to call" << metaMethod.methodSignature();
+        return false;
+    }
+
+    for (int i = 0; i < methodTypes.size() && i < args.size(); i++)
+    {
+        const QVariant &arg = args.at(i);
+
+        QByteArray methodTypeName = methodTypes.at(i);
+        QByteArray argTypeName = arg.typeName();
+
+        QVariant::Type methodType = QVariant::nameToType(methodTypeName);
+        QVariant::Type argType = arg.type();
+
+        QVariant copy = QVariant(arg);
+
+        // If the types are not the same, attempt a conversion. If it
+        // fails, we cannot proceed.
+
+        if (copy.type() != methodType)
+        {
+            if (copy.canConvert(methodType))
+            {
+                if (!copy.convert(methodType))
+                {
+                    // qWarning() << "Cannot convert" << argTypeName << "to" << methodTypeName;
+                    return false;
+                }
+            }
+        }
+
+        converted << copy;
+    }
+
+    QList<QGenericArgument> arguments;
+
+    for (int i = 0; i < converted.size(); i++)
+    {
+
+        // Notice that we have to take a reference to the argument, else
+        // we'd be pointing to a copy that will be destroyed when this
+        // loop exits.
+
+        QVariant &argument = converted[i];
+
+        // A const_cast is needed because calling data() would detach
+        // the QVariant.
+
+        QGenericArgument genericArgument(QMetaType::typeName(argument.userType()),
+                                         const_cast<void *>(argument.constData()));
+
+        arguments << genericArgument;
+    }
+
+    QVariant returnValue(QMetaType::type(metaMethod.typeName()), static_cast<void *>(NULL));
+
+    QGenericReturnArgument returnArgument(metaMethod.typeName(), const_cast<void *>(returnValue.constData()));
+
+    // Perform the call
+
+    bool ok = metaMethod.invoke(object, Qt::DirectConnection, returnArgument, arguments.value(0), arguments.value(1),
+                                arguments.value(2), arguments.value(3), arguments.value(4), arguments.value(5),
+                                arguments.value(6), arguments.value(7), arguments.value(8), arguments.value(9));
+
+    if (!ok)
+    {
+        // qWarning() << "Calling" << metaMethod.methodSignature() << "failed.";
+        return false;
+    }
+    else
+    {
+        ret = returnValue;
+        return true;
+    }
+}
+
+static bool call_method(QObject *o, const char *name, const List &args, List &ret)
+{
+    auto mo = o->metaObject();
+    string m_name;
+
+    bool success = false;
+
+    QVariantList list;
+    for (int i = 0; i < args.size(); i++)
+    {
+        list << QVariant(args[i].c_str());
+    }
+
+    do
+    {
+        for (int i = mo->methodOffset(); i < mo->methodCount(); ++i)
+        {
+            m_name = QString::fromLatin1(mo->method(i).name()).toStdString();
+            if (strcmp(name, m_name.c_str()) == 0)
+            {
+                QVariant r;
+                if (call(o, mo->method(i), list, r))
+                {
+                    success |= true;
+                    if (r.isValid())
+                    {
+                        ret.push_back(r.toString().toStdString());
+                    }
+                    else
+                    {
+                        ret.push_back("");
+                    }
+                }
+            }
+            else
+            {
+                m_name = QString::fromLatin1(mo->method(i).methodSignature()).toStdString();
+                if (strcmp(name, m_name.c_str()) == 0)
+                {
+                    QVariant r;
+                    if (call(o, mo->method(i), list, r))
+                    {
+                        success |= true;
+                        if (r.isValid())
+                        {
+                            ret.push_back(r.toString().toStdString());
+                        }
+                        else
+                        {
+                            ret.push_back("");
+                        }
+                    }
+                }
+            }
+        }
+    } while ((mo = mo->superClass()));
+    return success;
+}
+
 List WM::GetProperty(int id, const char *objName, const char *propName)
 {
     List list;
@@ -599,6 +777,116 @@ Dict WM::GetProperties(int id, const char *objName)
     }
 
     return dict;
+}
+
+List WM::GetMethods(int id, const char *objName)
+{
+    List list;
+
+    QWidget *window = getWindow(id);
+    if (window == NULL)
+        return list;
+
+    if (objName == NULL || objName[0] == '\0')
+    {
+        get_methods(window, list);
+        return list;
+    }
+
+    QList<QWidget *> widgets = window->findChildren<QWidget *>(objName);
+
+    if (widgets.count() > 0)
+    {
+        if (widgets.count() >= 1)
+        {
+            get_methods(widgets[0], list);
+        }
+    }
+    else
+    {
+        widgets = window->findChildren<QWidget *>();
+        for (int i = 0; i < widgets.count(); ++i)
+        {
+            if (widgets[i]->inherits(objName))
+            {
+                get_methods(widgets[0], list);
+                break;
+            }
+        }
+    }
+
+    return list;
+}
+
+std::string WM::GetMethod(int id, const char *objName, const char *methodName)
+{
+    QWidget *window = getWindow(id);
+    if (window == NULL)
+        return "";
+
+    if (objName == NULL || objName[0] == '\0')
+    {
+        return get_method(window, methodName);
+    }
+
+    QList<QWidget *> widgets = window->findChildren<QWidget *>(objName);
+
+    if (widgets.count() > 0)
+    {
+        if (widgets.count() >= 1)
+        {
+            return get_method(widgets[0], methodName);
+        }
+    }
+    else
+    {
+        widgets = window->findChildren<QWidget *>();
+        for (int i = 0; i < widgets.count(); ++i)
+        {
+            if (widgets[i]->inherits(objName))
+            {
+                return get_method(widgets[0], methodName);
+            }
+        }
+    }
+    return "";
+}
+
+bool WM::CallMethod(int id, const char *objName, const char *methodName, const List &arguments, List &ret)
+{
+    bool success = false;
+
+    QWidget *window = getWindow(id);
+    if (window == NULL)
+        return success;
+
+    if (objName == NULL || objName[0] == '\0')
+    {
+        return call_method(window, methodName, arguments, ret);
+    }
+
+    QList<QWidget *> widgets = window->findChildren<QWidget *>(objName);
+
+    if (widgets.count() > 0)
+    {
+        for (int i = 0; i < widgets.count(); ++i)
+        {
+            success |= call_method(widgets[i], methodName, arguments, ret);
+        }
+    }
+    else
+    {
+        widgets = window->findChildren<QWidget *>();
+        for (int i = 0; i < widgets.count(); ++i)
+        {
+            if (widgets[i]->inherits(objName))
+            {
+                success |= call_method(widgets[i], methodName, arguments, ret);
+            }
+        }
+    }
+
+    return success;
 }
 
 void WM::Resize(int id, int winWidth, int winHeight)

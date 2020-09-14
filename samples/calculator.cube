@@ -1,0 +1,168 @@
+import app as default
+
+class Calculator : App
+{
+    func main()
+    {
+        var window = Window();
+        window.load(Form({
+            'title' : 'Calculator',
+            'width' : 186,
+            'height' : 250
+        }, [
+            Edit({
+                'x' : 10,
+                'y' : 10,
+                'width' : 151,
+                'height' : 25,
+                'name' : 'editText'
+            }),
+            Button({
+                'x' : 10,
+                'y' : 40,
+                'width' : 31,
+                'height' : 25,
+                'name' : 'btnPlus',
+                'text' : '+'
+            }),
+            Button({
+                'x' : 50,
+                'y' : 40,
+                'width' : 31,
+                'height' : 25,
+                'name' : 'btnMinus',
+                'text' : '-'
+            }),
+            Button({
+                'x' : 90,
+                'y' : 40,
+                'width' : 31,
+                'height' : 25,
+                'name' : 'btnMult',
+                'text' : '*'
+            }),
+            Button({
+                'x' : 130,
+                'y' : 40,
+                'width' : 31,
+                'height' : 25,
+                'name' : 'btnDiv',
+                'text' : '/'
+            }),
+            Button({
+                'x' : 10,
+                'y' : 70,
+                'width' : 41,
+                'height' : 31,
+                'name' : 'btn7',
+                'text' : '7'
+            }),
+            Button({
+                'x' : 60,
+                'y' : 70,
+                'width' : 51,
+                'height' : 31,
+                'name' : 'btn8',
+                'text' : '8'
+            }),
+            Button({
+                'x' : 120,
+                'y' : 70,
+                'width' : 41,
+                'height' : 31,
+                'name' : 'btn9',
+                'text' : '9'
+            }),
+            Button({
+                'x' : 10,
+                'y' : 110,
+                'width' : 41,
+                'height' : 31,
+                'name' : 'btn4',
+                'text' : '4'
+            }),
+            Button({
+                'x' : 60,
+                'y' : 110,
+                'width' : 51,
+                'height' : 31,
+                'name' : 'btn5',
+                'text' : '5'
+            }),
+            Button({
+                'x' : 120,
+                'y' : 110,
+                'width' : 41,
+                'height' : 31,
+                'name' : 'btn6',
+                'text' : '6'
+            }),
+            Button({
+                'x' : 10,
+                'y' : 150,
+                'width' : 41,
+                'height' : 31,
+                'name' : 'btn1',
+                'text' : '1'
+            }),
+            Button({
+                'x' : 60,
+                'y' : 150,
+                'width' : 51,
+                'height' : 31,
+                'name' : 'btn2',
+                'text' : '2'
+            }),
+            Button({
+                'x' : 120,
+                'y' : 150,
+                'width' : 41,
+                'height' : 31,
+                'name' : 'btn3',
+                'text' : '3'
+            }),
+            Button({
+                'x' : 10,
+                'y' : 190,
+                'width' : 41,
+                'height' : 31,
+                'name' : 'btnDot',
+                'text' : '.'
+            }),
+            Button({
+                'x' : 60,
+                'y' : 190,
+                'width' : 51,
+                'height' : 31,
+                'name' : 'btn0',
+                'text' : '0'
+            }),
+            Button({
+                'x' : 120,
+                'y' : 190,
+                'width' : 41,
+                'height' : 31,
+                'name' : 'btnEqual',
+                'text' : '='
+            })
+        ]))
+
+        window.on(Button, "MouseButtonPress", @(window, target, props)
+        {
+            var digit = window.get(target, 'text');
+            var text = window.get('editText', 'text');
+            if(digit == '=')
+            {
+                var result = eval(text);
+                window.set('editText', 'text', result);
+            }
+            else
+                window.set('editText', 'text', text + digit);
+        });
+
+        return run();
+    }
+}
+
+var calculator = Calculator()
+calculator.start()

@@ -1,29 +1,41 @@
 import xml as default
 import os
 
+// Base
 class Widget
 {
     var type
+    var className
     var name
     var x, y
     var width, height
     var on
+    var enclose
+    var attrib
 
-    func init(type, attrib, children, on)
+    func init(className, attrib, children, on)
     {
-        if(type is not str)
-            type = 'QWidget'
+        this.type = 'widget'
+
+        if(className is dict)
+        {
+            on = children
+            children = attrib
+            attrib = className
+            className = 'QWidget'
+        }
 
         if(attrib is not dict)
             attrib = {}
 
-        this.type = type
+        this.className = className
+        this.enclose = null
 
-        name = attrib.get('name', hash(attrib))
+        name = attrib.get('name', getClassName(this) + hash(attrib))
         x = num( attrib.get('x', 0) )
         y = num( attrib.get('y', 0) )
-        width = num( attrib.get('width', 100) )
-        height = num( attrib.get('height', 100) )
+        width = num( attrib.get('width', inf) )
+        height = num( attrib.get('height', inf) )
 
         if(children is list)
             this.children = children
@@ -35,42 +47,104 @@ class Widget
         if(on is not dict)
             on = {}
         this.on = on
+        this.attrib = attrib
+    }
+
+    func childrenToXML(widget)
+    {
+        var newParent = widget
+        for(var child in children)
+        {
+            if(enclose is str)
+            {
+                newParent = XMLElement(enclose)
+                if(child.attrib.exists('col'))
+                    newParent.attrib['column'] = child.attrib['col']
+                if(child.attrib.exists('row'))
+                    newParent.attrib['row'] = child.attrib['row']
+                widget.add(newParent)
+            }
+            else
+                newParent = widget
+            child.toXML(newParent)
+        }
     }
 
     func toXML(parent)
     {
-        var widget = XMLElement('widget')
-        widget.attrib['class'] = type
+        var widget = XMLElement(type)
+        widget.attrib['class'] = className
         widget.attrib['name'] = name
-        widget.add(XMLElement('property', '', {'name' : 'geometry'},
-        [
-            XMLElement('rect', '', {},
-            [
-                XMLElement('x', x),
-                XMLElement('y', y),
-                XMLElement('width', width),
-                XMLElement('height', height)
-            ])
-        ]))
 
-        for(var child in children)
+        if(parent.tag != 'layout' and parent.tag != 'item')
         {
-            child.toXML(widget)
+            widget.add(XMLElement('property', '', {'name' : 'geometry'},
+            [
+                XMLElement('rect', '', {},
+                [
+                    XMLElement('x', x),
+                    XMLElement('y', y),
+                    XMLElement('width', width == inf ? 400 : width),
+                    XMLElement('height', height == inf ? 400 : height)
+                ])
+            ]))
         }
+        else
+        {
+            widget.add(XMLElement('property', '', {'name' : 'maximumSize'},
+            [
+                XMLElement('size', '', {},
+                [
+                    XMLElement('width', width == inf ? 16777215 : width),
+                    XMLElement('height', height == inf ? 16777215 : height)
+                ])
+            ]))
+        }
+
+        if(width == inf or height == inf)
+        {
+            widget.add(XMLElement('property', '', {'name' : 'sizePolicy'},
+            [
+                XMLElement('sizepolicy', '', {
+                    'hsizetype' : (width == inf ? 'Maximum' : 'Fixed'),
+                    'vsizetype' : (height == inf ? 'Maximum' : 'Fixed')
+                },
+                [
+                    XMLElement('horstretch', 0),
+                    XMLElement('verstretch', 0)
+                ])
+            ]))
+        }
+
+        if(parent.attrib['class'] == 'QTabWidget')
+        {
+            widget.add(XMLElement('attribute', '', {'name' : 'title'},
+            [
+                XMLElement('string', attrib['title'])
+            ]))
+        }
+
+        childrenToXML(widget)
 
         parent.add(widget)
         return widget
     }
 
-    func generate()
+    func getXML()
     {
-        var fileName = os.allowedTempPath + '/' + hash(this) + '.ui'
-        
         var xml = XML()
         xml.root = XMLElement('ui', '', {'version' : '4.0'})
         toXML(xml.root)
         xml.root.add(XMLElement('resources'))
         xml.root.add(XMLElement('connections'))
+        return xml
+    }
+
+    func generate()
+    {
+        var fileName = os.allowedTempPath + '/' + hash(this) + '.ui'
+
+        var xml = getXML()
 
         if(xml.save(fileName))
             return fileName
@@ -91,21 +165,73 @@ class Widget
 
         for(var child in children)
         {
-            child.register(window)
+            if(child is Widget)
+                child.register(window)
         }
     }
 }
 
+
+// Layouts
+class Layout : Widget
+{
+    func init(className, attrib, children, on)
+    {
+        super.init(className, attrib, children, on)
+        enclose = 'item'
+        type = 'layout'
+    }
+}
+
+class VerticalLayout : Layout
+{
+    func init(attrib, children, on)
+    {
+        super.init('QVBoxLayout', attrib, children, on)
+    }
+}
+
+class HorizontalLayout : Layout
+{
+    func init(attrib, children, on)
+    {
+        super.init('QHBoxLayout', attrib, children, on)
+    }
+}
+
+class GridLayout : Layout
+{
+    func init(attrib, children, on)
+    {
+        super.init('QGridLayout', attrib, children, on)
+    }
+}
+
+class FormLayout : Layout
+{
+    func init(attrib, children, on)
+    {
+        super.init('QFormLayout', attrib, children, on)
+    }
+}
+
+// Windows
 class Form : Widget
 {
     var title
     func init(attrib, children, on)
     {
+        if(attrib is str)
+            attrib = {'title' : attrib}
+
         if(attrib is not dict)
             attrib = {}
 
-        title = attrib.get('title', 'Window')
         super.init('QWidget', attrib, children, on)
+
+        title = attrib.get('title', 'Window')
+        width = num( attrib.get('width', inf) )
+        height = num( attrib.get('height', inf) )
     }
 
     func toXML(parent)
@@ -116,10 +242,63 @@ class Form : Widget
         [
             XMLElement('string', title)
         ]))
+        return form
     }
 }
 
-class Edit : Widget
+
+// Input
+class BaseEdit : Widget
+{
+    var text
+    var placeholder
+    var textAttr
+    func init(className, attrib, children, on)
+    {
+        this.textAttr = 'text'
+
+        if(attrib is str)
+            attrib = {'text' : attrib}
+
+        if(attrib is not dict)
+            attrib = {}
+
+        text = attrib.get('text', '')
+        placeholder = attrib.get('placeholder', '')
+
+        super.init(className, attrib, children, on)
+    }
+
+    func toXML(parent)
+    {
+        var edit = super.toXML(parent)
+        if(len(text) > 0)
+        {
+            edit.add(XMLElement('property', '', {'name' : textAttr},
+            [
+                XMLElement('string', text)
+            ]))
+        }
+        if(len(placeholder) > 0)
+        {
+            edit.add(XMLElement('property', '', {'name' : 'placeholder'},
+            [
+                XMLElement('string', placeholder)
+            ]))
+        }
+        return edit
+    }
+}
+
+class Label : BaseEdit
+{
+    func init(attrib, children, on)
+    {
+        super.init('QLabel', attrib, children, on)
+    }
+}
+
+class Edit : BaseEdit
 {
     func init(attrib, children, on)
     {
@@ -127,17 +306,110 @@ class Edit : Widget
     }
 }
 
-class Button : Widget
+class Text : BaseEdit
 {
-    var text
+    func init(attrib, children, on)
+    {
+        super.init('QPlainTextEdit', attrib, children, on)
+        textAttr = 'plainText'
+    }
+}
+
+class HTML : BaseEdit
+{
+    func init(attrib, children, on)
+    {
+        super.init('QTextEdit', attrib, children, on)
+        textAttr = 'html'
+    }
+}
+
+class ComboBox : Widget
+{
+    var index
     func init(attrib, children, on)
     {
         if(attrib is not dict)
             attrib = {}
+        if(children is not list)
+            children = []
 
-        text = attrib.get('text', 'Button')
+        index = attrib.get('index', len(children) > 0 ? 0 : -1)
+        super.init('QComboBox', attrib, children, on)
+    }
 
-        super.init('QPushButton', attrib, children, on)
+    func childrenToXML(widget)
+    {
+        for(var child in children)
+        {
+            widget.add(XMLElement('item', '', {}, [
+                XMLElement('property', '', {'name' : 'text'}, [
+                    XMLElement('string', child)
+                ])
+            ]))
+        }
+    }
+
+    func toXML(parent)
+    {
+        var combo = super.toXML(parent)
+        combo.add(XMLElement('property', '', {'name' : 'currentIndex'},
+        [
+            XMLElement('number', index)
+        ]))
+        return combo
+    }
+}
+
+class WebView : Widget
+{
+    var url
+    var zoom
+    func init(attrib, children, on)
+    {
+        if(attrib is str)
+            attrib = {'url' : attrib}
+
+        if(attrib is not dict)
+            attrib = {}
+
+        url = attrib.get('url', 'about:blank')
+        zoom = attrib.get('zoom', 1)
+
+        super.init('QWebView', attrib, children, on)
+    }
+
+    func toXML(parent)
+    {
+        var view = super.toXML(parent)
+        view.add(XMLElement('property', '', {'name' : 'url'},
+        [
+            XMLElement('url', '', {}, [
+                XMLElement('string', url)
+            ])
+        ]))
+        view.add(XMLElement('property', '', {'name' : 'zoomFactor'},
+        [
+            XMLElement('double', zoom)
+        ]))
+        return view
+    }
+}
+
+// Buttons
+class BaseButton : Widget
+{
+    var text
+    var icon
+    func init(className, attrib, children, on)
+    {
+        if(attrib is not dict)
+            attrib = {}
+
+        text = attrib.get('text', getClassName(this))
+        icon = attrib.get('icon', null)
+
+        super.init(className, attrib, children, on)
     }
 
     func toXML(parent)
@@ -147,5 +419,242 @@ class Button : Widget
         [
             XMLElement('string', text)
         ]))
+        if(icon is str)
+        {
+            button.add(XMLElement('property', '', {'name' : 'icon'},
+            [
+                XMLElement('iconset', icon, {}, [
+                    XMLElement('normaloff', icon)
+                ])
+            ]))
+        }
+        return button
+    }
+}
+
+class Button : BaseButton
+{
+    func init(attrib, children, on)
+    {
+        super.init('QPushButton', attrib, children, on)
+    }
+}
+
+class Radio : BaseButton
+{
+    func init(attrib, children, on)
+    {
+        super.init('QRadioButton', attrib, children, on)
+    }
+}
+
+class ToolButton : BaseButton
+{
+    func init(attrib, children, on)
+    {
+        super.init('QToolButton', attrib, children, on)
+    }
+}
+
+class CheckBox : BaseButton
+{
+    func init(attrib, children, on)
+    {
+        super.init('QCheckBox', attrib, children, on)
+    }
+}
+
+class Spin : Widget
+{
+    var value
+    var min, max
+    var step
+    var suffix, prefix
+    var base
+    func init(attrib, children, on)
+    {
+        if(attrib is not dict)
+            attrib = {}
+
+        value = attrib.get('value', 0)
+        min = attrib.get('min', 0)
+        max = attrib.get('max', 99)
+        step = attrib.get('step', 1)
+        base = attrib.get('base', 10)
+        suffix = attrib.get('suffix', '')
+        prefix = attrib.get('prefix', '')
+
+        super.init('QSpinBox', attrib, children, on)
+    }
+
+    func toXML(parent)
+    {
+        var spin = super.toXML(parent)
+        spin.add(XMLElement('property', '', {'name' : 'value'},
+        [
+            XMLElement('number', value)
+        ]))
+        spin.add(XMLElement('property', '', {'name' : 'minimum'},
+        [
+            XMLElement('number', min)
+        ]))
+        spin.add(XMLElement('property', '', {'name' : 'maximum'},
+        [
+            XMLElement('number', max)
+        ]))
+        spin.add(XMLElement('property', '', {'name' : 'singleStep'},
+        [
+            XMLElement('number', step)
+        ]))
+        spin.add(XMLElement('property', '', {'name' : 'displayIntegerBase'},
+        [
+            XMLElement('number', base)
+        ]))
+        spin.add(XMLElement('property', '', {'name' : 'suffix'},
+        [
+            XMLElement('string', suffix)
+        ]))
+        spin.add(XMLElement('property', '', {'name' : 'prefix'},
+        [
+            XMLElement('string', prefix)
+        ]))
+        return spin
+    }
+}
+
+class DoubleSpin : Spin
+{
+    var decimals
+    func init(attrib, children, on)
+    {
+        if(attrib is not dict)
+            attrib = {}
+
+        decimals = attrib.get('decimals', 2)
+
+        super.init(attrib, children, on)
+        className = 'QDoubleSpinBox'
+    }
+
+    func toXML(parent)
+    {
+        var spin = super.toXML(parent)
+        spin.add(XMLElement('property', '', {'name' : 'decimals'},
+        [
+            XMLElement('number', decimals)
+        ]))
+        return spin
+    }
+}
+
+// Display
+class ProgressBar : Widget
+{
+    var value
+    var min, max
+    var vertical, inverted
+    var text
+    func init(attrib, children, on)
+    {
+        if(attrib is not dict)
+            attrib = {}
+
+        value = attrib.get('value', 24)
+        min = attrib.get('min', 0)
+        max = attrib.get('max', 100)
+        vertical = attrib.get('vertical', false)
+        inverted = attrib.get('inverted', false)
+        text = attrib.get('text', '%p%')
+
+        super.init('QProgressBar', attrib, children, on)
+    }
+
+    func toXML(parent)
+    {
+        var progress = super.toXML(parent)
+        progress.add(XMLElement('property', '', {'name' : 'value'},
+        [
+            XMLElement('number', value)
+        ]))
+        progress.add(XMLElement('property', '', {'name' : 'minimum'},
+        [
+            XMLElement('number', min)
+        ]))
+        progress.add(XMLElement('property', '', {'name' : 'maximum'},
+        [
+            XMLElement('number', max)
+        ]))
+        progress.add(XMLElement('property', '', {'name' : 'orientation'},
+        [
+            XMLElement('enum', vertical ? 'Qt::Vertical' : 'Qt::Horizontal')
+        ]))
+        progress.add(XMLElement('property', '', {'name' : 'invertedAppearance'},
+        [
+            XMLElement('bool', str(inverted))
+        ]))
+        if(len(text) == 0)
+        {
+            progress.add(XMLElement('property', '', {'name' : 'textVisible'},
+            [
+                XMLElement('bool', 'false')
+            ]))
+        }
+        else
+        {
+            progress.add(XMLElement('property', '', {'name' : 'format'},
+            [
+                XMLElement('string', text)
+            ]))
+        }
+        return progress
+    }
+}
+
+// Containers
+class GroupBox : Widget
+{
+    var title
+    func init(attrib, children, on)
+    {
+        if(attrib is not dict)
+            attrib = {}
+
+        title = attrib.get('title', getClassName(this))
+
+        super.init('QGroupBox', attrib, children, on)
+    }
+
+    func toXML(parent)
+    {
+        var group = super.toXML(parent)
+        group.add(XMLElement('property', '', {'name' : 'title'},
+        [
+            XMLElement('string', title)
+        ]))
+        return group
+    }
+}
+
+class Tabs : Widget
+{
+    var index
+    func init(attrib, children, on)
+    {
+        if(attrib is not dict)
+            attrib = {}
+
+        index = attrib.get('index', 0)
+
+        super.init('QTabWidget', attrib, children, on)
+    }
+
+    func toXML(parent)
+    {
+        var tabs = super.toXML(parent)
+        tabs.add(XMLElement('property', '', {'name' : 'currentIndex'},
+        [
+            XMLElement('number', index)
+        ]))
+        return tabs
     }
 }

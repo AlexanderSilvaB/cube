@@ -13,6 +13,9 @@ native libs/libui
     list ui_get_property(num, str, str);
     bool ui_set_property(num, str, str, str);
     dict ui_get_obj(num, str);
+    list ui_get_methods(num, str);
+    str ui_get_method(num, str, str);
+    list ui_call_method(num, str, str, list);
     void ui_resize_window(num, num, num);
     void ui_antialias(num, bool);
     void ui_rm_shape(num, num);
@@ -166,7 +169,8 @@ class Window
             if(fileName is null)
                 return false
 
-            this.resize(widget.width, widget.height)
+            if(widget.width != inf and widget.height != inf)
+                this.resize(widget.width, widget.height)
 
             this.set(null, 'x', widget.x)
             this.set(null, 'y', widget.y)
@@ -215,6 +219,42 @@ class Window
     func onUpdate(fn)
     {
         this.update = fn;
+    }
+
+    func methods(name)
+    {
+        if(name is null)
+            name = '';
+        else if(name is null)
+            return false
+        else if(name is Widget)
+            name = name.name
+        return ui_get_methods(this.id, name);
+    }
+
+    func method(name, methodName)
+    {
+        if(name is null)
+            name = '';
+        else if(name is null)
+            return false
+        else if(name is Widget)
+            name = name.name
+        return ui_get_method(this.id, name, methodName);
+    }
+
+    func call(name, methodName, arguments)
+    {
+        if(name is null)
+            name = '';
+        else if(name is null)
+            return false
+        else if(name is Widget)
+            name = name.name
+        
+        if(arguments is not list and arguments is not null)
+            arguments = [arguments]
+        return ui_call_method(this.id, name, methodName, arguments)
     }
 
     func obj(name)

@@ -203,6 +203,82 @@ extern "C"
         return ret;
     }
 
+    EXPORTED cube_native_var *ui_get_methods(cube_native_var *id, cube_native_var *objName)
+    {
+        List methods = wm->GetMethods(AS_NATIVE_NUMBER(id), AS_NATIVE_STRING(objName));
+        cube_native_var *ret;
+        if (methods.size() == 0)
+        {
+            ret = NATIVE_NULL();
+        }
+        else
+        {
+            ret = NATIVE_LIST();
+            for (int i = 0; i < methods.size(); i++)
+            {
+                cube_native_var *method = NATIVE_STRING_COPY(methods[i].c_str());
+                ADD_NATIVE_LIST(ret, method);
+            }
+        }
+
+        return ret;
+    }
+
+    EXPORTED cube_native_var *ui_get_method(cube_native_var *id, cube_native_var *objName, cube_native_var *methodName)
+    {
+        string name = wm->GetMethod(AS_NATIVE_NUMBER(id), AS_NATIVE_STRING(objName), AS_NATIVE_STRING(methodName));
+
+        cube_native_var *ret;
+        if (name.empty())
+            ret = NATIVE_NULL();
+        else
+        {
+            ret = NATIVE_STRING_COPY(name.c_str());
+        }
+        return ret;
+    }
+
+    EXPORTED cube_native_var *ui_call_method(cube_native_var *id, cube_native_var *objName, cube_native_var *methodName,
+                                             cube_native_var *arguments)
+    {
+        List args;
+        if (arguments->is_list)
+        {
+            for (int i = 0; i < arguments->size; i++)
+            {
+                args.push_back(string(AS_NATIVE_STRING(arguments->list[i])));
+            }
+        }
+        List list;
+        bool success =
+            wm->CallMethod(AS_NATIVE_NUMBER(id), AS_NATIVE_STRING(objName), AS_NATIVE_STRING(methodName), args, list);
+
+        cube_native_var *ret;
+
+        if (!success)
+        {
+            ret = NATIVE_NULL();
+        }
+        else
+        {
+            if (list.size() > 1)
+            {
+                ret = NATIVE_LIST();
+                for (int i = 0; i < list.size(); i++)
+                {
+                    cube_native_var *prop = NATIVE_STRING_COPY(list[i].c_str());
+                    ADD_NATIVE_LIST(ret, prop);
+                }
+            }
+            else
+            {
+                ret = NATIVE_STRING_COPY(list[0].c_str());
+            }
+        }
+
+        return ret;
+    }
+
     // Shapes
     EXPORTED void ui_antialias(cube_native_var *id, cube_native_var *enabled)
     {
