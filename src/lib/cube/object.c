@@ -32,7 +32,7 @@ static Obj *allocateObject(size_t size, ObjType type)
     object->next = vm.objects;
     vm.objects = object;
 
-#ifdef DEBUG_LOG_GC
+#if defined(DEBUG_LOG_GC) && defined(DEBUG_LOG_GC_DETAILS)
     printf("%p allocate %ld for %d\n", object, size, type);
 #endif
 

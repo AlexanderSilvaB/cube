@@ -28,6 +28,9 @@ libs/
 *.cubec
 *.so
 *.dll
+*.dat
+*.out
+*.plt
 temp/
 
 # End of https://www.gitignore.io/api/cmake

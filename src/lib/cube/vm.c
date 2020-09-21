@@ -181,6 +181,7 @@ TaskFrame *createTaskFrame(const char *name)
     taskFrame->error = NULL;
     taskFrame->currentArgs = NULL_VAL;
     taskFrame->threadFrame = threadFrame;
+    taskFrame->autoDestroy = false;
 
     TaskFrame *tf = threadFrame->taskFrame;
     // TaskFrame *tf = threadFrame->taskFrame;
@@ -2214,7 +2215,7 @@ bool hasTask(ThreadFrame *threadFrame)
 static bool nextTask()
 {
     ThreadFrame *threadFrame = currentThread();
-    TaskFrame *ctf = threadFrame->ctf;
+    // TaskFrame *ctf = threadFrame->ctf;
 
     if (vm.skipWaitingTasks)
         goto analyse;
@@ -2229,7 +2230,7 @@ next:
     }
     else
     {
-        if (!ctf->secure)
+        if (!threadFrame->ctf->secure)
             threadFrame->ctf = threadFrame->ctf->next;
     }
 
@@ -2237,6 +2238,14 @@ next:
         threadFrame->ctf = threadFrame->taskFrame;
     if (threadFrame->ctf->finished)
     {
+        if (threadFrame->ctf->autoDestroy)
+        // if (threadFrame->ctf->autoDestroy || threadFrame->ctf->parent == NULL)
+        {
+            // printf("Finished: %s\n", threadFrame->ctf->name);
+            threadFrame->ctf->parent = NULL;
+            threadFrame->ctf->waiting = false;
+            destroyTaskFrame(threadFrame->ctf->name);
+        }
         if (!hasTask(threadFrame))
         {
             return false;
@@ -3740,7 +3749,7 @@ InterpretResult run()
                 Value ret;
                 if (strcmp(objType, type->chars) == 0)
                 {
-                    ret = not? FALSE_VAL : TRUE_VAL;
+                    ret = not ? FALSE_VAL : TRUE_VAL;
                 }
                 else
                 {
@@ -3748,20 +3757,20 @@ InterpretResult run()
                     {
                         ObjInstance *instance = AS_INSTANCE(obj);
                         if (inherits(instance->klass, type))
-                            ret = not? FALSE_VAL : TRUE_VAL;
+                            ret = not ? FALSE_VAL : TRUE_VAL;
                         else
-                            ret = not? TRUE_VAL : FALSE_VAL;
+                            ret = not ? TRUE_VAL : FALSE_VAL;
                     }
                     else if (IS_ENUM_VALUE(obj))
                     {
                         ObjEnumValue *enumValue = AS_ENUM_VALUE(obj);
                         if (strcmp(enumValue->enume->name->chars, type->chars) == 0)
                         {
-                            ret = not? FALSE_VAL : TRUE_VAL;
+                            ret = not ? FALSE_VAL : TRUE_VAL;
                         }
                     }
                     else
-                        ret = not? TRUE_VAL : FALSE_VAL;
+                        ret = not ? TRUE_VAL : FALSE_VAL;
                 }
 
                 pop();
@@ -5003,26 +5012,26 @@ void *threadFn(void *data)
 {
     ThreadFrame *threadFrame = (ThreadFrame *)data;
     threadFrame->result = INTERPRET_WAIT;
-    // printf("Thread start: %d\n", thread_id());
+    printf("Thread start: %d\n", thread_id());
     while (!threadFrame->destroy)
     {
         if (!threadFrame->running)
         {
-            // printf("Thread wait: %d\n", thread_id());
+            printf("Thread wait: %d\n", thread_id());
             cube_wait(1);
         }
         else
         {
-            // printf("Thread run: %d\n", thread_id());
+            printf("Thread run: %d\n", thread_id());
             threadFrame->result = INTERPRET_WAIT;
             // cube_wait(1000000);
-            // printf("Start\n");
+            printf("Start\n");
             threadFrame->taskFrame->finished = false;
             threadFrame->result = run();
             pop();
             // vm.running = false;
             threadFrame->running = false;
-            // printf("End\n");
+            printf("End\n");
         }
     }
     return NULL;

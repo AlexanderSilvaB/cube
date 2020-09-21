@@ -134,8 +134,10 @@ void startCube(int argc, const char *argv[])
 int runCube(int argc, const char *argv[])
 {
     int rc = 0;
-    const char *fileName = NULL;
-    const char *output = NULL;
+    bool allocatedFileName = false;
+    char *fileName = NULL;
+    char *output = NULL;
+    char *code = NULL;
     bool execute = true;
     bool binary = false;
     bool debug = false;
@@ -148,6 +150,12 @@ int runCube(int argc, const char *argv[])
             fileName = argv[i];
             argStart++;
             break;
+        }
+        else if (strcmp(argv[i], "-e") == 0 || strcmp(argv[i], "--execute") == 0)
+        {
+            i++;
+            code = argv[i];
+            argStart += 2;
         }
         else if (strcmp(argv[i], "-o") == 0 || strcmp(argv[i], "--output") == 0)
         {
@@ -186,6 +194,33 @@ int runCube(int argc, const char *argv[])
             i++;
             argStart += 2;
         }
+        else if (strcmp(argv[i], "-s") == 0 || strcmp(argv[i], "--sample") == 0)
+        {
+            i++;
+            allocatedFileName = true;
+            fileName = (char *)mp_malloc(sizeof(char) * (strlen(argv[i]) + 128));
+            strcpy(fileName, "~/.cube/samples/");
+            strcat(fileName, argv[i]);
+            argStart += 2;
+        }
+        else if (strcmp(argv[i], "-l") == 0 || strcmp(argv[i], "--lib") == 0)
+        {
+            i++;
+            allocatedFileName = true;
+            fileName = (char *)mp_malloc(sizeof(char) * (strlen(argv[i]) + 128));
+            strcpy(fileName, "~/.cube/libs/");
+            strcat(fileName, argv[i]);
+            argStart += 2;
+        }
+        else if (strcmp(argv[i], "-m") == 0 || strcmp(argv[i], "--module") == 0)
+        {
+            i++;
+            allocatedFileName = true;
+            fileName = (char *)mp_malloc(sizeof(char) * (strlen(argv[i]) + 128));
+            strcpy(fileName, "~/.cube/bin/");
+            strcat(fileName, argv[i]);
+            argStart += 2;
+        }
     }
 
     vm.debug = debug;
@@ -199,8 +234,43 @@ int runCube(int argc, const char *argv[])
     }
     else if (fileName == NULL)
     {
-        fprintf(stderr, "Could not open the source file.\n");
-        rc = -1;
+        if (code == NULL)
+        {
+            fprintf(stderr, "Could not open the source file.\n");
+            rc = -1;
+        }
+        else
+        {
+            char *folder = getFolder(".");
+            if (folder != NULL)
+                addPath(folder);
+
+            InterpretResult result;
+            if (execute)
+                result = interpret(code, folder);
+            else
+            {
+                if (binary)
+                {
+                    if (pack(code, folder, output))
+                        result = INTERPRET_OK;
+                    else
+                        result = INTERPRET_COMPILE_ERROR;
+                }
+                else
+                    result = compileCode(code, folder, output);
+            }
+            if (vm.newLine)
+                printf("\n");
+            mp_free(folder);
+
+            if (result == INTERPRET_COMPILE_ERROR)
+                rc = 65;
+            if (result == INTERPRET_RUNTIME_ERROR)
+                rc = 70;
+            else
+                rc = vm.exitCode;
+        }
     }
     else
     {
@@ -210,6 +280,11 @@ int runCube(int argc, const char *argv[])
         rc = runFile(fileName, output, execute, binary);
         if (vm.newLine)
             printf("\n");
+    }
+
+    if (allocatedFileName)
+    {
+        mp_free(fileName);
     }
 
     return rc;
@@ -314,28 +389,31 @@ int repl()
 
 int runFile(const char *path, const char *output, bool execute, bool binary)
 {
-    char *source = readFile(path, true);
+    char *nPath = fixPath(path);
+    char *source = readFile(nPath, true);
     if (source == NULL)
     {
+        mp_free(nPath);
         return 74;
     }
 
     InterpretResult result;
     if (execute)
-        result = interpret(source, path);
+        result = interpret(source, nPath);
     else
     {
         if (binary)
         {
-            if (pack(source, path, output))
+            if (pack(source, nPath, output))
                 result = INTERPRET_OK;
             else
                 result = INTERPRET_COMPILE_ERROR;
         }
         else
-            result = compileCode(source, path, output);
+            result = compileCode(source, nPath, output);
     }
     mp_free(source);
+    mp_free(nPath);
 
     if (result == INTERPRET_COMPILE_ERROR)
         return 65;

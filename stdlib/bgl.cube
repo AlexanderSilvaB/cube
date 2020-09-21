@@ -25,6 +25,7 @@ native libs/libbgl
     void set_animation_callback(func);
     void set_keyboard_callback(func);
     void set_mouse_callback(func);
+    void enable_mouse_move_callback(cbool);
 
     int32 add_element(int32, int32);
 
@@ -1107,6 +1108,16 @@ class BGL
         return is_fullscreen();
     }
 
+    static func setFullscreen(enabled)
+    {
+        set_fullscreen(enabled);
+    }
+
+    static func toogleFullscreen()
+    {
+        toogle_fullscreen();
+    }
+
     static func width()
     {
         return window_width();
@@ -1213,6 +1224,11 @@ class BGL
         {
             set_mouse_callback(fn);
         }
+    }
+
+    static func enableMouseMove(enabled)
+    {
+        enable_mouse_move_callback(enabled);
     }
 
     static func find(name)

@@ -44,7 +44,7 @@ void *reallocate(void *previous, size_t oldSize, size_t newSize)
 
 void freeObject(Obj *object)
 {
-#ifdef DEBUG_LOG_GC
+#if defined(DEBUG_LOG_GC) && defined(DEBUG_LOG_GC_DETAILS)
     printf("%p free ", object);
     printValue(OBJ_VAL(object));
     printf(" (%d)", object->type);
@@ -177,9 +177,18 @@ void freeObject(Obj *object)
             break;
         }
 
-        case OBJ_TASK:
+        case OBJ_TASK: {
+            ObjTask *task = (ObjTask *)object;
+            // if (task && task->name && task->name->chars)
+            // {
+            //     printf("Destroy task: %s\n", task->name->chars);
+            //     TaskFrame *tf = findTaskFrame(task->name->chars);
+            //     tf->parent = NULL;
+            //     destroyTaskFrame(task->name->chars);
+            // }
             FREE(ObjTask, object);
             break;
+        }
 
         case OBJ_UPVALUE:
             FREE(ObjUpvalue, object);

@@ -1,0 +1,31 @@
+func randi(start, stop)
+{
+    if(start is not null and stop is not null)
+        return int(rand(start, stop))
+    else if(start is not null)
+        return int(rand(start))
+    else
+        return int(rand() * 999999)
+}
+
+func pick(items)
+{
+    var r = int(rand(0, len(items)))
+    return items[r]
+}
+
+func sample(items, k)
+{
+    var nitems = copy(items)
+    if(k > len(nitems))
+        k = len(nitems)
+    var selection = []
+    var i
+    while(len(selection) < k)
+    {
+        i = int(rand(0, len(nitems)))
+        selection.add(nitems.removeAt(i))
+    }
+
+    return selection
+}

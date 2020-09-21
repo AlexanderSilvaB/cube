@@ -52,9 +52,6 @@ func distance(ar1, ar2)
     if(len(ar1) != len(ar2))
         return 0
     var ar = (ar1 .- ar2) .^ 2
-    println('AR: ', ar)
-    println('AR1: ', ar1)
-    println('AR2: ', ar2)
     return sum(ar)
 }
 

@@ -7,6 +7,7 @@ using namespace BasicGL;
 cube_native_var *animation_func = NULL;
 cube_native_var *keyboard_func = NULL;
 cube_native_var *mouse_func = NULL;
+bool mouse_move_callback = true;
 
 std::vector<ElementPtr> allElements;
 
@@ -74,6 +75,9 @@ void keyboard(Keyboard keyboard, WindowPtr window)
 
 void mouse(Mouse mouse, WindowPtr window)
 {
+    if (mouse.move && !mouse_move_callback)
+        return;
+
     if (mouse_func != NULL)
     {
         cube_native_var *args = NATIVE_LIST();
@@ -246,6 +250,11 @@ extern "C"
     EXPORTED void set_mouse_callback(cube_native_var *func)
     {
         mouse_func = SAVE_FUNC(func);
+    }
+
+    EXPORTED void enable_mouse_move_callback(bool enabled)
+    {
+        mouse_move_callback = enabled;
     }
 
     EXPORTED void rotate_element(int index, float x, float y, float z)

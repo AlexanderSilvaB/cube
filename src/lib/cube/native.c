@@ -186,10 +186,11 @@ void native_callback(void *fn, cube_native_var *argsNative)
 
     char *name = (char *)mp_malloc(sizeof(char) * 32);
     name[0] = '\0';
-    sprintf(name, "Task[%d-%d]", thread_id(), threadFrame->tasksCount);
+    sprintf(name, "TaskCallback[%d-%d]", thread_id(), threadFrame->tasksCount);
     threadFrame->tasksCount++;
 
     TaskFrame *tf = createTaskFrame(name);
+    tf->autoDestroy = true;
 
     ObjString *strTaskName = AS_STRING(STRING_VAL(name));
     mp_free(name);

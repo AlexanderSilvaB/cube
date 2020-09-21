@@ -21,6 +21,8 @@ static char *initString = "<CUBE>";
 GlobalCompiler *gbcpl = NULL;
 bool printCode = false;
 
+#define VAR_TYPES (TOKEN_IDENTIFIER | TOKEN_NULL | TOKEN_FUNC | TOKEN_CLASS | TOKEN_ENUM)
+
 void initGlobalCompiler()
 {
     GlobalCompiler *current = (GlobalCompiler *)mp_malloc(sizeof(GlobalCompiler));
@@ -112,14 +114,38 @@ static void consume(TokenType type, const char *message)
     errorAtCurrent(message);
 }
 
+static void consumeOneOf(int types, const char *message)
+{
+    if ((gbcpl->parser.current.type & types) != 0)
+    {
+        advance();
+        return;
+    }
+
+    errorAtCurrent(message);
+}
+
 static bool check(TokenType type)
 {
     return gbcpl->parser.current.type == type;
 }
 
+static bool checkOneOf(int types)
+{
+    return (gbcpl->parser.current.type & types) != 0;
+}
+
 static bool match(TokenType type)
 {
     if (!check(type))
+        return false;
+    advance();
+    return true;
+}
+
+static bool matchOneOf(int types)
+{
+    if (!checkOneOf(types))
         return false;
     advance();
     return true;
@@ -707,7 +733,7 @@ static uint16_t parseVariable(const char *errorMessage)
 
     if (match(TOKEN_COLON))
     {
-        consume(TOKEN_IDENTIFIER, "Only variable types allowed");
+        consumeOneOf(VAR_TYPES, "Only variable types allowed");
         Token type = gbcpl->parser.previous;
     }
 
@@ -777,7 +803,7 @@ static void is(bool canAssign)
         emitByte(OP_FALSE);
     }
 
-    if (match(TOKEN_IDENTIFIER) || match(TOKEN_NULL) || match(TOKEN_FUNC) || match(TOKEN_CLASS) || match(TOKEN_ENUM))
+    if (matchOneOf(VAR_TYPES))
     {
         ObjString *str = copyString(gbcpl->parser.previous.start, gbcpl->parser.previous.length);
 
@@ -1378,6 +1404,13 @@ static void function(FunctionType type)
     getVariable(argsInternToken);
     setVariablePop(argsToken);
 
+    // The return type
+    if (match(TOKEN_COLON))
+    {
+        consumeOneOf(TOKEN_IDENTIFIER, "The function return must be a type");
+        Token type = gbcpl->parser.previous;
+    }
+
     // The body.
     if (match(TOKEN_EQUAL))
     {
@@ -1770,7 +1803,7 @@ static void property(bool isStatic, Token *className)
 
         if (match(TOKEN_COLON))
         {
-            consume(TOKEN_IDENTIFIER, "Only variable types allowed");
+            consumeOneOf(VAR_TYPES, "Only variable types allowed");
             Token type = gbcpl->parser.previous;
         }
 
@@ -2368,7 +2401,7 @@ static void globalDeclaration(bool checkEnd)
 
         if (match(TOKEN_COLON))
         {
-            consume(TOKEN_IDENTIFIER, "Only variable types allowed");
+            consumeOneOf(VAR_TYPES, "Only variable types allowed");
             Token type = gbcpl->parser.previous;
         }
 

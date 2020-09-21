@@ -1,0 +1,254 @@
+import bgl as default
+import random
+
+var W, H
+var w = 10, h = 10
+var sx, sy
+var sz
+var map
+var elms
+var wall
+
+func prepare(x, y)
+{
+    W = x
+    H = y
+    sx = int(W / w)
+    sy = int(H / h)
+    sz = sx * sy
+    map = [0] * sz
+    elms = [0] * sz
+    wall = null
+}
+
+func createTileMap()
+{
+    wall = BGL.add(Elements.Container)
+    var i
+    var ew = 4 / sx
+    var eh = 4 / sy
+
+    for (var y = 0; y < sy; ++y)
+    {
+        for(var x = 0; x < sx; ++x)
+        {
+            i = (y * sx) + x
+            elms[i] = wall.add(Elements.Rectangle)
+            elms[i].move(-2 + ew * x, -2 + eh * y)
+            elms[i].scaleTo(ew, eh)
+        }
+    }
+}
+
+func isValid(x, y)
+{
+    return (x >= 0 and x < sx and y >= 0 and y < sy);
+}
+
+func loadMap(fileName)
+{
+    var file = open(fileName, 'r')
+    if(file is null)
+        return false
+
+    var txt = file.read()
+    file.close()
+
+    var lines = txt.split('\n')
+    var y = len(lines)
+    var x = len(lines[0])
+
+    prepare(x * w, y * h)
+
+    var c
+    for(var i = 0; i < y; i++)
+    {
+        for(var j = 0; j < x; j++)
+        {
+            c = lines[i][j]
+            if(c == 'X' or c == '1')
+                map[i * x + j] = 1
+            else
+                map[i * x + j] = 0
+        }
+    }
+    return true
+}
+
+func createExploder(x, y)
+{
+    var minX = int(x) - int(5 / 2);
+    var minY = int(y) - int(5 / 2);
+    var maxX = minX + 4;
+    var maxY = minY + 4;
+
+    for(var i = minY; i <= maxY; ++i)
+    {
+        for(var j = minX; j <= maxX; ++j)
+        {
+            if(j == minX or j == maxX)
+            {
+                createPoint(j, i)
+            }
+        }
+    }
+
+    createPoint(minX + 2, minY)
+    createPoint(minX + 2, maxY)
+}
+
+func createPoint(x, y)
+{
+    if(isValid(x, y))
+        map[y * sx + x] = 1
+}
+
+func createBlock(x, y)
+{
+    createPoint(x, y)
+    createPoint(x + 1, y)
+    createPoint(x, y + 1)
+    createPoint(x + 1, y + 1)
+}
+
+func createBlinker(x, y)
+{
+    createPoint(x, y)
+    createPoint(x - 1, y)
+    createPoint(x + 1, y)
+}
+
+func createGlider(x, y)
+{
+    createPoint(x - 1, y)
+    createPoint(x - 1, y - 1)
+    createPoint(x, y - 1)
+    createPoint(x + 1, y - 1)
+    createPoint(x, y + 1)
+}
+
+func neigh(map, x, y)
+{
+    var n = 0;
+    var mx = x-1;
+    var Mx = x+1;
+    var my = y-1;
+    var My = y+1;
+
+    for(var i = my; i <= My; ++i)
+    {
+        if(i >= 0 and i < sy)
+        {
+            for(var j = mx; j <= Mx; ++j)
+            {
+                if(j >= 0 and j < sx)
+                {
+                    if(i != y or j != x)
+                    {
+                        if(map[i*sx + j] > 0)
+                        {
+                            n++;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return n;
+}
+
+func update()
+{
+    var nmap = copy(map)
+    for (var y = 0; y < sy; ++y)
+    {
+        for(var x = 0; x < sx; ++x)
+        {
+            var n = neigh(nmap, x, y);
+            var i = y*sx + x;
+            if(n < 2)
+            {
+                map[i] = 0;
+            }
+            if(n > 3)
+            {
+                map[i] = 0;
+            }
+            if(n == 3)
+            {
+                map[i] = 1;
+            }
+        }
+    }
+}
+
+func show()
+{
+    var i
+    for (var y = 0; y < sy; ++y)
+    {
+        for(var x = 0; x < sx; ++x)
+        {
+            i = y*sx + x;
+            if(map[i] > 0)
+                elms[i].color(0, 1, 0)
+            else
+                elms[i].color(0, 0, 0)
+        }
+    }
+}
+
+func keyboard(key)
+{
+    if(key.key == Keys.F12)
+    {
+        BGL.toogleFullscreen();
+    }
+}
+
+var pressed = false
+func mouse(point)
+{
+    if(point.pressed)
+        pressed = true
+    else if(point.released or point.leave)
+        pressed = false
+    if(point.move and pressed)
+    {
+        var x = int(0.5 * (point.x + 1) * sx)
+        var y = int(0.5 * (point.y + 1) * sy)
+        createPoint(x, y)
+    }
+}
+
+var fileName = 'test/data/patterns/gosper-glider-gun.txt'
+if(len(args) > 0)
+    fileName = args[0]
+
+print('Loading map: ')
+if(!loadMap(fileName))
+{
+    println('Failed!');
+    println('Creating patterns...');
+    prepare(500, 500)
+    createExploder(sx/2, sy/2);
+}
+else
+    println('Done!');
+
+BGL.create("Conway's Game of Life", Modes.M3D, 30, W, H)
+BGL.onKeyboard(keyboard);
+BGL.onMouse(mouse);
+createTileMap();
+
+
+println('Running!')
+
+while(BGL.isOpen())
+{
+    if(not pressed)
+        update()
+    show()
+    BGL.pause()
+}

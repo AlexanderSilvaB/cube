@@ -39,6 +39,10 @@ class Test
 
     static func run(arguments)
     {
+        __std__.println("");
+        __std__.println("--------------------");
+        __std__.println("Testing");
+        __std__.println("--------------------");
         var execute = false
         if(arguments is list)
         {

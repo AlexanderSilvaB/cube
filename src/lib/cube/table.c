@@ -193,7 +193,7 @@ void tableRemoveWhite(Table *table)
         Entry *entry = &table->entries[i];
         if (entry->key != NULL && !entry->key->obj.isMarked)
         {
-#ifdef DEBUG_LOG_GC
+#if defined(DEBUG_LOG_GC) && defined(DEBUG_LOG_GC_DETAILS)
             printf("table delete: ");
             printValue(OBJ_VAL(entry->key));
             printf("\n");

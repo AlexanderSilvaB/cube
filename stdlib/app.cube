@@ -2,8 +2,9 @@ import ui as default;
 
 class App
 {
-    var startFrame;
-    var lastFrame;
+    var __startFrame;
+    var __lastFrame;
+    var RequestedFPS;
     var FPS;
 
     func main()
@@ -14,10 +15,11 @@ class App
     func start()
     {
         UI.start();
-        this.FPS = UI.FPS;
+        this.RequestedFPS = UI.FPS;
+        this.FPS = this.RequestedFPS;
 
-        this.startFrame = clock();
-        this.lastFrame = this.startFrame;
+        this.__startFrame = clock();
+        this.__lastFrame = this.__startFrame;
 
         var ret = this.main();
         this.stop();
@@ -31,8 +33,8 @@ class App
 
     func run()
     {
-        this.startFrame = clock();
-        this.lastFrame = this.startFrame;
+        this.__startFrame = clock();
+        this.__lastFrame = this.__startFrame;
 
         while(this.running())
         {
@@ -49,12 +51,12 @@ class App
     func update()
     {
         var current = clock();
-        var dt = current - this.lastFrame;
-        var fps = 1 / dt;
-        var delay = int(1000 / this.FPS);
+        var dt = current - this.__lastFrame;
+        this.FPS = 1 / dt;
+        var delay = int(1000 / this.RequestedFPS);
 
-        UI.cycle(fps, dt, current - this.startFrame);
-        this.lastFrame = clock();
+        UI.cycle(this.FPS, dt, current - this.__startFrame);
+        this.__lastFrame = clock();
         wait(delay);
     }
 }

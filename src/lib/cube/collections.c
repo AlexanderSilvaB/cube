@@ -273,6 +273,56 @@ static bool removeListItem(int argCount)
     return true;
 }
 
+static bool removeListItemAt(int argCount)
+{
+    if (argCount != 2)
+    {
+        runtimeError("removeAt() takes 2 arguments (%d  given)", argCount);
+        return false;
+    }
+
+    if (!IS_NUMBER(peek(0)))
+    {
+        runtimeError("removeAt() argument must be a number");
+        return false;
+    }
+
+    int index = AS_NUMBER(pop());
+    ObjList *list = AS_LIST(pop());
+    Value value;
+
+    int skip = 0;
+
+    for (int i = 0; i < list->values.capacity; ++i)
+    {
+        if (i == index)
+        {
+            skip++;
+#ifdef NAN_TAGGING
+            if (list->values.values[i])
+                value = list->values.values[i];
+#else
+            value = list->values.values[i];
+#endif
+        }
+
+        if (skip > 0)
+        {
+            if (i + skip >= list->values.capacity)
+                break;
+
+            list->values.values[i] = list->values.values[i + skip];
+        }
+    }
+
+    list->values.count -= skip;
+    if (list->values.count < 0)
+        list->values.count = 0;
+
+    push(value);
+    return true;
+}
+
 static bool containsListItem(int argCount)
 {
     if (argCount != 2)
@@ -556,6 +606,8 @@ bool listMethods(char *method, int argCount)
         return pushListItem(argCount);
     else if (strcmp(method, "remove") == 0)
         return removeListItem(argCount);
+    else if (strcmp(method, "removeAt") == 0)
+        return removeListItemAt(argCount);
     else if (strcmp(method, "insert") == 0)
         return insertListItem(argCount);
     else if (strcmp(method, "pop") == 0)
@@ -856,7 +908,7 @@ bool dictMethods(char *method, int argCount)
         return dictValues(argCount);
     else if (strcmp(method, "remove") == 0)
         return removeDictItem(argCount);
-    else if (strcmp(method, "exists") == 0)
+    else if (strcmp(method, "exists") == 0 || strcmp(method, "contains") == 0)
         return dictItemExists(argCount);
     else if (strcmp(method, "copy") == 0)
         return copyDictShallow(argCount);

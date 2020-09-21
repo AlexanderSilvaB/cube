@@ -60,6 +60,7 @@ typedef struct TaskFrame_t
     bool aborted;
     bool busy;
     bool secure;
+    bool autoDestroy;
     struct TaskFrame_t *parent;
     char *error;
     uint64_t endTime;
@@ -143,6 +144,9 @@ void addPath(const char *path);
 void loadArgs(int argc, const char *argv[], int argStart);
 ThreadFrame *currentThread();
 TaskFrame *createTaskFrame(const char *name);
+TaskFrame *findTaskFrame(const char *name);
+ThreadFrame *findThreadFrame(const char *name);
+void destroyTaskFrame(const char *name);
 
 InterpretResult interpret(const char *source, const char *path);
 InterpretResult compileCode(const char *source, const char *path, const char *output);

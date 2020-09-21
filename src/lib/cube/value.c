@@ -316,6 +316,19 @@ bool valuesEqual(Value a, Value b)
         return objectComparison(a, b);
     }
 
+    if (IS_ENUM_VALUE(a) || IS_ENUM_VALUE(b))
+    {
+        if (IS_NUMBER(a) && IS_ENUM_VALUE(b) && IS_NUMBER(AS_ENUM_VALUE(b)->value))
+        {
+            return AS_NUMBER(a) == AS_NUMBER(AS_ENUM_VALUE(b)->value);
+        }
+        else if (IS_NUMBER(b) && IS_ENUM_VALUE(a) && IS_NUMBER(AS_ENUM_VALUE(a)->value))
+        {
+            return AS_NUMBER(b) == AS_NUMBER(AS_ENUM_VALUE(a)->value);
+        }
+        return false;
+    }
+
     return a == b;
 #else
     if (a.type != b.type)

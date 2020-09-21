@@ -149,7 +149,7 @@ void mark_object(Obj *object)
     if (object->isMarked)
         return;
 
-#ifdef DEBUG_LOG_GC
+#if defined(DEBUG_LOG_GC) && defined(DEBUG_LOG_GC_DETAILS)
     printf("%p mark ", (void *)object);
     printValue(OBJ_VAL(object));
     printf("\n");
@@ -268,6 +268,12 @@ void mark_object(Obj *object)
         case OBJ_NATIVE_LIB: {
             ObjNativeLib *lib = (ObjNativeLib *)object;
             mark_object((Obj *)lib->name);
+            break;
+        }
+
+        case OBJ_TASK: {
+            ObjTask *task = (ObjTask *)object;
+            mark_object((Obj *)task->name);
             break;
         }
 
