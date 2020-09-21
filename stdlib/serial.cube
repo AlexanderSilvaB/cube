@@ -26,7 +26,7 @@ var CAN = 1;
 
 
 
-native libs/libserial
+native serial
 {
     list list_serial();
     int32 open_serial(cstring device);

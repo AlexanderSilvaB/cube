@@ -1,4 +1,4 @@
-native libs/libgame
+native game
 {
     void title(str);
     void size(num, num);

@@ -1,4 +1,4 @@
-native libs/libgame
+native game
 {
     num border(num, num);
     num fill(num, num);

@@ -1,4 +1,4 @@
-native libs/libbgl
+native bgl
 {
     int32 create_window(cstring, cbool, int32, int32, int32, int32, int32);
     void select_window(int32);

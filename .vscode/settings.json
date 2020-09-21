@@ -83,5 +83,6 @@
         "src/lib/stdlib/game/SDL2-2.0.12": true,
         "src/lib/libffi-3.3": true
     },
-    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools"
+    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+    "cmake.configureOnOpen": true
 }

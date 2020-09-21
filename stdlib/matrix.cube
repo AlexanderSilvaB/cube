@@ -1,4 +1,4 @@
-native libs/libmatrix_lib
+native matrix_lib
 {
     num create_matrix(num, num, list);
     num create_identity(num);

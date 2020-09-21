@@ -1,4 +1,4 @@
-native libs/libgame
+native game
 {
     void mouseMove(bool);
     list get();

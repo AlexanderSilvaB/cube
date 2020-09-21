@@ -16,11 +16,11 @@ var userDir = '{}/.cube'.format(userHome);
 if(sysInfo['os'] == 'windows')
 {
     installPath = 'C:/cube';
-    if(find('C:/Program Files/cube/bin/cube'))
+    if(find('C:/Program Files/cube/bin/cube.exe'))
     {
         installPath = 'C:/Program Files/cube';
     }
-    else if(find('C:/Program Files (x86)/cube/bin/cube'))
+    else if(find('C:/Program Files (x86)/cube/bin/cube.exe'))
     {
         installPath = 'C:/Program Files (x86)/cube';
     }

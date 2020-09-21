@@ -1,4 +1,4 @@
-native libs/libgame
+native game
 {
     bool valid();
     bool audioAvailable();

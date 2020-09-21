@@ -1,4 +1,4 @@
-native libs/libjson
+native json
 {
     dict json_native_parse(str);
     dict json_native_read(str);

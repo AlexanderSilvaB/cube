@@ -69,7 +69,7 @@ void start(const char *path, const char *scriptName, const char *rootPath)
         vm.rootPath = STRING_VAL(rootPath);
         addPath(rootPath);
 
-        char *newPath = (char *)mp_malloc(sizeof(char) * (strlen(rootPath) + 10));
+        char *newPath = (char *)mp_malloc(sizeof(char) * (strlen(rootPath) + 16));
 
         strcpy(newPath, rootPath);
         strcat(newPath, "/libs/");
@@ -77,6 +77,10 @@ void start(const char *path, const char *scriptName, const char *rootPath)
 
         strcpy(newPath, rootPath);
         strcat(newPath, "/stdlib/");
+        addPath(newPath);
+
+		strcpy(newPath, rootPath);
+        strcat(newPath, "/stdlib/libs/");
         addPath(newPath);
 
         mp_free(newPath);
@@ -87,6 +91,7 @@ void start(const char *path, const char *scriptName, const char *rootPath)
     addPath("../share/cube/");
     addPath("../share/cube/libs/");
     addPath("../share/cube/stdlib/");
+	addPath("../share/cube/stdlib/libs/");
 
 #ifdef _WIN32
     addPath("C:/cube/share/cube/");
@@ -98,10 +103,12 @@ void start(const char *path, const char *scriptName, const char *rootPath)
     addPath("C:/Program Files (x86)/cube/share/cube/");
     addPath("C:/Program Files (x86)/cube/share/cube/libs/");
     addPath("C:/Program Files (x86)/cube/share/cube/stdlib/");
+	addPath("C:/Program Files (x86)/cube/share/cube/stdlib/libs/");
 #else
     addPath("/usr/local/share/cube/");
     addPath("/usr/local/share/cube/libs/");
     addPath("/usr/local/share/cube/stdlib/");
+	addPath("/usr/local/share/cube/stdlib/libs/");
 #endif
 
     addPath("~/.cube/");

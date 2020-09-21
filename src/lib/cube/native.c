@@ -231,7 +231,7 @@ bool openNativeLib(ObjNativeLib *lib)
 {
     if (lib->handle == NULL)
     {
-        char *path = findFile(lib->name->chars);
+        char *path = findLibrary(lib->name->chars);
         if (path == NULL)
         {
             // runtimeError("Unable to find native lib: '%s'", lib->name->chars);

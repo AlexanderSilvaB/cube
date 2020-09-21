@@ -6,7 +6,6 @@ include(GNUInstallDirs)
 find_package(Threads)
 
 include_directories(../libffi-3.3/include)
-include_directories(../libuv/include)
 include_directories(${CMAKE_BINARY_DIR}/src/lib/libffi-3.3/include)
 
 set(SRC cube.c 
@@ -48,7 +47,7 @@ set(INCLUDES
     ${CMAKE_CURRENT_SOURCE_DIR}/cubeext.h)
 
 add_library(cube ${SRC})
-target_link_libraries(cube cube_linenoise cjson ffi_static uv_a)
+target_link_libraries(cube cube_linenoise cjson ffi_static)
 IF (NOT WIN32)
 target_link_libraries(cube m)
 else()

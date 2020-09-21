@@ -1,4 +1,4 @@
-native libs/libmysql
+native mysql
 {
     int opendb(cstring, cstring, cstring, cstring);
     cbool close(int);

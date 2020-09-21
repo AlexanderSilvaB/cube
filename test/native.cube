@@ -1,4 +1,4 @@
-native libcalc
+native calc
 {
     num add(num, num);
     num sub(num, num);

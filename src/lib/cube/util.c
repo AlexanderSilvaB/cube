@@ -293,6 +293,20 @@ char *findFile(const char *nameOrig)
     return strPath;
 }
 
+char *findLibrary(const char *nameOrig)
+{
+    char *path = findFile(nameOrig);
+    if (path == NULL)
+    {
+        char *name = (char *)mp_malloc(strlen(nameOrig) + 16);
+        strcpy(name, "lib");
+        strcat(name, nameOrig);
+        path = findFile(name);
+        mp_free(name);
+    }
+    return path;
+}
+
 bool existsFile(const char *name)
 {
     FILE *file = fopen(name, "r");

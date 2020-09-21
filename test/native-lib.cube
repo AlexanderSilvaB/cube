@@ -1,4 +1,4 @@
-native libcalc{}
+native calc{}
 
 println('Symbols -----------------------')
 println(libcalc.symbols())

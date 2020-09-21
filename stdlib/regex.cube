@@ -1,4 +1,4 @@
-native libs/libregex
+native regex
 {
     int32 compile(cstring);
     cstring matchp(int32, cstring);

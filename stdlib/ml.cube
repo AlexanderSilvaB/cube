@@ -1,4 +1,4 @@
-native libs/libml
+native ml
 {
     // Dataset
     int32 dataset_create(uint32, uint32);

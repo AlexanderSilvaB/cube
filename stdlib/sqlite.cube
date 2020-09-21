@@ -1,4 +1,4 @@
-native libs/libsqlite
+native sqlite
 {
     int open(cstring);
     cbool close(int);

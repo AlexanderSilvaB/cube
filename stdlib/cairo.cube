@@ -1,5 +1,5 @@
 // Image Surfaces — Rendering to memory buffers
-native libcairo
+native cairo
 {
     int32 cairo_format_stride_for_width(uint32, int32);
     raw cairo_image_surface_create(uint32, int32, int32);
@@ -12,7 +12,7 @@ native libcairo
 }
 
 // cairo_surface_t — Base class for surfaces
-native libcairo
+native cairo
 {
     struct UserDataKey
     {
@@ -63,7 +63,7 @@ native libcairo
      
     
 // cairo_t — The cairo drawing context
-native libcairo
+native cairo
 {
     raw cairo_create(raw);
     raw cairo_reference(raw);
@@ -128,7 +128,7 @@ native libcairo
 }
 
 // text — Rendering text and glyphs
-native libcairo
+native cairo
 { 
     struct Glyph
     {
@@ -165,7 +165,7 @@ native libcairo
 
     
 // Paths — Creating paths and manipulating path data
-native libcairo
+native cairo
 { 
     struct Path
     {
@@ -198,7 +198,7 @@ native libcairo
 }
 
 // Pcairo_pattern_t — Sources for drawing
-native libcairo
+native cairo
 { 
     void cairo_pattern_add_color_stop_rgb(raw pattern, float64 offset, float64 red, float64 green, float64 blue);
     void cairo_pattern_add_color_stop_rgba(raw pattern, float64 offset, float64 red, float64 green, float64 blue, float64 alpha);
@@ -242,7 +242,7 @@ native libcairo
 }
 
 // PNG Support — Reading and writing PNG images
-native libcairo
+native cairo
 { 
     // func uint32 cairo_read_func_t(raw closure, cbytes data, uint32 length);
     // func uint32 cairo_write_func_t(raw closure, cbytes data, uint32 length);
@@ -255,7 +255,7 @@ native libcairo
 
 
 // cairo_matrix_t — Generic matrix operations
-native libcairo
+native cairo
 { 
     struct Matrix
     {
@@ -280,7 +280,7 @@ native libcairo
 
 
 // Transformations — Manipulating the current transformation matrix
-native libcairo
+native cairo
 {
     void cairo_translate(raw cr, float64 tx, float64 ty);
     void cairo_scale(raw cr, float64 sx, float64 sy);

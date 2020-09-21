@@ -1,4 +1,4 @@
-native libs/libzip
+native zip
 {
     num cube_zip_open(str, str);
     bool cube_zip_close(num);

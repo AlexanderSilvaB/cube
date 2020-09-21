@@ -1,4 +1,4 @@
-native libs/libcurl
+native curl
 {
     bool download(str, str);
     bytes get(str);

@@ -1,4 +1,4 @@
-native libs/libsocket
+native socket
 {
     num tcp_udp_socket_create(num, str, bool, bool, bool, bool, num);
     bool tcp_udp_socket_close(num);
