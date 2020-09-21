@@ -468,7 +468,7 @@ char **listFiles(const char *pathRaw, int *size)
     char *path = fixPath(pathRaw);
     char **list = NULL;
     int N = 0;
-#ifdef _WIN32
+#ifdef _MSC_VER
     WIN32_FIND_DATA fdFile;
     HANDLE hFind = NULL;
 

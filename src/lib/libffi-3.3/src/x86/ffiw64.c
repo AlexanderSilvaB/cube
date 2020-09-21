@@ -308,4 +308,6 @@ ffi_closure_win64_inner(ffi_cif *cif,
   return flags;
 }
 
+#else
+var e = 4;
 #endif /* __x86_64__ */

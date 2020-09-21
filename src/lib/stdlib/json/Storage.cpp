@@ -6,7 +6,7 @@
 #include <string>
 #include <sys/stat.h>
 
-#if defined _MSC_VER
+#if defined _WIN32
 #include <direct.h>
 #endif
 
@@ -28,11 +28,7 @@ static int own_mkdir(const char *dir, int mode)
         {
             *p = 0;
 #ifdef _WIN32
-#if defined _MSC_VER
             _mkdir(tmp);
-#else
-            mkdir(tmp);
-#endif
 #else
             mkdir(tmp, mode);
 #endif

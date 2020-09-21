@@ -10,6 +10,7 @@ static void init_serial();
 static int add_port(HANDLE port);
 static HANDLE get_port(int fd);
 static void remove_port(int fd);
+static int parse_serial_speed(int baudrate);
 
 int open_serial(const char *device)
 {
@@ -38,7 +39,7 @@ int configure_serial(int fd, int baudrate, int timeout, int parity, int stopBits
     BOOL success;
 
     DCB state;
-    SecureZeroMemory(&state, sizeof(DCB));
+    memset(&state, '\0', sizeof(DCB));
     state.DCBlength = sizeof(DCB);
     success = GetCommState(port, &state);
     if (!success)
@@ -144,7 +145,7 @@ int configure_serial(int fd, int baudrate, int timeout, int parity, int stopBits
 
     COMMTIMEOUTS timeouts = {0};
     COMMTIMEOUTS cto;
-    GetCommTimeouts(m_hFile, &cto);
+    GetCommTimeouts(port, &cto);
     if (timeout >= 0)
     {
         cto.ReadIntervalTimeout = timeout;
@@ -182,13 +183,15 @@ int write_serial(int fd, const void *data, size_t len)
 
 cube_native_var *read_serial(int fd, size_t len)
 {
+    HANDLE port = get_port(fd);
+
     cube_native_var *ret = NATIVE_NULL();
     unsigned char *data = malloc(sizeof(unsigned char) * len);
     DWORD received;
     BOOL success = ReadFile(port, data, len, &received, NULL);
     if (!success)
     {
-        return -1;
+        return ret;
     }
     if (received >= 0)
         TO_NATIVE_BYTES_ARG(ret, received, data);
@@ -223,6 +226,21 @@ static HANDLE get_port(int fd)
     if (fd < 0 || fd >= MAX_PORTS)
         return INVALID_HANDLE_VALUE;
     return handles[fd];
+}
+
+static int add_port(HANDLE port)
+{
+    int fd = 0;
+    for (int i = 0; i < MAX_PORTS; i++)
+    {
+        if (handles[i] == NULL)
+        {
+            handles[i] = port;
+            return i;
+        }
+    }
+
+    return -1;
 }
 
 static void remove_port(int fd)

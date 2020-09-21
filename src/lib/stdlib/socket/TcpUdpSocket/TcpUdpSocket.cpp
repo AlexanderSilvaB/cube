@@ -1,7 +1,7 @@
 #include "TcpUdpSocket.h"
 #include <sstream>
 
-#ifdef WIN32
+#ifdef _MSC_VER
 typedef int socklen_t;
 #endif
 

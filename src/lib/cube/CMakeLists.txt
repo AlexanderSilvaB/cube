@@ -7,7 +7,7 @@ find_package(Threads)
 
 include_directories(../libffi-3.3/include)
 include_directories(../libuv/include)
-include_directories(${libffi_BINARY_DIR}/include)
+include_directories(${CMAKE_BINARY_DIR}/src/lib/libffi-3.3/include)
 
 set(SRC cube.c 
         chunk.c 

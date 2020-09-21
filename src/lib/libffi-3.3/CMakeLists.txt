@@ -26,6 +26,8 @@ include_directories(include)
 
 add_definitions(-DFFI_BUILDING)
 
+message(${SOURCES_LIST})
+
 add_library(objlib OBJECT ${SOURCES_LIST})
 set_property(TARGET objlib PROPERTY POSITION_INDEPENDENT_CODE 1)
 
