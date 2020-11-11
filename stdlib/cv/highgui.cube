@@ -1,0 +1,39 @@
+enum WindowFlags
+{
+    WINDOW_NORMAL = 0,
+    WINDOW_AUTOSIZE = 1,
+    WINDOW_OPENGL = 4096,
+    WINDOW_FULLSCREEN = 1,
+    WINDOW_FREERATIO = 256,
+    WINDOW_KEEPRATIO = 0,
+    WINDOW_GUI_EXPANDED = 0,
+    WINDOW_GUI_NORMAL = 16
+}
+
+enum WindowPropertyFlags
+{
+    WND_PROP_FULLSCREEN = 0,
+    WND_PROP_AUTOSIZE = 1,
+    WND_PROP_ASPECT_RATIO = 2,
+    WND_PROP_OPENGL = 3,
+    WND_PROP_VISIBLE = 4,
+    WND_PROP_TOPMOST = 5
+}
+
+native cv
+{
+    void destroyAllWindows();
+    void destroyWindow(cstring winname);
+    int getMouseWheelDelta(int flags);
+    int getTrackbarPos(cstring trackbarname, cstring winname);
+    double getWindowProperty(cstring winname, int prop_id);
+    void imshow(cstring winname, int id);
+    void moveWindow(cstring winname, int x, int y);
+    void namedWindow(cstring winname, int flags = WindowFlags.WINDOW_AUTOSIZE);
+    void resizeWindow(cstring winname, int width, int height);
+    void setWindowProperty(cstring winname, int prop_id, double prop_value);
+    void setWindowTitle(cstring winname, cstring title);
+    int startWindowThread();
+    int waitKey(int delay);
+    int waitKeyEx(int delay);
+}

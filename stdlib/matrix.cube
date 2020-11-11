@@ -11,6 +11,7 @@ native matrix_lib
     bool set_matrix(num, list);
     num get_matrix_rows(num)
     num get_matrix_cols(num)
+    num reshape_matrix(num, int, int)
     num invert_matrix(num);
     num transpose_matrix(num);
     num add_matrix_scalar(num, num);
@@ -85,6 +86,20 @@ class Mat
     func size()
     {
         return [m, n]
+    }
+
+    func reshape(m, n)
+    {
+        var mat = Mat(null)
+        mat.m = m
+        mat.n = n
+        mat.ptr = reshape_matrix(ptr, m, n)
+        if(mat.ptr is null)
+        {
+            mat = null
+            throw('Could not reshape the matrix')
+        }
+        return mat
     }
 
     func inverse()

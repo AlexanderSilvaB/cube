@@ -3,9 +3,12 @@ class XML
     var version = "1.0"
     var encoding = "UTF-8"
     var root = null
+    var unclose
 
     func init(version, encoding, root)
     {
+        unclose = []
+
         if(version is not null)
             this.version = version
         if(encoding is not null)
@@ -28,7 +31,7 @@ class XML
 
     func parse(text)
     {
-        var data = __xml(text)
+        var data = __header(text)
         if(data is null)
             return false
 
@@ -47,7 +50,7 @@ class XML
         }
 
         var root = XMLElement()
-        if(root.parse(text))
+        if(root.parse(text, unclose))
         {
             this.version = version
             this.encoding = encoding
@@ -167,7 +170,7 @@ class XML
         }
     }
 
-    func __xml(text)
+    func __header(text)
     {
         var version = this.version
         var encoding = this.encoding
@@ -330,20 +333,23 @@ class XMLElement
             children[i] = value
     }
 
-    func parse(text)
+    func parse(text, unclose)
     {
-        text = __parse(text)
+        text = __parse(text, unclose)
         if(text == null)
             return false
         return true
     }
 
-    func __parse(text)
+    func __parse(text, unclose)
     {
         var tag = null
         var attrib = {}
         var txt = ""
         var children = []
+
+        if(unclose is not list)
+            unclose = []
 
         var token = XML.__token(text)
         var id = token[0]
@@ -377,49 +383,17 @@ class XMLElement
         }
 
         var name, value = true
+        var hasChildren = true
         while(id != '>')
         {
             name = id
 
-            token = XML.__token(text)
-            id = token[0]
-            text = token[1]
-
-            if(id == '=')
+            if(id == '/')
             {
                 token = XML.__token(text)
                 id = token[0]
                 text = token[1]
-
-                value = id
-
-                token = XML.__token(text)
-                id = token[0]
-                text = token[1]
-            }
-
-            attrib[name] = value
-        }
-
-        if(id != '>')
-            return null
-        
-        token = XML.__text(text)
-        txt = token[0]
-        text = token[1]
-
-        var valid = true
-        var child = null
-        while(valid)
-        {
-            token = XML.__token(text)
-            id = token[0]
-            text = token[1]
-
-            if(id != '<')
-            {
-                valid = false
-                text = null
+                hasChildren = false
             }
             else
             {
@@ -427,35 +401,82 @@ class XMLElement
                 id = token[0]
                 text = token[1]
 
-                if(id == '/')
+                if(id == '=')
                 {
                     token = XML.__token(text)
                     id = token[0]
                     text = token[1]
 
-                    if(id != tag)
-                    {
-                        valid = false
-                        text = null
-                    }
-                    else
+                    value = id
+
+                    token = XML.__token(text)
+                    id = token[0]
+                    text = token[1]
+                }
+
+                attrib[name] = value
+            }
+        }
+
+        if(id != '>')
+            return null
+
+        if(hasChildren and tag not in unclose)
+        {
+            token = XML.__text(text)
+            txt = token[0]
+            text = token[1]
+
+            var valid = true
+            var child = null
+            while(valid)
+            {
+                token = XML.__token(text)
+                id = token[0]
+                text = token[1]
+
+                if(id != '<')
+                {
+                    valid = false
+                    text = null
+                }
+                else
+                {
+                    token = XML.__token(text)
+                    id = token[0]
+                    text = token[1]
+
+                    if(id == '/')
                     {
                         token = XML.__token(text)
                         id = token[0]
                         text = token[1]
 
-                        if(id != '>')
+                        if(id != tag)
+                        {
+                            valid = false
                             text = null
-                        valid = false
+                        }
+                        else
+                        {
+                            token = XML.__token(text)
+                            id = token[0]
+                            text = token[1]
+
+                            if(id != '>')
+                                text = null
+                            valid = false
+                        }
                     }
-                }
-                else
-                {
-                    text = '<${id}' + text
-                    child = XMLElement()
-                    text = child.__parse(text)
-                    if(text is not null)
-                        children.add(child)
+                    else
+                    {
+                        text = '<${id}' + text
+                        child = XMLElement()
+                        text = child.__parse(text, unclose)
+                        println(child.tag)
+                        if(text is not null)
+                            children.add(child)
+                    }
                 }
             }
         }

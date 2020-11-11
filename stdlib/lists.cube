@@ -3,7 +3,7 @@ func list.unique()
     var _unique = []
     for(var i in this)
     {
-        if(!(i in _unique))
+        if(i not in _unique)
             _unique.add(i)
     }
     return _unique

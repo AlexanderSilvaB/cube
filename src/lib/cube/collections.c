@@ -513,6 +513,39 @@ static bool swapAllListItems(int argCount)
     return true;
 }
 
+static bool joinListItems(int argCount)
+{
+    char *separator = "";
+    if (argCount > 0)
+        separator = AS_CSTRING(toString(pop()));
+
+    ObjList *list = AS_LIST(pop());
+    int capacity = 128;
+    bool change = false;
+    char *str = mp_calloc(1, sizeof(char) * capacity);
+    for (int i = 0; i < list->values.count; i++)
+    {
+        char *item = AS_CSTRING(toString(list->values.values[i]));
+        while (strlen(str) + strlen(item) + strlen(separator) > capacity)
+        {
+            capacity *= 2;
+            change = true;
+        }
+
+        if (change)
+            str = mp_realloc(str, capacity);
+        change = false;
+
+        strcat(str, item);
+        if (i < list->values.count - 1)
+            strcat(str, separator);
+    }
+
+    push(STRING_VAL(str));
+    mp_free(str);
+    return true;
+}
+
 static bool copyListShallow(int argCount)
 {
     if (argCount != 1)
@@ -624,12 +657,14 @@ bool listMethods(char *method, int argCount)
         return copyListShallow(argCount);
     else if (strcmp(method, "deepCopy") == 0)
         return copyListDeep(argCount);
-    else if (strcmp(method, "join") == 0)
-        return joinList(argCount);
+    // else if (strcmp(method, "join") == 0)
+    //     return joinList(argCount);
     else if (strcmp(method, "swap") == 0)
         return swapListItems(argCount);
     else if (strcmp(method, "swapAll") == 0)
         return swapAllListItems(argCount);
+    else if (strcmp(method, "join") == 0)
+        return joinListItems(argCount);
 
     runtimeError("List has no method %s()", method);
     return false;

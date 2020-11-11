@@ -1,0 +1,197 @@
+import query as default
+import math
+import random
+
+class GA
+{
+    var pc, pm, N
+    var P
+    var score
+    var minimize
+
+    func init(N, pc, pm)
+    {
+        if(pc is not num)
+            pc = 0.7
+        if(pm is not num)
+            pm = 0.001
+        if(N is not num)
+            N = 100
+
+        this.pc = pc
+        this.pm = pm
+        this.N = N
+        this.P = []
+        this.score = []
+        this.minimize = false
+    }
+
+    // Application functions
+    func new()
+    {
+        var b = []
+        while(len(b) < 8)
+        {
+            b.add(round(rand()))
+        }
+        return b.join('')
+    }
+
+    func fitness(id)
+    {
+        var n = 0
+        for(var bit in id)
+        {
+            if(bit == '1')
+                n++
+        }
+        return n
+    }
+
+    // GA functions
+    func runFor(iterations)
+    {
+        var score = 0
+        for(var i = 0; i < iterations; i++)
+        {
+            score = evolve()
+        }
+        return score
+    }
+
+    func runWhile(fn)
+    {
+        var score = evolve()
+        while(fn(score))
+        {
+            score = evolve()
+        }
+        return score
+    }
+
+    func evolve()
+    {
+        if(len(P) != N)
+            P = newPopulation()
+
+        var fitness_pop = from(P).apply(fitness).data
+        var first = fitness_pop[0]
+        var all = true
+        for(var v in fitness_pop)
+        {
+            if(v != first)
+                all = false
+        }
+        
+        var mean = math.mean(fitness_pop)
+        score.add(mean)
+
+        if(minimize)
+        {
+            var max = math.max(fitness_pop) + math.min(fitness_pop)
+            for(var i = 0; i < len(fitness_pop); i++)
+            {
+                fitness_pop[i] = max - fitness_pop[i]
+            }
+        }
+        
+        fitness_pop = fitness_pop ./ math.sum(fitness_pop)
+        
+        var newP = []
+        
+        var s1, s2
+        var p1, p2
+        var c, c1, c2
+
+        while(len(newP) < N)
+        {
+            s1 = select(fitness_pop)
+            s2 = s1
+            while(s1 == s2 && !all)
+            {
+                s2 = select(fitness_pop)
+            }
+
+            p1 = P[s1]
+            p2 = P[s2]
+
+            if(rand() < pc)
+            {
+                c = crossover(p1, p2)
+                c1 = c[0]
+                c2 = c[1]
+            }
+            else
+            {
+                c1 = p1
+                c2 = p2
+            }
+
+            if(rand() < pm)
+                c1 = mutation(c1)
+            if(rand() < pm)
+                c2 = mutation(c2)
+
+            newP.add(c1)
+            newP.add(c2)
+        }
+        
+        P = newP
+        return mean
+    }
+
+    func setPopulation(P)
+    {
+        if(P is not list)
+            return false
+
+        this.P = P
+        this.N = len(P)
+        return true
+    }
+
+    func newPopulation()
+    {
+        var P = []
+        while(len(P) < N)
+        {
+            P.add(new())
+        }
+        return P
+    }
+
+    // GA operators
+    func select(fitness_pop)
+    {
+        var r = rand()
+        var s = 0
+        for(var f, i in fitness_pop)
+        {
+            s += f
+            if(r < s)
+                return i
+        }
+        return len(fitness_pop) - 1
+    }
+
+    func crossover(p1, p2)
+    {
+        var L = math.min(len(p1), len(p2))
+        var locus = random.randi(0, L - 1)
+        if(locus == 0)
+            return [p1, p2]
+
+        var c1 = p1[0..(locus-1)] + p2[locus..(L-1)]
+        var c2 = p2[0..(locus-1)] + p1[locus..(L-1)]
+        return [c1, c2]
+    }
+
+    func mutation(c)
+    {
+        var locus = random.randi(0, len(c) - 1)
+        var bit = c[locus]
+        bit = bit == '1' ? '0' : '1'
+        c = c[0..(locus-1)] + bit + c[(locus+1)..(len(c) - 1)]
+        return c
+    }
+}

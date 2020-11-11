@@ -1,0 +1,16 @@
+import audio as default
+import math as default
+
+var fs = 48000
+var dt = 1 / fs
+var st = 5
+var t = 0..dt..st
+var F = 440
+var samples = sin((2 * pi * F) .* t)
+
+println('Playing...')
+play(samples, fs)
+while(isPlaying())
+{
+    wait(1)
+}

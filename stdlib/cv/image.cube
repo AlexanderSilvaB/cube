@@ -1,0 +1,175 @@
+enum ImreadModes
+{
+    IMREAD_UNCHANGED = -1,
+    IMREAD_GRAYSCALE = 0,
+    IMREAD_COLOR = 1,
+    IMREAD_ANYDEPTH = 2,
+    IMREAD_ANYCOLOR = 4,
+    IMREAD_LOAD_GDAL = 8,
+    IMREAD_REDUCED_GRAYSCALE_2 = 16,
+    IMREAD_REDUCED_COLOR_2 = 17,
+    IMREAD_REDUCED_GRAYSCALE_4 = 32,
+    IMREAD_REDUCED_COLOR_4 = 33,
+    IMREAD_REDUCED_GRAYSCALE_8 = 64,
+    IMREAD_REDUCED_COLOR_8 = 65,
+    IMREAD_IGNORE_ORIENTATION = 128
+}
+
+enum ImwriteEXRTypeFlags
+{
+    IMWRITE_EXR_TYPE_HALF = 1,
+    IMWRITE_EXR_TYPE_FLOAT = 2
+}
+
+enum ImwriteFlags
+{
+    IMWRITE_JPEG_QUALITY = 1,
+    IMWRITE_JPEG_PROGRESSIVE = 2,
+    IMWRITE_JPEG_OPTIMIZE = 3,
+    IMWRITE_JPEG_RST_INTERVAL = 4,
+    IMWRITE_JPEG_LUMA_QUALITY = 5,
+    IMWRITE_JPEG_CHROMA_QUALITY = 6,
+    IMWRITE_PNG_COMPRESSION = 16,
+    IMWRITE_PNG_STRATEGY = 17,
+    IMWRITE_PNG_BILEVEL = 18,
+    IMWRITE_PXM_BINARY = 32,
+    IMWRITE_EXR_TYPE = (3 << 4) + 0,
+    IMWRITE_WEBP_QUALITY = 64,
+    IMWRITE_PAM_TUPLETYPE = 128,
+    IMWRITE_TIFF_RESUNIT = 256,
+    IMWRITE_TIFF_XDPI = 257,
+    IMWRITE_TIFF_YDPI = 258,
+    IMWRITE_TIFF_COMPRESSION = 259,
+    IMWRITE_JPEG2000_COMPRESSION_X1000 = 272
+}
+
+enum ImwritePAMFlags
+{
+    IMWRITE_PAM_FORMAT_NULL = 0,
+    IMWRITE_PAM_FORMAT_BLACKANDWHITE = 1,
+    IMWRITE_PAM_FORMAT_GRAYSCALE = 2,
+    IMWRITE_PAM_FORMAT_GRAYSCALE_ALPHA = 3,
+    IMWRITE_PAM_FORMAT_RGB = 4,
+    IMWRITE_PAM_FORMAT_RGB_ALPHA = 5
+}
+
+enum ImwritePNGFlags
+{
+    IMWRITE_PNG_STRATEGY_DEFAULT = 0,
+    IMWRITE_PNG_STRATEGY_FILTERED = 1,
+    IMWRITE_PNG_STRATEGY_HUFFMAN_ONLY = 2,
+    IMWRITE_PNG_STRATEGY_RLE = 3,
+    IMWRITE_PNG_STRATEGY_FIXED = 4
+}
+
+var CV_8UC1 = 0
+var CV_8UC2 = 8
+var CV_8UC3 = 16
+var CV_8UC4 = 24
+var CV_8SC1 = 1
+var CV_8SC2 = 9
+var CV_8SC3 = 17
+var CV_8SC4 = 25
+var CV_16UC1 = 2
+var CV_16UC2 = 10
+var CV_16UC3 = 18
+var CV_16UC4 = 26
+var CV_16SC1 = 3
+var CV_16SC2 = 11
+var CV_16SC3 = 19
+var CV_16SC4 = 27
+var CV_32SC1 = 4
+var CV_32SC2 = 12
+var CV_32SC3 = 20
+var CV_32SC4 = 28
+var CV_32FC1 = 5
+var CV_32FC2 = 13
+var CV_32FC3 = 21
+var CV_32FC4 = 29
+var CV_64FC1 = 6
+var CV_64FC2 = 14
+var CV_64FC3 = 22
+var CV_64FC4 = 30
+
+native cv
+{
+    int32 imread(cstring filename, int32 flags = ImreadModes.IMREAD_COLOR);
+    cbool imwrite(cstring filename, int32 id);
+    dict props(int32 id);
+    raw getData(int32 id);
+    int32 imcreate(int32 rows, int32 cols, int32 type, list s);
+}
+
+class Mat
+{
+    var id
+    var rows, cols, dims, flags
+    var data
+    func init(rows, cols, type, s)
+    {
+        if(rows is num and cols is num)
+        {
+            if(type is null)
+                type = CV_8UC3
+            if(s is not list)
+                s = [0, 0, 0, 0]
+
+            id = imcreate(rows, cols, type, s)
+            var p = props(id)
+            this.rows = p.rows
+            this.cols = p.cols
+            this.dims = p.dims
+            this.flags = p.flags
+            this.data = getData(id)
+        }
+        else
+        {
+            this.id = -1
+            this.rows = 0
+            this.cols = 0
+            this.dims = 0
+            this.flags = 0
+            this.data = null
+        }
+    }
+
+    func dict()
+    {
+        return {
+            'id' : id,
+            'rows' : rows,
+            'cols' : cols,
+            'dims' : dims,
+            'flags' : flags,
+            'data' : data
+        };
+    }
+
+    func str()
+    {
+        return std.str(this.dict())
+    }
+
+    static func zeros(rows, cols, type)
+    {
+        return Mat(rows, cols, type, [0, 0, 0, 0])
+    }
+
+    static func ones(rows, cols, type)
+    {
+        return Mat(rows, cols, type, [1, 1, 1, 1])
+    }
+
+    static func fromId(id)
+    {
+        var img = Mat()
+        img.id = id
+        var p = props(id)
+        img.rows = p.rows
+        img.cols = p.cols
+        img.dims = p.dims
+        img.flags = p.flags
+        img.data = getData(id)
+        return img
+    }
+}

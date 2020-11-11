@@ -1,0 +1,18 @@
+import audio as default
+
+var fs = 48000
+
+println('Recording...')
+var id = record(5, fs)
+while(isRecording(id))
+{
+    wait(1)
+}
+
+var samples = read(id)
+println('Playing...')
+play(samples, fs)
+while(isPlaying())
+{
+    wait(1)
+}

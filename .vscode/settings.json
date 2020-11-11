@@ -1,5 +1,6 @@
 {
     "files.associations": {
+        "*.world": "xml",
         "cubix": "cube",
         "xstring": "cpp",
         "string": "cpp",
@@ -70,7 +71,8 @@
         "hash_set": "cpp",
         "unordered_set": "cpp",
         "future": "cpp",
-        "*.ipp": "cpp"
+        "*.ipp": "cpp",
+        "*.inc": "c"
     },
     "editor.formatOnSave": true,
     "files.watcherExclude": {

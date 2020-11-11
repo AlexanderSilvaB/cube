@@ -1,0 +1,16 @@
+native audio
+{
+    dict listInput();
+    dict listOutput();
+    cbool setInput(str);
+    cbool setOutput(str);
+
+    cbool isPlaying(int id = -1);
+    cbool isRecording(int id = -1);
+    int play(list samples, int sample_rate = 0);
+    int record(float seconds = 10, int sample_rate = 0);
+    list read(int id);
+
+    bytes draw(list samples, int width = 620, int height = 220);
+}
+

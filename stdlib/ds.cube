@@ -1,0 +1,262 @@
+import sorting
+
+class Stack
+{
+    var items
+
+    func init()
+    {
+        items = []
+    }
+
+    func push(item)
+    {
+        items.add(item)
+    }
+
+    func pop()
+    {
+        return items.pop()
+    }
+
+    func [](i)
+    {
+        return items[i]
+    }
+
+    func len()
+    {
+        return std.len(items)
+    }
+
+    func empty()
+    {
+        return (std.len(items) == 0)
+    }
+
+    func list()
+    {
+        return items
+    }
+
+    func str()
+    {
+        return std.str(items)
+    }
+}
+
+class Queue
+{
+    var items
+
+    func init()
+    {
+        items = []
+    }
+
+    func push(item)
+    {
+        items.insert(item, 0)
+    }
+
+    func pop()
+    {
+        return items.pop()
+    }
+
+    func [](i)
+    {
+        return items[i]
+    }
+
+    func len()
+    {
+        return std.len(items)
+    }
+
+    func empty()
+    {
+        return (std.len(items) == 0)
+    }
+
+    func list()
+    {
+        return items
+    }
+
+    func str()
+    {
+        return std.str(items)
+    }
+}
+
+class PriorityQueue
+{
+    var heap, count, fn
+
+    func init(fn)
+    {
+        heap = []
+        count = 0
+        this.fn = fn
+    }
+
+    func push(item, priority)
+    {
+        if(fn is func)
+            priority = fn(item)
+
+        var entry = [priority, count, item]
+        var index = -1
+        for(var i = 0; i < len(heap) and index == -1; i++)
+        {
+            if(heap[i][0] >= priority)
+            {
+                index = i
+                var j = i
+                while(j < len(heap) and heap[j][0] == priority and heap[j][1] < count)
+                {
+                    index++
+                    j++
+                }
+            }
+        }
+
+        if(index < 0)
+            index = len(heap)
+        heap.insert(entry, index)
+        count += 1
+    }
+
+    func pop()
+    {
+        var entry = heap.pop()
+        return entry[2]
+    }
+
+    func [](i)
+    {
+        return heap[i][2]
+    }
+
+    func len()
+    {
+        return std.len(heap)
+    }
+
+    func empty()
+    {
+        return (std.len(heap) == 0)
+    }
+
+    func list()
+    {
+        var items = []
+        for(var i in heap)
+        {
+            items.add(i[2])
+        }
+        return items
+    }
+
+    func str()
+    {
+        return std.str(this.list())
+    }
+}
+
+class Graph
+{
+    var graph
+    var nodes
+
+    func init()
+    {
+        graph = {}
+        nodes = []
+    }
+
+    func add(from, to)
+    {
+        if(from is list)
+        {
+            for(var node in from)
+            {
+                add(node, to)
+            }
+            return;
+        }
+
+        if(to is list)
+        {
+            for(var node in to)
+            {
+                add(from, node)
+            }
+            return;
+        }
+
+        if(from not in nodes)
+            nodes.add(from)
+        if(to not in nodes)
+            nodes.add(to)
+
+        if(from not in graph)
+            graph[from] = []
+        if(to not in graph)
+            graph[to] = []
+        graph[from].add(to)
+    }
+
+    func len()
+    {
+        return len(nodes)
+    }
+
+    func find(from, to, fn)
+    {
+        if(fn is null)
+            fn = dfs
+        return fn(graph, from, to)
+    }
+
+    func str()
+    {
+        return std.str(graph)
+    }
+}
+
+func dfs(graph, from, to)
+{
+    var visited = []
+    var path = []
+    var adj
+
+    func search(n)
+    {
+        if(n in visited)
+            return false
+
+        visited.add(n)
+
+        if(n == to)
+            return true
+
+        adj = graph[n]
+        for(var s in adj)
+        {
+            if(search(s))
+            {
+                path.add(s)
+                return true
+            }
+        }
+
+        return false
+    }
+
+    search(from)
+    path.add(from)
+
+    return sorting.reverse(path)
+}

@@ -227,6 +227,36 @@ void native_callback(void *fn, cube_native_var *argsNative)
     ((ThreadFrame *)tf->threadFrame)->running = true;
 }
 
+char *loadNativeLib(char *path, void **handle)
+{
+#ifdef _WIN32
+    *handle = LoadLibrary(TEXT(path));
+#else
+    // lib->handle = dlopen(path, RTLD_NOW | RTLD_GLOBAL);
+    *handle = dlopen(path, RTLD_LAZY);
+#endif
+
+    if (*handle == NULL)
+    {
+        char *npath = (char *)mp_malloc(strlen(path) + 16);
+        strcpy(npath, "lib");
+        strcat(npath, path);
+
+#ifdef _WIN32
+        *handle = LoadLibrary(TEXT(npath));
+#else
+        // lib->handle = dlopen(path, RTLD_NOW | RTLD_GLOBAL);
+        *handle = dlopen(npath, RTLD_LAZY);
+#endif
+
+        if (*handle == NULL)
+            return NULL;
+        else
+            path = npath;
+    }
+    return path;
+}
+
 bool openNativeLib(ObjNativeLib *lib)
 {
     if (lib->handle == NULL)
@@ -243,14 +273,8 @@ bool openNativeLib(ObjNativeLib *lib)
 
         if (lib->handle == NULL)
         {
-#ifdef _WIN32
-            lib->handle = LoadLibrary(TEXT(path));
-#else
-            // lib->handle = dlopen(path, RTLD_NOW | RTLD_GLOBAL);
-            lib->handle = dlopen(path, RTLD_LAZY);
-#endif
-
-            if (lib->handle == NULL)
+            path = loadNativeLib(path, &lib->handle);
+            if (path == NULL)
             {
 #ifdef _WIN32
                 runtimeError("Unable to open native lib: '%s'\nError: #%ld", lib->name->chars, GetLastError());
@@ -1658,7 +1682,7 @@ NativeTypes getNativeType(const char *name)
         return TYPE_CSTRING;
     else if (strcmp(name, "uchar_array") == 0 || strcmp(name, "cbytes") == 0 || strcmp(name, "raw") == 0)
         return TYPE_CBYTES;
-    else if (strcmp(name, "pointer") == 0)
+    else if (strcmp(name, "pointer") == 0 || strcmp(name, "ptr") == 0)
         return TYPE_CBYTES;
 
     return TYPE_UNKNOWN;

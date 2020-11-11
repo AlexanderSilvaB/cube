@@ -27,6 +27,9 @@ class Widget
 
         if(attrib is not dict)
             attrib = {}
+        
+        if(children is null and 'children' in attrib)
+            children = attrib['children']
 
         this.className = className
         this.enclose = null
@@ -37,8 +40,15 @@ class Widget
         width = num( attrib.get('width', inf) )
         height = num( attrib.get('height', inf) )
 
+        this.children = []
         if(children is list)
-            this.children = children
+        {
+            for(var child in children)
+            {
+                if(child is Widget)
+                    this.children.add(child)
+            }
+        }
         else if(children is Widget)
             this.children = [children]
         else
@@ -47,6 +57,9 @@ class Widget
         if(on is not dict)
             on = {}
         this.on = on
+
+        if(attrib.contains("children"))
+            attrib.remove('children')
         this.attrib = attrib
     }
 
@@ -168,6 +181,89 @@ class Widget
             if(child is Widget)
                 child.register(window)
         }
+    }
+
+    static func decode(data)
+    {
+        if(len(data) != 1)
+            return null
+
+        var tag = data.keys()[0]
+        data = data[tag]
+
+        var children = data['children']
+        if(children is not list)
+            children = []
+
+        var klass = null
+        try
+        {
+            klass = eval(tag)
+        }
+
+        if(klass is null or klass is not Widget)
+            return null
+
+        if(data.contains("children"))
+            data.remove('children')
+
+        for(var i = 0; i < len(children); i++)
+        {
+            children[i] = Widget.decode(children[i])
+            if(children[i] is null)
+                return null
+        }
+
+        var obj = klass(data, children)
+        return obj
+    }
+
+    func encode()
+    {
+        var key = getClassName(this)
+        var _children = []
+        var c
+        for(var child in children)
+        {
+            c = child.encode()
+            if(c is null)
+                return null
+
+            _children.add(c)
+        }
+
+        var data = copy(attrib)
+        data['children'] = _children
+
+        return {
+            key : data
+        }
+    }
+
+    static func load(fileName)
+    {
+        var file = open(fileName)
+        if(file is null)
+            return null
+        var text = file.read()
+        file.close()
+
+        var data = dict(text)
+        return Widget.decode(data)
+    }
+
+    func save(fileName)
+    {
+        var data = this.encode()
+        if(data is null)
+            return false
+
+        var file = open(fileName, 'w')
+        if(file is null)
+            return false
+        file.write(data)
+        file.close()
+        return true
     }
 }
 

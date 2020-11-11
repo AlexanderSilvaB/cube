@@ -133,6 +133,40 @@ extern "C"
         return result;
     }
 
+    EXPORTED cube_native_var *reshape_matrix(cube_native_var *ptr, int m, int n)
+    {
+        cube_native_var *result = NATIVE_NULL();
+        Matrix *mat = getMatrix(ptr);
+        if (mat == NULL)
+            return result;
+
+        Matrix *res;
+        res = constructor(m, n);
+        if (!res)
+            return result;
+
+        int i_ = 0, j_ = 0;
+        for (int i = 0; i < m; i++)
+        {
+            for (int j = 0; j < n; j++)
+            {
+                if (j_ < mat->columns && i_ < mat->rows)
+                    res->numbers[j][i] = mat->numbers[j_][i_];
+                j_++;
+                if (j_ >= mat->columns)
+                {
+                    j_ = 0;
+                    i_++;
+                }
+            }
+        }
+
+        matrices[id] = res;
+        TO_NATIVE_NUMBER(result, id);
+        id++;
+        return result;
+    }
+
     EXPORTED cube_native_var *invert_matrix(cube_native_var *ptr)
     {
         cube_native_var *result = NATIVE_NULL();

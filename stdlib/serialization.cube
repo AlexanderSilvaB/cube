@@ -4,14 +4,14 @@ class Serializable
 {
     func __serialize()
     {
-        var fields = getFields(this)
+        var fields = std.getFields(this)
         var value
         var data = {}
         for(var field in fields)
         {
-            value = getField(this, field)
+            value = std.getField(this, field)
             if(value is null)
-                data[field] = str(value)
+                data[field] = std.str(value)
             else if(value is Serializable)
                 data[field] = value.__serialize()
             else if(value is not bool and 
@@ -22,10 +22,10 @@ class Serializable
                 continue
             else
                 data[field] = value
-            data[field+'_type'] = type(value)
+            data[field+'_type'] = std.type(value)
         }
 
-        data['class'] = getClassName(this)
+        data['class'] = std.getClassName(this)
         
         return data
     }
@@ -48,7 +48,7 @@ class Serializable
 
     func __deserialize(data)
     {
-        var fields = getFields(this)
+        var fields = std.getFields(this)
         var value, type, obj, className
         for(var field in fields)
         {
@@ -60,7 +60,7 @@ class Serializable
             {
                 case 'null':
                 {
-                    setField(this, field, null)
+                    std.setField(this, field, null)
                 }
                 case 'instance':
                 {
@@ -71,13 +71,13 @@ class Serializable
                         if(obj is instance)
                         {
                             obj.__deserialize(value)
-                            setField(this, field, obj)
+                            std.setField(this, field, obj)
                         }
                     }
                 }
                 default:
                 {
-                    setField(this, field, value)
+                    std.setField(this, field, value)
                 }
             }
         }

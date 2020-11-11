@@ -1,0 +1,76 @@
+import xml as default
+
+class HTML : XML
+{
+    func init(version, root)
+    {
+        if(version is null)
+            version = 5
+        super.init(version, 'UTF-8', root)
+
+        unclose.add('meta')
+        unclose.add('link')
+    }
+
+    func str()
+    {
+        var text = '<?DOCTYPE ';
+        if(version == 5)
+            text += 'html>\n'
+        else
+            text += 'HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "https://www.w3.org/TR/html4/strict.dtd">\n'
+
+        if(root is not null)
+            text += root.str()
+        return text
+    }
+
+    func __header(text)
+    {
+        var orig = text
+        var version = this.version
+        var encoding = this.encoding
+        var name
+        var token = __token(text)
+        var id = token[0]
+        text = token[1]
+
+        if(id != '<')
+            return null
+
+        token = __token(text)
+        id = token[0]
+        text = token[1]
+
+        if(id != '!')
+            return [orig, version, encoding]
+
+        token = __token(text)
+        id = token[0]
+        text = token[1]
+
+        if(id != 'DOCTYPE')
+            return null
+
+        token = __token(text)
+        id = token[0]
+        text = token[1]
+        while(id is str and id != '>')
+        {
+            if(lower(id) == 'html')
+            {
+                version = 5
+            }
+            else if(lower(id) == 'public')
+            {
+                version = 4
+            }
+
+            token = __token(text)
+            id = token[0]
+            text = token[1]
+        }
+
+        return [XML.__skip(text), version, encoding]
+    }
+}

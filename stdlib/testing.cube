@@ -77,10 +77,13 @@ class Test
                 out = t[1]
                 name = t[2]
 
-                if(ts is func)
-                    ret = ts()
-                else
-                    ret = ts
+                try
+                {
+                    if(ts is func)
+                        ret = ts()
+                    else
+                        ret = ts
+                }
                 
                 if(ret == out)
                 {

@@ -79,7 +79,7 @@ void start(const char *path, const char *scriptName, const char *rootPath)
         strcat(newPath, "/stdlib/");
         addPath(newPath);
 
-		strcpy(newPath, rootPath);
+        strcpy(newPath, rootPath);
         strcat(newPath, "/stdlib/libs/");
         addPath(newPath);
 
@@ -88,10 +88,11 @@ void start(const char *path, const char *scriptName, const char *rootPath)
 
     addPath("libs/");
     addPath("stdlib/");
+    addPath("stdlib/libs/");
     addPath("../share/cube/");
     addPath("../share/cube/libs/");
     addPath("../share/cube/stdlib/");
-	addPath("../share/cube/stdlib/libs/");
+    addPath("../share/cube/stdlib/libs/");
 
 #ifdef _WIN32
     addPath("C:/cube/share/cube/");
@@ -103,12 +104,12 @@ void start(const char *path, const char *scriptName, const char *rootPath)
     addPath("C:/Program Files (x86)/cube/share/cube/");
     addPath("C:/Program Files (x86)/cube/share/cube/libs/");
     addPath("C:/Program Files (x86)/cube/share/cube/stdlib/");
-	addPath("C:/Program Files (x86)/cube/share/cube/stdlib/libs/");
+    addPath("C:/Program Files (x86)/cube/share/cube/stdlib/libs/");
 #else
     addPath("/usr/local/share/cube/");
     addPath("/usr/local/share/cube/libs/");
     addPath("/usr/local/share/cube/stdlib/");
-	addPath("/usr/local/share/cube/stdlib/libs/");
+    addPath("/usr/local/share/cube/stdlib/libs/");
 #endif
 
     addPath("~/.cube/");

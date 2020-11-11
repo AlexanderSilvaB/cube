@@ -504,7 +504,7 @@ class LibCreator
             type = 'bytes'
         else if(type.endsWith('*'))
             type = 'raw'
-        else if(!(type in supportedTypes))
+        else if(type not in supportedTypes)
             type = 'dict'
         return type
     }

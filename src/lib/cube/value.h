@@ -19,6 +19,9 @@ typedef enum
     VAL_OBJ
 } ValueType;
 
+#define BOOL_TYPE bool
+#define NUMBER_TYPE double
+
 #ifdef NAN_TAGGING
 
 // A mask that selects the sign bit.
@@ -78,9 +81,6 @@ static inline Value numToValue(double num)
 }
 
 #else
-
-#define BOOL_TYPE bool
-#define NUMBER_TYPE double
 
 typedef struct
 {

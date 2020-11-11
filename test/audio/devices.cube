@@ -1,0 +1,7 @@
+import audio as default
+
+var inDevices = listInput()
+var outDevices = listOutput()
+
+println('Input: ', inDevices.keys())
+println('Output: ', outDevices.keys())

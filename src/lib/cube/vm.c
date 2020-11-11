@@ -3214,48 +3214,36 @@ InterpretResult run()
                 }
                 DISPATCH();
             }
-            OPCASE(MULTIPLY) : istrue = READ_BYTE() == OP_TRUE;
-            if (istrue && instanceOperation(".*"))
+            OPCASE(MULTIPLY) :
             {
-                frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
-            }
-            else if (instanceOperation("*"))
-            {
-                frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
-            }
-            else if (IS_LIST(peek(1)) && istrue)
-            {
-                Value value = peek(0);
-                ObjList *list = copyList(AS_LIST(peek(1)), true);
-                if (!IS_LIST(value))
+                istrue = READ_BYTE() == OP_TRUE;
+                if (istrue && instanceOperation(".*"))
                 {
-                    for (int i = 0; i < list->values.count; i++)
-                    {
-                        if (!operateValues(list->values.values[i], value, &list->values.values[i], "*"))
-                        {
-                            if (!checkTry(frame))
-                                return INTERPRET_RUNTIME_ERROR;
-                            else
-                                break;
-                        }
-                    }
+                    frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
                 }
-                else
+                else if (instanceOperation("*"))
                 {
-                    ObjList *list2 = AS_LIST(value);
-                    if (list2->values.count != list->values.count)
+                    frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+                }
+                else if ((IS_LIST(peek(0)) || IS_LIST(peek(1))) && istrue)
+                {
+                    Value value;
+                    ObjList *list = NULL;
+                    if (IS_LIST(peek(1)))
                     {
-                        runtimeError("Lists size doesn't match.");
-                        if (!checkTry(frame))
-                            return INTERPRET_RUNTIME_ERROR;
-                        else
-                            DISPATCH();
+                        value = peek(0);
+                        list = copyList(AS_LIST(peek(1)), true);
                     }
                     else
                     {
-                        for (int i = 0; i < list2->values.count; i++)
+                        value = peek(1);
+                        list = copyList(AS_LIST(peek(0)), true);
+                    }
+
+                    if (!IS_LIST(value))
+                    {
+                        for (int i = 0; i < list->values.count; i++)
                         {
-                            value = list2->values.values[i];
                             if (!operateValues(list->values.values[i], value, &list->values.values[i], "*"))
                             {
                                 if (!checkTry(frame))
@@ -3265,37 +3253,63 @@ InterpretResult run()
                             }
                         }
                     }
+                    else
+                    {
+                        ObjList *list2 = AS_LIST(value);
+                        if (list2->values.count != list->values.count)
+                        {
+                            runtimeError("Lists size doesn't match.");
+                            if (!checkTry(frame))
+                                return INTERPRET_RUNTIME_ERROR;
+                            else
+                                DISPATCH();
+                        }
+                        else
+                        {
+                            for (int i = 0; i < list2->values.count; i++)
+                            {
+                                value = list2->values.values[i];
+                                if (!operateValues(list->values.values[i], value, &list->values.values[i], "*"))
+                                {
+                                    if (!checkTry(frame))
+                                        return INTERPRET_RUNTIME_ERROR;
+                                    else
+                                        break;
+                                }
+                            }
+                        }
+                    }
+                    pop();
+                    pop();
+                    push(OBJ_VAL(list));
                 }
-                pop();
-                pop();
-                push(OBJ_VAL(list));
-            }
-            else if (IS_LIST(peek(1)) && IS_NUMBER(peek(0)))
-            {
-                int factor = AS_NUMBER(peek(0));
-                Value listValue = peek(1);
+                else if (IS_LIST(peek(1)) && IS_NUMBER(peek(0)))
+                {
+                    int factor = AS_NUMBER(peek(0));
+                    Value listValue = peek(1);
 
-                ObjList *list = NULL;
-                if (factor == 0)
-                    list = initList();
+                    ObjList *list = NULL;
+                    if (factor == 0)
+                        list = initList();
+                    else
+                    {
+                        list = copyList(AS_LIST(listValue), true);
+                        ObjList *clone = copyList(AS_LIST(listValue), true);
+                        for (int i = 1; i < factor; i++)
+                        {
+                            stretchList(list, clone);
+                        }
+                    }
+
+                    pop();
+                    pop();
+
+                    push(OBJ_VAL(list));
+                }
                 else
                 {
-                    list = copyList(AS_LIST(listValue), true);
-                    ObjList *clone = copyList(AS_LIST(listValue), true);
-                    for (int i = 1; i < factor; i++)
-                    {
-                        stretchList(list, clone);
-                    }
+                    BINARY_OP(NUMBER_VAL, *);
                 }
-
-                pop();
-                pop();
-
-                push(OBJ_VAL(list));
-            }
-            else
-            {
-                BINARY_OP(NUMBER_VAL, *);
             }
             DISPATCH();
             OPCASE(DIVIDE) :
@@ -3649,6 +3663,7 @@ InterpretResult run()
 
             OPCASE(IN) :
             {
+                istrue = READ_BYTE() == OP_TRUE;
                 Value container = peek(0);
                 Value item = peek(1);
                 Value result;
@@ -3734,6 +3749,9 @@ InterpretResult run()
                     result = BOOL_VAL(valuesEqual(container, item));
                 }
 
+                if (istrue)
+                    result = BOOL_VAL(!AS_BOOL(result));
+
                 pop();
                 pop();
                 push(result);
@@ -3749,7 +3767,7 @@ InterpretResult run()
                 Value ret;
                 if (strcmp(objType, type->chars) == 0)
                 {
-                    ret = not ? FALSE_VAL : TRUE_VAL;
+                    ret = not? FALSE_VAL : TRUE_VAL;
                 }
                 else
                 {
@@ -3757,20 +3775,30 @@ InterpretResult run()
                     {
                         ObjInstance *instance = AS_INSTANCE(obj);
                         if (inherits(instance->klass, type))
-                            ret = not ? FALSE_VAL : TRUE_VAL;
+                            ret = not? FALSE_VAL : TRUE_VAL;
                         else
-                            ret = not ? TRUE_VAL : FALSE_VAL;
+                            ret = not? TRUE_VAL : FALSE_VAL;
+                    }
+                    else if (IS_CLASS(obj))
+                    {
+                        ObjClass *klass = AS_CLASS(obj);
+                        if (inherits(klass, type))
+                            ret = not? FALSE_VAL : TRUE_VAL;
+                        else
+                            ret = not? TRUE_VAL : FALSE_VAL;
                     }
                     else if (IS_ENUM_VALUE(obj))
                     {
                         ObjEnumValue *enumValue = AS_ENUM_VALUE(obj);
                         if (strcmp(enumValue->enume->name->chars, type->chars) == 0)
                         {
-                            ret = not ? FALSE_VAL : TRUE_VAL;
+                            ret = not? FALSE_VAL : TRUE_VAL;
                         }
+                        else
+                            ret = not? TRUE_VAL : FALSE_VAL;
                     }
                     else
-                        ret = not ? TRUE_VAL : FALSE_VAL;
+                        ret = not? TRUE_VAL : FALSE_VAL;
                 }
 
                 pop();

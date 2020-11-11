@@ -878,7 +878,10 @@ static void binary(bool canAssign)
             emitBytes(OP_POW, operatorType == TOKEN_DOT_POW ? OP_TRUE : OP_FALSE);
             break;
         case TOKEN_IN:
-            emitByte(OP_IN);
+            emitBytes(OP_IN, OP_FALSE);
+            break;
+        case TOKEN_NOT_IN:
+            emitBytes(OP_IN, OP_TRUE);
             break;
         default:
             return; // Unreachable.
@@ -1653,6 +1656,7 @@ ParseRule rules[] = {
     {NULL, NULL, PREC_NULL},         // TOKEN_WHILE
     {NULL, NULL, PREC_NULL},         // TOKEN_DO
     {NULL, binary, PREC_TERM},       // TOKEN_IN
+    {NULL, binary, PREC_TERM},       // TOKEN_NOT_IN
     {NULL, is, PREC_TERM},           // TOKEN_IS
     {NULL, NULL, PREC_NULL},         // TOKEN_CONTINUE
     {NULL, NULL, PREC_NULL},         // TOKEN_BREAK
@@ -3460,9 +3464,16 @@ bool initByteCode(FILE *file)
 
 bool writeByteCode(FILE *file, Value value)
 {
-#ifndef NAN_TAGGING
-    uint32_t type = value.type;
+    uint32_t type = 0;
     uint32_t objType = 0;
+    if (IS_NULL(value))
+        type = 0;
+    else if (IS_BOOL(value))
+        type = 1;
+    else if (IS_NUMBER(value))
+        type = 2;
+    else
+        type = 3;
 
     if (IS_OBJ(value))
         objType = OBJ_TYPE(value);
@@ -3481,12 +3492,14 @@ bool writeByteCode(FILE *file, Value value)
 
     if (IS_BOOL(value))
     {
-        if (fwrite(&value.as.boolean, sizeof(value.as.boolean), 1, file) != 1)
+        BOOL_TYPE v = AS_BOOL(value);
+        if (fwrite(&v, sizeof(v), 1, file) != 1)
             return false;
     }
     else if (IS_NUMBER(value))
     {
-        if (fwrite(&value.as.number, sizeof(value.as.number), 1, file) != 1)
+        NUMBER_TYPE v = AS_NUMBER(value);
+        if (fwrite(&v, sizeof(v), 1, file) != 1)
             return false;
     }
     else if (IS_STRING(value))
@@ -3672,48 +3685,12 @@ bool writeByteCode(FILE *file, Value value)
                 return false;
         }
     }
-    else if (value.type == OBJ_UPVALUE)
+    else if (IS_UPVALUE(value))
     {
-        /*
-        ObjUpvalue *upvalue = (ObjUpvalue *)AS_OBJ(value);
-        char valid;
-        if (upvalue->location)
-        {
-          valid = 255;
-          if (fwrite(&valid, sizeof(valid), 1, file) != 1)
-            return false;
-          if (!writeByteCode(file, *upvalue->location))
-            return false;
-        }
-        else
-        {
-          valid = 250;
-          if (fwrite(&valid, sizeof(valid), 1, file) != 1)
-            return false;
-        }
-
-        if (!writeByteCode(file, upvalue->closed))
-          return false;
-
-        if (upvalue->next)
-        {
-          valid = 255;
-          if (fwrite(&valid, sizeof(valid), 1, file) != 1)
-            return false;
-          if (!writeByteCode(file, OBJ_VAL(upvalue->next)))
-            return false;
-        }
-        else
-        {
-          valid = 250;
-          if (fwrite(&valid, sizeof(valid), 1, file) != 1)
-            return false;
-        }
-        */
         printf("Invalid bytecode: UpValue (Valid only on runtime)\n");
         return false;
     }
-#endif
+
     return true;
 }
 
@@ -3765,7 +3742,6 @@ Value loadByteCode(const char *source, uint32_t *pos, uint32_t total)
 {
     Value value = NULL_VAL;
 
-#ifndef NAN_TAGGING
     uint32_t type = READ(uint32_t);
     uint32_t objType = READ(uint32_t);
     // printf("Load: %d, %d\n", type, objType);
@@ -3921,49 +3897,12 @@ Value loadByteCode(const char *source, uint32_t *pos, uint32_t total)
         }
         else if (objType == OBJ_UPVALUE)
         {
-            /*
-            ObjUpvalue *upvalue = newUpvalue();
-            char valid;
-            if (upvalue->location)
-            {
-              valid = 255;
-              if (fwrite(&valid, sizeof(valid), 1, file) != 1)
-                return false;
-              if (!writeByteCode(file, *upvalue->location))
-                return false;
-            }
-            else
-            {
-              valid = 250;
-              if (fwrite(&valid, sizeof(valid), 1, file) != 1)
-                return false;
-            }
-
-            if (!writeByteCode(file, upvalue->closed))
-              return false;
-
-            if (upvalue->next)
-            {
-              valid = 255;
-              if (fwrite(&valid, sizeof(valid), 1, file) != 1)
-                return false;
-              if (!writeByteCode(file, OBJ_VAL(upvalue->next)))
-                return false;
-            }
-            else
-            {
-              valid = 250;
-              if (fwrite(&valid, sizeof(valid), 1, file) != 1)
-                return false;
-            }
-            */
             printf("Invalid bytecode: UpValue (Valid only on runtime)\n");
         }
     }
-// printf("Value: ");
-// printValue(value);
-// printf("\n");
-#endif
+    // printf("Value: ");
+    // printValue(value);
+    // printf("\n");
     return value;
 }
 

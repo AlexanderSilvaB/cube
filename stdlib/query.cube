@@ -38,6 +38,11 @@ class Query
         return Query(ndata)
     }
 
+    func apply(fn)
+    {
+        return select(fn)
+    }
+
     func where(fn)
     {
         var ndata = []

@@ -1,0 +1,21 @@
+import audio as default
+import cv
+
+var fs = 48000
+
+println('Recording...')
+var id = record(2, fs)
+while(isRecording(id))
+{
+    wait(1)
+}
+
+var samples = read(id)
+
+var W = 620, H = 220
+var data = draw(samples, W, H)
+var img = cv.Mat(H, W)
+data.copyTo(img.data)
+
+cv.imshow("Waveform", img.id)
+cv.waitKey(0)

@@ -1,0 +1,96 @@
+/*
+    @ - native
+    > - big-endian
+    < - little-endian
+
+
+    x - pad byte - null
+    c - char - str
+    b - signed char - num
+    B - unsigned char - num
+    ? - bool - bool
+    h - short - num
+    H - unsigned short - num
+    i - int - num
+    I - unsigned int - num
+    l - long - num
+    L - unsigned long - num
+    q - long long - num
+    Q - unsigned long long - num
+    f - float - num
+    d - double - num
+    s - char[] - str
+    p - char[] - str
+    P - void* - num
+*/
+
+var orderChars = ['@', '>', '<']
+var fmtChars = ['x', 'c', 'b', 'B', '?', 'h', 'H', 'i', 'I', 'l', 'L', 'q', 'Q', 'f', 'd', 's', 'p', 'P']
+
+func pack(fmt, v1)
+{
+    var order = '@'
+    var f = 'x'
+    var index = 1
+    var ret = []
+    var v
+    while(index < len(args) and len(fmt) > 0)
+    {
+        if(fmt[0] in orderChars)
+        {
+            order = fmt[0]
+            fmt = fmt.from(1)
+        }
+        if(fmt[0] in fmtChars)
+        {
+            f = fmt[0]
+            fmt = fmt.from(1)
+        }
+
+        if(len(args) > index)
+        {
+            v = args[index]
+            ret.add(bin(v, f))
+        }
+
+        index++
+    }
+
+    return ret.join('')
+}
+
+func unpack(fmt, s)
+{
+    var order = '@'
+    var f = 'x'
+    var index = 0
+    var ret = []
+    var v
+    while(index < len(s) and len(fmt) > 0)
+    {
+        if(fmt[0] in orderChars)
+        {
+            order = fmt[0]
+            fmt = fmt.from(1)
+        }
+        if(fmt[0] in fmtChars)
+        {
+            f = fmt[0]
+            fmt = fmt.from(1)
+        }
+
+        if(len(s) > index)
+        {
+            v = s[index...len(s)]
+            index += mbin(v, f)
+            ret.add(unbin(v, f))
+        }
+    }
+    
+    if(len(ret) == 0)
+        return null
+    else if(len(ret) == 1)
+        return ret[0]
+    else
+        return ret
+}

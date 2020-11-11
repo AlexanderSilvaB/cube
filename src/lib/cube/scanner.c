@@ -229,6 +229,23 @@ static TokenType checkKeyword(Scanner *scanner, int start, int length, const cha
 {
     if (scanner->current - scanner->start == start + length && memcmp(scanner->start + start, rest, length) == 0)
     {
+        if (type == TOKEN_BANG)
+        {
+            char *start = scanner->start;
+            char *current = scanner->current;
+            int line = scanner->line;
+            Token next = scanToken(scanner);
+            if (next.type == TOKEN_IN)
+            {
+                return TOKEN_NOT_IN;
+            }
+            else
+            {
+                scanner->current = current;
+                scanner->start = start;
+                scanner->line = line;
+            }
+        }
         return type;
     }
 
@@ -634,6 +651,8 @@ Token scanToken(Scanner *scanner)
                 else
                     return makeToken(scanner, TOKEN_EXPAND_IN);
             }
+            else if (match(scanner, ':'))
+                return makeToken(scanner, TOKEN_EXPAND_EX);
             else if (match(scanner, '+'))
                 return makeToken(scanner, TOKEN_DOT_PLUS);
             else if (match(scanner, '-'))

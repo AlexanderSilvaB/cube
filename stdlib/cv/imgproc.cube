@@ -1,0 +1,29 @@
+enum MorphShapes
+{
+    MORPH_RECT = 0,
+    MORPH_CROSS = 1,
+    MORPH_ELLIPSE = 2
+}
+
+enum MorphTypes
+{
+    MORPH_ERODE = 0,
+    MORPH_DILATE = 1,
+    MORPH_OPEN = 2,
+    MORPH_CLOSE = 3,
+    MORPH_GRADIENT = 4,
+    MORPH_TOPHAT = 5,
+    MORPH_BLACKHAT = 6,
+    MORPH_HITMISS = 7
+}
+
+enum SpecialFilter
+{
+    FILTER_SCHARR = -1
+}
+
+native cv
+{
+    int bilateralFilter(int src, int dst, int d, double sigmaColor, double sigmaSpace, int borderType = BorderTypes.BORDER_DEFAULT);
+    int blur(int src, int dst, int kw, int kh = -1, int x = -1, int y = -1, int borderType = BorderTypes.BORDER_DEFAULT);
+}

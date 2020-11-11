@@ -11,6 +11,7 @@
 
 #define OBJ_TYPE(value) (AS_OBJ(value)->type)
 
+#define IS_UPVALUE(value) isObjType(value, OBJ_UPVALUE)
 #define IS_BOUND_METHOD(value) isObjType(value, OBJ_BOUND_METHOD)
 #define IS_CLASS(value) isObjType(value, OBJ_CLASS)
 #define IS_ENUM(value) isObjType(value, OBJ_ENUM)

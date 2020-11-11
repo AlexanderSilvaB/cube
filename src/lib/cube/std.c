@@ -32,6 +32,23 @@
 #include "version.h"
 #include "vm.h"
 
+typedef union {
+    bool b;
+    char c;
+    unsigned char uc;
+    short s;
+    unsigned short us;
+    int i;
+    unsigned int ui;
+    float f;
+    double d;
+    long l;
+    unsigned long ul;
+    long long ll;
+    unsigned long long ull;
+    void *ptr;
+} bin_val;
+
 #ifndef S_ISDIR
 #define S_ISDIR(mode) (((mode)&S_IFMT) == S_IFDIR)
 #endif
@@ -664,10 +681,35 @@ Value hexNative(int argCount, Value *args)
     return STRING_VAL(hex_string);
 }
 
+static void appendBits(char *str, bin_val val, int len)
+{
+    for (int i = len - 1; i >= 0; i--)
+    {
+        if ((val.l >> i) & 0x1)
+            strcat(str, "1");
+        else
+            strcat(str, "0");
+    }
+}
+
+static void fromBits(char *str, bin_val *val, int len)
+{
+    for (int i = 0; i < len; i++)
+    {
+        if (str[i] == '1')
+            val->l |= 0x1 << (len - i - 1);
+    }
+}
+
 Value binNative(int argCount, Value *args)
 {
     if (argCount == 0)
-        return STRING_VAL("00000000");
+        return NULL_VAL;
+
+    char fmt = 'b';
+    if (argCount > 1 && IS_STRING(args[1]))
+        fmt = AS_CSTRING(args[1])[0];
+
     if (IS_INSTANCE(args[0]))
     {
         Value method;
@@ -699,25 +741,500 @@ Value binNative(int argCount, Value *args)
         }
     }
 
-    int bin = (int)AS_NUMBER(toNumber(args[0]));
-    char bin_string[33];
-    int len = 4;
-    if (bin < 1 << 8)
-        len = 1;
-    else if (bin < 1 << 16)
-        len = 2;
-
-    bin_string[0] = '\0';
-
-    for (int i = 8 * len; i >= 0; i--)
+    char *str = NULL;
+    bin_val *bval = NULL;
+    int len = 0;
+    int num = 1;
+    switch (fmt)
     {
-        if ((bin >> i) & 0x1)
-            strcat(bin_string, "1");
-        else
-            strcat(bin_string, "0");
+        case 'x':
+            len = 0;
+            num = 0;
+            break;
+        case 'c': {
+            len = 8;
+            num = 1;
+            bval = mp_malloc(sizeof(bin_val) * num);
+            bval[0].c = AS_CSTRING(toString(args[0]))[0];
+            break;
+        }
+        case 'b': {
+            num = 1;
+            len = 8;
+            bval = mp_malloc(sizeof(bin_val) * num);
+            bval[0].c = (char)AS_NUMBER(toNumber(args[0]));
+            break;
+        }
+        case 'B': {
+            num = 1;
+            len = 8;
+            bval = mp_malloc(sizeof(bin_val) * num);
+            bval[0].uc = (unsigned char)AS_NUMBER(toNumber(args[0]));
+            break;
+        }
+        case '?': {
+            num = 1;
+            len = 1;
+            bval = mp_malloc(sizeof(bin_val) * num);
+            bval[0].b = (bool)AS_BOOL(toBool(args[0]));
+            break;
+        }
+        case 'h': {
+            num = 1;
+            len = 16;
+            bval = mp_malloc(sizeof(bin_val) * num);
+            bval[0].s = (short)AS_NUMBER(toNumber(args[0]));
+            break;
+        }
+        case 'H': {
+            num = 1;
+            len = 16;
+            bval = mp_malloc(sizeof(bin_val) * num);
+            bval[0].us = (unsigned short)AS_NUMBER(toNumber(args[0]));
+            break;
+        }
+        case 'i': {
+            num = 1;
+            len = 32;
+            bval = mp_malloc(sizeof(bin_val) * num);
+            bval[0].i = (int)AS_NUMBER(toNumber(args[0]));
+            break;
+        }
+        case 'I': {
+            num = 1;
+            len = 32;
+            bval = mp_malloc(sizeof(bin_val) * num);
+            bval[0].ui = (unsigned int)AS_NUMBER(toNumber(args[0]));
+            break;
+        }
+        case 'l': {
+            num = 1;
+            len = 64;
+            bval = mp_malloc(sizeof(bin_val) * num);
+            bval[0].l = (long)AS_NUMBER(toNumber(args[0]));
+            break;
+        }
+        case 'L': {
+            num = 1;
+            len = 64;
+            bval = mp_malloc(sizeof(bin_val) * num);
+            bval[0].ul = (unsigned long)AS_NUMBER(toNumber(args[0]));
+            break;
+        }
+        case 'q': {
+            num = 1;
+            len = 64;
+            bval = mp_malloc(sizeof(bin_val) * num);
+            bval[0].ll = (long long)AS_NUMBER(toNumber(args[0]));
+            break;
+        }
+        case 'Q': {
+            num = 1;
+            len = 64;
+            bval = mp_malloc(sizeof(bin_val) * num);
+            bval[0].ull = (unsigned long long)AS_NUMBER(toNumber(args[0]));
+            break;
+        }
+        case 'f': {
+            num = 1;
+            len = 32;
+            bval = mp_malloc(sizeof(bin_val) * num);
+            bval[0].f = (float)AS_NUMBER(toNumber(args[0]));
+            break;
+        }
+
+        case 'd': {
+            num = 1;
+            len = 64;
+            bval = mp_malloc(sizeof(bin_val) * num);
+            bval[0].d = (double)AS_NUMBER(toNumber(args[0]));
+            break;
+        }
+
+        case 's':
+        case 'p': {
+            ObjString *s = AS_STRING(toString(args[0]));
+            num = s->length;
+            len = 8;
+            bval = mp_malloc(sizeof(bin_val) * num);
+            for (int i = 0; i < num; i++)
+            {
+                bval[i].c = s->chars[i];
+            }
+            break;
+        }
+
+        case 'P': {
+            int p = AS_NUMBER(toNumber(args[0]));
+
+            num = 1;
+            len = 32;
+            bval = mp_malloc(sizeof(bin_val) * num);
+            bval[0].ptr = (void *)p;
+            break;
+        }
     }
 
-    return STRING_VAL(bin_string);
+    if (len > 0 && num > 0)
+    {
+        str = mp_calloc((num * len) + 1, sizeof(char));
+        for (int i = 0; i < num; i++)
+            appendBits(str, bval[i], len);
+    }
+
+    mp_free(bval);
+
+    Value val = NULL_VAL;
+    if (str != NULL)
+    {
+        val = STRING_VAL(str);
+        mp_free(str);
+    }
+    return val;
+}
+
+Value unbinNative(int argCount, Value *args)
+{
+    if (argCount == 0)
+        return NULL_VAL;
+
+    char fmt = 'b';
+    if (argCount > 1 && IS_STRING(args[1]))
+        fmt = AS_CSTRING(args[1])[0];
+
+    if (IS_INSTANCE(args[0]))
+    {
+        Value method;
+        if (tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("unbin")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+
+        if (tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("unbin")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+    }
+    else if (IS_CLASS(args[0]))
+    {
+        Value method;
+        if (tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("unbin")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+    }
+
+    if (!IS_STRING(args[0]))
+        return NULL_VAL;
+
+    char *str = AS_CSTRING(args[0]);
+    bin_val *bval = NULL;
+    int len = 0;
+    int num = 1;
+    switch (fmt)
+    {
+        case 'x':
+            len = 0;
+            num = 0;
+            break;
+        case 'c': {
+            len = 8;
+            num = 1;
+            break;
+        }
+        case 'b': {
+            num = 1;
+            len = 8;
+            break;
+        }
+        case 'B': {
+            num = 1;
+            len = 8;
+            break;
+        }
+        case '?': {
+            num = 1;
+            len = 1;
+            break;
+        }
+        case 'h': {
+            num = 1;
+            len = 16;
+            break;
+        }
+        case 'H': {
+            num = 1;
+            len = 16;
+            break;
+        }
+        case 'i': {
+            num = 1;
+            len = 32;
+            break;
+        }
+        case 'I': {
+            num = 1;
+            len = 32;
+            break;
+        }
+        case 'l': {
+            num = 1;
+            len = 64;
+            break;
+        }
+        case 'L': {
+            num = 1;
+            len = 64;
+            break;
+        }
+        case 'q': {
+            num = 1;
+            len = 64;
+            break;
+        }
+        case 'Q': {
+            num = 1;
+            len = 64;
+            break;
+        }
+        case 'f': {
+            num = 1;
+            len = 32;
+            break;
+        }
+
+        case 'd': {
+            num = 1;
+            len = 64;
+            break;
+        }
+
+        case 's':
+        case 'p': {
+            num = strlen(str) / 8;
+            len = 8;
+            break;
+        }
+
+        case 'P': {
+            num = 1;
+            len = 32;
+            break;
+        }
+    }
+
+    bval = mp_calloc(num, sizeof(bin_val));
+    for (int i = 0; i < num; i++)
+    {
+        fromBits(str + (i * len), &bval[i], len);
+    }
+
+    Value val = NULL_VAL;
+    switch (fmt)
+    {
+        case 'x':
+            break;
+        case 'c': {
+            char c[2];
+            c[0] = bval[0].c;
+            c[1] = '\0';
+            val = STRING_VAL(c);
+            break;
+        }
+        case 'b': {
+            val = NUMBER_VAL(bval[0].c);
+            break;
+        }
+        case 'B': {
+            val = NUMBER_VAL(bval[0].uc);
+            break;
+        }
+        case '?': {
+            val = BOOL_VAL(bval[0].b);
+            break;
+        }
+        case 'h': {
+            val = NUMBER_VAL(bval[0].s);
+            break;
+        }
+        case 'H': {
+            val = NUMBER_VAL(bval[0].us);
+            break;
+        }
+        case 'i': {
+            val = NUMBER_VAL(bval[0].i);
+            break;
+        }
+        case 'I': {
+            val = NUMBER_VAL(bval[0].ui);
+            break;
+        }
+        case 'l': {
+            val = NUMBER_VAL(bval[0].l);
+            break;
+        }
+        case 'L': {
+            val = NUMBER_VAL(bval[0].ul);
+            break;
+        }
+        case 'q': {
+            val = NUMBER_VAL(bval[0].ll);
+            break;
+        }
+        case 'Q': {
+            val = NUMBER_VAL(bval[0].ull);
+            break;
+        }
+        case 'f': {
+            val = NUMBER_VAL(bval[0].f);
+            break;
+        }
+
+        case 'd': {
+            val = NUMBER_VAL(bval[0].d);
+            break;
+        }
+
+        case 's':
+        case 'p': {
+            char *s = mp_calloc(num, sizeof(char));
+            for (int i = 0; i < num; i++)
+            {
+                s[i] = bval[i].c;
+            }
+            val = STRING_VAL(s);
+            mp_free(s);
+            break;
+        }
+
+        case 'P': {
+            int p = bval[0].ptr;
+            val = NUMBER_VAL(p);
+            break;
+        }
+    }
+
+    mp_free(bval);
+    return val;
+}
+
+Value mbinNative(int argCount, Value *args)
+{
+    if (argCount == 0)
+        return NUMBER_VAL(0);
+
+    char fmt = 'b';
+    if (argCount > 1 && IS_STRING(args[1]))
+        fmt = AS_CSTRING(args[1])[0];
+
+    if (!IS_STRING(args[0]))
+        return NUMBER_VAL(0);
+
+    char *str = AS_CSTRING(args[0]);
+    int len = 0;
+    int num = 1;
+    switch (fmt)
+    {
+        case 'x':
+            len = 0;
+            num = 0;
+            break;
+        case 'c': {
+            len = 8;
+            num = 1;
+            break;
+        }
+        case 'b': {
+            num = 1;
+            len = 8;
+            break;
+        }
+        case 'B': {
+            num = 1;
+            len = 8;
+            break;
+        }
+        case '?': {
+            num = 1;
+            len = 1;
+            break;
+        }
+        case 'h': {
+            num = 1;
+            len = 16;
+            break;
+        }
+        case 'H': {
+            num = 1;
+            len = 16;
+            break;
+        }
+        case 'i': {
+            num = 1;
+            len = 32;
+            break;
+        }
+        case 'I': {
+            num = 1;
+            len = 32;
+            break;
+        }
+        case 'l': {
+            num = 1;
+            len = 64;
+            break;
+        }
+        case 'L': {
+            num = 1;
+            len = 64;
+            break;
+        }
+        case 'q': {
+            num = 1;
+            len = 64;
+            break;
+        }
+        case 'Q': {
+            num = 1;
+            len = 64;
+            break;
+        }
+        case 'f': {
+            num = 1;
+            len = 32;
+            break;
+        }
+
+        case 'd': {
+            num = 1;
+            len = 64;
+            break;
+        }
+
+        case 's':
+        case 'p': {
+            num = strlen(str) / 8;
+            len = 8;
+            break;
+        }
+
+        case 'P': {
+            num = 1;
+            len = 32;
+            break;
+        }
+    }
+
+    return NUMBER_VAL(num * len);
 }
 
 Value charNative(int argCount, Value *args)
@@ -889,7 +1406,7 @@ Value jsonToValue(cJSON *json)
     else if (cJSON_IsNumber(json))
         return NUMBER_VAL(json->valuedouble);
     else if (cJSON_IsString(json))
-        return STRING_VAL(json->string);
+        return STRING_VAL(json->valuestring);
     else if (cJSON_IsArray(json))
     {
         ObjList *list = initList();
@@ -1567,6 +2084,72 @@ Value varsNative(int argCount, Value *args)
     return NULL_VAL;
 }
 
+Value dirNative(int argCount, Value *args)
+{
+    int i = 0;
+    Entry entry;
+    int K = 0;
+    Table *tables[10];
+    Table *table;
+    bool isGlobal = false;
+    ObjList *list = initList();
+
+    if (argCount > 0 && IS_MODULE(args[0]))
+    {
+        tables[K++] = &(AS_MODULE(args[0])->symbols);
+    }
+    else if (argCount > 0 && IS_CLASS(args[0]))
+    {
+        tables[K++] = &(AS_CLASS(args[0])->staticFields);
+        tables[K++] = &(AS_CLASS(args[0])->fields);
+        tables[K++] = &(AS_CLASS(args[0])->methods);
+    }
+    else if (argCount > 0 && IS_INSTANCE(args[0]))
+    {
+        tables[K++] = &(AS_INSTANCE(args[0])->fields);
+        tables[K++] = &(AS_INSTANCE(args[0])->klass->staticFields);
+        tables[K++] = &(AS_INSTANCE(args[0])->klass->methods);
+    }
+    else if (argCount > 0 && IS_ENUM(args[0]))
+    {
+        tables[K++] = &(AS_ENUM(args[0])->members);
+    }
+    else
+    {
+        isGlobal = true;
+        tables[K++] = &vm.globals;
+        tables[K++] = &vm.extensions;
+    }
+
+    for (int k = 0; k < K; k++)
+    {
+        table = tables[k];
+        i = 0;
+        if (table->count <= 0)
+            continue;
+
+        if (isGlobal && k == 0)
+        {
+            writeValueArray(&list->values, STRING_VAL("__name__"));
+            writeValueArray(&list->values, STRING_VAL(vm.argsString));
+            writeValueArray(&list->values, STRING_VAL("__ans__"));
+            writeValueArray(&list->values, STRING_VAL("__std__"));
+        }
+
+        while (iterateTable(table, &entry, &i))
+        {
+            if (entry.key == NULL)
+                continue;
+            if (isGlobal && IS_NATIVE(entry.value))
+                continue;
+
+            writeValueArray(&list->values, STRING_VAL(entry.key->chars));
+        }
+    }
+
+    return OBJ_VAL(list);
+}
+
 Value openNative(int argCount, Value *args)
 {
     if (argCount == 0)
@@ -1897,7 +2480,7 @@ Value memNative(int argCount, Value *args)
     return ret;
 }
 
-Value gcNative(int argCount, Value *args)
+Value gcCollectNative(int argCount, Value *args)
 {
     gc_collect();
     return NUMBER_VAL(vm.bytesAllocated);
@@ -2749,6 +3332,34 @@ Value rmPathNative(int argCount, Value *args)
     return OBJ_VAL(list);
 }
 
+Value modulesNative(int argCount, Value *args)
+{
+    ObjList *list = initList();
+    char name[128];
+
+    for (int i = 0; i < vm.paths->values.count; i++)
+    {
+        if (IS_STRING(vm.paths->values.values[i]))
+        {
+            ObjList *items = AS_LIST(lsNative(1, &vm.paths->values.values[i]));
+            for (int j = 0; j < items->values.count; j++)
+            {
+                if (IS_STRING(items->values.values[j]))
+                {
+                    if (stringEndsWith(AS_CSTRING(items->values.values[j]), vm.extension))
+                    {
+                        strcpy(name, AS_CSTRING(items->values.values[j]));
+                        replaceString(name, vm.extension, "\0");
+                        writeValueArray(&list->values, STRING_VAL(name));
+                    }
+                }
+            }
+        }
+    }
+
+    return OBJ_VAL(list);
+}
+
 // Register
 linked_list *stdFnList;
 #define ADD_STD(name, fn) linked_list_add(stdFnList, createStdFn(name, fn))
@@ -2796,6 +3407,8 @@ void initStd()
     ADD_STD("str", strNative);
     ADD_STD("hex", hexNative);
     ADD_STD("bin", binNative);
+    ADD_STD("unbin", unbinNative);
+    ADD_STD("mbin", mbinNative);
     ADD_STD("char", charNative);
     ADD_STD("list", listNative);
     ADD_STD("dict", dictNative);
@@ -2811,6 +3424,7 @@ void initStd()
     ADD_STD("len", lenNative);
     ADD_STD("type", typeNative);
     ADD_STD("vars", varsNative);
+    ADD_STD("dir", dirNative);
     ADD_STD("open", openNative);
     ADD_STD("read", readNative);
     ADD_STD("write", writeNative);
@@ -2828,7 +3442,7 @@ void initStd()
     ADD_STD("copy", copyNative);
     ADD_STD("eval", evalNative);
     ADD_STD("mem", memNative);
-    ADD_STD("gc", gcNative);
+    ADD_STD("gcCollect", gcCollectNative);
     ADD_STD("enableAutoGC", autoGCNative);
     ADD_STD("systemInfo", systemInfoNative);
     ADD_STD("printStack", printStackNative);
@@ -2855,6 +3469,7 @@ void initStd()
     ADD_STD("setPath", setPathNative);
     ADD_STD("addPath", addPathNative);
     ADD_STD("rmPath", rmPathNative);
+    ADD_STD("modules", modulesNative);
 }
 
 void destroyStd()

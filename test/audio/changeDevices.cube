@@ -1,0 +1,56 @@
+import audio as default
+import math as default
+import cv
+
+// List devices
+var inDevices = listInput()
+var outDevices = listOutput()
+
+println('Input: ', inDevices.keys())
+println('Output: ', outDevices.keys())
+
+// Set devices
+setInput(inDevices[0])
+setOutput(outDevices[0])
+
+// Play
+var fs = 48000
+var dt = 1 / fs
+var st = 5
+var t = 0..dt..st
+var F = 440
+var samples = sin((2 * pi * F) .* t)
+
+println('Playing original...')
+play(samples, fs)
+
+var W = 620, H = 220
+var data = draw(samples, W, H)
+var img1 = cv.Mat(H, W)
+data.copyTo(img1.data)
+cv.imshow("Waveform Original", img1.id)
+cv.waitKey(100)
+
+println('Recording...')
+var id = record(st, fs)
+while(isRecording(id))
+{
+    wait(1)
+}
+
+samples = read(id)
+println('Playing recorded...')
+play(samples, fs)
+
+data = draw(samples, W, H)
+var img2 = cv.Mat(H, W)
+data.copyTo(img2.data)
+cv.imshow("Waveform Recorded", img2.id)
+cv.waitKey(100)
+
+while(isPlaying())
+{
+    wait(1)
+}
+
+cv.waitKey(0)

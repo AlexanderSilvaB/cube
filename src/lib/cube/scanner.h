@@ -80,6 +80,7 @@ typedef enum
     TOKEN_WHILE,
     TOKEN_DO,
     TOKEN_IN,
+    TOKEN_NOT_IN,
     TOKEN_IS,
     TOKEN_CONTINUE,
     TOKEN_BREAK,

@@ -1,0 +1,23 @@
+func isEnabled()
+{
+    return enableAutoGC()
+}
+
+func enable(enabled)
+{
+    enable = bool(enable)
+    return enableAutoGC(enable)
+}
+
+func collect()
+{
+    return gcCollect()
+}
+
+func free()
+{
+    for(var arg in args)
+    {
+        println(arg)
+    }
+}
