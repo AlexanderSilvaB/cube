@@ -2387,6 +2387,53 @@ Value mkdirNative(int argCount, Value *args)
     return BOOL_VAL(rc == 0);
 }
 
+Value launchNative(int argCount, Value *args)
+{
+    bool success = true;
+    char *cmd = mp_malloc(sizeof(char) * 256);
+    for (int i = 0; i < argCount; i++)
+    {
+        if (IS_STRING(args[i]))
+        {
+#ifdef _WIN32
+            strcpy(cmd, "\"");
+            strcat(cmd, AS_CSTRING(args[i]));
+            strcat(cmd, "\"");
+#else
+            strcpy(cmd, "xdg-open \"");
+            strcat(cmd, AS_CSTRING(args[i]));
+            strcat(cmd, "\" > /dev/null 2>&1");
+#endif
+            if (system(cmd) != 0)
+                success = false;
+        }
+    }
+
+    mp_free(cmd);
+    return BOOL_VAL(success);
+}
+
+Value execNative(int argCount, Value *args)
+{
+    bool success = true;
+    char *cmd = mp_malloc(sizeof(char) * 256);
+    strcpy(cmd, "");
+    for (int i = 0; i < argCount; i++)
+    {
+        strcat(cmd, AS_CSTRING(toString(args[i])));
+        if (i < argCount - 1)
+            strcat(cmd, " ");
+    }
+
+    strcat(cmd, "");
+
+    if (system(cmd) != 0)
+        success = false;
+
+    mp_free(cmd);
+    return BOOL_VAL(success);
+}
+
 Value envNative(int argCount, Value *args)
 {
     if (argCount == 0)
@@ -3437,6 +3484,8 @@ void initStd()
     ADD_STD("find", findNative);
     ADD_STD("remove", removeNative);
     ADD_STD("mkdir", mkdirNative);
+    ADD_STD("launch", launchNative);
+    ADD_STD("exec", execNative);
     ADD_STD("env", envNative);
     ADD_STD("make", makeNative);
     ADD_STD("copy", copyNative);

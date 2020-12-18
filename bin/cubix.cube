@@ -307,6 +307,13 @@ func installFileModule(force, libFile)
         println('\rInstalled: ', f, ' ');
     }
 
+    path = os.allowedLibsPath + '/' + lib + '/setup.cube';
+    if(exists(path))
+    {
+        println('Running setup...')
+        require(path)
+    }
+    println('Done!')
 }
 
 func installModule(force, lib, url)
@@ -405,6 +412,14 @@ func installModule(force, lib, url)
 
         println('\rDownloaded: ', f, ' ');
     }
+
+    path = os.allowedLibsPath + '/' + lib + '/setup.cube';
+    if(exists(path))
+    {
+        println('Running setup...')
+        require(path)
+    }
+    println('Done!')
 }
 
 func descriptionFileModule(libFile)

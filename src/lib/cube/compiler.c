@@ -1296,13 +1296,13 @@ static void super_(bool canAssign)
     {
         uint8_t argCount = argumentList();
 
-        pushSuperclass();
+        // pushSuperclass();
         emitBytes(OP_SUPER, argCount);
         emitShortAlone(name);
     }
     else
     {
-        pushSuperclass();
+        // pushSuperclass();
         emitShort(OP_GET_SUPER, name);
     }
 }
@@ -1455,13 +1455,16 @@ static void lambda(bool canAssign)
     function(TYPE_FUNCTION);
 }
 
+static int expand_step = 0;
 static void expand(bool canAssign)
 {
+    expand_step = 1;
     bool ex = gbcpl->parser.previous.type == TOKEN_EXPAND_EX;
     parsePrecedence(PREC_UNARY);
 
     if (match(TOKEN_EXPAND_IN) || match(TOKEN_EXPAND_EX))
     {
+        expand_step = 2;
         ex = gbcpl->parser.previous.type == TOKEN_EXPAND_EX;
         parsePrecedence(PREC_UNARY);
     }
@@ -1469,6 +1472,33 @@ static void expand(bool canAssign)
     {
         emitByte(OP_NULL);
     }
+
+    expand_step = 0;
+
+    emitByte(ex ? OP_TRUE : OP_FALSE);
+
+    emitByte(OP_EXPAND);
+}
+
+static void expand_prefix(bool canAssign)
+{
+    emitConstant(NUMBER_VAL(0));
+    expand_step = 1;
+    bool ex = gbcpl->parser.previous.type == TOKEN_EXPAND_EX;
+    parsePrecedence(PREC_UNARY);
+
+    if (match(TOKEN_EXPAND_IN) || match(TOKEN_EXPAND_EX))
+    {
+        expand_step = 2;
+        ex = gbcpl->parser.previous.type == TOKEN_EXPAND_EX;
+        parsePrecedence(PREC_UNARY);
+    }
+    else
+    {
+        emitByte(OP_NULL);
+    }
+
+    expand_step = 0;
 
     emitByte(ex ? OP_TRUE : OP_FALSE);
 
@@ -1587,114 +1617,139 @@ static void async(bool canAssign)
 }
 
 ParseRule rules[] = {
-    {grouping, call, PREC_CALL},     // TOKEN_LEFT_PAREN
-    {NULL, NULL, PREC_NULL},         // TOKEN_RIGHT_PAREN
-    {dict, NULL, PREC_NULL},         // TOKEN_LEFT_BRACE [big]
-    {NULL, NULL, PREC_NULL},         // TOKEN_RIGHT_BRACE
-    {list, subscript, PREC_CALL},    // TOKEN_LEFT_BRACKET
-    {NULL, NULL, PREC_NULL},         // TOKEN_RIGHT_BRACKET
-    {NULL, NULL, PREC_NULL},         // TOKEN_COMMA
-    {NULL, dot, PREC_CALL},          // TOKEN_DOT
-    {NULL, expand, PREC_FACTOR},     // TOKEN_EXPAND_IN
-    {NULL, expand, PREC_FACTOR},     // TOKEN_EXPAND_EX
-    {unary, binary, PREC_TERM},      // TOKEN_MINUS
-    {NULL, binary, PREC_TERM},       // TOKEN_PLUS
-    {NULL, binary, PREC_TERM},       // TOKEN_DOT_PLUS
-    {NULL, binary, PREC_TERM},       // TOKEN_DOT_MINUS
-    {NULL, binary, PREC_TERM},       // TOKEN_DOT_STAR
-    {NULL, binary, PREC_TERM},       // TOKEN_DOT_SLASH
-    {NULL, binary, PREC_TERM},       // TOKEN_DOT_POW
-    {NULL, binary, PREC_TERM},       // TOKEN_DOT_PERCENT
-    {prefix, NULL, PREC_NULL},       // TOKEN_INC
-    {prefix, NULL, PREC_NULL},       // TOKEN_DEC
-    {NULL, NULL, PREC_NULL},         // TOKEN_PLUS_EQUALS
-    {NULL, NULL, PREC_NULL},         // TOKEN_MINUS_EQUALS
-    {NULL, NULL, PREC_NULL},         // TOKEN_MULTIPLY_EQUALS
-    {NULL, NULL, PREC_NULL},         // TOKEN_DIVIDE_EQUALS
-    {NULL, NULL, PREC_NULL},         // TOKEN_SEMICOLON
-    {NULL, NULL, PREC_NULL},         // TOKEN_COLON
-    {NULL, binary, PREC_FACTOR},     // TOKEN_SLASH
-    {NULL, binary, PREC_FACTOR},     // TOKEN_STAR
-    {NULL, binary, PREC_FACTOR},     // TOKEN_PERCENT
-    {NULL, binary, PREC_FACTOR},     // TOKEN_POW
-    {unary, NULL, PREC_NULL},        // TOKEN_BANG
-    {NULL, binary, PREC_EQUALITY},   // TOKEN_BANG_EQUAL
-    {NULL, NULL, PREC_NULL},         // TOKEN_EQUAL
-    {NULL, binary, PREC_EQUALITY},   // TOKEN_EQUAL_EQUAL
-    {NULL, binary, PREC_COMPARISON}, // TOKEN_GREATER
-    {NULL, binary, PREC_COMPARISON}, // TOKEN_GREATER_EQUAL
-    {NULL, binary, PREC_COMPARISON}, // TOKEN_LESS
-    {NULL, binary, PREC_COMPARISON}, // TOKEN_LESS_EQUAL
-    {NULL, binary, PREC_EQUALITY},   // TOKEN_SHIFT_LEFT
-    {NULL, binary, PREC_EQUALITY},   // TOKEN_SHIFT_RIGHT
-    {NULL, binary, PREC_EQUALITY},   // TOKEN_BINARY_AND
-    {NULL, binary, PREC_EQUALITY},   // TOKEN_BINARY_OR
-    {NULL, NULL, PREC_NULL},         // TOKEN_NULLABLE
-    {NULL, NULL, PREC_NULL},         // TOKEN_QUESTION
-    {NULL, NULL, PREC_NULL},         // TOKEN_SWAP
-    {variable, NULL, PREC_NULL},     // TOKEN_IDENTIFIER
-    {string, NULL, PREC_NULL},       // TOKEN_STRING
-    {number, NULL, PREC_NULL},       // TOKEN_NUMBER
-    {byte, NULL, PREC_NULL},         // TOKEN_BYTE
-    {NULL, and_, PREC_AND},          // TOKEN_AND
-    {NULL, NULL, PREC_NULL},         // TOKEN_CLASS
-    {static_, NULL, PREC_NULL},      // TOKEN_STATIC
-    {NULL, NULL, PREC_NULL},         // TOKEN_ELSE
-    {literal, NULL, PREC_NULL},      // TOKEN_FALSE
-    {NULL, NULL, PREC_NULL},         // TOKEN_FOR
-    {NULL, NULL, PREC_NULL},         // TOKEN_FUNC
-    {lambda, NULL, PREC_NULL},       // TOKEN_LAMBDA
-    {NULL, NULL, PREC_NULL},         // TOKEN_IF
-    {literal, NULL, PREC_NULL},      // TOKEN_NULL
-    {NULL, or_, PREC_OR},            // TOKEN_OR
-    {NULL, NULL, PREC_NULL},         // TOKEN_RETURN
-    {super_, NULL, PREC_NULL},       // TOKEN_SUPER
-    {this_, NULL, PREC_NULL},        // TOKEN_THIS
-    {literal, NULL, PREC_NULL},      // TOKEN_TRUE
-    {NULL, NULL, PREC_NULL},         // TOKEN_VAR
-    {NULL, NULL, PREC_NULL},         // TOKEN_GLOBAL
-    {NULL, NULL, PREC_NULL},         // TOKEN_WHILE
-    {NULL, NULL, PREC_NULL},         // TOKEN_DO
-    {NULL, binary, PREC_TERM},       // TOKEN_IN
-    {NULL, binary, PREC_TERM},       // TOKEN_NOT_IN
-    {NULL, is, PREC_TERM},           // TOKEN_IS
-    {NULL, NULL, PREC_NULL},         // TOKEN_CONTINUE
-    {NULL, NULL, PREC_NULL},         // TOKEN_BREAK
-    {NULL, NULL, PREC_NULL},         // TOKEN_SWITCH
-    {NULL, NULL, PREC_NULL},         // TOKEN_CASE
-    {NULL, NULL, PREC_NULL},         // TOKEN_DEFAULT
-    {number, NULL, PREC_NULL},       // TOKEN_NAN
-    {number, NULL, PREC_NULL},       // TOKEN_INF
-    {NULL, NULL, PREC_NULL},         // TOKEN_ENUM
-    {NULL, NULL, PREC_NULL},         // TOKEN_IMPORT
-    {require, NULL, PREC_NULL},      // TOKEN_REQUIRE
-    {NULL, NULL, PREC_NULL},         // TOKEN_INCLUDE
-    {NULL, NULL, PREC_NULL},         // TOKEN_AS
-    {NULL, NULL, PREC_NULL},         // TOKEN_NATIVE
-    {NULL, NULL, PREC_NULL},         // TOKEN_STRUCT
-    {NULL, NULL, PREC_NULL},         // TOKEN_WITH
-    {async, NULL, PREC_NULL},        // TOKEN_ASYNC
-    {await, NULL, PREC_NULL},        // TOKEN_AWAIT
-    {NULL, NULL, PREC_NULL},         // TOKEN_ABORT
-    {NULL, NULL, PREC_NULL},         // TOKEN_TRY
-    {NULL, NULL, PREC_NULL},         // TOKEN_CATCH
-    {NULL, NULL, PREC_NULL},         // TOKEN_ASSERT
-    {NULL, NULL, PREC_NULL},         // TOKEN_SECURE
-    {NULL, NULL, PREC_NULL},         // TOKEN_DOC
-    {NULL, NULL, PREC_NULL},         // TOKEN_PASS
-    {NULL, NULL, PREC_NULL},         // TOKEN_CUBE
-    {NULL, NULL, PREC_NULL},         // TOKEN_ERROR
-    {NULL, NULL, PREC_NULL},         // TOKEN_EOF
+    {grouping, call, PREC_CALL},          // TOKEN_LEFT_PAREN
+    {NULL, NULL, PREC_NULL},              // TOKEN_RIGHT_PAREN
+    {dict, NULL, PREC_NULL},              // TOKEN_LEFT_BRACE [big]
+    {NULL, NULL, PREC_NULL},              // TOKEN_RIGHT_BRACE
+    {list, subscript, PREC_CALL},         // TOKEN_LEFT_BRACKET
+    {NULL, NULL, PREC_NULL},              // TOKEN_RIGHT_BRACKET
+    {NULL, NULL, PREC_NULL},              // TOKEN_COMMA
+    {NULL, dot, PREC_CALL},               // TOKEN_DOT
+    {expand_prefix, expand, PREC_FACTOR}, // TOKEN_EXPAND_IN
+    {expand_prefix, expand, PREC_FACTOR}, // TOKEN_EXPAND_EX
+    {unary, binary, PREC_TERM},           // TOKEN_MINUS
+    {NULL, binary, PREC_TERM},            // TOKEN_PLUS
+    {NULL, binary, PREC_TERM},            // TOKEN_DOT_PLUS
+    {NULL, binary, PREC_TERM},            // TOKEN_DOT_MINUS
+    {NULL, binary, PREC_TERM},            // TOKEN_DOT_STAR
+    {NULL, binary, PREC_TERM},            // TOKEN_DOT_SLASH
+    {NULL, binary, PREC_TERM},            // TOKEN_DOT_POW
+    {NULL, binary, PREC_TERM},            // TOKEN_DOT_PERCENT
+    {prefix, NULL, PREC_NULL},            // TOKEN_INC
+    {prefix, NULL, PREC_NULL},            // TOKEN_DEC
+    {NULL, NULL, PREC_NULL},              // TOKEN_PLUS_EQUALS
+    {NULL, NULL, PREC_NULL},              // TOKEN_MINUS_EQUALS
+    {NULL, NULL, PREC_NULL},              // TOKEN_MULTIPLY_EQUALS
+    {NULL, NULL, PREC_NULL},              // TOKEN_DIVIDE_EQUALS
+    {NULL, NULL, PREC_NULL},              // TOKEN_SEMICOLON
+    {NULL, NULL, PREC_NULL},              // TOKEN_COLON
+    {NULL, binary, PREC_FACTOR},          // TOKEN_SLASH
+    {NULL, binary, PREC_FACTOR},          // TOKEN_STAR
+    {NULL, binary, PREC_FACTOR},          // TOKEN_PERCENT
+    {NULL, binary, PREC_FACTOR},          // TOKEN_POW
+    {unary, NULL, PREC_NULL},             // TOKEN_BANG
+    {NULL, binary, PREC_EQUALITY},        // TOKEN_BANG_EQUAL
+    {NULL, NULL, PREC_NULL},              // TOKEN_EQUAL
+    {NULL, binary, PREC_EQUALITY},        // TOKEN_EQUAL_EQUAL
+    {NULL, binary, PREC_COMPARISON},      // TOKEN_GREATER
+    {NULL, binary, PREC_COMPARISON},      // TOKEN_GREATER_EQUAL
+    {NULL, binary, PREC_COMPARISON},      // TOKEN_LESS
+    {NULL, binary, PREC_COMPARISON},      // TOKEN_LESS_EQUAL
+    {NULL, binary, PREC_EQUALITY},        // TOKEN_SHIFT_LEFT
+    {NULL, binary, PREC_EQUALITY},        // TOKEN_SHIFT_RIGHT
+    {NULL, binary, PREC_EQUALITY},        // TOKEN_BINARY_AND
+    {NULL, binary, PREC_EQUALITY},        // TOKEN_BINARY_OR
+    {NULL, NULL, PREC_NULL},              // TOKEN_NULLABLE
+    {NULL, NULL, PREC_NULL},              // TOKEN_QUESTION
+    {NULL, NULL, PREC_NULL},              // TOKEN_SWAP
+    {variable, NULL, PREC_NULL},          // TOKEN_IDENTIFIER
+    {string, NULL, PREC_NULL},            // TOKEN_STRING
+    {number, NULL, PREC_NULL},            // TOKEN_NUMBER
+    {byte, NULL, PREC_NULL},              // TOKEN_BYTE
+    {NULL, and_, PREC_AND},               // TOKEN_AND
+    {NULL, NULL, PREC_NULL},              // TOKEN_CLASS
+    {static_, NULL, PREC_NULL},           // TOKEN_STATIC
+    {NULL, NULL, PREC_NULL},              // TOKEN_ELSE
+    {literal, NULL, PREC_NULL},           // TOKEN_FALSE
+    {NULL, NULL, PREC_NULL},              // TOKEN_FOR
+    {NULL, NULL, PREC_NULL},              // TOKEN_FUNC
+    {lambda, NULL, PREC_NULL},            // TOKEN_LAMBDA
+    {NULL, NULL, PREC_NULL},              // TOKEN_IF
+    {literal, NULL, PREC_NULL},           // TOKEN_NULL
+    {NULL, or_, PREC_OR},                 // TOKEN_OR
+    {NULL, NULL, PREC_NULL},              // TOKEN_RETURN
+    {super_, NULL, PREC_NULL},            // TOKEN_SUPER
+    {this_, NULL, PREC_NULL},             // TOKEN_THIS
+    {literal, NULL, PREC_NULL},           // TOKEN_TRUE
+    {NULL, NULL, PREC_NULL},              // TOKEN_VAR
+    {NULL, NULL, PREC_NULL},              // TOKEN_GLOBAL
+    {NULL, NULL, PREC_NULL},              // TOKEN_WHILE
+    {NULL, NULL, PREC_NULL},              // TOKEN_DO
+    {NULL, binary, PREC_TERM},            // TOKEN_IN
+    {NULL, binary, PREC_TERM},            // TOKEN_NOT_IN
+    {NULL, is, PREC_TERM},                // TOKEN_IS
+    {NULL, NULL, PREC_NULL},              // TOKEN_CONTINUE
+    {NULL, NULL, PREC_NULL},              // TOKEN_BREAK
+    {NULL, NULL, PREC_NULL},              // TOKEN_SWITCH
+    {NULL, NULL, PREC_NULL},              // TOKEN_CASE
+    {NULL, NULL, PREC_NULL},              // TOKEN_DEFAULT
+    {number, NULL, PREC_NULL},            // TOKEN_NAN
+    {number, NULL, PREC_NULL},            // TOKEN_INF
+    {NULL, NULL, PREC_NULL},              // TOKEN_ENUM
+    {NULL, NULL, PREC_NULL},              // TOKEN_IMPORT
+    {require, NULL, PREC_NULL},           // TOKEN_REQUIRE
+    {NULL, NULL, PREC_NULL},              // TOKEN_INCLUDE
+    {NULL, NULL, PREC_NULL},              // TOKEN_AS
+    {NULL, NULL, PREC_NULL},              // TOKEN_NATIVE
+    {NULL, NULL, PREC_NULL},              // TOKEN_STRUCT
+    {NULL, NULL, PREC_NULL},              // TOKEN_WITH
+    {async, NULL, PREC_NULL},             // TOKEN_ASYNC
+    {await, NULL, PREC_NULL},             // TOKEN_AWAIT
+    {NULL, NULL, PREC_NULL},              // TOKEN_ABORT
+    {NULL, NULL, PREC_NULL},              // TOKEN_TRY
+    {NULL, NULL, PREC_NULL},              // TOKEN_CATCH
+    {NULL, NULL, PREC_NULL},              // TOKEN_ASSERT
+    {NULL, NULL, PREC_NULL},              // TOKEN_SECURE
+    {NULL, NULL, PREC_NULL},              // TOKEN_DOC
+    {NULL, NULL, PREC_NULL},              // TOKEN_PASS
+    {NULL, NULL, PREC_NULL},              // TOKEN_CUBE
+    {NULL, NULL, PREC_NULL},              // TOKEN_ERROR
+    {NULL, NULL, PREC_NULL},              // TOKEN_EOF
 };
 
 static void parsePrecedence(Precedence precedence)
 {
+    Token prev = gbcpl->parser.previous;
+    Token curr = gbcpl->parser.current;
+
+    bool isExpanding = gbcpl->parser.previous.type == TOKEN_EXPAND_EX || gbcpl->parser.previous.type == TOKEN_EXPAND_IN;
+    bool ex = gbcpl->parser.previous.type == TOKEN_EXPAND_EX;
     advance();
     ParseFn prefixRule = getRule(gbcpl->parser.previous.type)->prefix;
     if (prefixRule == NULL)
     {
-        error("Expect expression.");
-        return;
+        if (isExpanding && gbcpl->parser.previous.type == TOKEN_RIGHT_BRACKET && expand_step > 0)
+        {
+            emitConstant(NUMBER_VAL(-1));
+            // if (expand_step == 1)
+            // {
+            //     emitByte(OP_NULL);
+            // }
+
+            // expand_step = 0;
+            // emitByte(ex ? OP_TRUE : OP_FALSE);
+            // emitByte(OP_EXPAND);
+
+            gbcpl->parser.previous = prev;
+            gbcpl->parser.current = curr;
+
+            return;
+        }
+        else
+        {
+            error("Expect expression.");
+            return;
+        }
     }
 
     bool canAssign = precedence <= PREC_ASSIGNMENT;
@@ -1751,6 +1806,7 @@ static void method(bool isStatic)
     consume(TOKEN_FUNC, "Expect a function declaration.");
     bool bracked = false;
     bool set = false;
+    bool call = false;
     if (!check(TOKEN_IDENTIFIER) && !isOperator(gbcpl->parser.current.type))
     {
         if (match(TOKEN_LEFT_BRACKET))
@@ -1768,15 +1824,27 @@ static void method(bool isStatic)
                 }
             }
         }
-        if (!bracked)
+        else if (match(TOKEN_LEFT_PAREN))
+        {
+            if (match(TOKEN_RIGHT_PAREN))
+            {
+                call = true;
+            }
+        }
+        if (!bracked && !call)
             errorAtCurrent("Expect method name.");
     }
-    if (!bracked)
+    if (!bracked && !call)
         advance();
 
     uint16_t constant;
-    if (!bracked)
+    if (!bracked && !call)
         constant = identifierConstant(&gbcpl->parser.previous);
+    else if (call)
+    {
+        Token cl = syntheticToken("()");
+        constant = identifierConstant(&cl);
+    }
     else
     {
         Token br = syntheticToken(set ? "[=]" : "[]");
@@ -2036,20 +2104,20 @@ static void classDeclaration()
     if (match(TOKEN_COLON))
     {
         consume(TOKEN_IDENTIFIER, "Expect superclass name.");
+        variable(false);
 
-        if (identifiersEqual(&className, &gbcpl->parser.previous))
-        {
-            error("A class cannot inherit from itself.");
-        }
+        // if (identifiersEqual(&className, &gbcpl->parser.previous))
+        // {
+        //     error("A class cannot inherit from itself.");
+        // }
 
         classCompiler.hasSuperclass = true;
 
         beginScope();
-
         // Store the superclass in a local variable named "super".
-        variable(false);
-        addLocal(syntheticToken("super"));
-        defineVariable(0);
+        // uint16_t superName = getVariable(gbcpl->parser.previous);
+        // addLocal(syntheticToken("super"));
+        // defineVariable(superName);
 
         namedVariable(className, false);
         emitByte(OP_INHERIT);

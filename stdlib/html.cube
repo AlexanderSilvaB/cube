@@ -2,14 +2,25 @@ import xml as default
 
 class HTML : XML
 {
-    func init(version, root)
+    var head, body
+
+    func init(version)
     {
         if(version is null)
             version = 5
+
+        var root = XMLElement('html')
+        head = XMLElement('head')
+        body = XMLElement('body')
+        root.add(head)
+        root.add(body)
+        
         super.init(version, 'UTF-8', root)
 
         unclose.add('meta')
         unclose.add('link')
+
+        
     }
 
     func str()

@@ -318,6 +318,22 @@ bool existsFile(const char *name)
     return true;
 }
 
+bool isDir(const char *path)
+{
+    char *p = fixPath(path);
+
+    struct stat statbuf;
+    if (stat(p, &statbuf) != 0)
+    {
+        mp_free(p);
+        return false;
+    }
+    mp_free(p);
+
+    int rc = S_ISDIR(statbuf.st_mode);
+    return (rc != 0);
+}
+
 bool isValidType(const char *name)
 {
     if (strcmp(name, "null") == 0 || strcmp(name, "bool") == 0 || strcmp(name, "num") == 0 ||

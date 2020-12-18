@@ -33,7 +33,9 @@ set(SRC cube.c
         threads.c
         mempool.c
         ansi_escapes.c
-        packer.c)
+        packer.c
+        external/zip/kuba-zip.c
+        external/zip/zip.c)
 
 if (UNIX)
     list(APPEND SRC native_posix.c)

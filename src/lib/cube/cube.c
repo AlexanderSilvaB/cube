@@ -10,9 +10,11 @@
 #include "common.h"
 #include "cube.h"
 #include "debug.h"
+#include "external/zip/zip.h"
 #include "linkedList.h"
 #include "mempool.h"
 #include "packer.h"
+#include "string.h"
 #include "util.h"
 #include "vm.h"
 
@@ -150,6 +152,7 @@ int runCube(int argc, const char *argv[])
     bool binary = false;
     bool debug = false;
     bool forceInclude = false;
+    bool zipPath = false;
     int argStart = 1;
     for (int i = 1; i < argc; i++)
     {
@@ -229,6 +232,11 @@ int runCube(int argc, const char *argv[])
             strcat(fileName, argv[i]);
             argStart += 2;
         }
+        else if (strcmp(argv[i], "-z") == 0 || strcmp(argv[i], "--zip") == 0)
+        {
+            zipPath = true;
+            argStart++;
+        }
     }
 
     vm.debug = debug;
@@ -239,6 +247,32 @@ int runCube(int argc, const char *argv[])
     if (argc == 1 || (argc == 2 && forceInclude) || (argc == 2 && debug))
     {
         rc = repl();
+    }
+    else if (zipPath == true)
+    {
+        if (fileName == NULL)
+        {
+            fprintf(stderr, "A path is required with the --zip option.\n");
+            rc = -1;
+        }
+        else if (!isDir(fileName))
+        {
+            fprintf(stderr, "The path for --zip option must be a directory.\n");
+            rc = -1;
+        }
+        else
+        {
+            if (output == NULL)
+            {
+                output = mp_malloc(sizeof(char) * (strlen(fileName) + 8));
+                strcpy(output, fileName);
+                if (stringEndsWith(output, "\\") || stringEndsWith(output, "/"))
+                    output[strlen(output) - 1] = '\0';
+                strcat(output, ".cbpack");
+            }
+
+            rc = zip_dir(fileName, output);
+        }
     }
     else if (fileName == NULL)
     {

@@ -1,0 +1,113 @@
+import html
+import os
+
+class Report
+{
+    var doc
+    var name
+    var style
+    var inSection = false
+    
+    func init(name, width)
+    {
+        if(name is null)
+            name = 'Report'
+        if(width is null)
+            width = '320px'
+        
+        this.width = width
+        this.name = name
+        doc = html.HTML()
+        doc.head.add(html.XMLElement('title', name))
+
+        style = html.XMLElement('style', 'table, th, td {
+            border: 1px solid black;
+            border-collapse: collapse;
+        }
+        
+        table{min-width: ${width};}
+        
+        h2{margin-top: 0.2em; margin-bottom: 0.2em; padding: 0;}
+
+        p{margin-top: 0.1em; margin-bottom: 0.1em; padding: 0;}')
+        doc.head.add(style)
+    }
+
+    func str()
+    {
+        return doc.str()
+    }
+
+    func save(fileName)
+    {
+        return doc.save(fileName)
+    }
+
+    func launch(fileName)
+    {
+        if(fileName is null)
+            fileName = os.allowedTempPath + '/' + hash(this) + '.html'
+        if(save(fileName))
+        {
+            return std.launch(fileName)
+        }
+        else
+            return false
+    }
+
+    func title(text)
+    {
+        doc.head.children[0].text = text
+    }
+
+    func section(name)
+    {
+        if(inSection)
+        {
+            doc.body.add(html.XMLElement('br'))
+            doc.body.add(html.XMLElement('br'))
+            doc.body.add(html.XMLElement('br'))
+        }
+        doc.body.add(html.XMLElement('h2', name))
+        inSection = true
+    }
+
+    func text(text)
+    {
+        doc.body.add(html.XMLElement('p', text))
+    }
+
+    func image(img, caption)
+    {
+        doc.body.add(html.XMLElement('img', null, {
+            'src' : img,
+            'width' : '${width}'
+        }))
+    }
+
+    func table(data, caption)
+    {
+        var tb = html.XMLElement('table')
+        if(caption is not null)
+            tb.add(html.XMLElement('caption', caption))
+
+        var row
+
+        for(var i in data)
+        {
+            row = html.XMLElement('tr')
+            for(var j in i)
+            {
+                row.add(html.XMLElement('td', j))
+            }
+            tb.add(row)
+        }
+
+        doc.body.add(tb)
+    }
+
+    func line()
+    {
+        doc.body.add(html.XMLElement('hr'))
+    }
+}

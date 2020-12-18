@@ -34,6 +34,7 @@ void replaceStringN(char *str, const char *find, const char *replace, int n);
 char *findFile(const char *name);
 char *findLibrary(const char *name);
 bool existsFile(const char *name);
+bool isDir(const char *path);
 bool isValidType(const char *name);
 char *getFileName(char *path);
 char *getFileDisplayName(char *path);

@@ -72,7 +72,8 @@
         "unordered_set": "cpp",
         "future": "cpp",
         "*.ipp": "cpp",
-        "*.inc": "c"
+        "*.inc": "c",
+        "tensor": "cpp"
     },
     "editor.formatOnSave": true,
     "files.watcherExclude": {

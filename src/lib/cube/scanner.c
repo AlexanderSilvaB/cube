@@ -761,7 +761,7 @@ bool isOperator(TokenType type)
            type == TOKEN_POW || type == TOKEN_BANG || type == TOKEN_BANG_EQUAL || type == TOKEN_EQUAL_EQUAL ||
            type == TOKEN_LESS || type == TOKEN_GREATER || type == TOKEN_LESS_EQUAL || type == TOKEN_GREATER_EQUAL ||
            type == TOKEN_SHIFT_LEFT || type == TOKEN_SHIFT_RIGHT || type == TOKEN_BINARY_AND ||
-           type == TOKEN_BINARY_OR || type == TOKEN_INC || type == TOKEN_DEC;
+           type == TOKEN_BINARY_OR || type == TOKEN_INC || type == TOKEN_DEC || type == TOKEN_EQUAL;
 }
 
 bool setLanguage(Scanner *scanner, const char *languageSource)

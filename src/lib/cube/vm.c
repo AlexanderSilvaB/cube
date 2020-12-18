@@ -32,6 +32,7 @@ VM vm; // [one]
 
 void *threadFn(void *data);
 bool hasTask(ThreadFrame *threadFrame);
+static bool invokeFromClass(ObjClass *klass, ObjString *name, int argCount, ObjInstance *instance);
 
 #define READ_BYTE() (*frame->ip++)
 #define SKIP_BYTE() frame->ip++
@@ -723,6 +724,20 @@ static bool callValue(Value callee, int argCount, ObjInstance *instance, ObjClas
                 return true;
             }
 
+            case OBJ_INSTANCE: {
+                ObjString *name = AS_STRING(STRING_VAL("()"));
+                ObjInstance *instance = AS_INSTANCE(callee);
+
+                Value method;
+                ObjClass *selected;
+                if (!findMethod(instance->klass, name, &method, &selected))
+                {
+                    return false;
+                }
+
+                return invokeFromClass(selected, name, argCount, instance);
+            }
+
             default:
                 // Non-callable object type.
                 break;
@@ -891,6 +906,14 @@ static bool invoke(ObjString *name, int argCount)
 
 static bool bindMethod(ObjClass *klass, ObjString *name)
 {
+    // Value method;
+    // ObjClass *selected;
+    // if (!findMethod(klass, name, &method, &selected))
+    // {
+    //     runtimeError("Undefined property '%s'.", name->chars);
+    //     return false;
+    // }
+
     Value method;
     if (!tableGet(&klass->methods, name, &method))
     {
@@ -2122,6 +2145,33 @@ bool instanceOperation(const char *op)
     return invokeFromClass(selected, name, 1, instance);
 }
 
+bool instanceOperationAt(const char *op, Value caller)
+{
+    if (!IS_INSTANCE(peek(0)) || !IS_INSTANCE(caller))
+    {
+        if (!IS_INSTANCE(caller) || (strcmp(op, "[]") != 0 && strcmp(op, "[]=") != 0))
+        {
+            Value value;
+            if (!IS_INSTANCE(caller) ||
+                !findField(AS_INSTANCE(caller), AS_STRING(STRING_VAL("__allow_insecure_operations")), &value))
+                return false;
+        }
+    }
+
+    ObjString *name = AS_STRING(STRING_VAL(op));
+
+    ObjInstance *instance = AS_INSTANCE(caller);
+
+    Value method;
+    ObjClass *selected;
+    if (!findMethod(instance->klass, name, &method, &selected))
+    {
+        return false;
+    }
+
+    return invokeFromClass(selected, name, 1, instance);
+}
+
 bool instanceOperationUnary(const char *op)
 {
     if (!IS_INSTANCE(peek(0)))
@@ -2473,10 +2523,44 @@ InterpretResult run()
                 Value stop = pop();
                 Value step = pop();
                 Value start = pop();
+                Value obj = peek(0);
+
                 if (IS_NULL(stop))
                 {
                     stop = step;
                     step = NULL_VAL;
+                }
+
+                if (IS_NUMBER(start) && AS_NUMBER(start) < 0 && IS_LIST(obj))
+                {
+                    int v = AS_NUMBER(start);
+                    v = AS_LIST(obj)->values.count + v;
+                    if (v < 0)
+                    {
+                        runtimeError("Invalid start index.");
+                        if (!checkTry(frame))
+                            return INTERPRET_RUNTIME_ERROR;
+                        else
+                            DISPATCH();
+                    }
+                    else
+                        start = NUMBER_VAL(v);
+                }
+
+                if (IS_NUMBER(stop) && AS_NUMBER(stop) < 0 && IS_LIST(obj))
+                {
+                    int v = AS_NUMBER(stop);
+                    v = AS_LIST(obj)->values.count + v;
+                    if (v < 0)
+                    {
+                        runtimeError("Invalid stop index.");
+                        if (!checkTry(frame))
+                            return INTERPRET_RUNTIME_ERROR;
+                        else
+                            DISPATCH();
+                    }
+                    else
+                        stop = NUMBER_VAL(v);
                 }
 
                 if (IS_NULL(step))
@@ -2526,7 +2610,10 @@ InterpretResult run()
             OPCASE(SET_LOCAL) :
             {
                 uint16_t slot = READ_SHORT();
-                frame->slots[slot] = peek(0);
+                if (instanceOperationAt("=", frame->slots[slot]))
+                    frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+                else
+                    frame->slots[slot] = peek(0);
                 DISPATCH();
             }
 
@@ -2947,7 +3034,8 @@ InterpretResult run()
             OPCASE(GET_SUPER) :
             {
                 ObjString *name = READ_STRING();
-                ObjClass *superclass = AS_CLASS(pop());
+                // ObjClass *superclass = AS_CLASS(pop());
+                ObjClass *superclass = AS_INSTANCE(peek(0))->klass->super;
 
                 if (!bindMethod(superclass, name))
                 {
@@ -3767,7 +3855,7 @@ InterpretResult run()
                 Value ret;
                 if (strcmp(objType, type->chars) == 0)
                 {
-                    ret = not? FALSE_VAL : TRUE_VAL;
+                    ret = not ? FALSE_VAL : TRUE_VAL;
                 }
                 else
                 {
@@ -3775,30 +3863,30 @@ InterpretResult run()
                     {
                         ObjInstance *instance = AS_INSTANCE(obj);
                         if (inherits(instance->klass, type))
-                            ret = not? FALSE_VAL : TRUE_VAL;
+                            ret = not ? FALSE_VAL : TRUE_VAL;
                         else
-                            ret = not? TRUE_VAL : FALSE_VAL;
+                            ret = not ? TRUE_VAL : FALSE_VAL;
                     }
                     else if (IS_CLASS(obj))
                     {
                         ObjClass *klass = AS_CLASS(obj);
                         if (inherits(klass, type))
-                            ret = not? FALSE_VAL : TRUE_VAL;
+                            ret = not ? FALSE_VAL : TRUE_VAL;
                         else
-                            ret = not? TRUE_VAL : FALSE_VAL;
+                            ret = not ? TRUE_VAL : FALSE_VAL;
                     }
                     else if (IS_ENUM_VALUE(obj))
                     {
                         ObjEnumValue *enumValue = AS_ENUM_VALUE(obj);
                         if (strcmp(enumValue->enume->name->chars, type->chars) == 0)
                         {
-                            ret = not? FALSE_VAL : TRUE_VAL;
+                            ret = not ? FALSE_VAL : TRUE_VAL;
                         }
                         else
-                            ret = not? TRUE_VAL : FALSE_VAL;
+                            ret = not ? TRUE_VAL : FALSE_VAL;
                     }
                     else
-                        ret = not? TRUE_VAL : FALSE_VAL;
+                        ret = not ? TRUE_VAL : FALSE_VAL;
                 }
 
                 pop();
@@ -4509,7 +4597,8 @@ InterpretResult run()
             {
                 int argCount = READ_BYTE();
                 ObjString *method = READ_STRING();
-                ObjClass *superclass = AS_CLASS(pop());
+                ObjClass *superclass = AS_INSTANCE(peek(argCount))->klass->super;
+
                 if (!invokeFromClass(superclass, method, argCount, NULL))
                 {
                     if (!checkTry(frame))
