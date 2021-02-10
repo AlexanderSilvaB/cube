@@ -1,0 +1,198 @@
+native asio
+{
+    int tcp_socket_create();
+    cbool tcp_socket_connect(int sid, cstring ip, int port);
+    cbool tcp_socket_close(int sid);
+    cbool tcp_socket_connect_resolve(int sid, cstring hostname, cstring service);
+    bytes tcp_socket_read_exactly(int sid, int n);
+    cbool tcp_socket_read_exactly_async(int sid, int n, func handler);
+    bytes tcp_socket_read_some(int sid, int n);
+    cbool tcp_socket_read_some_async(int sid, int n, func handler);
+    bytes tcp_socket_read_until(int sid, cstring end);
+    cbool tcp_socket_read_until_async(int sid, cstring end, func handler);
+    bytes tcp_socket_read_all(int sid);
+    cbool tcp_socket_read_all_async(int sid, func handler);
+    int tcp_socket_write(int sid, bytes data);
+    cbool tcp_socket_write_async(int sid, bytes data, func handler);
+}
+
+class Socket
+{
+    var id
+    var isAsync
+    var ip
+    var port
+    var bufferSize
+
+    func init(id, isAsync)
+    {
+        this.bufferSize = 256
+        if(id is num)
+            this.id = id
+        else
+        {
+            this.id = tcp_socket_create()
+            if(id is bool and isAsync is null)
+                isAsync = id
+        }
+        
+        if(isAsync is bool)
+            this.isAsync = isAsync
+        else
+            this.isAsync = false
+    }
+
+    func connect(ip, port)
+    {
+        this.ip = ip
+        this.port = port
+        if(port is str)
+        {
+            return tcp_socket_connect_resolve(id, ip, port)
+        }
+        else
+        {
+            return tcp_socket_connect(id, ip, port)
+        }
+    }
+
+    func close()
+    {
+        tcp_socket_close(id)
+    }
+
+    func read(fn)
+    {
+        if(fn is func)
+            return tcp_socket_read_some_async(id, bufferSize, fn)
+        else
+        {
+            if(isAsync)
+            {
+                var data = -1
+                var called = tcp_socket_read_some_async(id, bufferSize, @(d) => data = d)
+                if(!called)
+                    return null
+                else
+                {
+                    while(data == -1)
+                    {
+                        wait(1)
+                    }
+                    return data
+                }
+            }
+            else
+                return tcp_socket_read_some(id, bufferSize)
+        }
+    }
+
+    func readExactly(n, fn)
+    {
+        if(fn is func)
+            return tcp_socket_read_exactly_async(id, n, fn)
+        else
+        {
+            if(isAsync)
+            {
+                var data = -1
+                var called = tcp_socket_read_exactly_async(id, n, @(d) => data = d)
+                if(!called)
+                    return null
+                else
+                {
+                    while(data == -1)
+                    {
+                        wait(1)
+                    }
+                    return data
+                }
+            }
+            else
+                return tcp_socket_read_exactly(id, n)
+        }
+    }
+
+    func readUntil(end, fn)
+    {
+        if(fn is func)
+            return tcp_socket_read_until_async(id, end, fn)
+        else
+        {
+            if(isAsync)
+            {
+                var data = -1
+                var called = tcp_socket_read_until_async(id, end, @(d) => data = d)
+                if(!called)
+                    return null
+                else
+                {
+                    while(data == -1)
+                    {
+                        wait(1)
+                    }
+                    return data
+                }
+            }
+            else
+                return tcp_socket_read_until(id, end)
+        }
+    }
+
+    func readAll(fn)
+    {
+        if(fn is func)
+            return tcp_socket_read_all_async(id, fn)
+        else
+        {
+            if(isAsync)
+            {
+                var data = -1
+                var called = tcp_socket_read_all_async(id, @(d) => data = d)
+                if(!called)
+                    return null
+                else
+                {
+                    while(data == -1)
+                    {
+                        wait(1)
+                    }
+                    return data
+                }
+            }
+            else
+                return tcp_socket_read_all(id)
+        }
+    }
+
+    func write(data, fn)
+    {
+        if(fn is func)
+            return tcp_socket_write_async(id, data, fn)
+        else
+        {
+            if(isAsync)
+            {
+                var rc = null
+                var called = tcp_socket_write_async(id, data, @(r) => rc = r)
+                if(!called)
+                    return -1
+                else
+                {
+                    while(rc == null)
+                    {
+                        wait(1)
+                    }
+                    return rc
+                }
+            }
+            else
+                return tcp_socket_write(id, data)
+        }
+    }
+
+    func str()
+    {
+        return 'Socket[${id}](tcp,async=${isAsync},ip=${ip},port=${port})'
+    }
+}

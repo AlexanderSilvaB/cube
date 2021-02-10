@@ -73,7 +73,14 @@
         "future": "cpp",
         "*.ipp": "cpp",
         "*.inc": "c",
-        "tensor": "cpp"
+        "tensor": "cpp",
+        "core": "cpp",
+        "qtalignedmalloc": "cpp",
+        "fft": "cpp",
+        "regex": "cpp",
+        "codecvt": "cpp",
+        "variant": "cpp",
+        "forward_list": "cpp"
     },
     "editor.formatOnSave": true,
     "files.watcherExclude": {

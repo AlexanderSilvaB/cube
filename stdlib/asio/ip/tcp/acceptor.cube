@@ -1,0 +1,53 @@
+native asio
+{
+    int acceptor_create(int port, cbool reuse);
+    cbool acceptor_accept(int aid, int sid);
+    void acceptor_cancel(int aid);
+    int acceptor_accept_new(int aid);
+    cbool acceptor_accept_async(int aid, func handler);
+}
+
+class Acceptor
+{
+    var id
+    var port
+    func init(port, reuse)
+    {
+        if(reuse is not bool)
+            reuse = false
+
+        this.port = port
+        id = acceptor_create(port, reuse)
+    }
+
+    func accept(socket)
+    {
+        var rc = null
+        if(socket is Socket)
+            rc = acceptor_accept(id, socket.id)
+        else if(socket is num)
+            rc = acceptor_accept(id, socket)
+        else
+            rc = Socket(acceptor_accept_new(id))
+        return rc
+    }
+
+    func cancel()
+    {
+        acceptor_cancel(id)
+    }
+
+    func begin(fn)
+    {
+        return acceptor_accept_async(id, @(sid){
+            import asio
+            var socket = asio.ip.tcp.Socket(sid, true)
+            fn(socket)
+        })
+    }
+
+    func str()
+    {
+        return 'Acceptor[${id}](port=${port})'
+    }
+}

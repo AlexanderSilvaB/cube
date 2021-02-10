@@ -1,0 +1,30 @@
+import game
+
+if(not game.valid)
+    exit(0)
+
+game.display.title('Window')
+game.display.size(512, 512)
+
+var quit = false
+var fps = game.timers.FPS(30)
+
+while(!quit)
+{
+    var ev = game.events.get()
+    for(var e in ev)
+    {
+        if(e.type == game.events.types.QUIT)
+        {
+            quit = true
+        }
+    }
+
+    // Update
+
+    // Draw scene
+    game.display.clear()
+
+    game.display.update()
+    fps.wait()
+}

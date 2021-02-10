@@ -1,0 +1,28 @@
+import asio
+
+var p = process('cube')
+var text = p.readLine()
+
+var server = asio.ip.tcp.http.Server(8080)
+server.post('/docs/php/cube.php', @(req, res){
+    if(req.data is dict and req.data['cmd'] is not null)
+    {
+        var cmd = req.data['cmd']
+        if(cmd == '__init__')
+            return text
+        else
+        {
+            p.writeLine(cmd)
+            text = p.readLine()
+            return text
+        }
+    }
+    else
+    {
+        return 'Error!'
+    }
+})
+
+server.start()
+
+asio.loop()

@@ -463,7 +463,7 @@ char *fixPath(const char *path)
     return pathStr;
 }
 
-bool findAndReadFile(const char *fileNameS, char **path, char **source)
+bool findAndReadFile(const char *fileNameS, char **path, char **source, char **folderPath)
 {
     char *fileName = fixPath(fileNameS);
     if (fileName == NULL)
@@ -475,10 +475,12 @@ bool findAndReadFile(const char *fileNameS, char **path, char **source)
     char *strPath = (char *)mp_malloc(sizeof(char) * (len + 1));
     strcpy(strPath, fileName);
 
+    ObjString *folder = NULL;
+
     int index = 0;
     while (s == NULL && index < vm.paths->values.count)
     {
-        ObjString *folder = AS_STRING(vm.paths->values.values[index]);
+        folder = AS_STRING(vm.paths->values.values[index]);
         mp_free(strPath);
         strPath = mp_malloc(sizeof(char) * (folder->length + len + 2));
         strcpy(strPath, folder->chars);
@@ -487,10 +489,57 @@ bool findAndReadFile(const char *fileNameS, char **path, char **source)
         index++;
     }
 
+    if (folderPath != NULL && folder != NULL)
+    {
+        *folderPath = mp_malloc(sizeof(char) * (folder->length + 1));
+        strncpy(*folderPath, folder->chars, folder->length);
+        (*folderPath)[folder->length] = '\0';
+    }
+
     mp_free(fileName);
     *source = s;
     *path = strPath;
     return s != NULL;
+}
+
+bool findAndReadFileIncluding(const char *initialPath, const char *fileNameS, char **path, char **source,
+                              char **folderPath)
+{
+    if (initialPath != NULL)
+    {
+        char *fileName = fixPath(fileNameS);
+        if (fileName == NULL)
+            return false;
+
+        int len = strlen(fileName);
+        char *strPath = mp_malloc(sizeof(char) * (strlen(initialPath) + len + 2));
+        strcpy(strPath, initialPath);
+        strcat(strPath, fileName);
+        char *s = readFile(strPath, false);
+
+        if (s != NULL)
+        {
+
+            if (folderPath != NULL)
+            {
+                *folderPath = mp_malloc(sizeof(char) * (strlen(initialPath) + 1));
+                strncpy(*folderPath, initialPath, strlen(initialPath));
+                (*folderPath)[strlen(initialPath)] = '\0';
+            }
+
+            mp_free(fileName);
+            *source = s;
+            *path = strPath;
+            return true;
+        }
+        else
+        {
+            mp_free(fileName);
+            mp_free(strPath);
+        }
+    }
+
+    return findAndReadFile(fileNameS, path, source, folderPath);
 }
 
 char **listFiles(const char *pathRaw, int *size)

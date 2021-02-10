@@ -1,0 +1,26 @@
+import ros
+
+ros.init("test")
+
+var Image = ros.msg('sensor_msgs/Image')
+var pub = ros.Publisher("/image", Image)
+
+var rate = ros.Rate(100)
+var msg = Image()
+msg.width = 320
+msg.height = 240
+msg.encoding = 'rgb8' 
+msg.step = msg.width * 3
+msg.data = make('bytes', msg.step * msg.height, 0)
+
+while(ros.ok())
+{
+    for(var i = 0; i < msg.width; i++)
+    {
+        msg.data[i] = rand(0, 255)
+    }
+    pub.publish(msg)
+    println('Pub')
+    ros.spinOnce()
+    rate.sleep()
+}

@@ -1,0 +1,511 @@
+import os
+import paths
+import contentTypes
+
+enum Method
+{
+    GET = 'GET',
+    HEAD = 'HEAD',
+    POST = 'POST',
+    PUT = 'PUT',
+    DELETE = 'DELETE',
+    CONNECT = 'CONNECT',
+    OPTIONS = 'OPTIONS',
+    TRACE = 'TRACE'
+}
+
+enum Status
+{
+    Continue = '100 Continue',
+    SwitchingProtocol = '101 Switching Protocol',
+    Processing = '102 Processing',
+    EarlyHints = '103 Early Hints',
+    OK = '200 OK',
+    Created = '201 Created',
+    Accepted = '202 Accepted',
+    NonAuthoritativeInformation = '203 Non-Authoritative Information',
+    NoContent = '204 No Content',
+    ResetContent = '205 Reset Content',
+    PartialContent = '206 Partial Content',
+    MultiStatus = '207 Multi-Status',
+    MultiStatus2 = '208 Multi-Status',
+    IMUsed = '226 IM Used',
+    MultipleChoice = '300 Multiple Choice',
+    MovedPermanently = '301 Moved Permanently',
+    Found = '302 Found',
+    SeeOther = '303 See Other',
+    NotModified = '304 Not Modified',
+    UseProxy = '305 Use Proxy',
+    Unused = '306 unused',
+    TemporaryRedirect = '307 Temporary Redirect',
+    PermanentRedirect = '308 Permanent Redirect',
+    BadRequest = '400 Bad Request',
+    Unauthorized = '401 Unauthorized',
+    PaymentRequired = '402 Payment Required',
+    Forbidden = '403 Forbidden',
+    NotFound = '404 Not Found',
+    MethodNotAllowed = '405 Method Not Allowed',
+    NotAcceptable = '406 Not Acceptable',
+    ProxyAuthenticationRequired = '407 Proxy Authentication Required',
+    RequestTimeout = '408 Request Timeout',
+    Conflict = '409 Conflict',
+    Gone = '410 Gone',
+    LengthRequired = '411 Length Required',
+    PreconditionFailed = '412 Precondition Failed',
+    PayloadTooLarge = '413 Payload Too Large',
+    URITooLong = '414 URI Too Long',
+    UnsupportedMediaType = '415 Unsupported Media Type',
+    RequestedRangeNotSatisfiable = '416 Requested Range Not Satisfiable',
+    ExpectationFailed = '417 Expectation Failed',
+    ImAteapot = "418 I'm a teapot",
+    MisdirectedRequest = '421 Misdirected Request',
+    UnprocessableEntity = '422 Unprocessable Entity',
+    Locked = '423 Locked',
+    FailedDependency = '424 Failed Dependency',
+    TooEarly = '425 Too Early',
+    UpgradeRequired = '426 Upgrade Required',
+    PreconditionRequired = '428 Precondition Required',
+    TooManyRequests = '429 Too Many Requests',
+    RequestHeaderFieldsTooLarge = '431 Request Header Fields Too Large',
+    UnavailableForLegalReasons = '451 Unavailable For Legal Reasons',
+    InternalServerError = '500 Internal Server Error',
+    NotImplemented = '501 Not Implemented',
+    BadGateway = '502 Bad Gateway',
+    ServiceUnavailable = '503 Service Unavailable',
+    GatewayTimeout = '504 Gateway Timeout',
+    HTTPVersionNotSupported = '505 HTTP Version Not Supported',
+    VariantAlsoNegotiates = '506 Variant Also Negotiates',
+    InsufficientStorage = '507 Insufficient Storage',
+    LoopDetected = '508 Loop Detected',
+    NotExtended = '510 Not Extended',
+    NetworkAuthenticationRequired = '511 Network Authentication Required'
+}
+
+class Request
+{
+    var valid
+    var rawData
+    var method
+    var uri
+    var version
+    var headers
+    var body
+    var data
+
+    func init(data)
+    {
+        method = Method.GET
+        uri = '/'
+        version = 'HTTP/1.1'
+        headers = {}
+
+        if(data is str)
+            parse(data)
+    }
+
+    func parse(data)
+    {
+        try
+        {
+            rawData = data
+            data = str(data)
+
+            var method = data.substr(0, data.find(' '))
+            this.method = Method.get(method)
+            data = data.from(len(method) + 1)
+
+            uri = data.substr(0, data.find(' '))
+            data = data.from(len(uri) + 1)
+
+            version = data.substr(0, data.find('\r\n'))
+            data = data.from(len(version) + 2)
+
+            var header = data.substr(0, data.find('\r\n'))
+            data = data.from(len(header) + 2)
+
+            var key, value
+            while(len(header) > 0)
+            {
+                key = header.substr(0, header.find(': '))
+                value = header.from(len(key) + 2)
+                headers[key] = value
+
+                header = data.substr(0, data.find('\r\n'))
+                data = data.from(len(header) + 2)
+            }
+
+            body = data
+            var contentType = headers['Content-Type']
+            contentType ?= 'text/plain'
+
+            if(contentType.contains('multipart/form-data'))
+            {
+
+            }
+            else if(contentType.contains('application/x-www-form-urlencoded'))
+            {
+                var items = body.split('&')
+                var parts, key, value
+                this.data = {}
+                for(var item in items)
+                {
+                    parts = item.split('=')
+                    key = parts[0]
+                    if(len(parts) > 1)
+                        value = parts[1]
+                    else
+                        value = true
+                    this.data[key] = value
+                }
+            }
+            else if(contentType.contains('application/json'))
+            {
+                this.data = dict(body)
+            }
+            else
+                this.data = body
+            
+            valid = true
+        }
+        catch(e)
+        {
+            valid = false
+        }
+
+        return valid
+    }
+
+    func str()
+    {
+        var res = method.value() + ' ${uri} ${version}\r\n'
+        for(var key in headers)
+        {
+            res += key + ': ' + headers[key] + '\r\n'
+        }
+        res += '\r\n'
+        res += body
+
+        return res
+    }
+}
+
+class Response
+{
+    var status
+    var server
+    var connection
+    var headers
+    var content
+    var contentType
+    func init()
+    {
+        status = Status.OK
+        server = 'Cube/' + os.version + ' (' + os.name + ')'
+        connection = 'Closed'
+        headers = {}
+        content = ""
+        contentType = 'text/html'
+    }
+
+    func setContent(content, type)
+    {
+        if(type is null)
+            type = 'text/html'
+
+        this.content = content
+        this.contentType = contentTypes.types['.${type}']
+        if(this.contentType is null)
+            this.contentType = type
+    }
+
+    func text()
+    {
+        var res = 'HTTP/1.1 ' + status.value() + '\r\n'
+        res += 'Date: ' + date() + '\r\n'
+        res += 'Server: ${server}\r\n'
+        for(var key in headers)
+        {
+            res += key + ': ' + headers[key] + '\r\n'
+        }
+
+        var content = ""
+        if(this.content is not null)
+        {
+            if(this.content is not str and this.content is not bytes)
+                content = str(this.content)
+            else
+                content = this.content
+        }
+
+        res += 'Content-Length: ' + len(content) + '\r\n'
+        res += 'Content-Type: ${contentType}\r\n'
+        res += 'Connection: ${connection}\r\n\r\n'
+
+        return res
+    }
+
+    func str()
+    {
+        var res = text()
+        res += content
+
+        return res
+    }
+}
+
+class Server
+{
+    var acceptor
+    var handlers
+    var useFs
+    var root
+    var plain
+    var verbose
+    var style
+
+    func init(root, port)
+    {
+        if(root is num and port is null)
+        {
+            port = root
+            root = '.'
+        }
+
+        if(root is not str)
+            root = '.'
+        if(port is null)
+            port = 80
+        
+        acceptor = Acceptor(port, true)
+        handlers = {}
+        verbose = true
+        useFs = true
+        plain = false
+        this.root = root
+        style = "body{
+                margin: 0; 
+                padding: 0px;
+            } 
+            h3{
+                background: #348ceb; 
+                color: #FFF; 
+                padding: 20px 10px; 
+                margin: 0px;
+            } 
+            h3 a{
+                display: inline;
+                color: #FFF; 
+                padding: 8px 12px; 
+                text-decoration: none;
+                background: #4CAF50;
+                border-radius: 20px;
+                margin-right: 20px;
+            } 
+            ul{
+                list-style-type: none; 
+                margin: 0; 
+                padding : 0; 
+                width: 100%; 
+                margin-bottom: 20px;
+            } 
+            li a { 
+                display: block; 
+                color: #000; 
+                padding: 8px 10px; 
+                text-decoration: none; 
+            } 
+            li {
+                border-bottom: 1px solid #555; 
+            } 
+            li a:hover {
+                background-color: #4CAF50; 
+                color: white; 
+                text-decoration: underline;
+            }"
+    }
+
+    func start()
+    {
+        if(verbose)
+            println('Start listening on 127.0.0.1:' + acceptor.port)
+        acceptor.begin(@(socket)
+        {
+            var req = Request()
+            socket.readUntil('\r\n\r\n', @(data)
+            {
+                if(req.parse(data))
+                {
+                    var res = this.__process_request(req)
+                    socket.write(res.text(), @(n)
+                    {
+                        if(res.content is not null)
+                            socket.write(res.content, @(n)
+                            {
+                                socket.close()
+                            })
+                        else
+                            socket.close()
+                    })
+                }
+                else
+                {
+                    if(verbose)
+                        println('Invalid request received: ' + str(data))
+                    socket.close()
+                }
+            })
+        })
+    }
+
+    func fs(root)
+    {
+        if(root is null or root == false)
+            useFs = false
+        else
+        {
+            useFs = true
+            if(root is str)
+                this.root = root
+        }
+    }
+
+    func get(uri, fn)
+    {
+        return on(uri, 'GET', fn)
+    }
+
+    func post(uri, fn)
+    {
+        return on(uri, 'POST', fn)
+    }
+
+    func put(uri, fn)
+    {
+        return on(uri, 'PUT', fn)
+    }
+
+    func delete(uri, fn)
+    {
+        return on(uri, 'delete', fn)
+    }
+
+    func on(uri, method, fn)
+    {
+        if(method is func and fn is null)
+        {
+            fn = method
+            method = null
+        }
+
+        if(method is null)
+            method = 'GET'
+        if(method is Method)
+            method = method.value()
+
+        if(fn is null)
+            return false
+        
+        if(handlers.exists(method) == false)
+            handlers[method] = {}
+        
+        handlers[method][uri] = fn
+        return true
+    }
+    
+    func __process_request(req)
+    {
+        if(verbose)
+            println('Request: ' + req.method.value() + ' ' + req.uri)
+
+        var content = null
+        var res = Response()
+
+        var handler = null
+        if(handlers.exists(req.method.value()))
+            handler = handlers[req.method.value()]
+        else if(handlers.exists('*'))
+            handler = handlers['*']
+
+        if(handler is dict)
+        {
+            if(handler.exists(req.uri))
+                handler = handler[req.uri]
+            else if(handler.exists('*'))
+                handler = handler['*']
+            else
+                handler = null
+
+            if(handler is func)
+            {
+                content = handler(req, res)
+                res.setContent(content, res.contentType)
+            }
+        }
+
+        if(useFs)
+        {
+            if(content is null)
+                __fs_handler(req, res)
+        }
+
+        if(verbose)
+            println('Response: ' + res.status.value())
+        return res
+    }
+
+    func __get_path(uri)
+    {
+        var path = root + uri
+        if(uri == '/')
+        {
+            var files = ls(root)
+            for(var file in files)
+            {
+                if(file.startsWith('index.'))
+                {
+                    path += file
+                    break
+                }
+            }
+        }
+
+        return path
+    }
+
+    func __fs_handler(req, res)
+    {
+        var path = __get_path(req.uri)
+        var content
+        var ext = 'html'
+        var uri = req.uri 
+        if(!uri.endsWith('/'))
+            uri += '/'
+        if(path.endsWith('/') or isdir(path))
+        {
+            var files = ls(path)
+            var ul = ""
+            for(var file in files)
+            {
+                if(file != '.')
+                    ul += '<li><a href="${uri}${file}">${file}</a></li>'
+            }
+
+            content = '<html><head><title>Cube Server: ${uri}</title><style>${style}</style></head><body><h3>' + (uri == '/' ? '' : '<a href="..">..</a>') + req.uri + '</h3><ul>${ul}</ul></body></html>'
+        }
+        else
+        {
+            var file = open(path, 'rb')
+            if(file is not null)
+            {
+                content = file.read()
+                file.close()
+                ext = paths.extension(path)
+            }
+        }
+
+        if(content is null)
+            res.status = Status.NotFound
+        else
+            res.setContent(content, ext)
+    }
+}

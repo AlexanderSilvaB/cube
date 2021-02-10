@@ -89,6 +89,7 @@ ObjModule *newModule(ObjString *name)
 {
     ObjModule *module = ALLOCATE_OBJ(ObjModule, OBJ_MODULE);
     module->name = name;
+    module->path = NULL;
     initTable(&module->symbols);
     module->parent = NULL;
     return module;
@@ -160,9 +161,11 @@ ObjProcess *defaultProcess()
 #ifndef _WIN32
     process->in = STDIN_FILENO;
     process->out = STDOUT_FILENO;
+    process->err = STDERR_FILENO;
 #else
     process->in = _fileno(stdin);
     process->out = _fileno(stdout);
+    process->err = _fileno(stderr);
 #endif
     process->protected = true;
 
@@ -181,11 +184,13 @@ ObjProcess *newProcess(ObjString *path, int argCount, Value *args)
     process->protected = false;
     int pipe1[2];
     int pipe2[2];
+    // int pipe3[2];
     int child;
 
     // Create two pipes
     pipe(pipe1);
     pipe(pipe2);
+    // pipe(pipe3);
 
     if ((child = fork()) == 0)
     {
@@ -193,14 +198,18 @@ ObjProcess *newProcess(ObjString *path, int argCount, Value *args)
         // // Close current `stdin` and `stdout` file handles
         close(STDIN_FILENO);
         close(STDOUT_FILENO);
+        close(STDERR_FILENO);
 
         // // Duplicate pipes as new `stdin` and `stdout`
         dup2(pipe1[0], STDIN_FILENO);
         dup2(pipe2[1], STDOUT_FILENO);
+        // dup2(pipe3[1], STDERR_FILENO);
+        dup2(pipe2[1], STDERR_FILENO);
 
         // // We don't need the other ends of the pipes, so close them
         close(pipe1[1]);
         close(pipe2[0]);
+        // close(pipe3[0]);
 
         // Construct args
         char **_args = (char **)malloc(sizeof(char *) * (argCount + 2));
@@ -226,12 +235,15 @@ ObjProcess *newProcess(ObjString *path, int argCount, Value *args)
         // or the write-end of the second pipe (the childs `stdout`)
         close(pipe1[0]);
         close(pipe2[1]);
+        // close(pipe3[1]);
 
         // Now you can write to `pipe1[1]` and it will end up as `stdin` in the child
         // Read from `pipe2[0]` to read from the childs `stdout`
 
         process->pid = child;
         process->in = pipe2[0];
+        // process->err = pipe3[0];
+        process->err = pipe2[0];
         process->out = pipe1[1];
         process->running = true;
         process->closed = false;

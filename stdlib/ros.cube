@@ -1,0 +1,779 @@
+native ros
+{
+    void init(cstr name, cbool anonymous = false, cbool private = false);
+    cbool ok();
+    cbool isShuttingDown();
+    void logdebug(cstr text);
+    void loginfo(cstr text);
+    void logwarn(cstr text);
+    void logerror(cstr text);
+    void logfatal(cstr text);
+    void spinOnce();
+
+    int createSub(cstr topic, int queueSize, func callback);
+    void shutdownSub(int id);
+    int getNumPubsSub(int id);
+
+    int createPub(cstr topic, int queueSize, cstr md5, cstr type, cstr desc);
+    void shutdownPub(int id);
+    int getNumSubsPub(int id);
+    cbool publishMsg(int id, dict data);
+
+    var getParam(cstr name);
+    cbool setParam(cstr name, var val);
+    cbool hasParam(cstr name);
+    cbool deleteParam(cstr name);
+    str searchParam(cstr name);
+    list getParamNames();
+
+    dict loadUrdf(cstr fileName);
+}
+
+func spin()
+{
+    while(ok())
+    {
+        spinOnce()
+    }
+}
+
+import os
+import math
+import paths
+import urdf as default
+
+Model.loadFunc(@(path)
+    {
+        path = paths.expand(path)
+        var desc = loadUrdf(path)
+        return desc
+    })
+
+class Subscriber
+{
+    var id
+    var type
+    var callback
+    func init(topic, type, callback, queueSize)
+    {
+        if(queueSize is null)
+            queueSize = 1
+
+        this.type = type
+        this.callback = callback
+        id = createSub(topic, queueSize, @(msg, items)
+        {
+            var obj = type()
+            obj.parse(topic, msg)
+            for(var key in items)
+            {
+                obj.parseItem(topic, key, items[key])
+            }
+            callback(obj, msg)
+        })
+    }
+
+    func shutdown()
+    {
+        shutdownSub(id)
+    }
+
+    func getNumPublishers()
+    {
+        return getNumSubsPub(id)
+    }
+}
+
+class Publisher
+{
+    var id
+    var type
+    var topic
+    func init(topic, type, queueSize)
+    {
+        if(queueSize is null)
+            queueSize = 1
+
+        this.type = type
+        this.topic = topic
+
+        id = createPub(topic, queueSize, type.__md5, type.__type, type.__raw_desc)
+    }
+
+    func publish(data)
+    {
+        if(data is not instance)
+            data = type(data)
+        else if(getClassName(data) != getClassName(type))
+            data = type(data)
+
+        return publishMsg(id, {'info' : data.info(), 'size' : data.sizes(), 'value' : data.dict()})
+    }
+
+    func shutdown()
+    {
+        shutdownPub(id)
+    }
+
+    func getNumSubscribers()
+    {
+        return getNumPubsSub(id)
+    }
+}
+
+
+class Rate
+{
+    var ms
+    func init(hz)
+    {
+        ms = 1000 / hz
+    }
+
+    func reset()
+    {
+        pass
+    }
+
+    func sleep()
+    {
+        wait(ms)
+    }
+}
+
+class Log
+{
+    func items(fn, data)
+    {
+        var s = ''
+        for(var i in data)
+        {
+            if(i is Msg)
+                s += i.str()
+            else
+                s += str(i)
+        }
+        fn(s)
+    }
+
+    func debug()
+    {
+        items(logdebug, args)
+    }
+
+    func info()
+    {
+        items(loginfo, args)
+    }
+
+    func warn()
+    {
+        items(logwarn, args)
+    }
+
+    func error()
+    {
+        items(logerror, args)
+    }
+
+    func fatal()
+    {
+        items(logfatal, args)
+    }
+}
+
+var log = Log()
+
+global var ROS_MSG = null
+
+class Msg
+{
+    static var __primitive_types = ['bool', 'int8', 'uint8', 'int16', 'uint16', 'int32', 'uint32', 'int64', 'uint64', 'float32', 'float64', 'string', 'char', 'byte']
+    static var __primivite_map = {
+        'bool'    : 'bool',
+        'int8'    : 'num',
+        'uint8'   : 'num',
+        'int16'   : 'num',
+        'uint16'  : 'num',
+        'int32'   : 'num',
+        'uint32'  : 'num',
+        'int64'   : 'num',
+        'uint64'  : 'num',
+        'float32' : 'num',
+        'float64' : 'num',
+        'string'  : 'str',
+        'char'    : 'num',
+        'byte'    : 'num'
+    }
+    static var __primivite_default_values = {
+        'bool'    : false,
+        'int8'    : 0,
+        'uint8'   : 0,
+        'int16'   : 0,
+        'uint16'  : 0,
+        'int32'   : 0,
+        'uint32'  : 0,
+        'int64'   : 0,
+        'uint64'  : 0,
+        'float32' : 0,
+        'float64' : 0,
+        'string'  : "''",
+        'char'    : 0,
+        'byte'    : 0
+    }
+
+    static var __type = 'msg'
+    static var __info = {}
+    static var __sizes = {}
+
+    func fill(p)
+    {
+        var type, val
+        var newP = []
+        var m = 0
+        var field
+        for(var i = 0; i < len(__order); i++)
+        {
+            field = __order[i]
+            if(i < len(p))
+            {
+                if(this.__info[field] in Msg.__primitive_types)
+                {
+                    type = Msg.__primivite_map[this.__info[field]]
+                    val = make(type, p[i])
+                    setField(this, field, val)
+                }
+                else
+                    newP.add(p[i])
+                m++
+            }
+        }
+
+        for(var i = m; i < len(p); i++)
+        {
+            newP.add(p[i])
+        }
+        return newP
+    }
+
+    func parse(topic, text)
+    {
+        try
+        {
+            var lines = text.split('\n')
+            var vName, vText, vValue, vType, vIndex
+            var type, value, individual
+            for(var line in lines)
+            {
+                if(len(line) > len(topic))
+                    line = line.from(len('${topic}/')).strip()
+                if(len(line) > 0)
+                {
+                    if(line.contains('/'))
+                    {
+                        vName = line.substr(0, line.find('/'))
+                        vText = line.from(len(vName) + 1)
+                        vType = __info[vName]
+                        value = getField(this, vName)
+                        value.parse('', '/${vText}')
+                    }
+                    else
+                    {
+                        vName = line.substr(0, line.find('='))
+                        vValue = line.from(len(vName) + 1)
+                        vType = __info[vName]
+                        individual = true
+                        if(vName.contains('.'))
+                        {
+                            vIndex = num(vName.from(vName.find('.') + 1))
+                            vName = vName.substr(0, vName.find('.'))
+                            vType = __info[vName]
+                            if(__sizes[vName] > 0)                            
+                            {
+                                individual = false
+                                value = getField(this, vName)
+                                if(value is not list)
+                                {
+                                    setField(this, vName, [0] * __sizes[vName])
+                                    value = getField(this, vName)
+                                }
+                                if(len(value) > vIndex)
+                                {
+                                    if(vType == 'Time' or vType == 'Duration')
+                                        value[vIndex].load(num(vValue))
+                                    else
+                                    {
+                                        type = Msg.__primivite_map[vType]
+                                        value[vIndex] = make(type, vValue)
+                                    }
+                                }
+                            }
+                            else if(__sizes[vName] < 0)
+                            {
+                                individual = false
+                                value = getField(this, vName)
+                                if(value is not list)
+                                {
+                                    setField(this, vName, [])
+                                    value = getField(this, vName)
+                                }
+                                if(vType == 'Time' or vType == 'Duration')
+                                {
+                                    value.add(eval("${vType}()"))
+                                    value.last().load(num(vValue))
+                                }
+                                else
+                                {
+                                    type = Msg.__primivite_map[vType]
+                                    value.add(make(type, vValue))
+                                }
+                            }
+                            else
+                            {
+                                vName = vName + '.' + vIndex
+                                vType = __info[vName]
+                            }
+                        }
+                        
+                        if(individual)
+                        {
+                            if(vType == 'Time' or vType == 'Duration')
+                            {
+                                value = getField(this, vName)
+                                value.load(num(vValue))
+                            }
+                            else
+                            {
+                                type = Msg.__primivite_map[vType]
+                                value = make(type, vValue)
+                                setField(this, vName, value)
+                            }
+                        }
+                    }
+                }
+            }
+            return true
+        }
+        catch(e){
+            return false
+        }
+    }
+
+    func parseItem(topic, item, val)
+    {
+        try
+        {
+            var line = item
+            var vName, vText, vValue, vType, vIndex
+            var type, value, individual
+
+            if(len(line) > len(topic))
+                line = line.from(len('${topic}/')).strip()
+            if(len(line) > 0)
+            {
+                if(line.contains('/'))
+                {
+                    vName = line.substr(0, line.find('/'))
+                    vText = line.from(len(vName) + 1)
+                    vType = __info[vName]
+                    value = getField(this, vName)
+                    value.parseItem('', '/${vText}', val)
+                }
+                else
+                {
+                    vName = line
+                    vType = __info[vName]
+                    individual = true
+                    if(vName.contains('.'))
+                    {
+                        vIndex = num(vName.from(vName.find('.') + 1))
+                        vName = vName.substr(0, vName.find('.'))
+                        vType = __info[vName]
+                    }
+                    setField(this, vName, val)
+                }
+            }
+            return true
+        }
+        catch(e){
+            return false
+        }
+    }
+
+    func loadDesc()
+    {
+        var proc = process('rosmsg', 'show', '-r', __type)
+        var res = ''
+        while(proc.running())
+        {
+            res += proc.readLine() + '\n'
+        }
+
+        __raw_desc = res
+
+        var type
+        var value, name
+        var desc
+        for(var field in __order)
+        {
+            type = __info[field]
+            if(type not in Msg.__primitive_types)
+            {
+                if(__sizes[field] == 0)
+                    value = getField(this, field)
+                else if(__sizes[field] > 0)
+                    value = getField(this, field)[0]
+                else
+                    value = eval(type + '()')
+
+                if(len(value.getRawDesc()) > 0)
+                {
+                    if(!__raw_desc.contains(value.getType()))
+                    {
+                        __raw_desc += "================================================================================\n"
+                        __raw_desc += "MSG: " + value.getType() + "\n" + value.getRawDesc()
+                    }
+                }
+            }
+        }
+    }
+
+    func getRawDesc()
+    {
+        return __raw_desc
+    }
+
+    func getType()
+    {
+        return __type
+    }
+
+    func info()
+    {
+        var res = {}
+        for(var key in __info)
+        {
+            if(__info[key] in Msg.__primitive_types)
+                res[key] = __info[key]
+            else
+            {
+                if(__sizes[key] == 0)
+                    res[key] = getField(this, key).info()
+                else if(__sizes[key] > 0)
+                    res[key] = getField(this, key)[0].info()
+                else
+                    res[key] = eval(__info[key] + '()').info()
+            }
+        }
+        res['__order'] = __order
+        return res
+    }
+
+    func sizes()
+    {
+        var res = {}
+        for(var key in __sizes)
+        {
+            if(__info[key] in Msg.__primitive_types)
+                res[key] = __sizes[key]
+            else
+            {
+                res["__${key}"] = __sizes[key]
+                if(__sizes[key] == 0)
+                    res[key] = getField(this, key).sizes()
+                else if(__sizes[key] > 0)
+                    res[key] = getField(this, key)[0].sizes()
+                else
+                    res[key] = eval(__info[key] + '()').sizes()
+            }
+        }
+        return res
+    }
+
+    func dict()
+    {
+        var fields = getFields(this)
+        var value
+        var res = {}
+        for(var field in fields)
+        {
+            if(!field.startsWith('__'))
+            {
+                value = getField(this, field)
+                if(value is Msg)
+                    res[field] = value.dict()
+                else
+                    res[field] = value
+            }
+        }
+
+        return res
+    }
+
+    func str()
+    {
+        var d = this.dict()
+        if(len(d) == 1)
+            return d[d[0]]
+        else
+            return str(d)
+    }
+}
+
+class Time : Msg
+{
+    var secs
+    var nsecs
+    var __info = {"secs" : "uint32", "nsecs" : "uint32"}
+    var __order = ["secs", "nsecs"]
+    var __sizes = {"secs" : 0, "nsecs" : 0}
+    static var __type = 'time'
+    static var __desc = 'uint32 secs
+uint32 nsecs
+'
+    static var __md5 = ''
+    static var __raw_desc = ''
+
+    func init()
+    {
+        var p = args
+        secs = 0
+        nsecs = 0
+        this.fill(p)
+    }
+
+    func load(n)
+    {
+        secs = int(n)
+        nsecs = n - (secs * 1e-9)
+    }
+}
+
+class Duration : Msg
+{
+    var secs
+    var nsecs
+    var __info = {"secs" : "uint32", "nsecs" : "uint32"}
+    var __order = ["secs", "nsecs"]
+    var __sizes = {"secs" : 0, "nsecs" : 0}
+    static var __type = 'time'
+    static var __desc = 'uint32 secs
+uint32 nsecs
+'
+    static var __md5 = ''
+    static var __raw_desc = ''
+
+    func init()
+    {
+        var p = args
+        secs = 0
+        nsecs = 0
+        this.fill(p)
+    }
+
+    func load(n)
+    {
+        secs = int(n)
+        nsecs = n - (secs * 1e-9)
+    }
+}
+
+func __import__(path)
+{
+    return msg(path)
+}
+
+func msg(path)
+{
+    path = path.replace('.', '/')
+    var fileName = path.replace('/', '.')
+    var filePath = os.mkpath(fileName) + '.cube'
+
+    if(!exists(filePath))
+    {
+        var proc = process('rosmsg', 'show', path)
+        var res = ''
+        while(proc.running())
+        {
+            res += proc.readLine() + '\n'
+        }
+
+        if(res.startsWith('[') or res.startsWith('Could not') or res.startsWith('Unable to load msg'))
+            return null
+
+        proc = process('rosmsg', 'md5', path)
+        var md5 = ''
+        while(proc.running())
+        {
+            md5 += proc.readLine() + '\n'
+        }
+
+        md5 = md5.strip()
+
+        var name = path.split('/').last()
+        var desc = generate_msg_class(path, md5, name, res)
+        desc += "\nROS_MSG = ${name}\n"
+        desc += "global var ${name} = ${name}\n"
+        desc += "var ROS_MSG_OBJ = ${name}()"
+
+        println(desc)
+
+        var file = open(filePath, 'w')
+        if(file is null)
+            return null
+
+        file.write(desc)
+        file.close()
+    }
+
+    require(filePath)
+
+    return ROS_MSG
+}
+
+func generate_msg_class(type, md5, name, text)
+{
+    var msg_text = copy(text)
+    var desc = ""
+    var fields = {}
+    var length = {}
+    var fieldsList = []
+    var line = "_"
+    var skip = 0
+    var parts, key, value, size, tmp
+    var iname, itext, start, j, idesc
+    while(len(text) > 0 and len(line) > 0)
+    {
+        line = text.substr(0, text.find('\n'))
+        skip = len(line) + 1
+        if(len(line) > 0)
+        {
+            parts = line.strip().split(' ')
+            value = parts[0]
+            key = parts[1]
+            size = 0
+            if(value.contains('['))
+            {
+                tmp = value.substr(0, value.find('['))
+                value = value.from(len(tmp) + 1)
+                size = value.substr(0, value.find(']'))
+                if(len(size) == 0)
+                    size = '-1'
+                value = tmp
+            }
+            if(value in Msg.__primitive_types)
+            {
+                fields[key] = value
+                length[key] = num(size)
+                fieldsList.add(key)
+            }
+            else if(value == 'time')
+            {
+                fields[key] = 'Time'
+                length[key] = num(size)
+                fieldsList.add(key)
+            }
+            else if(value == 'duration')
+            {
+                fields[key] = 'Duration'
+                length[key] = num(size)
+                fieldsList.add(key)
+            }
+            else
+            {
+                iname = value.split('/').last()
+                itext = ''
+                start = ''
+                text = text.from(skip)
+                j = 0
+                while(isspace(text[j]))
+                {
+                    j++
+                    start += ' '
+                }
+                line = text.substr(0, text.find('\n'))
+                skip = len(line) + 1
+                while(len(start) > 0 and line.startsWith(start))
+                {
+                    itext += line.from(len(start)) + '\n'
+                    text = text.from(skip)
+                    if(text.contains('\n'))
+                    {
+                        line = text.substr(0, text.find('\n'))
+                        skip = len(line) + 1
+                    }
+                    else
+                    {
+                        line = text
+                        skip = len(line)
+                    }
+                }
+                skip = 0
+                fields[key] = iname
+                length[key] = num(size)
+                fieldsList.add(key)
+                if(not desc.contains("var __type = '${value}'\n"))
+                {
+                    idesc = generate_msg_class(value, '', iname, itext)
+                    desc += "${idesc}\n"
+                }
+            }
+        }
+        text = text.from(skip)
+    }
+
+    desc += 'class ${name} : Msg\n{\n'
+    for(var key in fieldsList)
+    {
+        desc += "    var ${key}\n"
+    }
+    desc += "    var __info = ${fields}\n"
+    desc += "    var __order = ${fieldsList}\n"
+    desc += "    var __sizes = ${length}\n"
+    desc += "    static var __type = '${type}'\n"
+    desc += "    static var __desc = '${msg_text}'\n"
+    desc += "    static var __md5 = '${md5}'\n"
+    desc += "    static var __raw_desc = ''\n"
+    desc += "    func init()\n    {\n"
+    desc += "        var p = args\n"
+    for(var key in fieldsList)
+    {
+        if(fields[key] not in Msg.__primitive_types)
+        {
+            if(length[key] == 0)
+            {
+                desc += "        ${key} = " + fields[key] + "()\n"
+                desc += "        p = ${key}.fill(p)\n"
+            }
+            else if(length[key] > 0)
+            {
+                desc += "        " + fields[key] + "()\n"
+                desc += "        ${key} = []\n"
+                desc += "        for(var i = 0; i < " + length[key] + "; i++)"
+                desc += "        {"
+                desc += "            ${key}[i] = " + fields[key] + "()\n"
+                desc += "        }"
+            }
+            else if(length[key] < 0)
+            {
+                desc += "        ${key} = []\n"
+            }
+        }
+        else
+        {
+            if(length[key] > 0)
+                desc += "        ${key} = [" + Msg.__primivite_default_values[fields[key]] + "] * " + length[key] + "\n"
+            else if(length[key] < 0)
+                desc += "        ${key} = []\n"
+            else
+                desc += "        ${key} = " + Msg.__primivite_default_values[fields[key]] + "\n"
+        }
+    }
+    desc += "        this.fill(p)\n"
+    desc += "        if(len(__raw_desc) == 0)\n"
+    desc += "            loadDesc()\n"
+    desc += "    }\n"
+    desc += '\n}'
+
+    return desc
+}

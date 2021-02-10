@@ -289,6 +289,70 @@ void destroyTaskFrame(const char *name)
     }
 }
 
+void suspendTaskFrame(const char *name)
+{
+    for (int i = 0; i < MAX_THREADS; i++)
+    {
+        ThreadFrame *threadFrame = &vm.threadFrames[i];
+        TaskFrame *tf = threadFrame->taskFrame;
+        if (tf == NULL)
+            continue;
+
+        if (strcmp(name, tf->name) == 0)
+        {
+            tf->busy = true;
+            break;
+        }
+        else
+        {
+            TaskFrame *parent = NULL;
+            while (tf != NULL && strcmp(name, tf->name) != 0)
+            {
+                parent = tf;
+                tf = tf->next;
+            }
+
+            if (tf != NULL)
+            {
+                tf->busy = true;
+                break;
+            }
+        }
+    }
+}
+
+void resumeTaskFrame(const char *name)
+{
+    for (int i = 0; i < MAX_THREADS; i++)
+    {
+        ThreadFrame *threadFrame = &vm.threadFrames[i];
+        TaskFrame *tf = threadFrame->taskFrame;
+        if (tf == NULL)
+            continue;
+
+        if (strcmp(name, tf->name) == 0)
+        {
+            tf->busy = false;
+            break;
+        }
+        else
+        {
+            TaskFrame *parent = NULL;
+            while (tf != NULL && strcmp(name, tf->name) != 0)
+            {
+                parent = tf;
+                tf = tf->next;
+            }
+
+            if (tf != NULL)
+            {
+                tf->busy = false;
+                break;
+            }
+        }
+    }
+}
+
 static void pushTry(CallFrame *frame, uint16_t offset)
 {
     ThreadFrame *threadFrame = currentThread();
@@ -493,6 +557,16 @@ void addPath(const char *path)
         pathStr[0] = '\0';
         strcpy(pathStr, path);
         replaceString(pathStr, "~", home);
+    }
+
+    for (int i = 0; i < vm.paths->values.count; i++)
+    {
+        if (strcmp(AS_CSTRING(vm.paths->values.values[i]), pathStr) == 0)
+        {
+            if (home == NULL)
+                mp_free(pathStr);
+            return;
+        }
     }
 
     DISABLE_GC;
@@ -1509,6 +1583,15 @@ bool envVariable(ObjString *name, Value *value)
         *value = vm.rootPath;
         return true;
     }
+    else if (strcmp(name->chars, "__path__") == 0)
+    {
+        if (currentThread() && currentThread()->frame && currentThread()->frame->module &&
+            currentThread()->frame->module->path)
+            *value = STRING_VAL(currentThread()->frame->module->path->chars);
+        else
+            *value = NULL_VAL;
+        return true;
+    }
     return false;
 }
 
@@ -1803,6 +1886,25 @@ bool subscriptEnum(Value enumValue, Value indexValue, Value *result)
     return true;
 }
 
+bool subscriptModule(Value moduleValue, Value indexValue, Value *result)
+{
+    if (!IS_STRING(indexValue))
+    {
+        runtimeError("Module key must be a string.");
+        return false;
+    }
+
+    ObjModule *module = AS_MODULE(moduleValue);
+    ObjString *name = AS_STRING(indexValue);
+
+    if (!tableGet(&module->symbols, name, result))
+    {
+        runtimeError("Field not found on module.");
+        return false;
+    }
+    return true;
+}
+
 bool subscript(Value container, Value indexValue, Value *result)
 {
     if (IS_STRING(container))
@@ -1825,6 +1927,10 @@ bool subscript(Value container, Value indexValue, Value *result)
     {
         return subscriptEnum(container, indexValue, result);
     }
+    else if (IS_MODULE(container))
+    {
+        return subscriptModule(container, indexValue, result);
+    }
 
     runtimeError("Only lists, dicts and string have indexes.");
     return false;
@@ -1838,7 +1944,14 @@ bool subscriptBytesAssign(Value container, Value indexValue, Value assignValue)
         return false;
     }
 
-    ObjBytes *value = AS_BYTES(toBytes(assignValue));
+    ObjBytes *value;
+    if (IS_NUMBER(assignValue) && AS_NUMBER(assignValue) < 256)
+    {
+        uint8_t v = AS_NUMBER(assignValue);
+        value = AS_BYTES(BYTES_VAL(&v, 1));
+    }
+    else
+        value = AS_BYTES(toBytes(assignValue));
 
     ObjBytes *bytes = AS_BYTES(container);
 
@@ -3855,7 +3968,7 @@ InterpretResult run()
                 Value ret;
                 if (strcmp(objType, type->chars) == 0)
                 {
-                    ret = not ? FALSE_VAL : TRUE_VAL;
+                    ret = not? FALSE_VAL : TRUE_VAL;
                 }
                 else
                 {
@@ -3863,30 +3976,30 @@ InterpretResult run()
                     {
                         ObjInstance *instance = AS_INSTANCE(obj);
                         if (inherits(instance->klass, type))
-                            ret = not ? FALSE_VAL : TRUE_VAL;
+                            ret = not? FALSE_VAL : TRUE_VAL;
                         else
-                            ret = not ? TRUE_VAL : FALSE_VAL;
+                            ret = not? TRUE_VAL : FALSE_VAL;
                     }
                     else if (IS_CLASS(obj))
                     {
                         ObjClass *klass = AS_CLASS(obj);
                         if (inherits(klass, type))
-                            ret = not ? FALSE_VAL : TRUE_VAL;
+                            ret = not? FALSE_VAL : TRUE_VAL;
                         else
-                            ret = not ? TRUE_VAL : FALSE_VAL;
+                            ret = not? TRUE_VAL : FALSE_VAL;
                     }
                     else if (IS_ENUM_VALUE(obj))
                     {
                         ObjEnumValue *enumValue = AS_ENUM_VALUE(obj);
                         if (strcmp(enumValue->enume->name->chars, type->chars) == 0)
                         {
-                            ret = not ? FALSE_VAL : TRUE_VAL;
+                            ret = not? FALSE_VAL : TRUE_VAL;
                         }
                         else
-                            ret = not ? TRUE_VAL : FALSE_VAL;
+                            ret = not? TRUE_VAL : FALSE_VAL;
                     }
                     else
-                        ret = not ? TRUE_VAL : FALSE_VAL;
+                        ret = not? TRUE_VAL : FALSE_VAL;
                 }
 
                 pop();
@@ -3970,7 +4083,13 @@ InterpretResult run()
 
                 ObjString *fileName = AS_STRING(peek(1));
                 char *s = NULL;
+                char *folderPath = NULL;
                 char *strPath;
+
+                char *modPath = NULL;
+                if (frame->module && frame->module->path)
+                    modPath = frame->module->path->chars;
+
                 if (stringEndsWith(fileName->chars, "\\*") || stringEndsWith(fileName->chars, "/*"))
                 {
                     char *strFileName = mp_malloc(sizeof(char) * (fileName->length + 1));
@@ -4021,14 +4140,26 @@ InterpretResult run()
                     mp_free(files);
                     mp_free(line);
                 }
-                else if (!findAndReadFile(fileName->chars, &strPath, &s))
+                else if (!findAndReadFileIncluding(modPath, fileName->chars, &strPath, &s, &folderPath))
                 {
-                    mp_free(strPath);
-                    runtimeError("Could not load the file \"%s\".", fileName->chars);
-                    if (!checkTry(frame))
-                        return INTERPRET_RUNTIME_ERROR;
-                    else
-                        DISPATCH();
+                    ObjString *tmp_name = fileName;
+                    char *fileNameStr = mp_malloc((tmp_name->length * 2) + 2);
+                    strcpy(fileNameStr, tmp_name->chars);
+                    strcat(fileNameStr, "/");
+                    strcat(fileNameStr, tmp_name->chars);
+                    replaceString(fileNameStr, vm.extension, "");
+                    strcat(fileNameStr, vm.extension);
+                    fileName = AS_STRING(STRING_VAL(fileNameStr));
+                    mp_free(fileNameStr);
+                    if (!findAndReadFileIncluding(modPath, fileName->chars, &strPath, &s, &folderPath))
+                    {
+                        mp_free(strPath);
+                        runtimeError("Could not load the file \"%s\".", fileName->chars);
+                        if (!checkTry(frame))
+                            return INTERPRET_RUNTIME_ERROR;
+                        else
+                            DISPATCH();
+                    }
                 }
                 threadFrame->ctf->currentScriptName = fileName->chars;
 
@@ -4057,11 +4188,23 @@ InterpretResult run()
                 pop();
                 pop();
 
+                // if (folderPath != NULL)
+                // {
+                //     addPath(folderPath);
+                //     mp_free(folderPath);
+                // }
+
+                char *fd = getFolder(strPath);
+                if (fd != NULL)
+                    addPath(fd);
+
                 ObjModule *module = frame->module;
                 if (name != NULL)
                 {
                     ObjString *nameStr = AS_STRING(STRING_VAL(name));
                     module = newModule(nameStr);
+                    if (fd != NULL)
+                        module->path = AS_STRING(STRING_VAL(fd));
                     if (frame->module != NULL)
                     {
                         module->parent = frame->module;
@@ -4073,6 +4216,9 @@ InterpretResult run()
                         tableSet(&frame->module->symbols, nameStr, OBJ_VAL(module));
                     mp_free(name);
                 }
+
+                if (fd != NULL)
+                    mp_free(fd);
 
                 push(OBJ_VAL(function));
                 ObjClosure *closure = newClosure(function);
@@ -4106,6 +4252,7 @@ InterpretResult run()
                     as = AS_STRING(asValue);
                 }
 
+                ObjString *folderPath = AS_STRING(pop());
                 ObjString *fileName = AS_STRING(pop());
 
                 char *name = NULL;
@@ -4125,11 +4272,22 @@ InterpretResult run()
 
                 threadFrame->ctf->currentScriptName = fileName->chars;
 
+                // if (folderPath->length > 0)
+                // {
+                //     addPath(folderPath->chars);
+                // }
+
+                char *fd = getFolder(fileName->chars);
+                if (fd != NULL)
+                    addPath(fd);
+
                 ObjModule *module = frame->module;
                 if (name != NULL)
                 {
                     ObjString *nameStr = AS_STRING(STRING_VAL(name));
                     module = newModule(nameStr);
+                    if (fd != NULL)
+                        module->path = AS_STRING(STRING_VAL(fd));
                     if (frame->module != NULL)
                     {
                         module->parent = frame->module;
@@ -4141,6 +4299,9 @@ InterpretResult run()
                         tableSet(&frame->module->symbols, nameStr, OBJ_VAL(module));
                     mp_free(name);
                 }
+
+                if (fd != NULL)
+                    mp_free(fd);
 
                 push(OBJ_VAL(function));
                 ObjClosure *closure = newClosure(function);
@@ -4271,7 +4432,13 @@ InterpretResult run()
 
                 int len = strlen(fileName);
                 char *s = NULL;
+                char *folderPath = NULL;
                 char *strPath;
+
+                char *modPath = NULL;
+                if (frame->module && frame->module->path)
+                    modPath = frame->module->path->chars;
+
                 if (stringEndsWith(fileNameStr->chars, "\\*") || stringEndsWith(fileNameStr->chars, "/*"))
                 {
                     char *strFileName = mp_malloc(sizeof(char) * (fileNameStr->length + 1));
@@ -4328,15 +4495,26 @@ InterpretResult run()
                     mp_free(files);
                     mp_free(line);
                 }
-                else if (!findAndReadFile(fileName, &strPath, &s))
+                else if (!findAndReadFileIncluding(modPath, fileName, &strPath, &s, &folderPath))
                 {
-                    runtimeError("Could not load the file \"%s\".", fileName);
-                    mp_free(strPath);
-                    mp_free(fileName);
-                    if (!checkTry(frame))
-                        return INTERPRET_RUNTIME_ERROR;
-                    else
-                        DISPATCH();
+                    char *tmp_name = fileName;
+                    fileName = mp_malloc((strlen(tmp_name) * 2) + 2);
+                    strcpy(fileName, tmp_name);
+                    strcat(fileName, "/");
+                    strcat(fileName, tmp_name);
+                    replaceString(fileName, vm.extension, "");
+                    strcat(fileName, vm.extension);
+                    mp_free(tmp_name);
+                    if (!findAndReadFileIncluding(modPath, fileName, &strPath, &s, &folderPath))
+                    {
+                        runtimeError("Could not load the file \"%s\".", fileName);
+                        mp_free(strPath);
+                        mp_free(fileName);
+                        if (!checkTry(frame))
+                            return INTERPRET_RUNTIME_ERROR;
+                        else
+                            DISPATCH();
+                    }
                 }
                 threadFrame->ctf->currentScriptName = fileName;
 
@@ -4356,9 +4534,21 @@ InterpretResult run()
                 pop();
                 pop();
 
+                // if (folderPath != NULL)
+                // {
+                //     addPath(folderPath);
+                //     mp_free(folderPath);
+                // }
+
+                char *fd = getFolder(strPath);
+                if (fd != NULL)
+                    addPath(fd);
+
                 ObjModule *module = NULL;
                 ObjString *nameStr = AS_STRING(STRING_VAL(name));
                 module = newModule(nameStr);
+                if (fd != NULL)
+                    module->path = AS_STRING(STRING_VAL(fd));
                 if (frame->module != NULL)
                 {
                     module->parent = frame->module;
@@ -4367,6 +4557,9 @@ InterpretResult run()
                 // tableSet(&vm.globals, nameStr, OBJ_VAL(module));
                 if (name != NULL)
                     mp_free(name);
+
+                if (fd != NULL)
+                    mp_free(fd);
 
                 push(OBJ_VAL(function));
                 ObjClosure *closure = newClosure(function);
@@ -4969,7 +5162,7 @@ InterpretResult run()
 
             OPCASE(ABORT) :
             {
-                if (!IS_TASK(peek(0)))
+                if (!IS_TASK(peek(0)) && !IS_NULL(peek(0)))
                 {
                     runtimeError("A task is required in abort.");
                     if (!checkTry(frame))
@@ -4977,8 +5170,55 @@ InterpretResult run()
                     else
                         DISPATCH();
                 }
+
+                if (IS_TASK(peek(0)))
+                {
+                    ObjTask *task = AS_TASK(pop());
+                    destroyTaskFrame(task->name->chars);
+                }
+                else
+                {
+                    destroyTaskFrame(threadFrame->ctf->name);
+                }
+                DISPATCH();
+            }
+
+            OPCASE(SUSPEND) :
+            {
+                if (!IS_TASK(peek(0)) && !IS_NULL(peek(0)))
+                {
+                    runtimeError("A task is required in suspend.");
+                    if (!checkTry(frame))
+                        return INTERPRET_RUNTIME_ERROR;
+                    else
+                        DISPATCH();
+                }
+
+                if (IS_TASK(peek(0)))
+                {
+                    ObjTask *task = AS_TASK(pop());
+                    suspendTaskFrame(task->name->chars);
+                }
+                else
+                {
+                    suspendTaskFrame(threadFrame->ctf->name);
+                }
+                DISPATCH();
+            }
+
+            OPCASE(RESUME) :
+            {
+                if (!IS_TASK(peek(0)))
+                {
+                    runtimeError("A task is required in resume.");
+                    if (!checkTry(frame))
+                        return INTERPRET_RUNTIME_ERROR;
+                    else
+                        DISPATCH();
+                }
+
                 ObjTask *task = AS_TASK(pop());
-                destroyTaskFrame(task->name->chars);
+                resumeTaskFrame(task->name->chars);
                 DISPATCH();
             }
 

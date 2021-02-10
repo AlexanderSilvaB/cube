@@ -1,0 +1,21 @@
+{
+    "Form": {
+        "title": "Widgets",
+        "width": 800,
+        "height": 600,
+        "children": [
+            {
+                "VerticalLayout": {
+                    "children": [
+                        {
+                            "WebView": {
+                                "name": "web",
+                                "url": "http://www.google.com"
+                            }
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+}

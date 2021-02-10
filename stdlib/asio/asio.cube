@@ -1,0 +1,25 @@
+native asio
+{
+    void run();
+    void runOne();
+    void poll_();
+    void pollOne();
+    void stop();
+    void restart();
+}
+
+import ip/ip
+import timer as default
+
+func pool()
+{
+    poll_();
+}
+
+func loop()
+{
+    while(true)
+    {
+        poll_();
+    }
+}

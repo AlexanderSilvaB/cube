@@ -1,0 +1,50 @@
+class Builder
+{
+    var code
+    var binary
+    var output
+    var result
+
+    func init()
+    {
+        code = null
+        binary = true
+        output = null
+        result = null
+    }
+
+    func load(fileName)
+    {
+        var file = open(fileName, 'r')
+        if(file is null)
+            return false
+        
+        code = file.read()
+        file.close()
+
+        return true
+    }
+
+    func build()
+    {
+        if(binary)
+            result = buildBinary(code, output)
+        else
+        {
+            result = buildByteCode(code)
+            if(result is not null and output is str)
+            {
+                var file = open(output, 'wb')
+                if(not file)
+                    return false
+                else
+                {
+                    file.write(result)
+                    file.close()
+                }
+            }
+        }
+
+        return bool(result)
+    }
+}

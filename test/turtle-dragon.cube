@@ -1,0 +1,36 @@
+import turtle
+
+var length = 200
+var angle = 45
+var order = 10
+
+turtle.init()
+
+turtle.animated = true
+turtle.speed = 100
+turtle.size(6)
+
+func dragonCurve(order, length)
+{
+    turtle.turn(order * angle)
+    dragonCurveRecursive(order, length, 1)
+}
+
+func dragonCurveRecursive(order, length, sign)
+{
+    if(order == 0)
+        turtle.forward(length)
+    else
+    {
+        var rootHalf = 0.5 ^ 0.5
+        dragonCurveRecursive(order - 1, length * rootHalf, 1)
+        turtle.turn(sign * -90)
+        dragonCurveRecursive(order - 1, length * rootHalf, -1)
+    }
+}
+
+dragonCurve(order, length)
+
+turtle.visible = false
+
+turtle.show()

@@ -8,6 +8,7 @@ var libsExt = null;
 var binExt = null;
 var arch = sysInfo['arch'];
 var name = sysInfo['os'];
+var version = sysInfo['version'];
 var userHome = env('INDEPENDENT_HOME');
 if(userHome == null)
     userHome = '';
@@ -75,4 +76,20 @@ if(not previleged)
     mkdir(allowedLibsPath)
     mkdir(allowedSamplesPath)
     mkdir(allowedTempPath)
+}
+
+func mktemp(name)
+{
+    if(name is null)
+        name = hash(0)
+    var path = os.allowedTempPath + '/' + name
+    return open(path, 'wb')
+}
+
+func mkpath(name)
+{
+    if(name is null)
+        name = hash(0)
+    var path = os.allowedTempPath + '/' + name
+    return path
 }

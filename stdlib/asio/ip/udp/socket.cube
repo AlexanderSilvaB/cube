@@ -1,0 +1,43 @@
+native asio
+{
+    int udp_socket_create();
+    cbool udp_socket_open(int sid, int port, cbool reuse);
+}
+
+class Socket
+{
+    var id
+    var isAsync
+    var ip
+    var port
+
+    func init(id, isAsync)
+    {
+        if(id is num)
+            this.id = id
+        else
+        {
+            this.id = udp_socket_create()
+            if(id is bool and isAsync is null)
+                isAsync = id
+        }
+        
+        if(isAsync is bool)
+            this.isAsync = isAsync
+        else
+            this.isAsync = false
+    }
+
+    func open(port, reuse)
+    {
+        if(reuse is not bool)
+            reuse = false
+        this.port = port
+        return udp_socket_open(id, port, reuse)
+    }
+
+    func str()
+    {
+        return 'Socket[${id}](udp,async=${isAsync},ip=${ip},port=${port})'
+    }
+}

@@ -25,6 +25,7 @@
 #include "memory.h"
 #include "mempool.h"
 #include "object.h"
+#include "packer.h"
 #include "std.h"
 #include "strings.h"
 #include "system.h"
@@ -52,6 +53,11 @@ typedef union {
 #ifndef S_ISDIR
 #define S_ISDIR(mode) (((mode)&S_IFMT) == S_IFDIR)
 #endif
+
+bool textPrintEnabled = false;
+char *textPrintValue = NULL;
+int textPrintLen = 0;
+int textPrintCapacity = 0;
 
 Value hashNative(int argCount, Value *args)
 {
@@ -105,15 +111,68 @@ Value exitNative(int argCount, Value *args)
     return NULL_VAL;
 }
 
+Value textPrintNative(int argCount, Value *args)
+{
+    if (argCount > 0)
+        textPrintEnabled = AS_BOOL(toBool(args[0]));
+    return BOOL_VAL(textPrintEnabled);
+}
+
+Value getTextPrintNative(int argCount, Value *args)
+{
+    Value ret = NULL_VAL;
+    if (textPrintValue == NULL)
+        ret = STRING_VAL("");
+    else
+    {
+        ret = STRING_VAL(textPrintValue);
+        textPrintValue[0] = '\0';
+    }
+    textPrintLen = 0;
+    return ret;
+}
+
+void printToText(char *text)
+{
+    int len = strlen(text);
+    while ((textPrintLen + len) > textPrintCapacity)
+    {
+        if (textPrintCapacity == 0)
+            textPrintCapacity = 256;
+        else
+            textPrintCapacity *= 2;
+        textPrintValue = mp_realloc(textPrintValue, textPrintCapacity);
+        if (textPrintCapacity == 256)
+            textPrintValue[0] = '\0';
+    }
+
+    textPrintLen += len;
+    strcat(textPrintValue, text);
+}
+
 Value printNative(int argCount, Value *args)
 {
     for (int i = 0; i < argCount; i++)
     {
         Value value = args[i];
-        if (IS_STRING(value))
-            printf("%s", AS_CSTRING(value));
+        if (textPrintEnabled)
+        {
+            if (IS_STRING(value))
+                printToText(AS_CSTRING(value));
+            else
+            {
+                char *output = valueToString(value, true);
+                printToText(output);
+                mp_free(output);
+            }
+        }
         else
-            printValue(value);
+        {
+            if (IS_STRING(value))
+                printf("%s", AS_CSTRING(value));
+            else
+                printValue(value);
+        }
     }
     fflush(stdout);
     vm.print = true;
@@ -125,7 +184,10 @@ Value printNative(int argCount, Value *args)
 Value printlnNative(int argCount, Value *args)
 {
     printNative(argCount, args);
-    printf("\n");
+    if (textPrintEnabled)
+        printToText("\n");
+    else
+        printf("\n");
     vm.newLine = false;
     return NULL_VAL;
 }
@@ -1710,7 +1772,14 @@ Value makeNative(int argCount, Value *args)
             if (argCount > 2)
                 def = args[2];
 
-            Value b = toBytes(def);
+            Value b;
+            if (IS_NUMBER(def) && AS_NUMBER(def) < 256)
+            {
+                uint8_t v = AS_NUMBER(def);
+                b = BYTES_VAL(&v, 1);
+            }
+            else
+                b = toBytes(def);
             ObjBytes *bytes = initBytes();
             for (int i = 0; i < sz; i++)
             {
@@ -3407,6 +3476,122 @@ Value modulesNative(int argCount, Value *args)
     return OBJ_VAL(list);
 }
 
+Value buildByteCodeNative(int argCount, Value *args)
+{
+    if (argCount < 1)
+    {
+        runtimeError("buildByteCode(code, [path]) requires the code to be compiled!");
+        return NULL_VAL;
+    }
+
+    if (!IS_STRING(args[0]))
+    {
+        runtimeError("buildByteCode(code, [path]) requires the code as a string!");
+        return NULL_VAL;
+    }
+
+    char *folder = AS_CSTRING(pwdNative(0, NULL));
+    char *path = (char *)mp_malloc(strlen(folder) + 24);
+    strcpy(path, folder);
+    strcat(path, "/source");
+    strcat(path, vm.extension);
+
+    char *code = AS_CSTRING(args[0]);
+    bool forceInclude = vm.forceInclude;
+    vm.forceInclude = true;
+    ObjFunction *fn = compile(code, path);
+    vm.forceInclude = forceInclude;
+
+    if (fn == NULL)
+        return NULL_VAL;
+
+    FILE *file = tmpfile();
+    if (file == NULL)
+        return NULL_VAL;
+
+    if (!initByteCode(file))
+    {
+        fclose(file);
+        return NULL_VAL;
+    }
+
+    if (!writeByteCode(file, OBJ_VAL(fn)))
+    {
+        fclose(file);
+        return NULL_VAL;
+    }
+
+    if (!finishByteCode(file))
+    {
+        fclose(file);
+        return NULL_VAL;
+    }
+
+    fseek(file, 0L, SEEK_END);
+    size_t sz = ftell(file);
+    fseek(file, 0L, SEEK_SET);
+
+    char *buffer = (char *)mp_malloc(sz);
+    if (buffer == NULL)
+    {
+        fclose(file);
+        return NULL_VAL;
+    }
+
+    size_t bytesRead = fread(buffer, sizeof(char), sz, file);
+    if (bytesRead < sz)
+    {
+        fclose(file);
+        return NULL_VAL;
+    }
+
+    fclose(file);
+
+    Value data = BYTES_VAL(buffer, bytesRead);
+    mp_free(buffer);
+    return data;
+}
+
+Value buildBinaryNative(int argCount, Value *args)
+{
+    if (argCount < 1)
+    {
+        runtimeError("buildBinary(code, [output]) requires the code to be compiled!");
+        return NULL_VAL;
+    }
+
+    if (!IS_STRING(args[0]))
+    {
+        runtimeError("buildBinary(code, [output]) requires the code as a string!");
+        return NULL_VAL;
+    }
+
+    char *folder = AS_CSTRING(pwdNative(0, NULL));
+    char *path = (char *)mp_malloc(strlen(folder) + 24);
+    strcpy(path, folder);
+    strcat(path, "/source");
+    strcat(path, vm.extension);
+
+    char *output = NULL;
+    if (argCount > 1)
+    {
+        if (!IS_STRING(args[1]) && !IS_NULL(args[1]))
+        {
+            runtimeError("buildBinary(code, [output]) requires the output as a string!");
+            return NULL_VAL;
+        }
+        else if (IS_STRING(args[1]))
+            output = AS_CSTRING(args[1]);
+    }
+
+    char *code = AS_CSTRING(args[0]);
+
+    bool res = pack(code, path, output);
+    mp_free(path);
+
+    return BOOL_VAL(res);
+}
+
 // Register
 linked_list *stdFnList;
 #define ADD_STD(name, fn) linked_list_add(stdFnList, createStdFn(name, fn))
@@ -3430,6 +3615,8 @@ void initStd()
     ADD_STD("input", inputNative);
     ADD_STD("print", printNative);
     ADD_STD("println", printlnNative);
+    ADD_STD("textPrint", textPrintNative);
+    ADD_STD("getTextPrint", getTextPrintNative);
     ADD_STD("throw", throwNative);
     ADD_STD("rand", randNative);
     ADD_STD("randn", randnNative);
@@ -3519,6 +3706,8 @@ void initStd()
     ADD_STD("addPath", addPathNative);
     ADD_STD("rmPath", rmPathNative);
     ADD_STD("modules", modulesNative);
+    ADD_STD("buildByteCode", buildByteCodeNative);
+    ADD_STD("buildBinary", buildBinaryNative);
 }
 
 void destroyStd()

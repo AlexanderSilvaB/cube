@@ -1,0 +1,837 @@
+class Vector3
+{
+    var x, y, z
+    func init(data)
+    {  
+        x = 0
+        y = 0
+        z = 0
+
+        if(data is dict)
+            fill(data)
+        else if(data is num)
+        {
+            x = data
+            if(len(args) > 1)
+                y = args[1]
+            if(len(args) > 2)
+                z = args[2]
+        }
+    }
+
+    func fill(data)
+    {
+        if(data is not dict)
+            return true
+
+        x = data['x']
+        y = data['y']
+        z = data['z']
+        return true
+    }
+
+    func dict()
+    {
+        return {'x' : x, 'y' : y, 'z' : z} 
+    }
+    
+    func str()
+    {
+        return str(this.dict())
+    }
+}
+
+class Rotation
+{
+    var x, y, z, w
+    func init(data)
+    {  
+        x = 0
+        y = 0
+        z = 0
+        w = 1
+
+        if(data is dict)
+            fill(data)
+        else if(data is num)
+        {
+            x = data
+            if(len(args) > 1)
+                y = args[1]
+            if(len(args) > 2)
+                z = args[2]
+            if(len(args) > 3)
+                w = args[3]
+        }
+    }
+
+    func fill(data)
+    {
+        if(data is not dict)
+            return true
+
+        x = data['x']
+        y = data['y']
+        z = data['z']
+        w = data['w']
+        return true
+    }
+
+    func dict()
+    {
+        return {'x' : x, 'y' : y, 'z' : z, 'w' : w} 
+    }
+    
+    func str()
+    {
+        return str(this.dict())
+    }
+}
+
+class Pose
+{
+    var position
+    var rotation
+
+    func init(data)
+    {  
+        position = Vector3()
+        rotation = Rotation()
+
+        if(data is dict)
+            fill(data)
+    }
+
+    func fill(data)
+    {
+        if(data is not dict)
+            return true
+
+        position.fill(data['position'])
+        rotation.fill(data['rotation'])
+        return true
+    }
+
+    func dict()
+    {
+        return {'position' : position.dict(), 'rotation' : rotation.dict()} 
+    }
+    
+    func str()
+    {
+        return str(this.dict())
+    }
+}
+
+class Inertial
+{
+    var origin
+    var mass
+    var ixx, ixy, ixz, iyy, iyz, izz
+
+    func init(data)
+    {  
+        origin = Pose()
+        mass = 0
+        ixx = 0
+        ixy = 0
+        ixz = 0
+        iyy = 0
+        iyz = 0
+        izz = 0
+
+        if(data is dict)
+            fill(data)
+    }
+
+    func fill(data)
+    {
+        if(data is not dict)
+            return true
+
+        origin.fill(data['origin'])
+        mass = data['mass']
+        ixx = data['ixx']
+        ixy = data['ixy']
+        ixz = data['ixz']
+        iyy = data['iyy']
+        iyz = data['iyz']
+        izz = data['izz']
+        return true
+    }
+
+    func dict()
+    {
+        return {
+            'origin' : origin.dict(), 
+            'mass' : mass, 
+            'ixx' : ixx,
+            'ixy' : ixy,
+            'ixz' : ixz,
+            'iyy' : iyy,
+            'iyz' : iyz,
+            'izz' : izz
+        } 
+    }
+    
+    func str()
+    {
+        return str(this.dict())
+    }
+}
+
+enum GeometryTypes
+{
+    SPHERE = 0, BOX, CYLINDER, MESH
+}
+
+class Geometry
+{
+    var type
+    var radius
+    var length
+    var dim
+    var filename
+    var scale
+
+    func init(data)
+    {  
+        type = GeometryTypes.SPHERE
+
+        if(data is dict)
+            fill(data)
+    }   
+
+    func fill(data)
+    {
+        if(data is not dict)
+            return true
+
+        var name = GeometryTypes.name(data['type'])
+        type = GeometryTypes.get(name)
+
+        switch(type)
+        {
+            case GeometryTypes.SPHERE:
+                radius = data['radius']
+            case GeometryTypes.BOX:
+                dim = Vector3(data['dim'])
+            case GeometryTypes.CYLINDER:
+                radius = data['radius']
+                length = data['length']
+            case GeometryTypes.MESH:
+                filename = data['filename']
+                scale = Vector3(data['scale'])
+        }
+        
+        return true
+    }
+
+    func dict()
+    {
+        var d = 
+        {
+            'type' : type.value()
+        }
+
+        switch(type)
+        {
+            case GeometryTypes.SPHERE:
+                d['radius'] = radius
+            case GeometryTypes.BOX:
+                d['dim'] = dim.dict()
+            case GeometryTypes.CYLINDER:
+                d['radius'] = radius
+                d['length'] = length
+            case GeometryTypes.MESH:
+                d['filename'] = filename
+                d['scale'] = scale.dict()
+        }
+
+        return d
+    }
+
+    func str()
+    {
+        return str(this.dict())
+    }
+}
+
+class Color
+{
+    var r, g, b, a
+    func init(data)
+    {  
+        r = 0
+        g = 0
+        b = 0
+        a = 1
+
+        if(data is dict)
+            fill(data)
+        else if(data is num)
+        {
+            r = data
+            if(len(args) > 1)
+                g = args[1]
+            if(len(args) > 2)
+                b = args[2]
+            if(len(args) > 3)
+                a = args[3]
+        }
+    }
+
+    func fill(data)
+    {
+        if(data is not dict)
+            return true
+
+        r = data['r']
+        g = data['g']
+        b = data['b']
+        a = data['a']
+        return true
+    }
+
+    func dict()
+    {
+        return {'r' : r, 'g' : g, 'b' : b, 'a' : a} 
+    }
+    
+    func str()
+    {
+        return str(this.dict())
+    }
+}
+
+class Material
+{
+    var name
+    var textureFilename
+    var color
+
+    func init(data)
+    {  
+        name = ""
+        textureFilename = ""
+        color = Color()
+
+        if(data is dict)
+            fill(data)
+    }   
+
+    func fill(data)
+    {
+        if(data is not dict)
+            return true
+
+        name = data['name']
+        textureFilename = data['texture_filename']
+        color.fill(data['color'])
+
+        return true
+    }
+
+    func dict()
+    {
+        return {'name' : name, 'textureFilename' : textureFilename, 'color' : color.dict()} 
+    }
+    
+    func str()
+    {
+        return str(this.dict())
+    }
+}
+
+class Visual
+{
+    var name
+    var origin
+    var geometry
+    var material
+
+    func init(data)
+    {  
+        name = ""
+        origin = Pose()
+        geometry = Geometry()
+        material = Material()
+
+        if(data is dict)
+            fill(data)
+    }
+
+    func fill(data)
+    {
+        if(data is not dict)
+            return true
+
+        name = data['name']
+        origin.fill(data['origin'])
+        geometry.fill(data['geometry'])
+        material.fill(data['material'])
+        return true
+    }
+
+    func dict()
+    {
+        return {
+            'name' : name, 
+            'origin' : origin.dict(),
+            'geometry' : geometry.dict(),
+            'material' : material.dict()
+        } 
+    }
+    
+    func str()
+    {
+        return str(this.dict())
+    }
+}
+
+class Collision
+{
+    var name
+    var origin
+    var geometry
+
+    func init(data)
+    {  
+        name = ""
+        origin = Pose()
+        geometry = Geometry()
+
+        if(data is dict)
+            fill(data)
+    }
+
+    func fill(data)
+    {
+        if(data is not dict)
+            return true
+
+        name = data['name']
+        origin.fill(data['origin'])
+        geometry.fill(data['geometry'])
+        return true
+    }
+
+    func dict()
+    {
+        return {
+            'name' : name, 
+            'origin' : origin.dict(),
+            'geometry' : geometry.dict()
+        } 
+    }
+    
+    func str()
+    {
+        return str(this.dict())
+    }
+}
+
+class JointDynamics
+{
+    var damping, friction
+
+    func init(data)
+    {  
+        damping = 0
+        friction = 0
+
+        if(data is dict)
+            fill(data)
+        else if(data is num)
+        {
+            damping = data
+            if(len(args) > 1)
+                friction = args[1]
+        }
+    }
+
+    func fill(data)
+    {
+        if(data is not dict)
+            return true
+
+        damping = data['damping']
+        friction = data['friction']
+        return true
+    }
+
+    func dict()
+    {
+        return {'damping' : damping, 'friction' : friction} 
+    }
+    
+    func str()
+    {
+        return str(this.dict())
+    }
+}
+
+class JointLimits
+{
+    var lower, upper, effort, velocity
+
+    func init(data)
+    {  
+        lower = 0
+        upper = 0
+        effort = 0
+        velocity = 0
+
+        if(data is dict)
+            fill(data)
+        else if(data is num)
+        {
+            lower = data
+            if(len(args) > 1)
+                upper = args[1]
+            if(len(args) > 2)
+                effort = args[2]
+            if(len(args) > 3)
+                velocity = args[3]
+        }
+    }
+
+    func fill(data)
+    {
+        if(data is not dict)
+            return true
+
+        lower = data['lower']
+        upper = data['upper']
+        effort = data['effort']
+        velocity = data['velocity']
+        return true
+    }
+
+    func dict()
+    {
+        return {'lower' : lower, 'upper' : upper, 'effort' : effort, 'velocity' : velocity} 
+    }
+    
+    func str()
+    {
+        return str(this.dict())
+    }
+}
+
+class JointSafety
+{
+    var soft_upper_limit, soft_lower_limit, k_position, k_velocity
+
+    func init(data)
+    {  
+        soft_upper_limit = 0
+        soft_lower_limit = 0
+        k_position = 0
+        k_velocity = 0
+
+        if(data is dict)
+            fill(data)
+        else if(data is num)
+        {
+            soft_upper_limit = data
+            if(len(args) > 1)
+                soft_lower_limit = args[1]
+            if(len(args) > 2)
+                k_position = args[2]
+            if(len(args) > 3)
+                k_velocity = args[3]
+        }
+    }
+
+    func fill(data)
+    {
+        if(data is not dict)
+            return true
+
+        soft_upper_limit = data['soft_upper_limit']
+        upper = data['upper']
+        effort = data['effort']
+        velocity = data['velocity']
+        return true
+    }
+
+    func dict()
+    {
+        return {'soft_upper_limit' : soft_upper_limit, 'upper' : upper, 'effort' : effort, 'velocity' : velocity} 
+    }
+    
+    func str()
+    {
+        return str(this.dict())
+    }
+}
+
+
+enum JointTypes
+{
+    UNKNOWN = 0, REVOLUTE, CONTINUOUS, PRISMATIC, FLOATING, PLANAR, FIXED
+}
+
+class Joint
+{
+    var name
+    var type
+    var axis
+    var childLinkName
+    var parentLinkName
+    var transform
+    var dynamics
+    var limits
+    var safety
+    var calibration
+    var mimic
+
+    func init(data)
+    {  
+        name = ""
+        type = JointTypes.UNKNOWN
+        axis = Vector3()
+        childLinkName = ""
+        parentLinkName = ""
+        transform = Pose()
+        dynamics = JointDynamics()
+        limits = JointLimits()
+        safety = JointSafety()
+        calibration = JointCalibration()
+        mimic = JointMimic()
+
+        if(data is dict)
+            fill(data)
+    }
+
+    func fill(data)
+    {
+        if(data is not dict)
+            return true
+
+        var typeName = JointTypes.name(data['type'])
+        type = JointTypes.get(typeName)
+
+        name = data['name']
+        axis.fill(data['axis'])
+        parentLinkName = data['parent_link_name']
+        childLinkName = data['child_link_name']
+        transform.fill(data['parent_to_joint_origin_transform'])
+        dynamics.fill(data['dynamics'])
+        limits.fill(data['limits'])
+        safety.fill(data['safety'])
+        calibration.fill(data['calibration'])
+        mimic.fill(data['mimic'])
+        return true
+    }
+
+    func dict()
+    {
+        return {
+            'name' : name, 
+            'type' : type.value(),
+            'axis' : axis.dict(),
+            'parent_link_name' : parentLinkName,
+            'child_link_name' : childLinkName,
+            'parent_to_joint_origin_transform' : transform,
+            'dynamics' : dynamics.dict(),
+            'limits' : limits.dict(),
+            'safety' : safety.dict(),
+            'calibration' : calibration.dict(),
+            'mimic' : mimic.dict()
+        } 
+    }
+    
+    func str()
+    {
+        return str(this.dict())
+    }
+}
+
+class Link
+{
+    var name
+    var inertial
+    
+    var visual
+    var collision
+    var visualIndex
+    var collisionIndex
+
+    var collisionArray
+    var visualArray
+
+    var parentJoint
+    var childJoints
+    var childLinks
+
+    func init(data)
+    {  
+        name = ""
+        inertial = Inertial()
+        visualIndex = -1
+        collisionIndex = -1
+        visual = null
+        collision = null
+        collisionArray = []
+        visualArray = []
+
+        parentJoint = null
+        childJoints = []
+        childLinks = []
+
+        if(data is dict)
+            fill(data)
+    }
+
+    func fill(data)
+    {
+        if(data is not dict)
+            return true
+
+        name = data['name']
+        inertial.fill(data['inertial'])
+
+        visualIndex = data['visual']
+        collisionIndex = data['collision']
+        
+        var array = data['collision_array']
+        for(var i in array)
+        {
+            collisionArray.add(Collision(i))
+        }
+
+        array = data['visual_array']
+        for(var i in array)
+        {
+            visualArray.add(Visual(i))
+        }
+
+        parentJoint = data['parent_joint']
+
+        array = data['child_joints']
+        for(var i in array)
+        {
+            childJoints.add(Joint(i))
+        }
+
+        array = data['child_links']
+        for(var i in array)
+        {
+            childLinks.add(Link(i))
+        }
+
+        if(visualIndex >= 0)
+            visual = visualArray[visualIndex]
+
+        if(collisionIndex >= 0)
+            collision = collisionArray[collisionIndex]
+    }
+
+    func dict()
+    {
+        var d = {
+            'name' : name, 
+            'inertial' : inertial.dict(),
+            'visual' : visualIndex,
+            'collision' : collisionIndex,
+            'parent_joint' : parentJoint
+        }
+
+        var c_a = []
+        for(var c in collisionArray)
+        {
+            c_a.add(c.dict())
+        }
+        d['collision_array'] = c_a
+
+        var v_a = []
+        for(var v in visualArray)
+        {
+            v_a.add(v.dict())
+        }
+        d['visual_array'] = v_a
+
+        var j_a = []
+        for(var j in childJoints)
+        {
+            j_a.add(j.dict())
+        }
+        d['child_joints'] = j_a
+
+        var l_a = []
+        for(var l in childJoints)
+        {
+            l_a.add(l.dict())
+        }
+        d['child_links'] = l_a
+
+        return d
+    }
+    
+    func str()
+    {
+        return str(this.dict())
+    }
+}
+
+class Model
+{
+    var name
+    var root
+    var desc
+
+    func init(data)
+    {  
+        if(data is dict)
+            fill(data)
+    }
+
+    func fill(data)
+    {
+        if(data is not dict)
+            return false
+
+        if(data['name'] is not str or data['root'] is not dict)
+            return false
+
+        desc = data
+        
+        name = data['name']
+        root = Link(data['root'])
+
+        return true
+    }
+
+    func load(path)
+    {
+        if(Model.loadFn is null)
+            return false
+        else
+        {
+            var fn = Model.loadFn
+            var data = fn(path)
+            return fill(data)
+        }
+    }
+
+    func dict()
+    {
+        return {
+            'name' : name, 
+            'root' : root.dict()
+        } 
+    }
+    
+    func str()
+    {
+        return str(this.dict())
+    }
+
+    static var loadFn
+    static func loadFunc(fn)
+    {
+        Model.loadFn = fn
+    }
+}

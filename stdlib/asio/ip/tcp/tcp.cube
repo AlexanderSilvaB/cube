@@ -1,0 +1,14 @@
+native asio
+{
+    list tcp_resolve(cstr hostname, cstr service);
+}
+
+import socket as default
+import acceptor as default
+import http
+
+func resolve(hostname, service)
+{
+    return tcp_resolve(hostname, service)
+}
+

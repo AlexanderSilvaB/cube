@@ -1,0 +1,81 @@
+native asio
+{
+    int timer_create_ns(int ns);
+    int timer_create_us(int us);
+    int timer_create_ms(int ms);
+    int timer_create_s(int s);
+    int timer_create_m(int m);
+    int timer_create_h(int h);
+    cbool timer_wait(int tid);
+    cbool timer_wait_async(int tid, func handler);
+    cbool timer_repeat_async(int tid, func handler);
+}
+
+class Timer
+{
+    var id
+    func init(ms)
+    {
+        if(ms is not null)
+        {
+            if(ms is not num)
+                ms = 1000
+            id = timer_create_ms(ms)
+        }
+    }
+
+    static func nanos(ns)
+    {
+        var timer = Timer(null)
+        timer.id = timer_create_ns(ns)
+        return timer
+    }
+
+    static func micros(us)
+    {
+        var timer = Timer(null)
+        timer.id = timer_create_us(us)
+        return timer
+    }
+
+    static func millis(ms)
+    {
+        var timer = Timer(null)
+        timer.id = timer_create_ms(ms)
+        return timer
+    }
+
+    static func secs(s)
+    {
+        var timer = Timer(null)
+        timer.id = timer_create_s(s)
+        return timer
+    }
+
+    static func mins(m)
+    {
+        var timer = Timer(null)
+        timer.id = timer_create_m(m)
+        return timer
+    }
+
+    static func hours(h)
+    {
+        var timer = Timer(null)
+        timer.id = timer_create_h(h)
+        return timer
+    }
+
+    func wait(fn)
+    {
+        if(fn is func)
+            return timer_wait_async(id, fn)
+        else
+            return timer_wait(id)
+    }
+
+    func repeat(fn)
+    {
+        return timer_repeat_async(id, fn)
+    }
+}

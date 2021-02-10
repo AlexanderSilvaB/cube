@@ -19,7 +19,7 @@
 #define GC_DISABLED
 #define GC_AUTO
 // #define DEBUG_STRESS_GC
-#define DEBUG_LOG_GC
+// #define DEBUG_LOG_GC
 // #define DEBUG_LOG_GC_DETAILS
 #define GC_HEAP_GROW_FACTOR 2
 

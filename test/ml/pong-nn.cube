@@ -1,0 +1,100 @@
+import ml as default
+import test/ml/pong
+
+// pong.increase = 0.1
+
+var py, bx, by, bv, v
+var ball, player, score, entry
+
+var nn = NN.load("temp/pong")
+if(nn is null)
+{
+    pong.manual = false
+
+    // Model creation
+    nn = NN(3, 1)
+    nn.defaultActivation("relu")
+    nn.outputActivation("sigmoid")
+    nn.verbose(true)
+    nn.addLayer(3)
+    nn.addLayer(3)
+    nn.build()
+
+    // Setting the data transformation
+    var inputA = nn.input()
+    var inputB = nn.input()
+    inputA[0] = 1.0/500.0
+    inputA[1] = 1.0/500.0
+    inputA[2] = 1.0/800.0
+    inputB = [0, 0, 0]
+    nn.inputTransformation(inputA, inputB);
+
+    var outputA = nn.output()
+    var outputB = nn.output()
+    outputA[0] = 1.0/1500.0
+    outputB[0] = 0.5
+    nn.outputTransformation(outputA, outputB)
+
+    // Data creation
+    println("Creating training set")
+    var trainingSet = nn.dataset()
+
+    var i = 0
+    while(true)
+    {
+        pong.update()
+        score = pong.getScore()
+        if(score[0] > 0 || score[1] > 0)
+            break;
+
+        
+        if(i % 2 == 0)
+        {
+            ball = pong.getBall()
+            bx = ball[0]
+            by = ball[1]
+            bv = ball[2]
+            player = pong.getPlayer()
+            v = player[1]
+            entry = [ by, py, bv, v ]
+            trainingSet.add(entry)
+        }
+
+        i++
+    }
+
+    println("Training set size: ", trainingSet.size())
+    trainingSet.print()
+
+    println("Training...")
+    var settings = TrainingSettings()
+    settings.epochs = -1
+    settings.batch = -1
+    settings.maxError = 0.003
+    var results = nn.train(trainingSet, settings)
+    println("Training results: ")
+    println(results)
+
+    nn.save("temp/pong")
+}
+
+pong.manual = true
+
+// Using the model
+var testSet = nn.dataset()
+var pred, data
+
+while(pong.running())
+{
+    pong.update()
+
+    testSet.clear();
+    ball = pong.getBall()
+    testSet.add(ball)
+    nn.test(testSet)
+
+    v = testSet.getOutput(0)
+    println(v)
+}
+
+pong.stop()

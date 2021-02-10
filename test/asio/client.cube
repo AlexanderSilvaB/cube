@@ -1,0 +1,16 @@
+import asio
+
+var socket = asio.ip.tcp.Socket()
+var id = socket.id
+
+var connected = socket.connect('127.0.0.1', 8080)
+println('Connected to ' + socket.ip + ':' + socket.port + ' [${id}]? ${connected}')
+
+while(true)
+{
+    var msg = input('> ')
+    socket.write('${msg}\n')
+
+    msg = str(socket.readUntil('\n'))
+    print('[server] ${msg}')
+}

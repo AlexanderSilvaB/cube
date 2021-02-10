@@ -217,6 +217,7 @@ func installFileModule(force, libFile)
     var data;
     var name;
     var path;
+    var zipFile;
 
     path = os.allowedLibsPath+'/'+lib+'.json';
 
@@ -266,6 +267,7 @@ func installFileModule(force, libFile)
     {
         print('Installing: ', f);
         data = file.read(f);
+        println(f)
         if(data is null)
         {
             println('Failed!');
@@ -307,6 +309,34 @@ func installFileModule(force, libFile)
         println('\rInstalled: ', f, ' ');
     }
 
+    for(var f in module['packages'])
+    {
+        print('Installing: ', f);
+        data = file.read(f);
+        if(data is null)
+        {
+            println('Failed!');
+            continue;
+        }
+        name = paths.fileName(f);
+        path = os.allowedSamplesPath + '/' + lib;
+
+        path += '/{}'.format(name);
+        
+        with(path, 'w')
+        {
+            file.write(str(data));
+        }
+
+        println('\rInstalled: ', f, ' ');
+        zipFile = zip.Zip(path, 'r')
+        println('\rExtracting: ', f, ' ');
+        if(!zipFile.extract(os.allowedLibsPath + '/' + lib))
+            println('Failed!')
+        else
+            println('Done!')
+    }
+
     path = os.allowedLibsPath + '/' + lib + '/setup.cube';
     if(exists(path))
     {
@@ -338,6 +368,7 @@ func installModule(force, lib, url)
     var data;
     var name;
     var path;
+    var zipFile
 
     path = os.allowedLibsPath+'/'+lib+'.json';
 
@@ -411,6 +442,28 @@ func installModule(force, lib, url)
         }
 
         println('\rDownloaded: ', f, ' ');
+    }
+
+    for(var f in module['packages'])
+    {
+        print('Downloading: ', f);
+        data = readWeb('{}/{}'.format(url, f));
+        name = paths.fileName(f);
+        path = os.allowedLibsPath + '/' + lib;
+        path += '/{}'.format(name);
+        
+        with(path, 'w')
+        {
+            file.write(data);
+        }
+
+        println('\rDownloaded: ', f, ' ');
+        zipFile = zip.Zip(path, 'r')
+        println('\rExtracting: ', f, ' ');
+        if(!zipFile.extract(os.allowedLibsPath + '/' + lib))
+            println('Failed!')
+        else
+            println('Done!')
     }
 
     path = os.allowedLibsPath + '/' + lib + '/setup.cube';

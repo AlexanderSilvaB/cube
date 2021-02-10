@@ -1706,6 +1706,8 @@ ParseRule rules[] = {
     {async, NULL, PREC_NULL},             // TOKEN_ASYNC
     {await, NULL, PREC_NULL},             // TOKEN_AWAIT
     {NULL, NULL, PREC_NULL},              // TOKEN_ABORT
+    {NULL, NULL, PREC_NULL},              // TOKEN_SUSPEND
+    {NULL, NULL, PREC_NULL},              // TOKEN_RESUME
     {NULL, NULL, PREC_NULL},              // TOKEN_TRY
     {NULL, NULL, PREC_NULL},              // TOKEN_CATCH
     {NULL, NULL, PREC_NULL},              // TOKEN_ASSERT
@@ -2868,13 +2870,25 @@ static void includeStatement()
         return;
 
     char *s = NULL;
+    char *folderPath = NULL;
     char *strPath;
-    if (!findAndReadFile(fileName, &strPath, &s))
+
+    if (!findAndReadFile(fileName, &strPath, &s, &folderPath))
     {
-        mp_free(strPath);
-        FREE_ARRAY(char, fileName, len);
-        errorAtCurrent("Could not load the file for include.");
-        return;
+        char *tmp_name = fileName;
+        fileName = mp_malloc((strlen(tmp_name) * 2) + 2);
+        strcpy(fileName, tmp_name);
+        strcat(fileName, "/");
+        strcat(fileName, tmp_name);
+        replaceString(fileName, vm.extension, "");
+        strcat(fileName, vm.extension);
+        if (!findAndReadFile(fileName, &strPath, &s, &folderPath))
+        {
+            mp_free(strPath);
+            FREE_ARRAY(char, fileName, len);
+            errorAtCurrent("Could not load the file for include.");
+            return;
+        }
     }
     FREE_ARRAY(char, fileName, len);
 
@@ -2882,6 +2896,7 @@ static void includeStatement()
     if (fn == NULL)
     {
         mp_free(strPath);
+        mp_free(folderPath);
         FREE_ARRAY(char, fileName, len);
         mp_free(s);
         errorAtCurrent("Could not compile the included file.");
@@ -2890,6 +2905,10 @@ static void includeStatement()
     mp_free(s);
 
     emitConstant(STRING_VAL(strPath));
+    if (folderPath != NULL)
+        emitConstant(STRING_VAL(folderPath));
+    else
+        emitConstant(STRING_VAL(""));
     // mp_free(strPath);
 
     bool forClause = false;
@@ -3010,11 +3029,40 @@ static void importStatement()
 
 static void abortStatement()
 {
+    if (check(TOKEN_IDENTIFIER))
+    {
+        consume(TOKEN_IDENTIFIER, "Expect a function call in abort.");
+        getVariable(gbcpl->parser.previous);
+    }
+    else
+        emitByte(OP_NULL);
+
+    // consume(TOKEN_SEMICOLON, "Expect ';' after abort.");
+    match(TOKEN_SEMICOLON);
+    emitByte(OP_ABORT);
+}
+
+static void suspendStatement()
+{
+    if (check(TOKEN_IDENTIFIER))
+    {
+        consume(TOKEN_IDENTIFIER, "Expect a function call in abort.");
+        getVariable(gbcpl->parser.previous);
+    }
+    else
+        emitByte(OP_NULL);
+    // consume(TOKEN_SEMICOLON, "Expect ';' after abort.");
+    match(TOKEN_SEMICOLON);
+    emitByte(OP_SUSPEND);
+}
+
+static void resumeStatement()
+{
     consume(TOKEN_IDENTIFIER, "Expect a function call in abort.");
     getVariable(gbcpl->parser.previous);
     // consume(TOKEN_SEMICOLON, "Expect ';' after abort.");
     match(TOKEN_SEMICOLON);
-    emitByte(OP_ABORT);
+    emitByte(OP_RESUME);
 }
 
 static void whileStatement()
@@ -3248,6 +3296,8 @@ static void synchronize()
             case TOKEN_BREAK:
             case TOKEN_WITH:
             case TOKEN_ABORT:
+            case TOKEN_SUSPEND:
+            case TOKEN_RESUME:
             case TOKEN_TRY:
             case TOKEN_CATCH:
             case TOKEN_DOC:
@@ -3348,6 +3398,14 @@ static void statement()
     else if (match(TOKEN_ABORT))
     {
         abortStatement();
+    }
+    else if (match(TOKEN_SUSPEND))
+    {
+        suspendStatement();
+    }
+    else if (match(TOKEN_RESUME))
+    {
+        resumeStatement();
     }
     else if (match(TOKEN_BREAK))
     {

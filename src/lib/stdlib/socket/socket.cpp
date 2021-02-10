@@ -9,7 +9,7 @@ using namespace std;
 static map<int, TcpUdpSocket *> sockets;
 static map<int, char *> buffers;
 
-TcpUdpSocket *getSocket(int addr)
+TcpUdpSocket *getTCPSocket(int addr)
 {
     if (sockets.find(addr) != sockets.end())
     {
@@ -81,7 +81,7 @@ extern "C"
     {
         cube_native_var *ret = NATIVE_NUMBER(0);
 
-        TcpUdpSocket *socket = getSocket(AS_NATIVE_NUMBER(pointer));
+        TcpUdpSocket *socket = getTCPSocket(AS_NATIVE_NUMBER(pointer));
         if (socket == NULL)
             return ret;
 
@@ -95,7 +95,7 @@ extern "C"
     {
         cube_native_var *ret = NATIVE_NUMBER(0);
 
-        TcpUdpSocket *socket = getSocket(AS_NATIVE_NUMBER(pointer));
+        TcpUdpSocket *socket = getTCPSocket(AS_NATIVE_NUMBER(pointer));
         if (socket == NULL)
             return ret;
 
@@ -108,7 +108,7 @@ extern "C"
     {
         cube_native_var *ret = NATIVE_BYTES();
 
-        TcpUdpSocket *socket = getSocket(AS_NATIVE_NUMBER(pointer));
+        TcpUdpSocket *socket = getTCPSocket(AS_NATIVE_NUMBER(pointer));
         if (socket == NULL)
             return ret;
 
@@ -131,7 +131,7 @@ extern "C"
     {
         cube_native_var *ret = NATIVE_BOOL(false);
 
-        TcpUdpSocket *socket = getSocket(AS_NATIVE_NUMBER(pointer));
+        TcpUdpSocket *socket = getTCPSocket(AS_NATIVE_NUMBER(pointer));
         if (socket == NULL)
             return ret;
 
@@ -143,7 +143,7 @@ extern "C"
     {
         cube_native_var *ret = NATIVE_BOOL(false);
 
-        TcpUdpSocket *socket = getSocket(AS_NATIVE_NUMBER(pointer));
+        TcpUdpSocket *socket = getTCPSocket(AS_NATIVE_NUMBER(pointer));
         if (socket == NULL)
             return ret;
 
@@ -157,7 +157,7 @@ extern "C"
     {
         cube_native_var *ret = NATIVE_NUMBER(0);
 
-        TcpUdpSocket *socket = getSocket(AS_NATIVE_NUMBER(pointer));
+        TcpUdpSocket *socket = getTCPSocket(AS_NATIVE_NUMBER(pointer));
         if (socket == NULL)
             return ret;
 

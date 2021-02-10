@@ -1,0 +1,16 @@
+import app as default
+
+class UITest : App
+{
+    func main()
+    {
+        var window = Window();
+        var form = Widget.load('temp/ui.json')
+        window.load(form)
+
+        return run();
+    }
+}
+
+var uiTest = UITest()
+uiTest.start()

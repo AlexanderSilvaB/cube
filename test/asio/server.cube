@@ -1,0 +1,41 @@
+import asio
+import loremIpsum as lip
+
+func write(socket, msg)
+{
+    socket.write(msg + '\n')
+    println('> ${msg}')
+}
+
+func read(socket)
+{
+    var id = socket.id
+    var msg = str(socket.readUntil('\n'))
+    print('[${id}] ${msg}')
+    return msg
+}
+
+func client(socket)
+{
+    var id = socket.id
+    var msg = 'Hello!\n'
+
+    println('[${id}]: Connected')
+
+    while(true)
+    {
+        read(socket)
+
+        msg = lip.words()
+        write(socket, msg)
+    }
+    
+}
+
+seed()
+
+var acceptor = asio.ip.tcp.Acceptor(8080, true)
+println("Waiting client on 127.0.0.1:" + acceptor.port)
+acceptor.begin(client)
+
+asio.loop()

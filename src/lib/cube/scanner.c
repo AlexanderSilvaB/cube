@@ -450,6 +450,8 @@ static TokenType identifierType(Scanner *scanner)
                                     return checkKeyword(scanner, 3, 3, "urn", TOKEN_RETURN);
                                 case 'q':
                                     return checkKeyword(scanner, 3, 4, "uire", TOKEN_REQUIRE);
+                                case 's':
+                                    return checkKeyword(scanner, 3, 3, "ume", TOKEN_RESUME);
                             }
                         }
                         break;
@@ -462,8 +464,19 @@ static TokenType identifierType(Scanner *scanner)
             {
                 switch (scanner->start[1])
                 {
-                    case 'u':
-                        return checkKeyword(scanner, 2, 3, "per", TOKEN_SUPER);
+                    case 'u': {
+                        if (scanner->current - scanner->start > 2)
+                        {
+                            switch (scanner->start[2])
+                            {
+                                case 'p':
+                                    return checkKeyword(scanner, 3, 2, "er", TOKEN_SUPER);
+                                case 's':
+                                    return checkKeyword(scanner, 3, 4, "pend", TOKEN_SUSPEND);
+                            }
+                        }
+                        break;
+                    }
                     case 'e':
                         return checkKeyword(scanner, 2, 4, "cure", TOKEN_SECURE);
                     case 't': {

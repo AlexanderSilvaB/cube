@@ -9,21 +9,31 @@
 
 <body>
     <script>
-        $('body').terminal(function (command) {
+        var term = $('body').terminal(function (command, term) {
             $.ajax({
                 cache: false,
                 async: true,
-                type: 'GET',
+                type: 'POST',
                 url: '../php/cube.php',
+                data: JSON.stringify({ "cmd": command }),
+                contentType: "application/json; charset=utf-8",
                 success: function (response) {
-                    alert(response);
+                    term.echo(new String(response));
                 }
             });
-        },
-            {
-                greetings: 'My First Terminal',
-                checkArity: false
-            });
+        });
+
+        $.ajax({
+            cache: false,
+            async: true,
+            type: 'POST',
+            url: '../php/cube.php',
+            data: JSON.stringify({ "cmd": "__init__" }),
+            contentType: "application/json; charset=utf-8",
+            success: function (response) {
+                term.echo(new String(response));
+            }
+        });
     </script>
 </body>
 

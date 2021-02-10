@@ -198,6 +198,7 @@ typedef struct sObjModule
 {
     Obj obj;
     ObjString *name;
+    ObjString *path;
     Table symbols;
     struct sObjModule *parent;
 } ObjModule;
@@ -292,7 +293,7 @@ typedef struct
 {
     Obj obj;
     ObjString *path;
-    int pid, in, out, status;
+    int pid, in, out, err, status;
     bool running, closed, protected;
 } ObjProcess;
 

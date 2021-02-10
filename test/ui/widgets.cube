@@ -1,0 +1,28 @@
+import app as default
+
+class WidgetsTest : App
+{
+    func main()
+    {
+        var window = Window();
+        var form = Form({
+            'title' : 'Widgets',
+            'width' : 800,
+            'height' : 600,
+        }, [
+            VerticalLayout({}, [
+                WebView({
+                    'name' : 'web',
+                    'url' : 'http://www.google.com'
+                })
+            ])
+        ])
+
+        window.load(form)
+        
+        return run();
+    }
+}
+
+var widgetsTest = WidgetsTest()
+widgetsTest.start()

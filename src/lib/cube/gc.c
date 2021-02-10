@@ -197,6 +197,7 @@ void mark_object(Obj *object)
         case OBJ_MODULE: {
             ObjModule *module = (ObjModule *)object;
             mark_object((Obj *)module->name);
+            mark_object((Obj *)module->path);
             markTable(&module->symbols);
             break;
         }

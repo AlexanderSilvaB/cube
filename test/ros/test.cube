@@ -1,0 +1,41 @@
+import ros
+import cv
+
+ros.init("test")
+
+var model = ros.Model()
+model.load("~/morelull_ws/src/p3dx_description/urdf/pioneer3dx.urdf")
+// model.load("temp/robot.urdf")
+println(model.str())
+
+var img = null
+var Image = ros.msg('sensor_msgs/Image')
+
+
+var sub = ros.Subscriber("/cv_camera/image_raw", Image, @(msg, r){
+    if(img is null)
+        img = cv.Mat(msg.height, msg.width)
+    println(msg.width, ' x ', msg.height, ' -> ', msg.encoding)
+    msg.data.copyTo(img.data)
+    cv.imshow("Image", img.id)
+})
+
+var pub = ros.Publisher("/cv_camera/image_raw", Image)
+
+var rate = ros.Rate(30)
+var msg = Image()
+msg.width = 320
+msg.height = 240
+msg.encoding = 'rgb8' 
+msg.step = msg.width * 3
+msg.data = make('bytes', msg.step * msg.height, 0)
+
+while(ros.ok())
+{
+    // msg.data[rand(len(msg.data))] = rand(0, 255)
+    // pub.publish(msg)
+
+    ros.spinOnce()
+    cv.waitKey(1)
+    rate.sleep()
+}
