@@ -4716,11 +4716,9 @@ InterpretResult run()
             OPCASE(CALL) :
             {
                 int argCount = READ_BYTE();
-                if (threadFrame->ctf->unpackCount > 0)
-                {
-                    argCount += threadFrame->ctf->unpackCount;
-                    threadFrame->ctf->unpackCount = 0;
-                }
+                argCount += threadFrame->ctf->unpackCount;
+                threadFrame->ctf->unpackCount = 0;
+
                 Value callee = peek(argCount);
                 if (IS_CLOSURE(callee) && AS_CLOSURE(callee)->instance != NULL)
                 {

@@ -1455,12 +1455,8 @@ static void function(FunctionType type)
     freeCompilerInternals(&compiler);
 }
 
-static void decorator()
+static ObjString *decorator(ObjString *name)
 {
-    // Get decorator name
-    consume(TOKEN_IDENTIFIER, "Expect a decorator name.");
-    ObjString *name = copyString(gbcpl->parser.previous.start, gbcpl->parser.previous.length);
-
     // Parse decorator args
     uint8_t argsCount = 0;
     if (match(TOKEN_LEFT_PAREN))
@@ -1468,17 +1464,14 @@ static void decorator()
     emitBytes(OP_PACK, argsCount);
 
     // Skip func declaration
-    consume(TOKEN_FUNC, "Decorators available only for func.");
+    bool isAnotherDecorator = false;
+    if (match(TOKEN_LAMBDA))
+        isAnotherDecorator = true;
+    else
+        consume(TOKEN_FUNC, "Decorators available only for func.");
     consume(TOKEN_IDENTIFIER, "Expect function name or type.");
 
-    // Push the func name
-    uint16_t global;
-    declareVariable();
-    if (gbcpl->current->scopeDepth > 0)
-        global = 0;
-    else
-        global = identifierConstant(&gbcpl->parser.previous);
-    markInitialized();
+    ObjString *fnName = copyString(gbcpl->parser.previous.start, gbcpl->parser.previous.length);
 
     // Create the new function
     {
@@ -1500,8 +1493,11 @@ static void decorator()
         // Push the decorator function
         namedVariable(syntheticToken(name->chars), false);
 
-        // Push the original function
-        function(TYPE_DECORATOR);
+        // Push the original function or the nested decorator
+        if (isAnotherDecorator)
+            fnName = decorator(fnName);
+        else
+            function(TYPE_DECORATOR);
 
         // Push and unpack the decorator args
         emitByte(OP_FILL_DECORATOR);
@@ -1533,6 +1529,27 @@ static void decorator()
         freeCompilerInternals(&compiler);
     }
 
+    return fnName;
+}
+
+static void decoratorDeclaration()
+{
+    // Get decorator name
+    consume(TOKEN_IDENTIFIER, "Expect a decorator name.");
+    ObjString *name = copyString(gbcpl->parser.previous.start, gbcpl->parser.previous.length);
+
+    ObjString *fnName = decorator(name);
+
+    // Push the func name
+    uint16_t global;
+    declareVariable();
+    if (gbcpl->current->scopeDepth > 0)
+        global = 0;
+    else
+        global = makeConstant(OBJ_VAL(fnName));
+
+    markInitialized();
+
     // Define the function
     defineVariable(global);
 }
@@ -1543,7 +1560,7 @@ static void lambda(bool canAssign)
     // markInitialized();
     if (check(TOKEN_IDENTIFIER))
     {
-        decorator();
+        decoratorDeclaration();
     }
     else
         function(TYPE_FUNCTION);

@@ -6,7 +6,19 @@ func pretty(f, s)
     println(s * 30)
 }
 
-@pretty('%')
+func measure(f)
+{
+    args = args.from(nargs)
+    var start = clock()
+    f(*args)
+    var elapsed = clock() - start
+    println('Elapsed: ${elapsed}s')
+}
+
+@measure
+@pretty('#')
+@pretty('@')
+@pretty('+')
 func main(a, b)
 {
     println('Hello world')
