@@ -633,6 +633,33 @@ static bool joinList(int argCount)
     return true;
 }
 
+static bool fromList(int argCount)
+{
+    if (argCount != 2)
+    {
+        runtimeError("from() takes 2 arguments (%d  given)", argCount);
+        return false;
+    }
+
+    if (!IS_NUMBER(peek(0)))
+    {
+        runtimeError("from() argument must be a number");
+        return false;
+    }
+
+    int index = AS_NUMBER(pop());
+    ObjList *list = AS_LIST(pop());
+    ObjList *newList = initList();
+
+    for (int i = index; i < list->values.count; ++i)
+    {
+        writeValueArray(&newList->values, list->values.values[i]);
+    }
+
+    push(OBJ_VAL(newList));
+    return true;
+}
+
 bool listMethods(char *method, int argCount)
 {
     if (strcmp(method, "push") == 0 || strcmp(method, "add") == 0)
@@ -665,6 +692,8 @@ bool listMethods(char *method, int argCount)
         return swapAllListItems(argCount);
     else if (strcmp(method, "join") == 0)
         return joinListItems(argCount);
+    else if (strcmp(method, "from") == 0)
+        return fromList(argCount);
 
     runtimeError("List has no method %s()", method);
     return false;

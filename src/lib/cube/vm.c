@@ -183,6 +183,7 @@ TaskFrame *createTaskFrame(const char *name)
     taskFrame->currentArgs = NULL_VAL;
     taskFrame->threadFrame = threadFrame;
     taskFrame->autoDestroy = false;
+    taskFrame->unpackCount = 0;
 
     TaskFrame *tf = threadFrame->taskFrame;
     // TaskFrame *tf = threadFrame->taskFrame;
@@ -356,29 +357,18 @@ void resumeTaskFrame(const char *name)
 static void pushTry(CallFrame *frame, uint16_t offset)
 {
     ThreadFrame *threadFrame = currentThread();
-    TryFrame *
-    try
-        = (TryFrame *)mp_malloc(sizeof(TryFrame));
-    try
-        ->next = threadFrame->ctf->tryFrame;
-    try
-        ->ip = frame->ip + offset;
-    try
-        ->frame = frame;
-    threadFrame->ctf->tryFrame =
-    try
-        ;
+    TryFrame *try = (TryFrame *)mp_malloc(sizeof(TryFrame));
+    try->next = threadFrame->ctf->tryFrame;
+    try->ip = frame->ip + offset;
+    try->frame = frame;
+    threadFrame->ctf->tryFrame = try;
 }
 
 static void popTry()
 {
     ThreadFrame *threadFrame = currentThread();
-    TryFrame *
-    try
-        = threadFrame->ctf->tryFrame;
-    threadFrame->ctf->tryFrame =
-    try
-        ->next;
+    TryFrame *try = threadFrame->ctf->tryFrame;
+    threadFrame->ctf->tryFrame = try->next;
     mp_free(try);
 }
 
@@ -1581,6 +1571,15 @@ bool envVariable(ObjString *name, Value *value)
     else if (strcmp(name->chars, "__root__") == 0)
     {
         *value = vm.rootPath;
+        return true;
+    }
+    else if (strcmp(name->chars, "nargs") == 0)
+    {
+        if (threadFrame->frame && threadFrame->frame->closure && threadFrame->frame->closure->function)
+            *value = NUMBER_VAL(threadFrame->frame->closure->function->arity);
+        else
+            *value = NUMBER_VAL(0);
+
         return true;
     }
     else if (strcmp(name->chars, "__path__") == 0)
@@ -3507,6 +3506,28 @@ InterpretResult run()
 
                     push(OBJ_VAL(list));
                 }
+                else if (IS_STRING(peek(1)) && IS_NUMBER(peek(0)))
+                {
+                    int factor = AS_NUMBER(peek(0));
+                    Value stringValue = peek(1);
+
+                    Value string;
+                    if (factor == 0)
+                        string = STRING_VAL("");
+                    else
+                    {
+                        string = STRING_VAL(AS_STRING(stringValue)->chars);
+                        for (int i = 1; i < factor; i++)
+                        {
+                            string = concatenateInplace(string, stringValue);
+                        }
+                    }
+
+                    pop();
+                    pop();
+
+                    push(string);
+                }
                 else
                 {
                     BINARY_OP(NUMBER_VAL, *);
@@ -3968,7 +3989,7 @@ InterpretResult run()
                 Value ret;
                 if (strcmp(objType, type->chars) == 0)
                 {
-                    ret = not? FALSE_VAL : TRUE_VAL;
+                    ret = not ? FALSE_VAL : TRUE_VAL;
                 }
                 else
                 {
@@ -3976,30 +3997,30 @@ InterpretResult run()
                     {
                         ObjInstance *instance = AS_INSTANCE(obj);
                         if (inherits(instance->klass, type))
-                            ret = not? FALSE_VAL : TRUE_VAL;
+                            ret = not ? FALSE_VAL : TRUE_VAL;
                         else
-                            ret = not? TRUE_VAL : FALSE_VAL;
+                            ret = not ? TRUE_VAL : FALSE_VAL;
                     }
                     else if (IS_CLASS(obj))
                     {
                         ObjClass *klass = AS_CLASS(obj);
                         if (inherits(klass, type))
-                            ret = not? FALSE_VAL : TRUE_VAL;
+                            ret = not ? FALSE_VAL : TRUE_VAL;
                         else
-                            ret = not? TRUE_VAL : FALSE_VAL;
+                            ret = not ? TRUE_VAL : FALSE_VAL;
                     }
                     else if (IS_ENUM_VALUE(obj))
                     {
                         ObjEnumValue *enumValue = AS_ENUM_VALUE(obj);
                         if (strcmp(enumValue->enume->name->chars, type->chars) == 0)
                         {
-                            ret = not? FALSE_VAL : TRUE_VAL;
+                            ret = not ? FALSE_VAL : TRUE_VAL;
                         }
                         else
-                            ret = not? TRUE_VAL : FALSE_VAL;
+                            ret = not ? TRUE_VAL : FALSE_VAL;
                     }
                     else
-                        ret = not? TRUE_VAL : FALSE_VAL;
+                        ret = not ? TRUE_VAL : FALSE_VAL;
                 }
 
                 pop();
@@ -4695,6 +4716,11 @@ InterpretResult run()
             OPCASE(CALL) :
             {
                 int argCount = READ_BYTE();
+                if (threadFrame->ctf->unpackCount > 0)
+                {
+                    argCount += threadFrame->ctf->unpackCount;
+                    threadFrame->ctf->unpackCount = 0;
+                }
                 Value callee = peek(argCount);
                 if (IS_CLOSURE(callee) && AS_CLOSURE(callee)->instance != NULL)
                 {
@@ -4809,6 +4835,40 @@ InterpretResult run()
                 ObjClosure *closure = newClosure(function);
                 closure->module = frame->module;
                 push(OBJ_VAL(closure));
+                for (int i = 0; i < closure->upvalueCount; i++)
+                {
+                    uint8_t isLocal = READ_BYTE();
+                    uint16_t index = READ_SHORT();
+                    if (isLocal)
+                    {
+                        closure->upvalues[i] = captureUpvalue(frame->slots + index);
+                    }
+                    else
+                    {
+                        closure->upvalues[i] = frame->closure->upvalues[index];
+                    }
+                }
+                DISPATCH();
+            }
+
+            OPCASE(FILL_DECORATOR) :
+            {
+
+                if (frame->closure->args != NULL && IS_LIST(OBJ_VAL(frame->closure->args)))
+                    push(OBJ_VAL(frame->closure->args));
+                else
+                    push(OBJ_VAL(initList()));
+                DISPATCH();
+            }
+
+            OPCASE(DECORATOR) :
+            {
+                ObjFunction *function = AS_FUNCTION(READ_CONSTANT());
+                ObjClosure *closure = newClosure(function);
+                closure->module = frame->module;
+                closure->args = AS_LIST(pop());
+                push(OBJ_VAL(closure));
+
                 for (int i = 0; i < closure->upvalueCount; i++)
                 {
                     uint8_t isLocal = READ_BYTE();
@@ -5250,6 +5310,34 @@ InterpretResult run()
             }
 
             OPCASE(PASS) : DISPATCH();
+
+            OPCASE(PACK) :
+            {
+                uint8_t size = READ_BYTE();
+                ObjList *list = initList();
+                for (int i = 0; i < size; i++)
+                {
+                    Value v = pop();
+                    writeValueArray(&list->values, v);
+                }
+                push(OBJ_VAL(list));
+                DISPATCH();
+            }
+
+            OPCASE(UNPACK) :
+            {
+                if (IS_LIST(peek(0)))
+                {
+                    ObjList *list = AS_LIST(pop(0));
+                    threadFrame->ctf->unpackCount--;
+                    for (int i = 0; i < list->values.count; i++)
+                    {
+                        push(list->values.values[i]);
+                        threadFrame->ctf->unpackCount++;
+                    }
+                }
+                DISPATCH();
+            }
         }
         // thread_yield();
     }

@@ -302,7 +302,7 @@ static void initCompiler(Compiler *compiler, FunctionType type)
         compiler->path = "<null>";
     gbcpl->current = compiler;
 
-    if (type != TYPE_SCRIPT && type != TYPE_EVAL)
+    if (type != TYPE_SCRIPT && type != TYPE_EVAL && type != TYPE_DECORATOR)
     {
         gbcpl->current->function->name = copyString(gbcpl->parser.previous.start, gbcpl->parser.previous.length);
     }
@@ -764,11 +764,17 @@ static void defineVariable(uint16_t global)
 static uint8_t argumentList()
 {
     uint8_t argCount = 0;
+    bool unpack = false;
     if (!check(TOKEN_RIGHT_PAREN))
     {
         do
         {
+            unpack = false;
+            if (match(TOKEN_STAR))
+                unpack = true;
             expression();
+            if (unpack)
+                emitByte(OP_UNPACK);
 
             if (argCount == 255)
             {
@@ -1437,6 +1443,7 @@ static void function(FunctionType type)
 
     // Create the function object.
     ObjFunction *fn = endCompiler();
+
     emitShort(OP_CLOSURE, makeConstant(OBJ_VAL(fn)));
 
     for (int i = 0; i < fn->upvalueCount; i++)
@@ -1448,11 +1455,98 @@ static void function(FunctionType type)
     freeCompilerInternals(&compiler);
 }
 
+static void decorator()
+{
+    // Get decorator name
+    consume(TOKEN_IDENTIFIER, "Expect a decorator name.");
+    ObjString *name = copyString(gbcpl->parser.previous.start, gbcpl->parser.previous.length);
+
+    // Parse decorator args
+    uint8_t argsCount = 0;
+    if (match(TOKEN_LEFT_PAREN))
+        argsCount = argumentList();
+    emitBytes(OP_PACK, argsCount);
+
+    // Skip func declaration
+    consume(TOKEN_FUNC, "Decorators available only for func.");
+    consume(TOKEN_IDENTIFIER, "Expect function name or type.");
+
+    // Push the func name
+    uint16_t global;
+    declareVariable();
+    if (gbcpl->current->scopeDepth > 0)
+        global = 0;
+    else
+        global = identifierConstant(&gbcpl->parser.previous);
+    markInitialized();
+
+    // Create the new function
+    {
+        Compiler compiler;
+        initCompiler(&compiler, TYPE_FUNCTION);
+        beginScope(); // decorator scope
+
+        // Create args
+        Token argsToken;
+        uint16_t args = createSyntheticVariable("args", &argsToken);
+        defineVariable(args);
+        Token argsInternToken = syntheticToken(vm.argsString);
+        getVariable(argsInternToken);
+        setVariablePop(argsToken);
+
+        // Body scope
+        beginScope();
+
+        // Push the decorator function
+        namedVariable(syntheticToken(name->chars), false);
+
+        // Push the original function
+        function(TYPE_DECORATOR);
+
+        // Push and unpack the decorator args
+        emitByte(OP_FILL_DECORATOR);
+        emitByte(OP_UNPACK);
+
+        // Push and unpack the call args
+        namedVariable(syntheticToken("args"), false);
+        emitByte(OP_UNPACK);
+
+        // Call the decorator function
+        emitBytes(OP_CALL, 3);
+
+        // Return inner function return
+        emitByte(OP_RETURN);
+
+        // End body scope
+        endScope();
+
+        // Create the function object.
+        ObjFunction *fn = endCompiler();
+        emitShort(OP_DECORATOR, makeConstant(OBJ_VAL(fn)));
+
+        for (int i = 0; i < fn->upvalueCount; i++)
+        {
+            emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
+            emitShortAlone(compiler.upvalues[i].index);
+        }
+
+        freeCompilerInternals(&compiler);
+    }
+
+    // Define the function
+    defineVariable(global);
+}
+
 static void lambda(bool canAssign)
 {
     TokenType operatorType = gbcpl->parser.previous.type;
     // markInitialized();
-    function(TYPE_FUNCTION);
+    if (check(TOKEN_IDENTIFIER))
+    {
+        decorator();
+    }
+    else
+        function(TYPE_FUNCTION);
 }
 
 static int expand_step = 0;

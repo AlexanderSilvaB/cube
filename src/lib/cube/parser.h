@@ -65,7 +65,8 @@ typedef enum
     TYPE_EXTENSION,
     TYPE_STATIC,
     TYPE_SCRIPT,
-    TYPE_EVAL
+    TYPE_EVAL,
+    TYPE_DECORATOR
 } FunctionType;
 
 typedef struct Compiler

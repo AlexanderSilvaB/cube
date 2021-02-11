@@ -30,6 +30,7 @@ libs/
 *.dll
 *.dat
 *.out
+*.deb
 *.plt
 temp/
 

@@ -1,0 +1,15 @@
+func pretty(f, s)
+{
+    println(s * 30)
+    args = args.from(nargs)
+    f(*args)
+    println(s * 30)
+}
+
+@pretty('%')
+func main(a, b)
+{
+    println('Hello world')
+}
+
+main(1, 200)

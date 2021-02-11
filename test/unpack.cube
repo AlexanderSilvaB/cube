@@ -1,0 +1,10 @@
+func echo(a, b, c)
+{
+    println(a, ' - ', b, ' - ', c)
+    println(args)
+}
+
+var a = [1, 2, 3]
+
+echo(a)
+echo(*a)

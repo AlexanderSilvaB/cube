@@ -229,6 +229,7 @@ typedef struct
     int upvalueCount;
     ObjModule *module;
     ObjInstance *instance;
+    ObjList *args;
 } ObjClosure;
 
 typedef struct

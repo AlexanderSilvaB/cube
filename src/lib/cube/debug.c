@@ -277,6 +277,26 @@ int disassembleInstruction(Chunk *chunk, int offset)
             return simpleInstruction("OP_SECURE_START", offset);
         case OP_SECURE_END:
             return simpleInstruction("OP_SECURE_END", offset);
+        case OP_UNPACK:
+            return simpleInstruction("OP_UNPACK", offset);
+        case OP_DECORATOR: {
+            offset++;
+            uint16_t constant = (uint16_t)(chunk->code[offset++] << 8);
+            constant |= chunk->code[offset++];
+            printf("%-16s %4d ", "OP_DECORATOR", constant);
+            printValue(chunk->constants.values[constant]);
+            printf("\n");
+
+            ObjFunction *function = AS_FUNCTION(chunk->constants.values[constant]);
+            for (int j = 0; j < function->upvalueCount; j++)
+            {
+                int isLocal = chunk->code[offset++];
+                int index = chunk->code[offset++];
+                printf("%04d      |                     %s %d\n", offset - 2, isLocal ? "local" : "upvalue", index);
+            }
+
+            return offset;
+        }
         default:
             printf("Unknown opcode %d\n", instruction);
             return offset + 1;

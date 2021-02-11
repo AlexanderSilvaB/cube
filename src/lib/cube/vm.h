@@ -67,6 +67,7 @@ typedef struct TaskFrame_t
     uint64_t startTime;
     TryFrame *tryFrame;
     void *threadFrame;
+    int unpackCount;
 } TaskFrame;
 
 typedef enum
