@@ -5315,9 +5315,13 @@ InterpretResult run()
                 ObjList *list = initList();
                 for (int i = 0; i < size; i++)
                 {
-                    Value v = pop();
+                    Value v = peek(size - i - 1);
                     writeValueArray(&list->values, v);
                 }
+
+                for (int i = 0; i < size; i++)
+                    pop();
+
                 push(OBJ_VAL(list));
                 DISPATCH();
             }

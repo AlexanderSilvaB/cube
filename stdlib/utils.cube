@@ -1,0 +1,18 @@
+func measureTime(f)
+{
+    args = args.from(nargs)
+    var start = clock()
+    var res = f(*args)
+    var elapsed = clock() - start
+    println('Elapsed time: ${elapsed}s')
+    return res
+}
+
+func border(f, c, n)
+{
+    println(c * n)
+    args = args.from(nargs)
+    var res = f(*args)
+    println(c * n)
+    return res
+}

@@ -1,27 +1,11 @@
-func pretty(f, s)
-{
-    println(s * 30)
-    args = args.from(nargs)
-    f(*args)
-    println(s * 30)
-}
+import utils as default
 
-func measure(f)
-{
-    args = args.from(nargs)
-    var start = clock()
-    f(*args)
-    var elapsed = clock() - start
-    println('Elapsed: ${elapsed}s')
-}
-
-@measure
-@pretty('#')
-@pretty('@')
-@pretty('+')
+@measureTime
+@border('+', 30)
 func main(a, b)
 {
     println('Hello world')
+    return a * b
 }
 
-main(1, 200)
+print(main(1, 200))
