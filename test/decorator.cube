@@ -1,7 +1,9 @@
 import utils as default
 
+@defaultValue(5)
 @measureTime
 @border('+', 30)
+@ensureArgs
 func main(a, b)
 {
     println('Hello world')

@@ -1497,7 +1497,7 @@ static ObjString *decorator(ObjString *name)
         if (isAnotherDecorator)
             fnName = decorator(fnName);
         else
-            function(TYPE_DECORATOR);
+            function(TYPE_FUNCTION);
 
         // Push and unpack the decorator args
         emitByte(OP_FILL_DECORATOR);
@@ -1518,6 +1518,7 @@ static ObjString *decorator(ObjString *name)
 
         // Create the function object.
         ObjFunction *fn = endCompiler();
+        fn->name = fnName;
         emitShort(OP_DECORATOR, makeConstant(OBJ_VAL(fn)));
 
         for (int i = 0; i < fn->upvalueCount; i++)
@@ -1674,6 +1675,26 @@ static void static_(bool canAssign)
         error("Cannot use 'static' outside of a class.");
 }
 
+static void class_(bool canAssign)
+{
+    namedVariable(gbcpl->parser.previous, false);
+
+    consume(TOKEN_LEFT_PAREN, "In 'class(dict, name)' a dict describing the class must be passed between parentesis.");
+
+    uint8_t argCount = argumentList();
+    emitBytes(OP_CALL, argCount);
+}
+
+static void enum_(bool canAssign)
+{
+    namedVariable(gbcpl->parser.previous, false);
+
+    consume(TOKEN_LEFT_PAREN, "In 'enum(name, dict)' a dict describing the enum must be passed between parentesis.");
+
+    uint8_t argCount = argumentList();
+    emitBytes(OP_CALL, argCount);
+}
+
 static void require(bool canAssign)
 {
     consume(TOKEN_LEFT_PAREN, "In 'require' a module name must be passed between parentesis.");
@@ -1778,7 +1799,7 @@ ParseRule rules[] = {
     {number, NULL, PREC_NULL},            // TOKEN_NUMBER
     {byte, NULL, PREC_NULL},              // TOKEN_BYTE
     {NULL, and_, PREC_AND},               // TOKEN_AND
-    {NULL, NULL, PREC_NULL},              // TOKEN_CLASS
+    {class_, NULL, PREC_NULL},            // TOKEN_CLASS
     {static_, NULL, PREC_NULL},           // TOKEN_STATIC
     {NULL, NULL, PREC_NULL},              // TOKEN_ELSE
     {literal, NULL, PREC_NULL},           // TOKEN_FALSE
@@ -1806,7 +1827,7 @@ ParseRule rules[] = {
     {NULL, NULL, PREC_NULL},              // TOKEN_DEFAULT
     {number, NULL, PREC_NULL},            // TOKEN_NAN
     {number, NULL, PREC_NULL},            // TOKEN_INF
-    {NULL, NULL, PREC_NULL},              // TOKEN_ENUM
+    {enum_, NULL, PREC_NULL},             // TOKEN_ENUM
     {NULL, NULL, PREC_NULL},              // TOKEN_IMPORT
     {require, NULL, PREC_NULL},           // TOKEN_REQUIRE
     {NULL, NULL, PREC_NULL},              // TOKEN_INCLUDE

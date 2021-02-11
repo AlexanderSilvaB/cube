@@ -701,6 +701,109 @@ Value strNative(int argCount, Value *args)
     return toString(args[0]);
 }
 
+Value classNative(int argCount, Value *args)
+{
+    Value ret = NULL_VAL;
+
+    if (argCount > 0)
+    {
+        char *name = NULL;
+        if (IS_STRING(args[0]))
+            name = AS_CSTRING(args[0]);
+        else if (argCount > 1 && IS_STRING(args[1]))
+            name = AS_CSTRING(args[1]);
+
+        ObjDict *dict = NULL;
+        if (IS_DICT(args[0]))
+            dict = AS_DICT(args[0]);
+        else if (argCount > 1 && IS_DICT(args[1]))
+            dict = AS_DICT(args[1]);
+
+        if (dict != NULL)
+        {
+            if (name == NULL)
+                name = "Class";
+
+            ObjClass *klass = newClass(copyString(name, strlen(name)));
+
+            for (int i = 0; i < dict->capacity; ++i)
+            {
+                dictItem *item = dict->items[i];
+
+                if (!item || item->deleted)
+                {
+                    continue;
+                }
+
+                if (IS_FUNCTION(item->item) || IS_CLOSURE(item->item))
+                    tableSet(&klass->methods, copyString(item->key, strlen(item->key)), item->item);
+                else
+                    tableSet(&klass->fields, copyString(item->key, strlen(item->key)), item->item);
+            }
+
+            ret = OBJ_VAL(klass);
+        }
+    }
+
+    if (IS_NULL(ret))
+    {
+        runtimeError("'class' arguments must be a string and a dict.");
+    }
+
+    return ret;
+}
+
+Value enumNative(int argCount, Value *args)
+{
+    Value ret = NULL_VAL;
+
+    if (argCount == 2)
+    {
+        char *name = NULL;
+        if (IS_STRING(args[0]))
+            name = AS_CSTRING(args[0]);
+        else if (argCount > 1 && IS_STRING(args[1]))
+            name = AS_CSTRING(args[1]);
+
+        ObjDict *dict = NULL;
+        if (IS_DICT(args[0]))
+            dict = AS_DICT(args[0]);
+        else if (argCount > 1 && IS_DICT(args[1]))
+            dict = AS_DICT(args[1]);
+
+        if (dict != NULL)
+        {
+            if (name == NULL)
+                name = "Enum";
+
+            ObjEnum *enume = newEnum(copyString(name, strlen(name)));
+
+            for (int i = 0; i < dict->capacity; ++i)
+            {
+                dictItem *item = dict->items[i];
+
+                if (!item || item->deleted)
+                {
+                    continue;
+                }
+
+                ObjString *key = copyString(item->key, strlen(item->key));
+                ObjEnumValue *enumValue = newEnumValue(enume, key, item->item);
+                tableSet(&enume->members, key, OBJ_VAL(enumValue));
+            }
+
+            ret = OBJ_VAL(enume);
+        }
+    }
+
+    if (IS_NULL(ret))
+    {
+        runtimeError("'enum' arguments must be a string and a dict.");
+    }
+
+    return ret;
+}
+
 Value hexNative(int argCount, Value *args)
 {
     if (argCount == 0)
@@ -3476,6 +3579,29 @@ Value modulesNative(int argCount, Value *args)
     return OBJ_VAL(list);
 }
 
+Value arityNative(int argCount, Value *args)
+{
+    Value n;
+    if (argCount == 0)
+        n = NUMBER_VAL(0);
+    else
+    {
+        Value val = args[0];
+        if (IS_FUNCTION(val))
+            n = NUMBER_VAL(AS_FUNCTION(val)->arity);
+        else if (IS_CLOSURE(val))
+            n = NUMBER_VAL(AS_CLOSURE(val)->function->arity);
+        else if (IS_BOUND_METHOD(val))
+            n = NUMBER_VAL(AS_BOUND_METHOD(val)->method->function->arity);
+        else if (IS_NATIVE_FUNC(val))
+            n = NUMBER_VAL(AS_NATIVE_FUNC(val)->params.count);
+        else
+            n = NUMBER_VAL(0);
+    }
+
+    return n;
+}
+
 Value buildByteCodeNative(int argCount, Value *args)
 {
     if (argCount < 1)
@@ -3639,6 +3765,8 @@ void initStd()
     ADD_STD("num", numNative);
     ADD_STD("int", intNative);
     ADD_STD("str", strNative);
+    ADD_STD("class", classNative);
+    ADD_STD("enum", enumNative);
     ADD_STD("hex", hexNative);
     ADD_STD("bin", binNative);
     ADD_STD("unbin", unbinNative);
@@ -3706,6 +3834,7 @@ void initStd()
     ADD_STD("addPath", addPathNative);
     ADD_STD("rmPath", rmPathNative);
     ADD_STD("modules", modulesNative);
+    ADD_STD("arity", arityNative);
     ADD_STD("buildByteCode", buildByteCodeNative);
     ADD_STD("buildBinary", buildBinaryNative);
 }

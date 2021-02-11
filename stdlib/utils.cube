@@ -16,3 +16,33 @@ func border(f, c, n)
     println(c * n)
     return res
 }
+
+func forceArgs(f, n)
+{
+    args = args.from(nargs)
+    if(len(args) != n)
+    {
+        throw('Invalid number of arguments for ${f}. Expect ${n} but got ', len(args))
+    }
+    return f(*args)
+}
+
+func ensureArgs(f)
+{
+    var n = arity(f)
+    args = args.from(nargs)
+    if(len(args) != n)
+    {
+        throw('Invalid number of arguments for ${f}. Expect ${n} but got ', len(args))
+    }
+    return f(*args)
+}
+
+func defaultValue(f, def)
+{
+    args = args.from(nargs)
+    var res = f(*args)
+    if(res is null)
+        res = def
+    return res
+}

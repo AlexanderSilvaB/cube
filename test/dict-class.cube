@@ -1,0 +1,8 @@
+var a = {'name' : 'A', 'age' : 4}
+var A = class('A', a)
+
+println(a)
+println(A)
+
+a = A()
+vars(a)
