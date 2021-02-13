@@ -38,7 +38,7 @@ func ensureArgs(f)
     return f(*args)
 }
 
-func defaultValue(f, def)
+func defaultReturn(f, def)
 {
     args = args.from(nargs)
     var res = f(*args)

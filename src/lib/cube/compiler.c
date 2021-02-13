@@ -1458,6 +1458,10 @@ static void function(FunctionType type)
 
 static ObjString *decorator()
 {
+    gbcpl->isDecorator = true;
+    parsePrecedence(PREC_CALL);
+    gbcpl->isDecorator = false;
+
     // Parse decorator args
     uint8_t argsCount = 0;
     if (match(TOKEN_LEFT_PAREN) || gbcpl->parser.previous.type == TOKEN_LEFT_PAREN)
@@ -1471,17 +1475,8 @@ static ObjString *decorator()
     else
         consume(TOKEN_FUNC, "Decorators available only for func.");
 
-    if (isAnotherDecorator)
-    {
-        gbcpl->isDecorator = true;
-        parsePrecedence(PREC_CALL);
-        gbcpl->isDecorator = false;
-    }
-    else
-    {
+    if (!isAnotherDecorator)
         consume(TOKEN_IDENTIFIER, "Expect function name or type.");
-        emitByte(OP_NULL);
-    }
 
     ObjString *name = copyString(gbcpl->parser.previous.start, gbcpl->parser.previous.length);
 
@@ -1547,15 +1542,6 @@ static ObjString *decorator()
 
 static void decoratorDeclaration()
 {
-    // Get decorator name
-    // consume(TOKEN_IDENTIFIER, "Expect a decorator name.");
-
-    gbcpl->isDecorator = true;
-    parsePrecedence(PREC_CALL);
-    gbcpl->isDecorator = false;
-
-    // ObjString *name = copyString(gbcpl->parser.previous.start, gbcpl->parser.previous.length);
-
     ObjString *name = decorator();
 
     // Push the func name

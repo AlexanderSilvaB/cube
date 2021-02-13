@@ -1,9 +1,9 @@
 import utils
 
-@utils.defaultValue(5)
+@utils.defaultReturn(5)
 @utils.measureTime
-// @utils.border('+', 30)
-// @utils.ensureArgs
+@utils.border('+', 30)
+@utils.ensureArgs
 func main(a, b)
 {
     println('Hello world')

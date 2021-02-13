@@ -4882,8 +4882,6 @@ InterpretResult run()
                 ObjFunction *function = AS_FUNCTION(READ_CONSTANT());
                 ObjClosure *closure = newClosure(function);
                 closure->module = frame->module;
-                Value v1 = peek(0);
-                Value v2 = peek(1);
                 closure->args = AS_LIST(pop());
                 closure->decorator = pop();
                 ObjClosure *fn = AS_CLOSURE(closure->decorator);
