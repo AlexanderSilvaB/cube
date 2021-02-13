@@ -111,6 +111,7 @@ typedef struct GlobalCompiler_t
     int loopInCount;
     bool compilingToFile;
     int tempId;
+    bool isDecorator;
 
     // Used for "continue" statements
     int innermostLoopStart;

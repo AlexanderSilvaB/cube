@@ -36,6 +36,7 @@ void initGlobalCompiler()
     current->innermostLoopStart = -1;
     current->innermostLoopScopeDepth = 0;
     current->currentBreak = NULL;
+    current->isDecorator = false;
     memset(&current->scanner, '\0', sizeof(Scanner));
     memset(&current->parser, '\0', sizeof(Parser));
     current->previous = gbcpl;
@@ -957,7 +958,7 @@ static void dot(bool canAssign)
         expression();
         emitShort(OP_SET_PROPERTY, name);
     }
-    else if (match(TOKEN_LEFT_PAREN))
+    else if (match(TOKEN_LEFT_PAREN) && !gbcpl->isDecorator)
     {
         uint8_t argCount = argumentList();
         emitBytes(OP_INVOKE, argCount);
@@ -1537,6 +1538,11 @@ static void decoratorDeclaration()
 {
     // Get decorator name
     consume(TOKEN_IDENTIFIER, "Expect a decorator name.");
+
+    // gbcpl->isDecorator = true;
+    // parsePrecedence(PREC_CALL);
+    // gbcpl->isDecorator = false;
+
     ObjString *name = copyString(gbcpl->parser.previous.start, gbcpl->parser.previous.length);
 
     ObjString *fnName = decorator(name);
@@ -1889,11 +1895,14 @@ static void parsePrecedence(Precedence precedence)
     bool canAssign = precedence <= PREC_ASSIGNMENT;
     prefixRule(canAssign);
 
-    while (precedence <= getRule(gbcpl->parser.current.type)->precedence)
+    if (!(gbcpl->isDecorator && gbcpl->parser.current.type == TOKEN_LEFT_PAREN))
     {
-        advance();
-        ParseFn infixRule = getRule(gbcpl->parser.previous.type)->infix;
-        infixRule(canAssign);
+        while (precedence <= getRule(gbcpl->parser.current.type)->precedence)
+        {
+            advance();
+            ParseFn infixRule = getRule(gbcpl->parser.previous.type)->infix;
+            infixRule(canAssign);
+        }
     }
 
     if (canAssign && match(TOKEN_EQUAL))
