@@ -357,18 +357,29 @@ void resumeTaskFrame(const char *name)
 static void pushTry(CallFrame *frame, uint16_t offset)
 {
     ThreadFrame *threadFrame = currentThread();
-    TryFrame *try = (TryFrame *)mp_malloc(sizeof(TryFrame));
-    try->next = threadFrame->ctf->tryFrame;
-    try->ip = frame->ip + offset;
-    try->frame = frame;
-    threadFrame->ctf->tryFrame = try;
+    TryFrame *
+    try
+        = (TryFrame *)mp_malloc(sizeof(TryFrame));
+    try
+        ->next = threadFrame->ctf->tryFrame;
+    try
+        ->ip = frame->ip + offset;
+    try
+        ->frame = frame;
+    threadFrame->ctf->tryFrame =
+    try
+        ;
 }
 
 static void popTry()
 {
     ThreadFrame *threadFrame = currentThread();
-    TryFrame *try = threadFrame->ctf->tryFrame;
-    threadFrame->ctf->tryFrame = try->next;
+    TryFrame *
+    try
+        = threadFrame->ctf->tryFrame;
+    threadFrame->ctf->tryFrame =
+    try
+        ->next;
     mp_free(try);
 }
 
@@ -4859,12 +4870,24 @@ InterpretResult run()
                 DISPATCH();
             }
 
+            OPCASE(POP_DECORATOR) :
+            {
+
+                push(frame->closure->decorator);
+                DISPATCH();
+            }
+
             OPCASE(DECORATOR) :
             {
                 ObjFunction *function = AS_FUNCTION(READ_CONSTANT());
                 ObjClosure *closure = newClosure(function);
                 closure->module = frame->module;
+                Value v1 = peek(0);
+                Value v2 = peek(1);
                 closure->args = AS_LIST(pop());
+                closure->decorator = pop();
+                ObjClosure *fn = AS_CLOSURE(closure->decorator);
+
                 push(OBJ_VAL(closure));
 
                 for (int i = 0; i < closure->upvalueCount; i++)

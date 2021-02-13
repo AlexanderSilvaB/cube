@@ -230,6 +230,7 @@ typedef struct
     ObjModule *module;
     ObjInstance *instance;
     ObjList *args;
+    Value decorator;
 } ObjClosure;
 
 typedef struct

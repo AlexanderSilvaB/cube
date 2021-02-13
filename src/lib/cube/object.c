@@ -110,6 +110,7 @@ ObjClosure *newClosure(ObjFunction *function)
     closure->module = NULL;
     closure->instance = NULL;
     closure->args = NULL;
+    closure->decorator = NULL_VAL;
     return closure;
 }
 

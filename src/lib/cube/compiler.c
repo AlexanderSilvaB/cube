@@ -1456,11 +1456,11 @@ static void function(FunctionType type)
     freeCompilerInternals(&compiler);
 }
 
-static ObjString *decorator(ObjString *name)
+static ObjString *decorator()
 {
     // Parse decorator args
     uint8_t argsCount = 0;
-    if (match(TOKEN_LEFT_PAREN))
+    if (match(TOKEN_LEFT_PAREN) || gbcpl->parser.previous.type == TOKEN_LEFT_PAREN)
         argsCount = argumentList();
     emitBytes(OP_PACK, argsCount);
 
@@ -1470,9 +1470,20 @@ static ObjString *decorator(ObjString *name)
         isAnotherDecorator = true;
     else
         consume(TOKEN_FUNC, "Decorators available only for func.");
-    consume(TOKEN_IDENTIFIER, "Expect function name or type.");
 
-    ObjString *fnName = copyString(gbcpl->parser.previous.start, gbcpl->parser.previous.length);
+    if (isAnotherDecorator)
+    {
+        gbcpl->isDecorator = true;
+        parsePrecedence(PREC_CALL);
+        gbcpl->isDecorator = false;
+    }
+    else
+    {
+        consume(TOKEN_IDENTIFIER, "Expect function name or type.");
+        emitByte(OP_NULL);
+    }
+
+    ObjString *name = copyString(gbcpl->parser.previous.start, gbcpl->parser.previous.length);
 
     // Create the new function
     {
@@ -1492,11 +1503,11 @@ static ObjString *decorator(ObjString *name)
         beginScope();
 
         // Push the decorator function
-        namedVariable(syntheticToken(name->chars), false);
+        emitByte(OP_POP_DECORATOR);
 
         // Push the original function or the nested decorator
         if (isAnotherDecorator)
-            fnName = decorator(fnName);
+            name = decorator();
         else
             function(TYPE_FUNCTION);
 
@@ -1519,7 +1530,7 @@ static ObjString *decorator(ObjString *name)
 
         // Create the function object.
         ObjFunction *fn = endCompiler();
-        fn->name = fnName;
+        fn->name = name;
         emitShort(OP_DECORATOR, makeConstant(OBJ_VAL(fn)));
 
         for (int i = 0; i < fn->upvalueCount; i++)
@@ -1531,21 +1542,21 @@ static ObjString *decorator(ObjString *name)
         freeCompilerInternals(&compiler);
     }
 
-    return fnName;
+    return name;
 }
 
 static void decoratorDeclaration()
 {
     // Get decorator name
-    consume(TOKEN_IDENTIFIER, "Expect a decorator name.");
+    // consume(TOKEN_IDENTIFIER, "Expect a decorator name.");
 
-    // gbcpl->isDecorator = true;
-    // parsePrecedence(PREC_CALL);
-    // gbcpl->isDecorator = false;
+    gbcpl->isDecorator = true;
+    parsePrecedence(PREC_CALL);
+    gbcpl->isDecorator = false;
 
-    ObjString *name = copyString(gbcpl->parser.previous.start, gbcpl->parser.previous.length);
+    // ObjString *name = copyString(gbcpl->parser.previous.start, gbcpl->parser.previous.length);
 
-    ObjString *fnName = decorator(name);
+    ObjString *name = decorator();
 
     // Push the func name
     uint16_t global;
@@ -1553,7 +1564,7 @@ static void decoratorDeclaration()
     if (gbcpl->current->scopeDepth > 0)
         global = 0;
     else
-        global = makeConstant(OBJ_VAL(fnName));
+        global = makeConstant(OBJ_VAL(name));
 
     markInitialized();
 
