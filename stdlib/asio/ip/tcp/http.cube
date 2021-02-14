@@ -1,6 +1,7 @@
 import os
 import paths
 import contentTypes
+import regex
 
 enum Method
 {
@@ -91,6 +92,8 @@ class Request
     var headers
     var body
     var data
+    var get, post
+    var vars, varsList
 
     func init(data)
     {
@@ -98,6 +101,10 @@ class Request
         uri = '/'
         version = 'HTTP/1.1'
         headers = {}
+        get = {}
+        post = {}
+        vars = {}
+        varsList = []
 
         if(data is str)
             parse(data)
@@ -116,6 +123,31 @@ class Request
 
             uri = data.substr(0, data.find(' '))
             data = data.from(len(uri) + 1)
+
+            if(uri.contains('?'))
+            {
+                var uriData = uri.from(uri.find('?') + 1)
+                uri = uri.substr(0, uri.find('?'))
+
+                uriData = uriData.split('&')
+                get = {}
+                var key, value
+                for(var item in uriData)
+                {
+                    if(item.contains('='))
+                    {
+                        key = item.substr(0, item.find('='))
+                        value = item.from(len(key) + 1)
+                    }
+                    else
+                    {
+                        key = item
+                        value = true
+                    }
+                    get[key] = value
+                }
+            }
+
 
             version = data.substr(0, data.find('\r\n'))
             data = data.from(len(version) + 2)
@@ -164,6 +196,11 @@ class Request
             }
             else
                 this.data = body
+
+            if(this.data is dict)
+                this.post = copy(this.data)
+            else
+                this.post = {}
             
             valid = true
         }
@@ -216,6 +253,40 @@ class Response
         this.contentType = contentTypes.types['.${type}']
         if(this.contentType is null)
             this.contentType = type
+    }
+
+    func prepare()
+    {
+        if(status is num)
+        {
+            if(status < 200)
+                status = Status.Continue
+            else if(status < 300)
+                status = Status.OK
+            else if(status < 400)
+                status = Status.Found
+            else if(status < 500)
+                status = Status.NotFound
+            else
+                status = Status.InternalServerError
+        }
+        else if(status is str)
+        {
+            status = Status.get(status)
+            if(status is null)
+            {
+                if(status.lower() == 'continue')
+                    status = Status.Continue
+                else if(status.lower() == 'ok')
+                    status = Status.OK
+                else if(status.lower() == 'found')
+                    status = Status.Found
+                else if(status.lower() == 'not found')
+                    status = Status.NotFound
+                else
+                    status = Status.InternalServerError
+            }
+        }
     }
 
     func text()
@@ -274,7 +345,7 @@ class Server
         if(root is not str)
             root = '.'
         if(port is null)
-            port = 80
+            port = 8080
         
         acceptor = Acceptor(port, true)
         handlers = {}
@@ -327,7 +398,7 @@ class Server
     func start()
     {
         if(verbose)
-            println('Start listening on 127.0.0.1:' + acceptor.port)
+            println('Start listening on http://127.0.0.1:' + acceptor.port)
         acceptor.begin(@(socket)
         {
             var req = Request()
@@ -411,15 +482,46 @@ class Server
         handlers[method][uri] = fn
         return true
     }
-    
-    func __process_request(req)
+
+    func __match_uri(uri1, uri2)
     {
-        if(verbose)
-            println('Request: ' + req.method.value() + ' ' + req.uri)
+        var p1 = uri1.split('/')
+        var p2 = uri2.split('/')
 
-        var content = null
-        var res = Response()
+        if(len(p1) != len(p2))
+            return null
 
+        var re = regex.compile("{[a-zA-Z]+}")        
+        var valid = true
+        var dataDict = {}
+        var dataList = []
+        var key
+        for(var i = 0; i < len(p1) and valid; i++)
+        {
+            if(p1[i] != p2[i])
+            {
+                key = regex.matchp(re, p2[i])
+                if(key is not null and len(p1[i]) > 0)
+                {
+                    key = key.substr(1, len(key) - 2)
+                    dataDict[key] = p1[i]
+                    dataList.add(p1[i])
+                }
+                else
+                {
+                    valid = false
+                }
+            }
+        }
+
+        if(not valid)
+            return null
+
+        return [dataDict, dataList]
+    }
+
+    func __get_handler(req)
+    {
         var handler = null
         if(handlers.exists(req.method.value()))
             handler = handlers[req.method.value()]
@@ -433,13 +535,44 @@ class Server
             else if(handler.exists('*'))
                 handler = handler['*']
             else
-                handler = null
-
-            if(handler is func)
             {
-                content = handler(req, res)
-                res.setContent(content, res.contentType)
+                var match
+                for(var uri in handler)
+                {
+                    match = __match_uri(req.uri, uri)
+                    if(match is not null)
+                    {
+                        handler = handler[uri]
+                        req.vars = match[0]
+                        req.varsList = match[1]
+                        break
+                    }
+                }
+
+                if(match is null)
+                    handler = null
             }
+        }
+        else
+            handler = null
+
+        return handler
+    }
+    
+    func __process_request(req)
+    {
+        if(verbose)
+            println('Request: ' + req.method.value() + ' ' + req.uri)
+
+        var content = null
+        var res = Response()
+
+        var handler = this.__get_handler(req)
+        if(handler is func)
+        {
+            content = handler(req, res)
+            res.setContent(content, res.contentType)
+            res.prepare()
         }
 
         if(useFs)
@@ -447,6 +580,10 @@ class Server
             if(content is null)
                 __fs_handler(req, res)
         }
+
+
+        if(content is null)
+            res.status = Status.NotFound
 
         if(verbose)
             println('Response: ' + res.status.value())

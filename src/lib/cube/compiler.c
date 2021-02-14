@@ -1458,6 +1458,8 @@ static void function(FunctionType type)
 
 static ObjString *decorator()
 {
+    bool exec = match(TOKEN_LAMBDA);
+
     gbcpl->isDecorator = true;
     parsePrecedence(PREC_CALL);
     gbcpl->isDecorator = false;
@@ -1537,6 +1539,13 @@ static ObjString *decorator()
         freeCompilerInternals(&compiler);
     }
 
+    if (exec)
+    {
+        emitBytes(OP_CLONE, 0);
+        emitBytes(OP_CALL, 0);
+        // emitByte(OP_POP);
+    }
+
     return name;
 }
 
@@ -1562,7 +1571,7 @@ static void lambda(bool canAssign)
 {
     TokenType operatorType = gbcpl->parser.previous.type;
     // markInitialized();
-    if (check(TOKEN_IDENTIFIER))
+    if (check(TOKEN_IDENTIFIER) || check(TOKEN_LAMBDA))
     {
         decoratorDeclaration();
     }
@@ -2229,7 +2238,7 @@ static void classDeclaration()
 {
     consume(TOKEN_IDENTIFIER, "Expect class name.");
     Token className = gbcpl->parser.previous;
-    uint16_t nameConstant = identifierConstant(&gbcpl->parser.previous);
+    uint16_t nameConstant = identifierConstant(&className);
     declareVariable();
 
     emitShort(OP_CLASS, nameConstant);
@@ -2243,8 +2252,9 @@ static void classDeclaration()
 
     if (match(TOKEN_COLON))
     {
-        consume(TOKEN_IDENTIFIER, "Expect superclass name.");
-        variable(false);
+        parsePrecedence(PREC_CALL);
+        // consume(TOKEN_IDENTIFIER, "Expect superclass name.");
+        // variable(false);
 
         // if (identifiersEqual(&className, &gbcpl->parser.previous))
         // {

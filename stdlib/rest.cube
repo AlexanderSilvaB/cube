@@ -1,0 +1,42 @@
+import asio
+
+class Rest
+{
+    var server
+
+    func init(port)
+    {
+        server = asio.ip.tcp.http.Server(port)
+        server.useFs = false
+    }
+
+    func run()
+    {
+        server.start()
+        asio.loop()
+    }
+
+    // Decorators
+    func route(f, path, method)
+    {
+        if(method is null)
+            method = '*'
+        
+        func call(req, res)
+        {
+            return f(*req.varsList, req, res)
+        }
+
+        this.server.on(path, method, call)
+    }
+
+    func get(f, path)
+    {
+        this.route(f, path, 'GET')
+    }
+    
+    func post(f, path)
+    {
+        this.route(f, path, "POST")
+    }
+}

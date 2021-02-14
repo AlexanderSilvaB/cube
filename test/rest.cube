@@ -1,0 +1,20 @@
+import rest as default
+
+var users = {}
+
+var app = Rest()
+
+@@app.get('/user/{user}')
+func getUser(user)
+{
+    return users[user]
+}
+
+@@app.post('/user/{user}')
+func setUser(user, req)
+{
+    users[user] = req.post
+    return {'success' : true}
+}
+
+app.run()

@@ -113,6 +113,38 @@ static bool getEnum(int argCount)
     return true;
 }
 
+static bool getFromValueEnum(int argCount)
+{
+    if (argCount != 2)
+    {
+        runtimeError("fromValue(s) takes 2 arguments (%d given)", argCount);
+        return false;
+    }
+
+    Value value = pop();
+
+    ObjEnum *enume = AS_ENUM(pop());
+
+    int i = 0;
+    Entry entry;
+    Table *table = &enume->members;
+
+    while (iterateTable(table, &entry, &i))
+    {
+        if (entry.key == NULL)
+            continue;
+
+        if (valuesEqual(AS_ENUM_VALUE(entry.value)->value, value))
+        {
+            push(copyValue(entry.value));
+            return true;
+        }
+    }
+
+    push(NULL_VAL);
+    return true;
+}
+
 static bool keysEnum(int argCount)
 {
     if (argCount != 1)
@@ -216,6 +248,8 @@ bool enumMethods(char *method, int argCount)
         return getValueEnum(argCount);
     else if (strcmp(method, "get") == 0)
         return getEnum(argCount);
+    else if (strcmp(method, "fromValue") == 0)
+        return getFromValueEnum(argCount);
     else if (strcmp(method, "keys") == 0)
         return keysEnum(argCount);
     else if (strcmp(method, "values") == 0)

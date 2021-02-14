@@ -1564,6 +1564,15 @@ bool envVariable(ObjString *name, Value *value)
         *value = STRING_VAL(threadFrame->ctf->currentScriptName);
         return true;
     }
+    else if (strcmp(name->chars, "__script__") == 0)
+    {
+        if (threadFrame->frame && threadFrame->frame->closure && threadFrame->frame->closure->function &&
+            threadFrame->frame->closure->function->path)
+            *value = STRING_VAL(threadFrame->frame->closure->function->path);
+        else
+            *value = NULL_VAL;
+        return true;
+    }
     else if (strcmp(name->chars, vm.argsString) == 0)
     {
         *value = threadFrame->ctf->currentArgs;
@@ -5359,6 +5368,13 @@ InterpretResult run()
                         threadFrame->ctf->unpackCount++;
                     }
                 }
+                DISPATCH();
+            }
+
+            OPCASE(CLONE) :
+            {
+                uint8_t pos = READ_BYTE();
+                push(peek(pos));
                 DISPATCH();
             }
         }

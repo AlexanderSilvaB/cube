@@ -80,7 +80,9 @@
         "regex": "cpp",
         "codecvt": "cpp",
         "variant": "cpp",
-        "forward_list": "cpp"
+        "forward_list": "cpp",
+        "alignedvector3": "c",
+        "openglsupport": "c"
     },
     "editor.formatOnSave": true,
     "files.watcherExclude": {
