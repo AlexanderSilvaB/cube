@@ -4863,50 +4863,6 @@ InterpretResult run()
                 DISPATCH();
             }
 
-            OPCASE(FILL_DECORATOR) :
-            {
-
-                if (frame->closure->args != NULL && IS_LIST(OBJ_VAL(frame->closure->args)))
-                    push(OBJ_VAL(frame->closure->args));
-                else
-                    push(OBJ_VAL(initList()));
-                DISPATCH();
-            }
-
-            OPCASE(POP_DECORATOR) :
-            {
-
-                push(frame->closure->decorator);
-                DISPATCH();
-            }
-
-            OPCASE(DECORATOR) :
-            {
-                ObjFunction *function = AS_FUNCTION(READ_CONSTANT());
-                ObjClosure *closure = newClosure(function);
-                closure->module = frame->module;
-                closure->args = AS_LIST(pop());
-                closure->decorator = pop();
-                ObjClosure *fn = AS_CLOSURE(closure->decorator);
-
-                push(OBJ_VAL(closure));
-
-                for (int i = 0; i < closure->upvalueCount; i++)
-                {
-                    uint8_t isLocal = READ_BYTE();
-                    uint16_t index = READ_SHORT();
-                    if (isLocal)
-                    {
-                        closure->upvalues[i] = captureUpvalue(frame->slots + index);
-                    }
-                    else
-                    {
-                        closure->upvalues[i] = frame->closure->upvalues[index];
-                    }
-                }
-                DISPATCH();
-            }
-
             OPCASE(CLOSE_UPVALUE) : closeUpvalues(threadFrame->ctf->stackTop - 1);
             pop();
             DISPATCH();
@@ -5331,7 +5287,12 @@ InterpretResult run()
                 DISPATCH();
             }
 
-            OPCASE(PASS) : DISPATCH();
+            OPCASE(PASS) :
+            {
+                push(NULL_VAL);
+                pop();
+                DISPATCH();
+            }
 
             OPCASE(PACK) :
             {
@@ -5369,6 +5330,16 @@ InterpretResult run()
             {
                 uint8_t pos = READ_BYTE();
                 push(peek(pos));
+                DISPATCH();
+            }
+
+            OPCASE(MOVE) :
+            {
+                uint8_t pos = READ_BYTE();
+                Value val = pop();
+
+                ThreadFrame *threadFrame = currentThread();
+                threadFrame->ctf->stackTop[-(1 + pos)] = val;
                 DISPATCH();
             }
         }

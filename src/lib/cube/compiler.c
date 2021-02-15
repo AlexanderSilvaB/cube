@@ -1458,17 +1458,19 @@ static void function(FunctionType type)
 
 static ObjString *decorator()
 {
-    bool exec = match(TOKEN_LAMBDA);
+    // DEC | NULL | ARGS | FN | MV(NARGS) | CALL (NARGS + 1)
+    // DEC | FN | ARGS | CALL (NARGS + 1)
 
     gbcpl->isDecorator = true;
     parsePrecedence(PREC_CALL);
     gbcpl->isDecorator = false;
 
+    emitByte(OP_NULL);
+
     // Parse decorator args
     uint8_t argsCount = 0;
     if (match(TOKEN_LEFT_PAREN) || gbcpl->parser.previous.type == TOKEN_LEFT_PAREN)
         argsCount = argumentList();
-    emitBytes(OP_PACK, argsCount);
 
     // Skip func declaration
     bool isAnotherDecorator = false;
@@ -1480,71 +1482,20 @@ static ObjString *decorator()
     if (!isAnotherDecorator)
         consume(TOKEN_IDENTIFIER, "Expect function name or type.");
 
+    // Get the function name
     ObjString *name = copyString(gbcpl->parser.previous.start, gbcpl->parser.previous.length);
 
-    // Create the new function
-    {
-        Compiler compiler;
-        initCompiler(&compiler, TYPE_FUNCTION);
-        beginScope(); // decorator scope
+    // Push the original function or the nested decorator
+    if (isAnotherDecorator)
+        name = decorator();
+    else
+        function(TYPE_FUNCTION);
 
-        // Create args
-        Token argsToken;
-        uint16_t args = createSyntheticVariable("args", &argsToken);
-        defineVariable(args);
-        Token argsInternToken = syntheticToken(vm.argsString);
-        getVariable(argsInternToken);
-        setVariablePop(argsToken);
+    // Push and unpack the decorator args
+    emitBytes(OP_MOVE, argsCount);
 
-        // Body scope
-        beginScope();
-
-        // Push the decorator function
-        emitByte(OP_POP_DECORATOR);
-
-        // Push the original function or the nested decorator
-        if (isAnotherDecorator)
-            name = decorator();
-        else
-            function(TYPE_FUNCTION);
-
-        // Push and unpack the decorator args
-        emitByte(OP_FILL_DECORATOR);
-        emitByte(OP_UNPACK);
-
-        // Push and unpack the call args
-        namedVariable(syntheticToken("args"), false);
-        emitByte(OP_UNPACK);
-
-        // Call the decorator function
-        emitBytes(OP_CALL, 3);
-
-        // Return inner function return
-        emitByte(OP_RETURN);
-
-        // End body scope
-        endScope();
-
-        // Create the function object.
-        ObjFunction *fn = endCompiler();
-        fn->name = name;
-        emitShort(OP_DECORATOR, makeConstant(OBJ_VAL(fn)));
-
-        for (int i = 0; i < fn->upvalueCount; i++)
-        {
-            emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
-            emitShortAlone(compiler.upvalues[i].index);
-        }
-
-        freeCompilerInternals(&compiler);
-    }
-
-    if (exec)
-    {
-        emitBytes(OP_CLONE, 0);
-        emitBytes(OP_CALL, 0);
-        // emitByte(OP_POP);
-    }
+    // Call the decorator function
+    emitBytes(OP_CALL, argsCount + 1);
 
     return name;
 }
@@ -1571,7 +1522,7 @@ static void lambda(bool canAssign)
 {
     TokenType operatorType = gbcpl->parser.previous.type;
     // markInitialized();
-    if (check(TOKEN_IDENTIFIER) || check(TOKEN_LAMBDA))
+    if (check(TOKEN_IDENTIFIER))
     {
         decoratorDeclaration();
     }
