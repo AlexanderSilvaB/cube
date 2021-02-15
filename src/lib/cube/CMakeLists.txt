@@ -27,6 +27,7 @@ set(SRC cube.c
         processes.c
         enums.c
         tasks.c
+        class.c
         linkedList.c
         native.c
         gc.c

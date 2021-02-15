@@ -4,7 +4,7 @@ set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 add_definitions(-DWIN_EXPORT)
 
 add_subdirectory(basicgl)
-if(TARGET basicgl)
+if(TARGET basicgl AND FALSE)
         set_property(TARGET basicgl PROPERTY POSITION_INDEPENDENT_CODE ON)
 
         include_directories(basicgl/src/basicgl)

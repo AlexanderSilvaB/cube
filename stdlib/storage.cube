@@ -1,0 +1,73 @@
+import os
+
+class Storage
+{
+    var data
+    var path
+    func init(path)
+    {
+        if(path is null)
+            path = os.allowedDataPath + '/storage.json'
+
+        this.path = path
+        this.data = {}
+        flush()
+    }
+
+    func [](key)
+    {
+        return this.data[key]
+    }
+
+    func [=](key, value)
+    {
+        var old = this.data[key]
+        this.data[key] = value
+        return old
+    }
+
+    func del(key)
+    {
+        var old = this.data[key]
+        this.data.remove(key)
+        return old
+    }
+
+    func dict()
+    {
+        return this.data
+    }
+
+    func str()
+    {
+        var text = 'Storage (' + this.path + ') = \n'
+        text += std.str(this.data)
+        return text
+    }
+
+    func flush()
+    {
+        var file = open(this.path, 'r')
+        if(file is null)
+            this.data = {}
+        else
+        {
+            var text = file.read()
+            this.data = dict(text)
+            file.close()
+        }
+    }
+
+    func commit()
+    {
+        var success = false
+        var file = open(this.path, 'w')
+        if(file is not null)
+        {
+            file.write(this.data)
+            file.close()
+            success = true
+        }
+        return success
+    }
+}

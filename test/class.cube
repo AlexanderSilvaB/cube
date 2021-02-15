@@ -1,10 +1,9 @@
 class Animal
 {
-    var name = null;
-
-    func init(name)
+    var name
+    func init()
     {
-        this.name = name
+        
     }
 
     func say()
@@ -18,27 +17,28 @@ class Animal
 
 class Dog : Animal
 {
+    var name = 'Dog'
     func init()
     {
-        super.init('dog')
+        super.init()
     }
 }
 
 class Cat : Animal
 {
+    var name = 'Cat'
     func init()
     {
-        super.init('cat')
+        super.init()
     }
 }
 
-if(__name__ == '__main__')
-{
-    var a = Animal()
-    var b = Dog()
-    var c = Cat()
 
-    a.say()
-    b.say()
-    c.say()
-}
+// Eval
+var a = Animal()
+var b = Dog()
+var c = Cat()
+
+a.say()
+b.say()
+c.say()

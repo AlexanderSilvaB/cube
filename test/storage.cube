@@ -1,0 +1,21 @@
+import storage
+
+var db = storage.Storage()
+println(db.str())
+
+db['name'] = 'User'
+db['age'] = 34
+println(db.str())
+
+db.flush()
+println(db.str())
+
+db['name'] = 'User'
+db.commit()
+println(db.str())
+
+db.del('name')
+println(db.str())
+
+db.commit()
+

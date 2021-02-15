@@ -8,6 +8,7 @@
 #include <linenoise/linenoise.h>
 
 #include "bytes.h"
+#include "class.h"
 #include "collections.h"
 #include "common.h"
 #include "compiler.h"
@@ -357,29 +358,18 @@ void resumeTaskFrame(const char *name)
 static void pushTry(CallFrame *frame, uint16_t offset)
 {
     ThreadFrame *threadFrame = currentThread();
-    TryFrame *
-    try
-        = (TryFrame *)mp_malloc(sizeof(TryFrame));
-    try
-        ->next = threadFrame->ctf->tryFrame;
-    try
-        ->ip = frame->ip + offset;
-    try
-        ->frame = frame;
-    threadFrame->ctf->tryFrame =
-    try
-        ;
+    TryFrame *try = (TryFrame *)mp_malloc(sizeof(TryFrame));
+    try->next = threadFrame->ctf->tryFrame;
+    try->ip = frame->ip + offset;
+    try->frame = frame;
+    threadFrame->ctf->tryFrame = try;
 }
 
 static void popTry()
 {
     ThreadFrame *threadFrame = currentThread();
-    TryFrame *
-    try
-        = threadFrame->ctf->tryFrame;
-    threadFrame->ctf->tryFrame =
-    try
-        ->next;
+    TryFrame *try = threadFrame->ctf->tryFrame;
+    threadFrame->ctf->tryFrame = try->next;
     mp_free(try);
 }
 
@@ -903,6 +893,10 @@ static bool invoke(ObjString *name, int argCount)
             if (hasExtension(receiver, name))
             {
                 return callExtension(receiver, name, argCount);
+            }
+            else if (classMethods(name->chars, argCount + 1))
+            {
+                return true;
             }
             runtimeError("Undefined property '%s'.", name->chars);
             return false;

@@ -962,6 +962,147 @@ static bool copyDictDeep(int argCount)
     return true;
 }
 
+static bool extendDict(int argCount)
+{
+    if (argCount < 2)
+    {
+        runtimeError("extend() takes at least 1 argument (%d given)", argCount);
+        return false;
+    }
+
+    int nCopy = 0;
+
+    ObjDict *dict = AS_DICT(peek(argCount - 1));
+    Value tmp;
+    Value v;
+
+    for (int i = 1; i < argCount; i++)
+    {
+        v = peek(i - 1);
+        if (IS_DICT(v))
+        {
+            ObjDict *other = AS_DICT(v);
+            for (int i = 0; i < other->capacity; ++i)
+            {
+                dictItem *item = other->items[i];
+
+                if (!item || item->deleted)
+                {
+                    continue;
+                }
+
+                dictContains(OBJ_VAL(dict), STRING_VAL(item->key), &tmp);
+                if (AS_BOOL(tmp))
+                    continue;
+
+                insertDict(dict, item->key, item->item);
+                nCopy++;
+            }
+        }
+        else if (IS_CLASS(v))
+        {
+            ObjClass *other = AS_CLASS(v);
+            for (int i = 0; i <= other->methods.capacityMask; i++)
+            {
+                Entry *entry = &other->methods.entries[i];
+                if (entry->key != NULL)
+                {
+                    dictContains(OBJ_VAL(dict), OBJ_VAL(entry->key), &tmp);
+                    if (!AS_BOOL(tmp))
+                    {
+                        insertDict(dict, entry->key->chars, entry->value);
+                        nCopy++;
+                    }
+                }
+            }
+
+            for (int i = 0; i <= other->staticFields.capacityMask; i++)
+            {
+                Entry *entry = &other->staticFields.entries[i];
+                if (entry->key != NULL)
+                {
+                    dictContains(OBJ_VAL(dict), OBJ_VAL(entry->key), &tmp);
+                    if (!AS_BOOL(tmp))
+                    {
+                        insertDict(dict, entry->key->chars, entry->value);
+                        nCopy++;
+                    }
+                }
+            }
+
+            for (int i = 0; i <= other->fields.capacityMask; i++)
+            {
+                Entry *entry = &other->fields.entries[i];
+                if (entry->key != NULL)
+                {
+                    dictContains(OBJ_VAL(dict), OBJ_VAL(entry->key), &tmp);
+                    if (!AS_BOOL(tmp))
+                    {
+                        insertDict(dict, entry->key->chars, entry->value);
+                        nCopy++;
+                    }
+                }
+            }
+        }
+        else if (IS_INSTANCE(v))
+        {
+            ObjInstance *other = AS_INSTANCE(v);
+            for (int i = 0; i <= other->klass->methods.capacityMask; i++)
+            {
+                Entry *entry = &other->klass->methods.entries[i];
+                if (entry->key != NULL && strcmp(entry->key->chars, "init") != 0)
+                {
+                    dictContains(OBJ_VAL(dict), OBJ_VAL(entry->key), &tmp);
+                    if (!AS_BOOL(tmp))
+                    {
+                        insertDict(dict, entry->key->chars, entry->value);
+                        nCopy++;
+                    }
+                }
+            }
+
+            for (int i = 0; i <= other->klass->staticFields.capacityMask; i++)
+            {
+                Entry *entry = &other->klass->staticFields.entries[i];
+                if (entry->key != NULL)
+                {
+                    dictContains(OBJ_VAL(dict), OBJ_VAL(entry->key), &tmp);
+                    if (!AS_BOOL(tmp))
+                    {
+                        insertDict(dict, entry->key->chars, entry->value);
+                        nCopy++;
+                    }
+                }
+            }
+
+            for (int i = 0; i <= other->fields.capacityMask; i++)
+            {
+                Entry *entry = &other->fields.entries[i];
+                if (entry->key != NULL)
+                {
+                    dictContains(OBJ_VAL(dict), OBJ_VAL(entry->key), &tmp);
+                    if (!AS_BOOL(tmp))
+                    {
+                        insertDict(dict, entry->key->chars, entry->value);
+                        nCopy++;
+                    }
+                }
+            }
+        }
+        else
+        {
+            runtimeError("Cannot extend from '%s'", valueType(v));
+            return false;
+        }
+    }
+
+    for (int i = 0; i < argCount; i++)
+        pop();
+
+    push(NUMBER_VAL(nCopy));
+    return true;
+}
+
 bool dictMethods(char *method, int argCount)
 {
     if (strcmp(method, "get") == 0)
@@ -978,6 +1119,8 @@ bool dictMethods(char *method, int argCount)
         return copyDictShallow(argCount);
     else if (strcmp(method, "deepCopy") == 0)
         return copyDictDeep(argCount);
+    else if (strcmp(method, "extend") == 0)
+        return extendDict(argCount);
 
     runtimeError("Dict has no method %s()", method);
     return false;

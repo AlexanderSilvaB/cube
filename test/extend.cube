@@ -1,0 +1,24 @@
+class User
+{
+    var name
+    var age
+
+    func init(name, age)
+    {
+        this.name = name
+        this.age = age
+    }
+}
+
+class UserUtils
+{
+    func str()
+    {
+        return 'Name: ${name}, Age: ${age}'
+    }
+}
+
+User.extend(UserUtils)
+
+var user = User("Alex", 27)
+println(user.str())
