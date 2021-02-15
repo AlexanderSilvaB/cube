@@ -46,3 +46,56 @@ func defaultReturn(f, def)
         res = def
     return res
 }
+
+func pretty(f)
+{
+    func makePretty(d, s, n)
+    {
+        var text = ''
+        if(d is str)
+        {
+            text = '"${d}"'
+        }
+        else if(d is num or d is bool)
+        {
+            text = str(d)
+        }
+        else if(d is list)
+        {
+            var spaceOut = s * n
+            var spaceIn = s * (n + 1)
+            text = "[\n"
+            for(var i = 0; i < len(d); i++)
+            {
+                text += "${spaceIn}" + makePretty(d[i], s, 1)
+                if(i < len(d)-1)
+                    text += ", "
+                text += "\n"
+            }
+            text += "${spaceOut}]"
+        }
+        else if(d is dict)
+        {
+            var spaceOut = s * n
+            var spaceIn = s * (n + 1)
+            var val, point
+            text = '{\n'
+            for(var key, i in d)
+            {
+                val = makePretty(d[key], s, n + 1)
+                point = (i < len(d)-1) ? ',' : ''
+                text += '${spaceIn}"${key}": ${val}${point}\n'
+            }
+            text += '${spaceOut}}'
+        }
+        else
+        {
+            text = '"${d}"'
+        }
+
+        return text
+    }
+
+    args = args.from(nargs)
+    return makePretty(f(*args), '    ', 0)
+}

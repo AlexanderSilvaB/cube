@@ -11,3 +11,13 @@ func main(a, b)
 }
 
 print(main(1, 200))
+
+
+@utils.pretty
+func getJson()
+{
+    return {"name": "User", "items": [1, 2, 3, 4], "parts" : {"p1" : 5, "p2" : {"n" : 5, "type" : "t1"}}}
+}
+
+
+println(getJson())
