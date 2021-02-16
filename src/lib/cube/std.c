@@ -63,7 +63,21 @@ Value hashNative(int argCount, Value *args)
 {
     int code = 0;
     if (argCount > 0)
-        code = (int)&args[0];
+    {
+        if (IS_STRING(args[0]))
+        {
+            char *str = AS_CSTRING(args[0]);
+            uint32_t hash = 5381;
+            int c;
+
+            while ((c = *str++))
+                hash = ((hash << 5) + hash) + c;
+
+            return NUMBER_VAL(hash);
+        }
+        else
+            code = (int)&args[0];
+    }
     else
         code = rand();
 

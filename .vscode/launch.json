@@ -15,7 +15,7 @@
         "program": "${workspaceFolder}/build-win32/src/exe/main/cube.exe"
       },
       "args": [
-        "test/decorator.cube"
+        "test/web/web.cube"
       ],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",

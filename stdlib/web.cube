@@ -1,0 +1,176 @@
+class Input
+{
+    var content
+    var data
+
+    func init(content)
+    {
+        this.data = {}
+        this.content = content
+    }
+
+    func available()
+    {
+        return len(this.content) > 0
+    }
+
+    func next()
+    {
+        var c = null
+        if(len(this.content) > 0)
+        {
+            c = content[0]
+            content = content.from(1)
+        }
+        return c
+    }
+}
+
+class Template
+{
+    var data
+    var root
+
+    func init()
+    {
+        this.data = {}
+        this.root = '.'
+
+    }
+
+    func [](key)
+    {
+        return this.data[key]
+    }
+
+    func [=](key, value)
+    {
+        var old = this.data[key]
+        this.data[key] = value
+        return old
+    }
+
+    func del(key)
+    {
+        var old = this.data[key]
+        this.data.remove(key)
+        return old
+    }
+
+    func parseFrom(fileName)
+    {
+        var file = open(fileName, 'r')
+        if(file is not null)
+        {
+            var content = file.read()
+            file.close()
+            return this.parse(content)
+        }
+        return null
+    }
+
+    func parse(content)
+    {
+        var input = Input(content)
+        var ret = this.__parse(input)
+        return ret
+    }
+
+    func __parse(input)
+    {
+        var data = ''
+        var c
+        var capturing = null
+        var parts
+        var key
+        var file
+        var path
+        var block = null
+        var blockName
+        var forVar
+        var forData
+
+
+        while (input.available())
+        {
+            c = input.next()
+            if(c == '{' and input.available())
+            {
+                c = input.next()
+                if(c != '{')
+                    capturing = ''
+            }
+            else if(c == '}' and capturing is not null and input.available())
+            {
+                c = input.next()
+
+                parts = capturing.split(' ')
+                key = parts[0]
+                println(key)
+                
+                if(key == 'include' and len(parts) > 1)
+                {
+                    path = this.root + '/' + parts[1] + '.tpl'
+                    println('Include from ', path)
+                    file = open(path)
+                    if(file is not null)
+                    {
+                        data += this.parse(file.read())
+                        file.close()
+                    }
+                }
+                else if(key == 'for')
+                {
+                    if(len(parts) == 4)
+                    {
+                        forVar = parts[1]
+                        forData = input.data[parts[3]]
+                        if(forData is null)
+                            forData = this.data[parts[3]]
+                    }
+                    else if(len(parts) == 6)
+                    {
+                        forVar = parts[1]
+                        forData = parts[3]+'..'+parts[5]
+                        forData = eval(forData)
+                    }
+
+                    if(forVar is not null and forData is not null)
+                    {
+                        blockName = 'for'
+                        block = ''
+                    }
+                }
+                else if(key == '/for')
+                {
+                    if(forVar is not null and forData is not null)
+                    {
+                        println(">${block}<")
+                        block = null
+                    }
+                }
+                else
+                {
+                    if(input.data.contains(key))
+                        data += input.data[key]
+                    else
+                        data += this.data[key]
+                }
+
+                capturing = null
+            }
+            
+            if(c is not null)
+            {
+                if(capturing is not null)
+                    capturing += c
+                else if(block is not null)
+                    block += c
+                else
+                    data += c
+            }
+        }
+
+        return data
+    }
+}

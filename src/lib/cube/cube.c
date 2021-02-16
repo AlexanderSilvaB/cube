@@ -116,6 +116,31 @@ void start(const char *path, const char *scriptName, const char *rootPath)
 
     addPath("~/.cube/");
     addPath("~/.cube/libs/");
+
+    char *cubePath = getEnv("CUBEPATH");
+    if (cubePath)
+    {
+        int len = strlen(cubePath) + 1;
+        char *cubePathDyn = (char *)mp_malloc(len);
+
+        int j = 0;
+        for (int i = 0; i < len; i++)
+        {
+            if (cubePath[i] == ';' || cubePath[i] == ':')
+            {
+                cubePathDyn[j] = '\0';
+                j = 0;
+                addPath(cubePathDyn);
+            }
+            else
+                cubePathDyn[j++] = cubePath[i];
+        }
+
+        cubePathDyn[j] = '\0';
+        addPath(cubePathDyn);
+
+        mp_free(cubePathDyn);
+    }
 }
 
 void stop()
