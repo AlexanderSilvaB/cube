@@ -1,0 +1,130 @@
+import types as default
+
+class Chip8
+{
+    var V
+    var DT, ST
+    var I, PC, SP
+    var memory
+    var stack
+    var display
+
+    func init()
+    {
+        DT = 0
+        ST = 0
+        PC = 0
+        SP = 0
+        I = 0
+        V = Uint8Array(16)
+        memory = Uint8Array(4096)
+        stack = Uint16Array(16)
+        display = Uint8Array(32 * 64)
+    }
+
+    func load(filename)
+    {
+        var file = open(filename, 'rb')
+        if(file is null)
+        {
+            println('Chip-8: File not found!')
+            return false
+        }
+        
+        var data = file.readBytes()
+        file.close()
+
+        if(len(data) > (4096 - 512))
+        {
+            println('Chip-8: Invalid file!')
+            return false
+        }
+
+        PC = 512
+        V.clear()
+        DT = 0
+        ST = 0
+        SP = 0
+        I = 0
+        memory.clear()
+        stack.clear()
+        display.clear()
+        
+        for(var i = 0; i < len(data); i++)
+        {
+            memory[i + PC] = data[i]
+        }
+        return true
+    }
+
+    func run()
+    {
+        var running = true
+        while(running and PC < memory.len())
+        {
+            running = __cycle()
+        }
+    }
+
+    func __cycle()
+    {
+        var I = __next()
+        // println(bytes(I))
+        if(I == int(0xE000))
+        {
+            // Clear screen
+            __cls()
+        }
+        else if(I == int(0xEE00))
+        {
+            // Return
+            PC = stack[SP]
+            SP--
+        }
+        else if((I & 0x00F0) == int(0x0060))
+        {
+            // Set V[x] = kk
+            var x = I & 0x000F
+            var kk = (I & 0xFF00) >> 16
+            V[x] = short(kk)
+        }
+        else if((I & 0x00F0) == int(0x00A0))
+        {
+            // Set I = nnn
+            var nnn = I & 0xFF0F
+            I = nnn
+        }
+        else if((I & 0x00F0) == int(0x0010))
+        {
+            println(bytes(I))
+            var nnn = bytes(I & 0xFF0F)
+            var t = nnn[0]
+            nnn[0] = nnn[1]
+            nnn[1] = t
+            println(nnn)
+            println(bytes(nnn))
+            PC = nnn
+        }
+        else
+        {
+            // println(bytes(I & 0x00F0))
+            // println(int(0x0060))
+            println('Invalid instruction ', I, ' (', bytes(I), ')')
+            return false
+        }
+        return true
+    }
+
+    func __next()
+    {
+        var b = memory.get(PC, 2)
+        PC += 2
+        return b
+    }
+
+    func __cls()
+    {
+        println('Clear')
+        display.clear()
+    }
+}

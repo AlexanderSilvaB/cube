@@ -32,6 +32,7 @@ libs/
 *.out
 *.deb
 *.plt
+*.cst
 temp/
 
 # End of https://www.gitignore.io/api/cmake
