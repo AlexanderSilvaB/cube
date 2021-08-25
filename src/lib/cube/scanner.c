@@ -759,6 +759,8 @@ Token scanToken(Scanner *scanner)
             else
                 return makeToken(scanner, TOKEN_BINARY_OR);
         }
+        case '~':
+            return makeToken(scanner, TOKEN_TIL);
 
         case '"':
         case '\'':

@@ -17,6 +17,7 @@ typedef enum
     TOKEN_EXPAND_EX,
     TOKEN_MINUS,
     TOKEN_PLUS,
+    TOKEN_TIL,
 
     TOKEN_DOT_PLUS,
     TOKEN_DOT_MINUS,

@@ -242,9 +242,9 @@ class DB
             throw("'${table}' is not a valid table name. Must be a string.")
         
         var sql = "UPDATE ${table} "
+        var val
         if(data is dict)
         {
-            var val
             sql += "SET "
             for(var name in data)
             {

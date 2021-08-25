@@ -28,6 +28,7 @@ class SqliteDB : DB
 
     func query(sql)
     {
+        println(sql)
         return exec(id, sql)
     }
 

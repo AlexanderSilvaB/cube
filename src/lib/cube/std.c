@@ -707,41 +707,54 @@ Value classNative(int argCount, Value *args)
 
     if (argCount > 0)
     {
-        char *name = NULL;
-        if (IS_STRING(args[0]))
-            name = AS_CSTRING(args[0]);
-        else if (argCount > 1 && IS_STRING(args[1]))
-            name = AS_CSTRING(args[1]);
-
-        ObjDict *dict = NULL;
-        if (IS_DICT(args[0]))
-            dict = AS_DICT(args[0]);
-        else if (argCount > 1 && IS_DICT(args[1]))
-            dict = AS_DICT(args[1]);
-
-        if (dict != NULL)
+        if (IS_INSTANCE(args[0]))
         {
-            if (name == NULL)
-                name = "Class";
+            ObjInstance *instance = AS_INSTANCE(args[0]);
+            ret = OBJ_VAL(instance->klass);
+        }
+        else if (IS_CLASS(args[0]))
+        {
+            ObjClass *klass = AS_CLASS(args[0]);
+            ret = OBJ_VAL(klass);
+        }
+        else
+        {
+            char *name = NULL;
+            if (IS_STRING(args[0]))
+                name = AS_CSTRING(args[0]);
+            else if (argCount > 1 && IS_STRING(args[1]))
+                name = AS_CSTRING(args[1]);
 
-            ObjClass *klass = newClass(copyString(name, strlen(name)));
+            ObjDict *dict = NULL;
+            if (IS_DICT(args[0]))
+                dict = AS_DICT(args[0]);
+            else if (argCount > 1 && IS_DICT(args[1]))
+                dict = AS_DICT(args[1]);
 
-            for (int i = 0; i < dict->capacity; ++i)
+            if (dict != NULL)
             {
-                dictItem *item = dict->items[i];
+                if (name == NULL)
+                    name = "Class";
 
-                if (!item || item->deleted)
+                ObjClass *klass = newClass(copyString(name, strlen(name)));
+
+                for (int i = 0; i < dict->capacity; ++i)
                 {
-                    continue;
+                    dictItem *item = dict->items[i];
+
+                    if (!item || item->deleted)
+                    {
+                        continue;
+                    }
+
+                    if (IS_FUNCTION(item->item) || IS_CLOSURE(item->item))
+                        tableSet(&klass->methods, copyString(item->key, strlen(item->key)), item->item);
+                    else
+                        tableSet(&klass->fields, copyString(item->key, strlen(item->key)), item->item);
                 }
 
-                if (IS_FUNCTION(item->item) || IS_CLOSURE(item->item))
-                    tableSet(&klass->methods, copyString(item->key, strlen(item->key)), item->item);
-                else
-                    tableSet(&klass->fields, copyString(item->key, strlen(item->key)), item->item);
+                ret = OBJ_VAL(klass);
             }
-
-            ret = OBJ_VAL(klass);
         }
     }
 
@@ -3182,10 +3195,23 @@ static Value getFieldNative(int argCount, Value *args)
 {
     if (argCount != 2)
         return NULL_VAL;
-    if (!IS_INSTANCE(args[0]))
-        return NULL_VAL;
     if (!IS_STRING(args[1]))
         return NULL_VAL;
+    if (IS_INSTANCE(args[0]))
+    {
+        ObjInstance *instance = AS_INSTANCE(args[0]);
+        Value value = NULL_VAL;
+        tableGet(&instance->fields, AS_STRING(args[1]), &value);
+        return value;
+    }
+    else if (IS_CLASS(args[0]))
+    {
+        ObjClass *klass = AS_CLASS(args[0]);
+        Value value = NULL_VAL;
+        tableGet(&klass->fields, AS_STRING(args[1]), &value);
+        return value;
+    }
+    return NULL_VAL;
 
     ObjInstance *instance = AS_INSTANCE(args[0]);
     Value value = NULL_VAL;

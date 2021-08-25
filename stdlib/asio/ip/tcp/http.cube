@@ -168,11 +168,12 @@ class Request
 
             body = data
             var contentType = headers['Content-Type']
+            contentType ?= headers['content-type']
             contentType ?= 'text/plain'
 
             if(contentType.contains('multipart/form-data'))
             {
-
+                pass
             }
             else if(contentType.contains('application/x-www-form-urlencoded'))
             {
@@ -196,9 +197,10 @@ class Request
             }
             else
                 this.data = body
-
+        
+            
             if(this.data is dict)
-                this.post = copy(this.data)
+                this.post = this.data
             else
                 this.post = {}
             
@@ -234,7 +236,12 @@ class Response
     var headers
     var content
     var contentType
-    func init()
+
+    var valid
+    var rawData
+    var data
+
+    func init(data, socket)
     {
         status = Status.OK
         server = 'Cube/' + os.version + ' (' + os.name + ')'
@@ -242,6 +249,88 @@ class Response
         headers = {}
         content = ""
         contentType = 'text/html'
+        valid = true
+
+        if(data is str)
+            parse(data, socket)
+    }
+
+    func parse(data, socket)
+    {
+        try
+        {
+            rawData = data
+            data = str(data)
+
+            data = data.from(data.find(' ') + 1)
+
+            var status = data.substr(0, data.find('\r\n'))
+            this.status = Status.fromValue(status)
+            data = data.from(len(status) + 1)
+
+            var header = data.substr(0, data.find('\r\n'))
+            data = data.from(len(header) + 2)
+
+            var key, value
+            while(len(header) > 0)
+            {
+                key = header.substr(0, header.find(': ')).replace('\n', '').replace('\r', '')
+                value = header.from(len(key) + 2)
+                headers[key] = value
+
+                header = data.substr(0, data.find('\r\n'))
+                data = data.from(len(header) + 2)
+            }
+
+            var contentLength = headers['Content-Length']
+            contentLength ?= headers['content-length']
+            contentLength ?= '0'
+            contentLength = int(contentLength)
+
+            content = data
+            var contentType = headers['Content-Type']
+            contentType ?= headers['content-type']
+            contentType ?= 'text/plain'
+
+            if(contentType.contains('multipart/form-data'))
+            {
+                pass
+            }
+            else if(contentType.contains('application/x-www-form-urlencoded'))
+            {
+                var items = content.split('&')
+                var parts, key, value
+                this.data = {}
+                for(var item in items)
+                {
+                    parts = item.split('=')
+                    key = parts[0]
+                    if(len(parts) > 1)
+                        value = parts[1]
+                    else
+                        value = true
+                    this.data[key] = value
+                }
+            }
+            else if(contentType.contains('application/json'))
+            {
+                if(len(content) > 0)
+                    this.data = dict(content)
+                else
+                    this.data = {}
+            }
+            else
+                this.data = content
+            
+            valid = true
+        }
+        catch(e)
+        {
+            println('Error: ${e}')
+            valid = false
+        }
+
+        return valid
     }
 
     func setContent(content, type)
@@ -294,10 +383,6 @@ class Response
         var res = 'HTTP/1.1 ' + status.value() + '\r\n'
         res += 'Date: ' + date() + '\r\n'
         res += 'Server: ${server}\r\n'
-        for(var key in headers)
-        {
-            res += key + ': ' + headers[key] + '\r\n'
-        }
 
         var content = ""
         if(this.content is not null)
@@ -308,7 +393,23 @@ class Response
                 content = this.content
         }
 
-        res += 'Content-Length: ' + len(content) + '\r\n'
+        headers['Content-Length'] = len(content)
+
+        for(var key in headers)
+        {
+            res += key + ': ' + headers[key] + '\r\n'
+        }
+
+        // var content = ""
+        // if(this.content is not null)
+        // {
+        //     if(this.content is not str and this.content is not bytes)
+        //         content = str(this.content)
+        //     else
+        //         content = this.content
+        // }
+
+        // res += 'Content-Length: ' + len(content) + '\r\n'
         res += 'Content-Type: ${contentType}\r\n'
         res += 'Connection: ${connection}\r\n\r\n'
 
@@ -407,15 +508,12 @@ class Server
                 if(req.parse(data))
                 {
                     var res = this.__process_request(req)
-                    socket.write(res.text(), @(n)
+                    var text = res.text()
+                    if(res.content is not null)
+                        text += str(res.content)
+                    socket.write(text, @(n)
                     {
-                        if(res.content is not null)
-                            socket.write(res.content, @(n)
-                            {
-                                socket.close()
-                            })
-                        else
-                            socket.close()
+                        socket.close()
                     })
                 }
                 else
@@ -498,7 +596,12 @@ class Server
         var key
         for(var i = 0; i < len(p1) and valid; i++)
         {
-            if(p1[i] != p2[i])
+            if(p2[i] == '*')
+            {
+                dataDict[str(i)] = p1[i]
+                dataList.add(p1[i])
+            }
+            else if(p1[i] != p2[i])
             {
                 key = regex.matchp(re, p2[i])
                 if(key is not null and len(p1[i]) > 0)
@@ -570,7 +673,15 @@ class Server
         var handler = this.__get_handler(req)
         if(handler is func)
         {
+            res.contentType = null
             content = handler(req, res)
+            if(res.contentType == null)
+            {
+                if(content is dict)
+                    res.contentType = 'json'
+                else
+                    res.contentType = 'text/html'
+            }
             res.setContent(content, res.contentType)
             res.prepare()
         }
@@ -644,5 +755,101 @@ class Server
             res.status = Status.NotFound
         else
             res.setContent(content, ext)
+    }
+}
+
+class Client
+{
+    var socket
+    var connected
+
+    func init(host, port)
+    {
+        if(host is num and port is str)
+        {
+            var tmp = post
+            port = host
+            host = tmp
+        }
+        else if(host is num and port is null)
+        {
+            port = host
+            host = '127.0.0.1'
+        }
+
+        if(host is not str)
+            host = '127.0.0.1'
+        if(port is null)
+            port = 8080
+
+        socket = Socket()
+        connected = socket.connect(host, port)
+    }
+
+
+    func get(path, data, contentType)
+    {
+        return request('GET', path, data, contentType)
+    }
+
+    func post(path, data, contentType)
+    {
+        return request('POST', path, data, contentType)
+    }
+
+    func put(uri, fn)
+    {
+        return request('PUT', path, data, contentType)
+    }
+
+    func delete(uri, fn)
+    {
+        return request('DELETE', path, data, contentType)
+    }
+
+    func request(method, path, data, contentType)
+    {
+        if(method is null)
+            method = 'GET'
+        if(method is Method)
+            method = method.value()
+
+        var req = Request()
+        req.method = Method.fromValue(method)
+        req.uri = path
+
+        if(data is dict)
+        {
+            if(contentType is null)
+                contentType = 'application/json'
+            data = str(data)
+        }
+        else if(data is null)
+        {
+            if(contentType is null)
+                contentType = 'text/plain'
+            data = ""
+        }
+        else
+        {
+            if(contentType is null)
+                contentType = 'text/plain'
+            data = str(data)
+        }
+        
+
+        req.headers = 
+        {
+            'Server' : 'Cube/' + os.version + ' (' + os.name + ')',
+            'Date' : date(),
+            'Content-Length' : len(data),
+            'Content-Type' : contentType
+        }
+        req.body = data
+        var rc = socket.write(req.str())
+        var resData = socket.readAll()
+        println(str(resData))
+        var res = Response(str(resData))
+        return res
     }
 }

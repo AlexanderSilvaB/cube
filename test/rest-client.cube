@@ -1,0 +1,9 @@
+import rest as default
+
+var app = Client('127.0.0.1', 8080)
+
+var p = app.post('/user/Alex', {"name" : "Alexander", "age" : 27})
+println(p.data)
+
+var user = app.get('/user/Alex')
+println(user.data)

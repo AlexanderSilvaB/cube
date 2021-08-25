@@ -1,6 +1,6 @@
 import asio
 
-class Rest
+class Server
 {
     var server
 
@@ -38,5 +38,25 @@ class Rest
     func post(f, path)
     {
         this.route(f, path, "POST")
+    }
+}
+
+class Client
+{
+    var client
+
+    func init(host, port)
+    {
+        client = asio.ip.tcp.http.Client(host, port)
+    }
+    
+    func get(path, data, contentType)
+    {
+        return client.get(path, data, contentType)
+    }
+
+    func post(path, data, contentType)
+    {
+        return client.post(path, data, contentType)
     }
 }

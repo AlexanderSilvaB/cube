@@ -1345,6 +1345,9 @@ static void unary(bool canAssign)
         case TOKEN_MINUS:
             emitByte(OP_NEGATE);
             break;
+        case TOKEN_TIL:
+            emitByte(OP_UNARY_NOT);
+            break;
         default:
             return; // Unreachable.
     }
@@ -1773,6 +1776,7 @@ ParseRule rules[] = {
     {expand_prefix, expand, PREC_FACTOR}, // TOKEN_EXPAND_EX
     {unary, binary, PREC_TERM},           // TOKEN_MINUS
     {NULL, binary, PREC_TERM},            // TOKEN_PLUS
+    {unary, NULL, PREC_TERM},             // TOKEN_TIL
     {NULL, binary, PREC_TERM},            // TOKEN_DOT_PLUS
     {NULL, binary, PREC_TERM},            // TOKEN_DOT_MINUS
     {NULL, binary, PREC_TERM},            // TOKEN_DOT_STAR

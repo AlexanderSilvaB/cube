@@ -2,7 +2,7 @@ import rest as default
 
 var users = {}
 
-var app = Rest()
+var app = Server()
 
 @@app.get('/user/{user}')
 func getUser(user)

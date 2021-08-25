@@ -358,18 +358,29 @@ void resumeTaskFrame(const char *name)
 static void pushTry(CallFrame *frame, uint16_t offset)
 {
     ThreadFrame *threadFrame = currentThread();
-    TryFrame *try = (TryFrame *)mp_malloc(sizeof(TryFrame));
-    try->next = threadFrame->ctf->tryFrame;
-    try->ip = frame->ip + offset;
-    try->frame = frame;
-    threadFrame->ctf->tryFrame = try;
+    TryFrame *
+    try
+        = (TryFrame *)mp_malloc(sizeof(TryFrame));
+    try
+        ->next = threadFrame->ctf->tryFrame;
+    try
+        ->ip = frame->ip + offset;
+    try
+        ->frame = frame;
+    threadFrame->ctf->tryFrame =
+    try
+        ;
 }
 
 static void popTry()
 {
     ThreadFrame *threadFrame = currentThread();
-    TryFrame *try = threadFrame->ctf->tryFrame;
-    threadFrame->ctf->tryFrame = try->next;
+    TryFrame *
+    try
+        = threadFrame->ctf->tryFrame;
+    threadFrame->ctf->tryFrame =
+    try
+        ->next;
     mp_free(try);
 }
 
@@ -3897,6 +3908,25 @@ InterpretResult run()
                 DISPATCH();
             }
 
+            OPCASE(UNARY_NOT) :
+            {
+                if (instanceOperationUnary("~"))
+                {
+                    frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+                }
+                else
+                {
+                    int a = 0;
+                    if (IS_ENUM_VALUE(peek(0)))
+                        a = AS_NUMBER(AS_ENUM_VALUE(pop())->value);
+                    else
+                        a = AS_NUMBER(toNumber(pop()));
+
+                    push(NUMBER_VAL(~a));
+                }
+                DISPATCH();
+            }
+
             OPCASE(IN) :
             {
                 istrue = READ_BYTE() == OP_TRUE;
@@ -4003,7 +4033,7 @@ InterpretResult run()
                 Value ret;
                 if (strcmp(objType, type->chars) == 0)
                 {
-                    ret = not ? FALSE_VAL : TRUE_VAL;
+                    ret = not? FALSE_VAL : TRUE_VAL;
                 }
                 else
                 {
@@ -4011,30 +4041,30 @@ InterpretResult run()
                     {
                         ObjInstance *instance = AS_INSTANCE(obj);
                         if (inherits(instance->klass, type))
-                            ret = not ? FALSE_VAL : TRUE_VAL;
+                            ret = not? FALSE_VAL : TRUE_VAL;
                         else
-                            ret = not ? TRUE_VAL : FALSE_VAL;
+                            ret = not? TRUE_VAL : FALSE_VAL;
                     }
                     else if (IS_CLASS(obj))
                     {
                         ObjClass *klass = AS_CLASS(obj);
                         if (inherits(klass, type))
-                            ret = not ? FALSE_VAL : TRUE_VAL;
+                            ret = not? FALSE_VAL : TRUE_VAL;
                         else
-                            ret = not ? TRUE_VAL : FALSE_VAL;
+                            ret = not? TRUE_VAL : FALSE_VAL;
                     }
                     else if (IS_ENUM_VALUE(obj))
                     {
                         ObjEnumValue *enumValue = AS_ENUM_VALUE(obj);
                         if (strcmp(enumValue->enume->name->chars, type->chars) == 0)
                         {
-                            ret = not ? FALSE_VAL : TRUE_VAL;
+                            ret = not? FALSE_VAL : TRUE_VAL;
                         }
                         else
-                            ret = not ? TRUE_VAL : FALSE_VAL;
+                            ret = not? TRUE_VAL : FALSE_VAL;
                     }
                     else
-                        ret = not ? TRUE_VAL : FALSE_VAL;
+                        ret = not? TRUE_VAL : FALSE_VAL;
                 }
 
                 pop();

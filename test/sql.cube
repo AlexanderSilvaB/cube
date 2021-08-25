@@ -1,0 +1,32 @@
+import sql
+
+class User : sql.Model
+{
+    var _tablename_ = 'user'
+
+    var id = sql.Integer().autoIncrement().primaryKey()
+    var name = sql.String()
+    var age = sql.Integer()
+}
+
+class Log : sql.Model
+{
+    var _tablename_ = 'log'
+
+    var id = sql.Integer().autoIncrement().primaryKey()
+    var message = sql.String()
+    var date = sql.String()
+}
+
+var engine = sql.Engine(sql.SqliteDB('temp/db.sqlite'))
+
+engine.create(User)
+engine.create(Log)
+
+var session = engine.session()
+
+var log = Log()
+log.message = "ABC"
+log.date = date()
+
+session.add(log)

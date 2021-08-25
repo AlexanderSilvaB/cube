@@ -1,0 +1,264 @@
+import sqlite as default
+import mysql as default
+
+class Column
+{
+    var dbtype
+    var value
+    func init(type)
+    {
+        this.dbtype = type
+    }
+
+    func defaultValue(value)
+    {
+        this.value = value
+    }
+
+    func autoIncrement(value)
+    {
+        if(value is null)
+            value = true
+        if(value)
+            this.dbtype = this.dbtype | AUTO_INCREMENT
+        else
+            this.dbtype = this.dbtype & ~AUTO_INCREMENT
+        return this
+    }
+
+    func nullable(value)
+    {
+        if(value is null)
+            value = true
+        if(value)
+            this.dbtype = this.dbtype | NOT_NULL
+        else
+            this.dbtype = this.dbtype & ~NOT_NULL
+        return this
+    }
+
+    func primaryKey(value)
+    {
+        if(value is null)
+            value = true
+        if(value)
+            this.dbtype = this.dbtype | PRIMARY_KEY
+        else
+            this.dbtype = this.dbtype & ~PRIMARY_KEY
+        return this
+    }
+
+    func foreignKey(value)
+    {
+        if(value is null)
+            value = true
+        if(value)
+            this.dbtype = this.dbtype | FOREIGN_KEY
+        else
+            this.dbtype = this.dbtype & ~FOREIGN_KEY
+        return this
+    }
+
+    func unique(value)
+    {
+        if(value is null)
+            value = true
+        if(value)
+            this.dbtype = this.dbtype | UNIQUE
+        else
+            this.dbtype = this.dbtype & ~UNIQUE
+        return this
+    }
+}
+
+class Null : Column
+{
+    func init()
+    {
+        super.init(TYPE_NULL)
+    }
+}
+
+class Integer : Column
+{
+    func init()
+    {
+        super.init(TYPE_INTEGER)
+    }
+}
+
+class Real : Column
+{
+    func init()
+    {
+        super.init(TYPE_REAL)
+    }
+}
+
+class String : Column
+{
+    func init()
+    {
+        super.init(TYPE_TEXT)
+    }
+}
+
+class Text : Column
+{
+    func init()
+    {
+        super.init(TYPE_TEXT)
+    }
+}
+
+class Blob : Column
+{
+    func init()
+    {
+        super.init(TYPE_BLOB)
+    }
+}
+
+class Model
+{
+    var _tablename_ = null
+    func init()
+    {
+        
+    }
+}
+
+class Session
+{
+    var db = null
+    func init(db)
+    {
+        this.db = db
+    }
+
+    func add(item)
+    {
+        var values = this._describeItem(item)
+        var primaryKey = values[1]
+        var addItem = true
+        var where = {}
+        values = values[0]
+        if(primaryKey is not null)
+        {
+            if(values[primaryKey] is null)
+            {
+                values.remove(primaryKey)
+            }
+            else
+            {
+                where[primaryKey] = values[primaryKey]
+                values.remove(primaryKey)
+                addItem = false
+            }
+        }
+        var res = null
+        if (addItem)
+            res = this.db.insert(item._tablename_, values)
+        else
+            res = this.db.update(item._tablename_, where, values)
+        
+        println(res)
+        if(!res)
+            println(this.db.getError())
+
+    }
+
+    func flush()
+    {
+        this.db.query('flush')
+    }
+    
+    func commit()
+    {
+        this.db.query('commit')
+    }
+
+    func _describeItem(item)
+    {
+        if(item is not Model)
+            throw('${item} is not a valid model instance')
+
+        var model = class(item)
+
+        var fields = {}
+        var primaryKey = null
+        var columns = getFields(model)
+        var value
+        var itemValue
+        for(var column in columns)
+        {
+            value = getField(model, column)
+            if(value is Column)
+            {
+                itemValue = getField(item, column)
+                if(itemValue is Column)
+                {
+                    itemValue = itemValue.value
+                }
+                fields[column] = itemValue
+
+                if(value.dbtype & PRIMARY_KEY != 0)
+                    primaryKey = column
+            }
+        }
+        return [fields, primaryKey]
+    }
+}
+
+class Engine
+{
+    var db = null
+    func init(db)
+    {
+        this.db = db
+    }
+
+    func create(model)
+    {
+        if (model is list)
+        {
+            for(var m in model)
+            {
+                this.create(m)
+            }
+        }
+        else
+        {
+            if(model is not Model)
+                throw('${model} is not a valid model')
+            var fields = this._describeModel(model)
+            var name = getField(model, '_tablename_')
+            var rc = this.db.create(name, fields)
+        }
+    }
+
+    func session()
+    {
+        return Session(this.db)
+    }
+
+    func _describeModel(model)
+    {
+        if(model is not Model)
+            throw('${model} is not a valid model')
+
+        var fields = {}
+        var columns = getFields(model)
+        var value
+        for(var column in columns)
+        {
+            value = getField(model, column)
+            if(value is Column)
+            {
+                fields[column] = value.dbtype
+            }
+        }
+        return fields
+    }
+}
+
