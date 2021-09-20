@@ -608,3 +608,18 @@ uint8_t *cube_bytebyte(const uint8_t *b1, const uint8_t *b2, size_t n1, size_t n
     }
     return ptr;
 }
+
+uint32_t hash(char *str)
+{
+    uint32_t hash = 2166136261u;
+    size_t length = strlen(str);
+    int c;
+
+    for (int i = 0; i < length; i++)
+    {
+        hash ^= (uint8_t)str[i];
+        hash *= 16777619;
+    }
+
+    return hash;
+}

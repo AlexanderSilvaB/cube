@@ -5,6 +5,7 @@ native mysql
     cbool exec(int, cstring);
     list data(int);
     cstring error(int);
+    int lastInserted(int);
 }
 
 import sqldatabase as default
@@ -31,6 +32,11 @@ class MySqlDB : DB
     func query(sql)
     {
         return exec(id, sql)
+    }
+
+    func lastId()
+    {
+        return lastInserted(id)
     }
 
     func results()

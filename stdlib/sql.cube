@@ -1,10 +1,15 @@
-import sqlite as default
-import mysql as default
+import sqlite
+import mysql
+import sqldatabase as default
 
 class Column
 {
+    var name
+    var model
     var dbtype
     var value
+    var nick
+    var __allow_insecure_operations
     func init(type)
     {
         this.dbtype = type
@@ -69,6 +74,106 @@ class Column
             this.dbtype = this.dbtype & ~UNIQUE
         return this
     }
+
+    func alias(name)
+    {
+        var instance = copy(this)
+        instance.nick = name
+        return instance
+    }
+
+    func column(useTableNames)
+    {
+        useTableNames ?= true
+        var sql = ""
+        if(useTableNames)
+            sql += model._name_() + "."
+
+        sql += name
+        if(nick is not null)
+            sql += " AS " + nick
+        return sql
+    }
+
+    func ==(other)
+    {
+        return Expression(this, "==", other)
+    }
+
+    func !=(other)
+    {
+        return Expression(this, "!=", other)
+    }
+
+    func !(other)
+    {
+        return Expression(this, "!", other)
+    }
+
+    func <(other)
+    {
+        return Expression(this, "<", other)
+    }
+
+    func <=(other)
+    {
+        return Expression(this, "<=", other)
+    }
+
+    func >(other)
+    {
+        return Expression(this, ">", other)
+    }
+
+    func >=(other)
+    {
+        return Expression(this, ">=", other)
+    }
+}
+
+class Expression
+{
+    var left = null
+    var right = null
+    var operator = null
+
+    func init(left, operator, right)
+    {
+        this.left = left
+        this.right = right
+        this.operator = operator
+    }
+
+    func compile()
+    {
+        var sql = ""
+        if(left is Column)
+            sql += left.column()
+        else if(left is Expression)
+            sql += left.compile()
+        else
+            sql += str(left)
+
+        if(operator == "==" and right is null)
+            sql += " IS NULL"
+        else if(operator == "!=" and right is null)
+            sql += " IS NOT NULL"
+        else
+        {
+            sql += ' ' + operator + ' '
+            if(right is Column)
+                sql += right.column()
+            else if(right is Expression)
+                sql += right.compile()
+            else if(right is str)
+                sql += "'" + right + "'"
+            else
+                sql += str(right)
+        }
+        
+
+        return sql
+    }
 }
 
 class Null : Column
@@ -122,9 +227,341 @@ class Blob : Column
 class Model
 {
     var _tablename_ = null
+    static var _nick_ = null
     func init()
     {
         
+    }
+
+    static func reset()
+    {
+        setField(this, '_nick_', null)
+        return this
+    }
+
+    static func alias(name)
+    {
+        setField(this, '_nick_', name)
+        return this
+    }
+
+    static func _name_()
+    {
+        var _nick_ = getField(this, '_nick_')
+        if(_nick_ is not null)
+            return _nick_
+        
+        var _tablename_ = getField(this, '_tablename_')
+        return _tablename_
+    }
+
+    static func _declr_()
+    {
+        var sql = getField(this, '_tablename_')
+        var _nick_ = getField(this, '_nick_')
+        if(_nick_ is not null)
+            sql += " AS " + _nick_
+        return sql
+    }
+}
+
+class Query
+{
+    var db = null
+    var fields = null
+    var isDistinct = null
+    var isCount = null
+    var selectFields = null
+    var selectTables = null
+    var selectFilters = null
+    var selectJoins = null
+    var selectGroupBy = null
+    func init(db, fields)
+    {
+        this.db = db
+        this.fields = fields
+        this.selectFields = []
+        this.selectTables = []
+        this.selectFilters = []
+        this.selectJoins = []
+        this.selectGroupBy = []
+        this.isDistinct = false
+        this.isCount = false
+    }
+
+    func filter(filter)
+    {
+        selectFilters.add(filter)
+        return this
+    }
+
+    func filterAnd(filter1, filter2)
+    {
+        var filter = Expression(filter1, "AND", filter2)
+        selectFilters.add(filter)
+        return this
+    }
+
+    func filterOr(filter1, filter2)
+    {
+        var filter = Expression(filter1, "OR", filter2)
+        selectFilters.add(filter)
+        return this
+    }
+
+    func where(filter)
+    {
+        selectFilters.add(filter)
+        return this
+    }
+
+    func join(model, filter)
+    {
+        return innerJoin(model, filter)
+    }
+
+    func innerJoin(model, filter)
+    {
+        selectJoins.add([model, filter, "INNER"])
+        return this
+    }
+
+    func leftJoin(model, filter)
+    {
+        selectJoins.add([model, filter, "LEFT"])
+        return this
+    }
+
+    func rightJoin(model, filter)
+    {
+        selectJoins.add([model, filter, "RIGHT"])
+        return this
+    }
+
+    func fullJoin(model, filter)
+    {
+        selectJoins.add([model, filter, "FULL"])
+        return this
+    }
+
+    func groupBy()
+    {
+        this.selectGroupBy = args
+        return this
+    }
+
+    func distinct()
+    {
+        isDistinct = true
+        return this
+    }
+
+    func count()
+    {
+        isCount = true
+        var sql = compile()
+        var rc = db.query(sql)
+        var data = null
+        if(rc)
+        {
+            data = db.results()
+            if(len(data) != 1)
+                data = null
+            else
+            {
+                data = data[0]
+                data = data.get('count', null)
+            }
+        }
+        resetTables()
+        return data
+    }
+
+    func first()
+    {
+        var sql = compile()
+        sql += " LIMIT 1"
+        var rc = db.query(sql)
+        var data = null
+        if(rc)
+        {
+            data = db.results()
+        }
+        if(len(data) > 0)
+            data = data[0]
+        resetTables()
+        return data
+    }
+
+    func scalar()
+    {
+        var item = first()
+        if(item is not null)
+        {
+            item = list(item)[1]
+        }
+        resetTables()
+        return item
+    }
+
+    func one()
+    {
+        var items = all()
+        if(len(items) != 1)
+        {
+            resetTables()
+            throw("Not only one row")
+        }
+        resetTables()
+        return items[0]
+    }
+
+    func one_or_null()
+    {
+        var items = all()
+        if(len(items) != 1)
+        {
+            resetTables()
+            return null
+        }
+        resetTables()
+        return items[0]
+    }
+
+    func all()
+    {
+        var sql = compile()
+        var rc = db.query(sql)
+        var data = null
+        if(rc)
+        {
+            data = db.results()
+        }
+        resetTables()
+        return data
+    }
+
+    func compile()
+    {
+        var data = extractFields(this.fields, true)
+
+        var fields = data[0]
+        var tables = data[1]
+        if(isCount)
+        {
+            fields = ["COUNT(*) as count"]
+        }
+
+        selectFields = fields
+        selectTables = tables
+
+        var sql = "SELECT "
+        if(isDistinct)
+            sql += "DISTINCT "
+        sql += selectedFields() + " FROM " + selectedTable()
+        if (len(selectJoins) > 0)
+            sql += " " + selectedJoins()
+        if (len(selectFilters) > 0)
+            sql += " WHERE " + selectedFilters()
+        if(len(selectGroupBy) > 0)
+            sql += " GROUP BY " + selectedGroupBy()
+
+        resetTables()
+
+        return sql
+    }
+
+    func extractFields(items, useTableNames)
+    {
+        var tables = []
+        var fields = []
+        var columns
+        var value
+        for(var field in items)
+        {
+            if(field is Column)
+            {
+                fields.add(field.column(useTableNames))
+                if(field.model not in tables)
+                {
+                    tables.add(field.model)
+                }
+            }
+            else if(field is Model)
+            {
+                columns = getFields(field)
+                for(var column in columns)
+                {
+                    value = getField(field, column)
+                    if(value is Column)
+                    {
+                        fields.add(value.column(useTableNames))
+                    }
+                }
+
+                if(field not in tables)
+                {
+                    tables.add(field)
+                }
+            }
+        }
+
+        return [fields, tables]
+    }
+
+    func selectedTable()
+    {
+        return selectTables[0]._declr_()
+    }
+
+    func selectedFields()
+    {
+        return selectFields.join(', ')
+    }
+
+    func selectedFilters()
+    {
+        var sql = ""
+        for(var filter in selectFilters)
+        {
+            if(len(sql) > 0)
+                sql += " AND "
+            sql += filter.compile()
+        }
+        return sql
+    }
+
+    func selectedJoins()
+    {
+        var sql = ""
+        for(var join in selectJoins)
+        {
+            if(len(sql) > 0)
+                sql += " "
+            sql += join[2] + " JOIN "
+            if (join[0] is Model)
+            {
+                sql += join[0]._declr_()
+            }
+            else
+                sql += str(join[0])
+            sql += " ON " + join[1].compile()
+        }
+        return sql
+    }
+
+    func selectedGroupBy()
+    {
+        var data = extractFields(this.selectGroupBy, true)
+        return data[0].join(', ')
+    }
+
+    func resetTables()
+    {
+        for(var table in selectTables)
+        {
+            table.reset()
+        }
     }
 }
 
@@ -158,14 +595,36 @@ class Session
         }
         var res = null
         if (addItem)
+        {
             res = this.db.insert(item._tablename_, values)
+            if(res)
+            {
+                if(primaryKey is not null)
+                {
+                    setField(item, primaryKey, this.db.lastId())
+                }
+            }
+        }
         else
             res = this.db.update(item._tablename_, where, values)
         
-        println(res)
         if(!res)
+        {
             println(this.db.getError())
+            return null
+        }
+        return item
 
+    }
+
+    func query()
+    {
+        return Query(this.db, args)
+    }
+
+    func error()
+    {
+        return this.db.getError()
     }
 
     func flush()
@@ -233,6 +692,7 @@ class Engine
                 throw('${model} is not a valid model')
             var fields = this._describeModel(model)
             var name = getField(model, '_tablename_')
+            setField(model, '_tablename_', name)
             var rc = this.db.create(name, fields)
         }
     }
@@ -255,7 +715,10 @@ class Engine
             value = getField(model, column)
             if(value is Column)
             {
+                value.name = column
+                value.model = model
                 fields[column] = value.dbtype
+                setField(model, column, value)
             }
         }
         return fields

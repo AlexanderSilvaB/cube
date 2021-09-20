@@ -1,5 +1,6 @@
 #include <cube/cubeext.h>
 #include <sqlite3.h>
+#include <stdio.h>
 #include <vector>
 
 typedef struct
@@ -71,7 +72,7 @@ void prepare_db(DB *db)
 {
     if (db->message)
     {
-        sqlite3_free(db->message);
+        // sqlite3_free(db->message);
         db->message = NULL;
     }
 
@@ -212,5 +213,14 @@ extern "C"
             return NULL;
 
         return db->message;
+    }
+
+    EXPORTED int lastInserted(int id)
+    {
+        DB *db;
+        if (!getDB(id, &db))
+            return -1;
+
+        return sqlite3_last_insert_rowid(db->db);
     }
 }

@@ -35,12 +35,16 @@ void *threadFn(void *data);
 bool hasTask(ThreadFrame *threadFrame);
 static bool invokeFromClass(ObjClass *klass, ObjString *name, int argCount, ObjInstance *instance);
 
+#define PEEK_BYTE() (*frame->ip)
 #define READ_BYTE() (*frame->ip++)
 #define SKIP_BYTE() frame->ip++
+#define PEEK_SHORT() ((uint16_t)((frame->ip[0] << 8) | frame->ip[1]))
 #define READ_SHORT() (frame->ip += 2, (uint16_t)((frame->ip[-2] << 8) | frame->ip[-1]))
 
+#define PEEK_CONSTANT() (frame->closure->function->chunk.constants.values[PEEK_SHORT()])
 #define READ_CONSTANT() (frame->closure->function->chunk.constants.values[READ_SHORT()])
 
+#define PEEK_STRING() AS_STRING(PEEK_CONSTANT())
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 
 #define BINARY_OP(valueType, op)                                                                                       \
@@ -705,6 +709,18 @@ static bool findField(ObjInstance *instance, ObjString *name, Value *field)
     return true;
 }
 
+static bool findClassField(ObjClass *klass, ObjString *name, Value *field)
+{
+    if (!tableGet(&klass->staticFields, name, field))
+    {
+        if (klass->super != NULL)
+            return findClassField(klass->super, name, field);
+        return false;
+    }
+
+    return true;
+}
+
 static bool findMethod(ObjClass *klass, ObjString *name, Value *method, ObjClass **selected)
 {
     if (!tableGet(&klass->methods, name, method))
@@ -898,32 +914,7 @@ static bool invoke(ObjString *name, int argCount)
     if (IS_CLASS(receiver))
     {
         ObjClass *klass = AS_CLASS(receiver);
-        Value method;
-        if (!tableGet(&klass->methods, name, &method))
-        {
-            if (hasExtension(receiver, name))
-            {
-                return callExtension(receiver, name, argCount);
-            }
-            else if (classMethods(name->chars, argCount + 1))
-            {
-                return true;
-            }
-            runtimeError("Undefined property '%s'.", name->chars);
-            return false;
-        }
-
-        if (!AS_CLOSURE(method)->function->staticMethod)
-        {
-            runtimeError("'%s' is not static. Only static methods can be "
-                         "invoked directly from a class.",
-                         name->chars);
-            return false;
-        }
-
-        ThreadFrame *threadFrame = currentThread();
-        threadFrame->frame->nextModule = klass->module ? klass->module : threadFrame->frame->module;
-        return callValue(method, argCount, NULL, klass);
+        return invokeFromClass(klass, name, argCount, NULL);
     }
 
     else if (IS_MODULE(receiver))
@@ -2960,7 +2951,7 @@ InterpretResult run()
                     ObjClass *klass = AS_CLASS(peek(0));
                     ObjString *name = READ_STRING();
                     Value value;
-                    if (tableGet(&klass->staticFields, name, &value))
+                    if (findClassField(klass, name, &value))
                     {
                         pop(); // Instance.
                         push(value);
@@ -3200,14 +3191,68 @@ InterpretResult run()
                 DISPATCH();
             }
 
+            OPCASE(NOT_EQUAL) :
+            {
+                if (instanceOperation("!="))
+                {
+                    frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+                }
+                else
+                {
+
+                    Value b = pop();
+                    Value a = pop();
+                    push(BOOL_VAL(!valuesEqual(a, b)));
+                }
+                DISPATCH();
+            }
+
             OPCASE(GREATER) :
             {
-                BINARY_OP(BOOL_VAL, >);
+                if (instanceOperation(">"))
+                {
+                    frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+                }
+                else
+                {
+                    BINARY_OP(BOOL_VAL, >);
+                }
+                DISPATCH();
+            }
+            OPCASE(GREATER_EQUAL) :
+            {
+                if (instanceOperation(">="))
+                {
+                    frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+                }
+                else
+                {
+                    BINARY_OP(BOOL_VAL, >=);
+                }
                 DISPATCH();
             }
             OPCASE(LESS) :
             {
-                BINARY_OP(BOOL_VAL, <);
+                if (instanceOperation("<"))
+                {
+                    frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+                }
+                else
+                {
+                    BINARY_OP(BOOL_VAL, <);
+                }
+                DISPATCH();
+            }
+            OPCASE(LESS_EQUAL) :
+            {
+                if (instanceOperation("<="))
+                {
+                    frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+                }
+                else
+                {
+                    BINARY_OP(BOOL_VAL, <=);
+                }
                 DISPATCH();
             }
             OPCASE(ADD) :
@@ -3930,97 +3975,103 @@ InterpretResult run()
             OPCASE(IN) :
             {
                 istrue = READ_BYTE() == OP_TRUE;
-                Value container = peek(0);
-                Value item = peek(1);
-                Value result;
-                if (IS_STRING(container) && IS_STRING(item))
+                if ((!istrue && instanceOperation("in")) || (istrue && instanceOperation("not_in")))
                 {
-                    if (!stringContains(container, item, &result))
+                    frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+                }
+                {
+                    Value container = peek(0);
+                    Value item = peek(1);
+                    Value result;
+                    if (IS_STRING(container) && IS_STRING(item))
                     {
-                        runtimeError("Could not search on string");
-                        if (!checkTry(frame))
-                            return INTERPRET_RUNTIME_ERROR;
-                        else
-                            DISPATCH();
+                        if (!stringContains(container, item, &result))
+                        {
+                            runtimeError("Could not search on string");
+                            if (!checkTry(frame))
+                                return INTERPRET_RUNTIME_ERROR;
+                            else
+                                DISPATCH();
+                        }
                     }
-                }
-                else if (IS_BYTES(container) && IS_BYTES(item))
-                {
-                    if (!bytesContains(container, item, &result))
+                    else if (IS_BYTES(container) && IS_BYTES(item))
                     {
-                        runtimeError("Could not search on bytes");
-                        if (!checkTry(frame))
-                            return INTERPRET_RUNTIME_ERROR;
-                        else
-                            DISPATCH();
+                        if (!bytesContains(container, item, &result))
+                        {
+                            runtimeError("Could not search on bytes");
+                            if (!checkTry(frame))
+                                return INTERPRET_RUNTIME_ERROR;
+                            else
+                                DISPATCH();
+                        }
                     }
-                }
-                else if (IS_LIST(container))
-                {
-                    if (!listContains(container, item, &result))
+                    else if (IS_LIST(container))
                     {
-                        runtimeError("Could not search on list");
-                        if (!checkTry(frame))
-                            return INTERPRET_RUNTIME_ERROR;
-                        else
-                            DISPATCH();
+                        if (!listContains(container, item, &result))
+                        {
+                            runtimeError("Could not search on list");
+                            if (!checkTry(frame))
+                                return INTERPRET_RUNTIME_ERROR;
+                            else
+                                DISPATCH();
+                        }
                     }
-                }
-                else if (IS_DICT(container))
-                {
-                    if (!dictContains(container, item, &result))
+                    else if (IS_DICT(container))
                     {
-                        runtimeError("Key in dict must be a string");
-                        if (!checkTry(frame))
-                            return INTERPRET_RUNTIME_ERROR;
-                        else
-                            DISPATCH();
+                        if (!dictContains(container, item, &result))
+                        {
+                            runtimeError("Key in dict must be a string");
+                            if (!checkTry(frame))
+                                return INTERPRET_RUNTIME_ERROR;
+                            else
+                                DISPATCH();
+                        }
                     }
-                }
-                else if (IS_INSTANCE(container))
-                {
-                    if (!instanceContains(container, item, &result))
+                    else if (IS_INSTANCE(container))
                     {
-                        runtimeError("Could not search on instance");
-                        if (!checkTry(frame))
-                            return INTERPRET_RUNTIME_ERROR;
-                        else
-                            DISPATCH();
+                        if (!instanceContains(container, item, &result))
+                        {
+                            runtimeError("Could not search on instance");
+                            if (!checkTry(frame))
+                                return INTERPRET_RUNTIME_ERROR;
+                            else
+                                DISPATCH();
+                        }
                     }
-                }
-                else if (IS_CLASS(container))
-                {
-                    if (!classContains(container, item, &result))
+                    else if (IS_CLASS(container))
                     {
-                        runtimeError("Could not search on class");
-                        if (!checkTry(frame))
-                            return INTERPRET_RUNTIME_ERROR;
-                        else
-                            DISPATCH();
+                        if (!classContains(container, item, &result))
+                        {
+                            runtimeError("Could not search on class");
+                            if (!checkTry(frame))
+                                return INTERPRET_RUNTIME_ERROR;
+                            else
+                                DISPATCH();
+                        }
                     }
-                }
-                else if (IS_ENUM(container))
-                {
-                    if (!enumContains(container, item, &result))
+                    else if (IS_ENUM(container))
                     {
-                        runtimeError("Could not search on enum");
-                        if (!checkTry(frame))
-                            return INTERPRET_RUNTIME_ERROR;
-                        else
-                            DISPATCH();
+                        if (!enumContains(container, item, &result))
+                        {
+                            runtimeError("Could not search on enum");
+                            if (!checkTry(frame))
+                                return INTERPRET_RUNTIME_ERROR;
+                            else
+                                DISPATCH();
+                        }
                     }
-                }
-                else
-                {
-                    result = BOOL_VAL(valuesEqual(container, item));
-                }
+                    else
+                    {
+                        result = BOOL_VAL(valuesEqual(container, item));
+                    }
 
-                if (istrue)
-                    result = BOOL_VAL(!AS_BOOL(result));
+                    if (istrue)
+                        result = BOOL_VAL(!AS_BOOL(result));
 
-                pop();
-                pop();
-                push(result);
+                    pop();
+                    pop();
+                    push(result);
+                }
                 DISPATCH();
             }
 
@@ -4033,7 +4084,7 @@ InterpretResult run()
                 Value ret;
                 if (strcmp(objType, type->chars) == 0)
                 {
-                    ret = not? FALSE_VAL : TRUE_VAL;
+                    ret = not ? FALSE_VAL : TRUE_VAL;
                 }
                 else
                 {
@@ -4041,30 +4092,30 @@ InterpretResult run()
                     {
                         ObjInstance *instance = AS_INSTANCE(obj);
                         if (inherits(instance->klass, type))
-                            ret = not? FALSE_VAL : TRUE_VAL;
+                            ret = not ? FALSE_VAL : TRUE_VAL;
                         else
-                            ret = not? TRUE_VAL : FALSE_VAL;
+                            ret = not ? TRUE_VAL : FALSE_VAL;
                     }
                     else if (IS_CLASS(obj))
                     {
                         ObjClass *klass = AS_CLASS(obj);
                         if (inherits(klass, type))
-                            ret = not? FALSE_VAL : TRUE_VAL;
+                            ret = not ? FALSE_VAL : TRUE_VAL;
                         else
-                            ret = not? TRUE_VAL : FALSE_VAL;
+                            ret = not ? TRUE_VAL : FALSE_VAL;
                     }
                     else if (IS_ENUM_VALUE(obj))
                     {
                         ObjEnumValue *enumValue = AS_ENUM_VALUE(obj);
                         if (strcmp(enumValue->enume->name->chars, type->chars) == 0)
                         {
-                            ret = not? FALSE_VAL : TRUE_VAL;
+                            ret = not ? FALSE_VAL : TRUE_VAL;
                         }
                         else
-                            ret = not? TRUE_VAL : FALSE_VAL;
+                            ret = not ? TRUE_VAL : FALSE_VAL;
                     }
                     else
-                        ret = not? TRUE_VAL : FALSE_VAL;
+                        ret = not ? TRUE_VAL : FALSE_VAL;
                 }
 
                 pop();
@@ -4075,13 +4126,16 @@ InterpretResult run()
                 DISPATCH();
             }
 
-            OPCASE(NOT) : if (instanceOperationUnary("!"))
+            OPCASE(NOT) :
             {
-                frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+                if (instanceOperationUnary("!"))
+                {
+                    frame = &threadFrame->ctf->frames[threadFrame->ctf->frameCount - 1];
+                }
+                else
+                    push(BOOL_VAL(isFalsey(pop())));
+                DISPATCH();
             }
-            else push(BOOL_VAL(isFalsey(pop())));
-            DISPATCH();
-
             OPCASE(NEGATE) :
             {
                 if (instanceOperationUnary("-"))

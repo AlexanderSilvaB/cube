@@ -6,6 +6,7 @@
 #include "memory.h"
 #include "mempool.h"
 #include "object.h"
+#include "util.h"
 #include "value.h"
 #include "vm.h"
 
@@ -35,17 +36,6 @@ void freeValueArray(ValueArray *array)
 {
     FREE_ARRAY(Value, array->values, array->capacity);
     initValueArray(array);
-}
-
-static uint32_t hash(char *str)
-{
-    uint32_t hash = 5381;
-    int c;
-
-    while ((c = *str++))
-        hash = ((hash << 5) + hash) + c;
-
-    return hash;
 }
 
 void insertDict(ObjDict *dict, char *key, Value value)

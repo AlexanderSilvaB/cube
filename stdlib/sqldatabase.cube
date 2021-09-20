@@ -108,7 +108,7 @@ class DB
         var sql = "INSERT INTO ${table} "
         if(data is dict)
         {
-            var values = " VALUES( "
+            var values = " VALUES ( "
             var val
             sql += "( "
             for(var name in data)
@@ -311,6 +311,11 @@ class DB
     func query(sql)
     {
         return false
+    }
+
+    func lastId()
+    {
+        return -1
     }
 
     func results()

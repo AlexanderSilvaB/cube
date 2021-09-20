@@ -70,18 +70,9 @@ Value hashNative(int argCount, Value *args)
     char str[128];
     sprintf(str, "%d", code);
 
-    uint32_t hash = 5381;
-    int c;
+    uint32_t h = hash(str);
 
-    int i = 0;
-    c = str[i++];
-    while (c != '\0')
-    {
-        hash = ((hash << 5) + hash) + c;
-        c = str[i++];
-    }
-
-    return NUMBER_VAL(hash);
+    return NUMBER_VAL(h);
 }
 
 Value clockNative(int argCount, Value *args)
@@ -735,8 +726,13 @@ Value classNative(int argCount, Value *args)
             {
                 if (name == NULL)
                     name = "Class";
-
                 ObjClass *klass = newClass(copyString(name, strlen(name)));
+                if (argCount > 2 && IS_CLASS(args[2]))
+                {
+                    ObjClass *superclass = AS_CLASS(args[2]);
+                    klass->super = superclass;
+                    tableAddAll(&superclass->fields, &klass->fields);
+                }
 
                 for (int i = 0; i < dict->capacity; ++i)
                 {
@@ -3201,36 +3197,60 @@ static Value getFieldNative(int argCount, Value *args)
     {
         ObjInstance *instance = AS_INSTANCE(args[0]);
         Value value = NULL_VAL;
-        tableGet(&instance->fields, AS_STRING(args[1]), &value);
+        if (!tableGet(&instance->fields, AS_STRING(args[1]), &value))
+        {
+            Value values[2];
+            values[0] = OBJ_VAL(instance->klass);
+            values[1] = args[1];
+            return getFieldNative(argCount, values);
+        }
         return value;
     }
     else if (IS_CLASS(args[0]))
     {
         ObjClass *klass = AS_CLASS(args[0]);
         Value value = NULL_VAL;
-        tableGet(&klass->fields, AS_STRING(args[1]), &value);
+        if (!tableGet(&klass->fields, AS_STRING(args[1]), &value))
+        {
+            if (!tableGet(&klass->staticFields, AS_STRING(args[1]), &value))
+            {
+                if (klass->super != NULL)
+                {
+                    Value values[2];
+                    values[0] = OBJ_VAL(klass->super);
+                    values[1] = args[1];
+                    return getFieldNative(argCount, values);
+                }
+            }
+        }
         return value;
     }
     return NULL_VAL;
-
-    ObjInstance *instance = AS_INSTANCE(args[0]);
-    Value value = NULL_VAL;
-    tableGet(&instance->fields, AS_STRING(args[1]), &value);
-    return value;
 }
 
 static Value setFieldNative(int argCount, Value *args)
 {
     if (argCount != 3)
         return FALSE_VAL;
-    if (!IS_INSTANCE(args[0]))
-        return FALSE_VAL;
     if (!IS_STRING(args[1]))
         return FALSE_VAL;
 
-    ObjInstance *instance = AS_INSTANCE(args[0]);
-    tableSet(&instance->fields, AS_STRING(args[1]), args[2]);
-    return args[2];
+    if (IS_INSTANCE(args[0]))
+    {
+        ObjInstance *instance = AS_INSTANCE(args[0]);
+        tableSet(&instance->fields, AS_STRING(args[1]), args[2]);
+        return args[2];
+    }
+    else if (IS_CLASS(args[0]))
+    {
+        ObjClass *klass = AS_CLASS(args[0]);
+        tableSet(&klass->staticFields, AS_STRING(args[1]), args[2]);
+        return args[2];
+    }
+    else
+    {
+        return FALSE_VAL;
+    }
 }
 
 static Value classNameNative(int argCount, Value *args)

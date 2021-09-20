@@ -221,4 +221,13 @@ extern "C"
 
         return db->message;
     }
+
+    EXPORTED int lastInserted(int id)
+    {
+        DB *db;
+        if (!getDB(id, &db))
+            return -1;
+
+        return mysql_insert_id(db->db);
+    }
 }

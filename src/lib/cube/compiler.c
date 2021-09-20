@@ -314,7 +314,7 @@ static void initCompiler(Compiler *compiler, FunctionType type)
     Local *local = &gbcpl->current->locals[gbcpl->current->localCount++];
     local->depth = 0;
     local->isCaptured = false;
-    if (type == TYPE_INITIALIZER || type == TYPE_METHOD || type == TYPE_EXTENSION)
+    if (type == TYPE_INITIALIZER || type == TYPE_METHOD || type == TYPE_EXTENSION || type == TYPE_STATIC)
     {
         local->name.start = "this";
         local->name.length = 4;
@@ -831,7 +831,7 @@ static void binary(bool canAssign)
     switch (operatorType)
     {
         case TOKEN_BANG_EQUAL:
-            emitBytes(OP_EQUAL, OP_NOT);
+            emitByte(OP_NOT_EQUAL);
             break;
         case TOKEN_EQUAL_EQUAL:
             emitByte(OP_EQUAL);
@@ -840,13 +840,13 @@ static void binary(bool canAssign)
             emitByte(OP_GREATER);
             break;
         case TOKEN_GREATER_EQUAL:
-            emitBytes(OP_LESS, OP_NOT);
+            emitByte(OP_GREATER_EQUAL);
             break;
         case TOKEN_LESS:
             emitByte(OP_LESS);
             break;
         case TOKEN_LESS_EQUAL:
-            emitBytes(OP_GREATER, OP_NOT);
+            emitByte(OP_LESS_EQUAL);
             break;
         case TOKEN_SHIFT_LEFT:
             emitByte(OP_SHIFT_LEFT);
@@ -1324,8 +1324,8 @@ static void this_(bool canAssign)
     {
         error("Cannot use 'this' outside of a class.");
     }
-    else if (gbcpl->staticMethod)
-        error("Cannot use 'this' inside a static method.");
+    // else if (gbcpl->staticMethod)
+    //     error("Cannot use 'this' inside a static method.");
     else
     {
         variable(false);
@@ -1960,6 +1960,7 @@ static void method(bool isStatic)
     bool bracked = false;
     bool set = false;
     bool call = false;
+
     if (!check(TOKEN_IDENTIFIER) && !isOperator(gbcpl->parser.current.type))
     {
         if (match(TOKEN_LEFT_BRACKET))
@@ -1987,12 +1988,15 @@ static void method(bool isStatic)
         if (!bracked && !call)
             errorAtCurrent("Expect method name.");
     }
+
     if (!bracked && !call)
         advance();
 
     uint16_t constant;
     if (!bracked && !call)
+    {
         constant = identifierConstant(&gbcpl->parser.previous);
+    }
     else if (call)
     {
         Token cl = syntheticToken("()");

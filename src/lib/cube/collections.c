@@ -1,7 +1,9 @@
 #include "collections.h"
 #include "memory.h"
 #include "mempool.h"
+#include "util.h"
 #include "vm.h"
+
 
 // This is needed for list deepCopy
 ObjDict *copyDict(ObjDict *oldDict, bool shallow);
@@ -792,17 +794,6 @@ static bool dictValues(int argCount)
     push(OBJ_VAL(list));
 
     return true;
-}
-
-static uint32_t hash(char *str)
-{
-    uint32_t hash = 5381;
-    int c;
-
-    while ((c = *str++))
-        hash = ((hash << 5) + hash) + c;
-
-    return hash;
 }
 
 static bool removeDictItem(int argCount)
