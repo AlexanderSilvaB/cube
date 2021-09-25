@@ -83,3 +83,8 @@ class Complex
             return this.real + " + " + this.imag + "j";
     }
 }
+
+func complex(real, imag)
+{
+    return Complex(real, imag)
+}

@@ -496,6 +496,46 @@ static bool intBytes(int argCount)
     return true;
 }
 
+static bool shortBytes(int argCount)
+{
+    if (argCount != 1)
+    {
+        runtimeError("short() takes 0 arguments (%d  given)", argCount - 1);
+        return false;
+    }
+
+    ObjBytes *bytes = AS_BYTES(pop());
+    if (bytes->length == 0)
+    {
+        push(NUMBER_VAL(0));
+        return true;
+    }
+
+    char b[sizeof(int16_t)];
+    size_t len = bytes->length > sizeof(int16_t) || bytes->length < 0 ? sizeof(int16_t) : bytes->length;
+    memset(b, '\0', sizeof(int16_t));
+    if (bytes->length >= len)
+        memcpy(b, bytes->bytes, len);
+    else
+        memcpy(b, bytes->bytes, bytes->length);
+    int16_t value = *((int16_t *)b);
+    push(NUMBER_VAL(value));
+
+    if (bytes->length >= 0)
+    {
+        size_t L = bytes->length - len;
+        memcpy(bytes->bytes, bytes->bytes + len, L);
+        bytes->bytes = GROW_ARRAY(bytes->bytes, uint8_t, bytes->length, L);
+        bytes->length = L;
+    }
+    else
+    {
+        bytes->bytes = bytes->bytes + len;
+    }
+
+    return true;
+}
+
 static bool boolBytes(int argCount)
 {
     if (argCount != 1)
@@ -815,6 +855,8 @@ bool bytesMethods(char *method, int argCount)
         return floatBytes(argCount);
     else if (strcmp(method, "int") == 0)
         return intBytes(argCount);
+    else if (strcmp(method, "short") == 0)
+        return shortBytes(argCount);
     else if (strcmp(method, "bool") == 0)
         return boolBytes(argCount);
     else if (strcmp(method, "trunc") == 0)

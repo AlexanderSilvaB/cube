@@ -5,7 +5,7 @@ add_definitions(-DWIN_EXPORT)
 
 set(ROS_PATH "/opt/ros/melodic/")
 
-if(EXISTS ${ROS_PATH} AND IS_DIRECTORY ${ROS_PATH} AND FALSE)
+if(EXISTS ${ROS_PATH} AND IS_DIRECTORY ${ROS_PATH})
 
     include_directories(${ROS_PATH}/include ${ROS_PATH}/lib)
 

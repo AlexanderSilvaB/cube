@@ -1,0 +1,11 @@
+import types as default
+
+var data = Uint32Array(16)
+data.data[0] = 255
+data.data[1] = 255
+
+println(data[0])
+
+data[1] = 65535
+
+println(data.data)

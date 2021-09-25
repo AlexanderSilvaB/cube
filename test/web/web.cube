@@ -1,0 +1,42 @@
+import web as default
+import asio
+import paths
+
+var rootPath = paths.folder(__script__) + '/htdocs'
+
+var template = Template()
+template['title'] = 'Template'
+template['list'] = ['A', 'B', 'C']
+template.root = rootPath
+
+var server = asio.ip.tcp.http.Server(8080)
+server.useFs = false
+server.get('*', @(req, res){
+
+    var path = rootPath + req.uri
+    if(not path.endsWith('/') and isdir(path))
+        path += '/'
+    if(path.endsWith('/'))
+    {
+        var ids = ls(path)
+        var found = false
+        for(var i = 0; i < len(ids) and not found; i++)
+        {
+            if(ids[i].startsWith('index.'))
+            {
+                path += ids[i]
+                found = true
+            }
+        }
+    }
+    
+    println('Path: ', path)
+
+    if(not isdir(path))
+    {
+        return template.parseFrom(path)
+    }
+})
+
+server.start()
+asio.loop()

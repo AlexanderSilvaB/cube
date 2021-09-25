@@ -15,7 +15,7 @@ func fileName(path)
 func folder(path)
 {
     var parts = path.split('/');
-    var name = parts[-1];
+    var name = parts[0..-2].join('/');
     return name;
 }
 
@@ -53,4 +53,55 @@ func changeExtension(path, ext)
     var e = extension(path)
     var npath = path.replace('.'+e, '.'+ext)
     return npath
+}
+
+func walk(path, container)
+{
+    if(container is null)
+        container = []
+
+    if(path == '')
+        path = '.'
+    
+    var itemPath
+    for ( var item in ls(path) )
+    {
+        if(item == '.' or item == '..')
+            continue
+        else
+        {
+            itemPath = "${path}/${item}"
+            if(isdir(itemPath))
+                walk(itemPath, container)
+            else
+                container.add(itemPath)
+        }
+    }
+    
+    return container
+}
+
+func tree(path)
+{
+    var container = {}   
+    container['path'] = path
+    container['files'] = []
+    container['folders'] = []
+    
+    var itemPath
+    for ( var item in ls(path) )
+    {
+        if(item == '.' or item == '..')
+            continue
+        else
+        {
+            itemPath = "${path}/${item}"
+            if(isdir(itemPath))
+                container['folders'].add(tree(itemPath))
+            else
+                container['files'].add(item)
+        }
+    }
+    
+    return container
 }

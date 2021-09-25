@@ -1,0 +1,14 @@
+import fs as default
+
+var fs = StaticFS('fs.cst')
+fs.debug = false
+
+fs.fromPath('./test')
+fs.save()
+
+fs.load()
+
+println(fs.str())
+
+var data = fs.read(fs.items[3])
+println(str(data))

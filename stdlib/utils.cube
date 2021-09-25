@@ -1,101 +1,119 @@
 func measureTime(f)
 {
-    args = args.from(nargs)
-    var start = clock()
-    var res = f(*args)
-    var elapsed = clock() - start
-    println('Elapsed time: ${elapsed}s')
-    return res
+    func inner()
+    {
+        var start = clock()
+        var res = f(*args)
+        var elapsed = clock() - start
+        println('Elapsed time: ${elapsed}s')
+        return res
+    }
+    return inner
 }
 
 func border(f, c, n)
 {
-    println(c * n)
-    args = args.from(nargs)
-    var res = f(*args)
-    println(c * n)
-    return res
+    func inner()
+    {
+        println(c * n)
+        var res = f(*args)
+        println(c * n)
+        return res
+    }
+    return inner
 }
 
 func forceArgs(f, n)
 {
-    args = args.from(nargs)
-    if(len(args) != n)
+    func inner()
     {
-        throw('Invalid number of arguments for ${f}. Expect ${n} but got ', len(args))
+        if(len(args) != n)
+        {
+            throw('Invalid number of arguments for ${f}. Expect ${n} but got ', len(args))
+        }
+        return f(*args)
     }
-    return f(*args)
+    return inner
 }
 
 func ensureArgs(f)
 {
-    var n = arity(f)
-    args = args.from(nargs)
-    if(len(args) != n)
+    func inner()
     {
-        throw('Invalid number of arguments for ${f}. Expect ${n} but got ', len(args))
+        var n = arity(f)
+        if(len(args) != n)
+        {
+            throw('Invalid number of arguments for ${f}. Expect ${n} but got ', len(args))
+        }
+        return f(*args)
     }
-    return f(*args)
+    return inner
 }
 
 func defaultReturn(f, def)
 {
-    args = args.from(nargs)
-    var res = f(*args)
-    if(res is null)
-        res = def
-    return res
+    func inner()
+    {
+        var res = f(*args)
+        if(res is null)
+            res = def
+        return res
+    }
+    return inner
 }
 
 func pretty(f)
 {
-    func makePretty(d, s, n)
+    func inner()
     {
-        var text = ''
-        if(d is str)
+        func makePretty(d, s, n)
         {
-            text = '"${d}"'
-        }
-        else if(d is num or d is bool)
-        {
-            text = str(d)
-        }
-        else if(d is list)
-        {
-            var spaceOut = s * n
-            var spaceIn = s * (n + 1)
-            text = "[\n"
-            for(var i = 0; i < len(d); i++)
+            var text = ''
+            if(d is str)
             {
-                text += "${spaceIn}" + makePretty(d[i], s, 1)
-                if(i < len(d)-1)
-                    text += ", "
-                text += "\n"
+                text = '"${d}"'
             }
-            text += "${spaceOut}]"
-        }
-        else if(d is dict)
-        {
-            var spaceOut = s * n
-            var spaceIn = s * (n + 1)
-            var val, point
-            text = '{\n'
-            for(var key, i in d)
+            else if(d is num or d is bool)
             {
-                val = makePretty(d[key], s, n + 1)
-                point = (i < len(d)-1) ? ',' : ''
-                text += '${spaceIn}"${key}": ${val}${point}\n'
+                text = str(d)
             }
-            text += '${spaceOut}}'
-        }
-        else
-        {
-            text = '"${d}"'
-        }
+            else if(d is list)
+            {
+                var spaceOut = s * n
+                var spaceIn = s * (n + 1)
+                text = "[\n"
+                for(var i = 0; i < len(d); i++)
+                {
+                    text += "${spaceIn}" + makePretty(d[i], s, 1)
+                    if(i < len(d)-1)
+                        text += ", "
+                    text += "\n"
+                }
+                text += "${spaceOut}]"
+            }
+            else if(d is dict)
+            {
+                var spaceOut = s * n
+                var spaceIn = s * (n + 1)
+                var val, point
+                text = '{\n'
+                for(var key, i in d)
+                {
+                    val = makePretty(d[key], s, n + 1)
+                    point = (i < len(d)-1) ? ',' : ''
+                    text += '${spaceIn}"${key}": ${val}${point}\n'
+                }
+                text += '${spaceOut}}'
+            }
+            else
+            {
+                text = '"${d}"'
+            }
 
-        return text
+            return text
+        }
+        return makePretty(f(*args), '    ', 0)
     }
-
-    args = args.from(nargs)
-    return makePretty(f(*args), '    ', 0)
+    pass
+    return inner
 }

@@ -321,6 +321,27 @@ static bool sizeFile(int argCount)
     return true;
 }
 
+static bool posFile(int argCount)
+{
+    if (argCount != 1)
+    {
+        runtimeError("pos() takes 1 argument (%d given)", argCount);
+        return false;
+    }
+
+    ObjFile *file = AS_FILE(pop());
+
+    int pos = -1;
+
+    if (file->isOpen)
+    {
+        pos = ftell(file->file);
+    }
+
+    push(NUMBER_VAL(pos));
+    return true;
+}
+
 static bool closeFile(int argCount)
 {
     if (argCount != 1)
@@ -355,6 +376,8 @@ bool fileMethods(char *method, int argCount)
         return readFileBytes(argCount);
     else if (strcmp(method, "seek") == 0)
         return seekFile(argCount);
+    else if (strcmp(method, "pos") == 0)
+        return posFile(argCount);
     else if (strcmp(method, "close") == 0)
         return closeFile(argCount);
     else if (strcmp(method, "eof") == 0)

@@ -63,7 +63,21 @@ Value hashNative(int argCount, Value *args)
 {
     int code = 0;
     if (argCount > 0)
-        code = (int)&args[0];
+    {
+        if (IS_STRING(args[0]))
+        {
+            char *str = AS_CSTRING(args[0]);
+            uint32_t hash = 5381;
+            int c;
+
+            while ((c = *str++))
+                hash = ((hash << 5) + hash) + c;
+
+            return NUMBER_VAL(hash);
+        }
+        else
+            code = (int)&args[0];
+    }
     else
         code = rand();
 
@@ -624,6 +638,53 @@ Value intNative(int argCount, Value *args)
         }
     }
     return NUMBER_VAL((int)AS_NUMBER(toNumber(args[0])));
+}
+
+Value shortNative(int argCount, Value *args)
+{
+    if (argCount == 0)
+        return NUMBER_VAL(0);
+    else if (IS_INSTANCE(args[0]))
+    {
+        Value method;
+        if (tableGet(&AS_INSTANCE(args[0])->klass->methods, AS_STRING(STRING_VAL("short")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+
+        if (tableGet(&AS_INSTANCE(args[0])->klass->staticFields, AS_STRING(STRING_VAL("short")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+    }
+    else if (IS_CLASS(args[0]))
+    {
+        Value method;
+        if (tableGet(&AS_CLASS(args[0])->staticFields, AS_STRING(STRING_VAL("short")), &method))
+        {
+            ObjRequest *request = newRequest();
+            request->fn = method;
+            request->pops = 1;
+            return OBJ_VAL(request);
+        }
+    }
+    else if (IS_BYTES(args[0]))
+    {
+        ObjBytes *bytes = AS_BYTES(args[0]);
+        int len = bytes->length > sizeof(uint16_t) || bytes->length < 0 ? sizeof(uint16_t) : bytes->length;
+        uint16_t value = 0;
+        for (int i = 0; i < len; i++)
+            value |= bytes->bytes[i] << (i * 8);
+
+        return NUMBER_VAL(value);
+    }
+    return NUMBER_VAL((uint16_t)AS_NUMBER(toNumber(args[0])));
 }
 
 Value strNative(int argCount, Value *args)
@@ -3810,6 +3871,7 @@ void initStd()
     ADD_STD("bool", boolNative);
     ADD_STD("num", numNative);
     ADD_STD("int", intNative);
+    ADD_STD("short", shortNative);
     ADD_STD("str", strNative);
     ADD_STD("class", classNative);
     ADD_STD("enum", enumNative);

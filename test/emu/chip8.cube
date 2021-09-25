@@ -1,0 +1,8 @@
+import emu/chip8 as default
+
+var chip8 = Chip8()
+
+if(chip8.load('test/data/Cave.ch8'))
+{
+    chip8.run()
+}

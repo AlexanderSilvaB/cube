@@ -1,0 +1,268 @@
+import utils
+import paths
+
+class StaticFS
+{
+    static var __FS_HEADER = '<STATIC-FS>'
+    static var __FS_VERSION_MAJOR = 0
+    static var __FS_VERSION_MINOR = 1
+
+    var items
+    var filename
+    var data
+    var headerSize
+    var debug
+
+    func init(filename)
+    {
+        items = []
+        data = {}
+        headerSize = 0
+        debug = false
+        this.filename = filename
+    }
+
+    func fromPath(path)
+    {
+        __debug("Loading the path '${path}'...")
+        items = paths.walk(path)
+        __debug(len(items), ' items found.')
+    }
+
+    func read(path)
+    {
+        __debug("Reading from '${path}'...")
+        var data = null
+        var opts = this.data[path]
+        if(opts is null)
+        {
+            __debug("File not in the index, trying from disk...")
+            var itemFile = open(path, 'rb')
+            if(itemFile is not null)
+            {
+                data = itemFile.readBytes()
+                itemFile.close()
+                __debug(len(data), " bytes read.")
+            }
+        }
+        else
+        {
+            var file = open(this.filename, 'rb')
+            if(file is not null)
+            {
+                var size = opts['size']
+                var pos = opts['pos']
+
+                file.seek(pos)
+                data = file.readBytes(size)
+                file.close()
+
+                __debug(len(data), " bytes read.")
+            }
+            else
+                __debug("Could not open the StaticFS file for read.")
+        }
+
+        return data
+    }
+
+    func load()
+    {
+        __debug("Loading from '${filename}'...")
+        // Open the file
+        var file = open(filename, 'rb');
+        if(file is null)
+        {
+            __debug("Could not open the file.")
+            return false
+        }
+        
+        // Check the magic header
+        var magic = str(file.readBytes(len(__FS_HEADER)))
+        __debug("The magic header is ${magic}.")
+        if(magic == __FS_HEADER)
+        {
+            // Check the version
+            var version = file.readBytes(8)
+            var major = version.int()
+            var minor = version.int()
+
+            __debug("The file version is v${major}.${minor}")
+
+            if(major != __FS_VERSION_MAJOR or minor != __FS_VERSION_MINOR)
+                println('Warning: StaticFS file is in version ${major}.${minor} but the instaled library is ${__FS_VERSION_MAJOR}.${__FS_VERSION_MINOR}. Data may be read wrong.')
+
+            // Initialize the items and data structures
+            items = []
+            data = {}
+
+            // Read the number of items
+            var numItems = file.readBytes(4).int()
+            __debug(numItems, " items found.")
+
+            // Read the header size
+            headerSize = file.readBytes(4).int()
+            __debug(headerSize, " bytes is the header size.")
+
+            var name, size, pos 
+            // For each entry
+            for(var i = 0; i < numItems; i++)
+            {
+                // Read the entry name
+                name = str(file.readBytes(headerSize - 8))
+                // Read the item size
+                size = file.readBytes(4).int()
+                // Read the item position
+                pos = file.readBytes(4).int()
+
+                __debug("Adding '${name}', located at ${pos} and with ${size} bytes of size.")
+                // Store the item name and its info
+                items.add(name)
+                data[name] = {'pos' : pos, 'size' : size}
+            }
+        }
+        else
+        {
+            __debug("The magic header is not valid!")
+        }
+
+
+        __debug("Done loading the file!")
+        // Close the file
+        file.close()
+        return true
+    }
+
+    func save()
+    {        
+        __debug("Saving to '${filename}'...")
+        var file = open(filename, 'wb');
+        if(file is null)
+        {
+            __debug("Could not create the file.")
+            return false
+        }
+        
+        var magic = bytes(__FS_HEADER)
+        var version = bytes(__FS_VERSION_MAJOR)
+        version.append(__FS_VERSION_MINOR)
+
+        // Write magic and version
+        __debug('Writing the magic header: ${__FS_HEADER}...')
+        file.write(magic)
+        __debug('Writing the version: ${__FS_VERSION_MAJOR}.${__FS_VERSION_MINOR}...')
+        file.write(version)
+
+        // Write number of entries
+        __debug('Writing the number of items: ', len(items), '...')
+        var size = bytes(len(items))
+        file.write(size)
+
+        // Calculate the header size
+        __debug('Measuring the header size...')
+        headerSize = 0
+        for(var i = 0; i < len(items); i++)
+        {
+            if(len(items[i]) > headerSize)
+                headerSize = len(items[i])
+        }
+
+        headerSize += 8
+        if((headerSize % 32) != 0)
+            headerSize = 32 * int(headerSize/ 32) + 32
+
+        // Write the header size
+        size = bytes(headerSize)
+        __debug('Writing the header size: ${headerSize}...')
+        file.write(size)
+
+        // Get the header position so we can junp fast
+        var headerStart = file.pos()
+        var leading
+        // Write entry name, the data size and the data position (headerSize bytes)
+        for(var i = 0; i < len(items); i++)
+        {
+            __debug("Creating a header entry for '", items[i], "'...")
+            // name (headerSize - 8 characters exactly)
+            file.write(bytes(items[i]))
+            // leading characters
+            leading = make('bytes', headerSize - 8 - len(items[i]), 0)
+            file.write(leading)
+            // data size
+            size = bytes(0)
+            file.write(size)
+            // data position
+            file.write(size)
+        }
+
+        // Write each item data and store its info
+        var item
+        var data
+        var dataPos, nextPos
+        for(var i = 0; i < len(items); i++)
+        {
+            // Create the data entry for the item
+            this.data[items[i]] = {'size': 0, 'pos' : 0}
+            item = open(items[i], 'rb')
+            if(items is not null)
+            {
+                // Store the item position on file
+                dataPos = file.pos()
+                this.data[items[i]]['pos'] = dataPos
+
+                // Read the data and close the file
+                data = item.readBytes()
+                item.close()
+
+                // Store the data in the file
+                file.write(data)
+
+                // Store the item file-length
+                this.data[items[i]]['size'] = len(data)
+                
+                // Store the current position so we can jump back
+                nextPos = file.pos()
+
+                __debug("Writing '", items[i], "', located at ${dataPos} and with ", len(data), " bytes of size.")
+
+                // Jump to the item-size position on file and write it
+                file.seek(headerStart + ((headerSize * i) + (headerSize - 8)))
+                file.write(bytes(len(data)))
+
+                // Jump to the item-position position on file and write it
+                file.seek(headerStart + ((headerSize * i) + (headerSize - 4)))
+                file.write(bytes(dataPos))
+
+                // Go back to the next data position
+                file.seek(nextPos)
+            }
+        }
+
+        __debug("Done saving the file!")
+        // Close the file
+        file.close()
+        return true
+    }
+
+    func list()
+    {
+        return items
+    }
+
+    func str()
+    {
+        var text = 'Static FS v' + StaticFS.__FS_VERSION_MAJOR + '.' + StaticFS.__FS_VERSION_MINOR + '\n'
+        text += 'File: ${filename}\n'
+        text += 'Header size: ${headerSize}\n'
+        text += len(items) + ' entries'
+        return text
+    }
+
+    func __debug()
+    {
+        if(debug)
+        {
+            println(*args)
+        }
+    }
+}

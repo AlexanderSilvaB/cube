@@ -1,0 +1,19 @@
+func generate(s)
+{
+    var l = list(s)
+    
+}
+
+func validate()
+{
+    pass
+}
+
+var s1 = '7992739871'
+println('Number: ', s1)
+var digit = generate(s1)
+println('Digit: ', digit)
+var s2 = s1 + digit
+println('Final number: ', s2)
+var valid = validate(s2)
+println('Valid: ', valid)

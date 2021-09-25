@@ -1,0 +1,80 @@
+class DataArray
+{
+    var data
+    var itemSize
+    var dataSize
+    var size
+
+    func init(itemSize, arraySize)
+    {
+        this.itemSize = itemSize
+        this.size = arraySize
+        this.dataSize = itemSize * arraySize
+        this.data = make('bytes', this.dataSize, 0)
+    }
+
+    func get(i, n)
+    {
+        var v = 0
+        for(var j = 0; j < n; j++)
+        {
+            v = v | (data[j + i] << (8 * j))
+        }
+        return v
+    }
+
+    func set(i, v, n)
+    {
+        for(var j = 0; j < n; j++)
+        {
+            data[i + j] = (v >> (8 * j)) & 0xFF
+        }   
+    }
+
+    func clear()
+    {
+        for(var i = 0; i < size; i++)
+        {
+            set(i, 0, itemSize)
+        }
+    }
+
+    func len()
+    {
+        return this.size
+    }
+
+    func [](i)
+    {
+        return get(i * itemSize, itemSize)
+    }
+
+    func [=](i, v)
+    {
+        set(i * itemSize, v, itemSize)
+    }
+}
+
+class Uint8Array : DataArray
+{
+    func init(arraySize)
+    {
+        super.init(1, arraySize)
+    }
+}
+
+class Uint16Array : DataArray
+{
+    func init(arraySize)
+    {
+        super.init(2, arraySize)
+    }
+}
+
+class Uint32Array : DataArray
+{
+    func init(arraySize)
+    {
+        super.init(4, arraySize)
+    }
+}
