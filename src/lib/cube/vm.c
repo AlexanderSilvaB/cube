@@ -1,3 +1,9 @@
+/**
+ * @Author: Alexander Silva Barbosa
+ * @Date:   1969-12-31 21:00:00
+ * @Last Modified by:   Alexander Silva Barbosa
+ * @Last Modified time: 2021-09-24 23:41:17
+ */
 #include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -362,29 +368,18 @@ void resumeTaskFrame(const char *name)
 static void pushTry(CallFrame *frame, uint16_t offset)
 {
     ThreadFrame *threadFrame = currentThread();
-    TryFrame *
-    try
-        = (TryFrame *)mp_malloc(sizeof(TryFrame));
-    try
-        ->next = threadFrame->ctf->tryFrame;
-    try
-        ->ip = frame->ip + offset;
-    try
-        ->frame = frame;
-    threadFrame->ctf->tryFrame =
-    try
-        ;
+    TryFrame *try = (TryFrame *)mp_malloc(sizeof(TryFrame));
+    try->next = threadFrame->ctf->tryFrame;
+    try->ip = frame->ip + offset;
+    try->frame = frame;
+    threadFrame->ctf->tryFrame = try;
 }
 
 static void popTry()
 {
     ThreadFrame *threadFrame = currentThread();
-    TryFrame *
-    try
-        = threadFrame->ctf->tryFrame;
-    threadFrame->ctf->tryFrame =
-    try
-        ->next;
+    TryFrame *try = threadFrame->ctf->tryFrame;
+    threadFrame->ctf->tryFrame = try->next;
     mp_free(try);
 }
 
@@ -3162,8 +3157,8 @@ InterpretResult run()
             OPCASE(GET_SUPER) :
             {
                 ObjString *name = READ_STRING();
-                // ObjClass *superclass = AS_CLASS(pop());
-                ObjClass *superclass = AS_INSTANCE(peek(0))->klass->super;
+                ObjClass *superclass = AS_CLASS(pop());
+                // ObjClass *superclass = AS_INSTANCE(peek(0))->klass->super;
 
                 if (!bindMethod(superclass, name))
                 {
@@ -4912,7 +4907,10 @@ InterpretResult run()
             {
                 int argCount = READ_BYTE();
                 ObjString *method = READ_STRING();
-                ObjClass *superclass = AS_INSTANCE(peek(argCount))->klass->super;
+                // ObjClass *superclass = AS_INSTANCE(peek(argCount))->klass->super;
+                ObjClass *superclass = AS_CLASS(pop());
+                // printf("SUPER: %s : %s\n", objectToString(OBJ_VAL(AS_INSTANCE(peek(argCount))->klass), true),
+                //        objectToString(OBJ_VAL(superclass), true));
 
                 if (!invokeFromClass(superclass, method, argCount, NULL))
                 {
@@ -5024,6 +5022,10 @@ InterpretResult run()
                 }
 
                 ObjClass *subclass = AS_CLASS(peek(0));
+
+                // printf("INHERIT: %s : %s\n", objectToString(OBJ_VAL(subclass), true), objectToString(superclass,
+                // true));
+
                 subclass->super = AS_CLASS(superclass);
                 // tableAddAll(&AS_CLASS(superclass)->methods, &subclass->methods);
                 tableAddAll(&AS_CLASS(superclass)->fields, &subclass->fields);

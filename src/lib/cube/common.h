@@ -1,3 +1,9 @@
+/**
+ * @Author: Alexander Silva Barbosa
+ * @Date:   1969-12-31 21:00:00
+ * @Last Modified by:   Alexander Silva Barbosa
+ * @Last Modified time: 2021-09-24 22:40:06
+ */
 #ifndef CLOX_common_h
 #define CLOX_common_h
 

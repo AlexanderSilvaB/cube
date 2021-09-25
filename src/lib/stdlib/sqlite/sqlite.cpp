@@ -1,3 +1,9 @@
+/**
+ * @Author: Alexander Silva Barbosa
+ * @Date:   1969-12-31 21:00:00
+ * @Last Modified by:   Alexander Silva Barbosa
+ * @Last Modified time: 2021-09-24 22:16:57
+ */
 #include <cube/cubeext.h>
 #include <sqlite3.h>
 #include <stdio.h>
@@ -87,13 +93,18 @@ void prepare_db(DB *db)
 
 extern "C"
 {
-    EXPORTED int open(char *path)
+    EXPORTED int open(char *path, bool create)
     {
         DB db;
         db.closed = false;
         db.message = NULL;
         db.data = NULL;
-        int rc = sqlite3_open(path, &db.db);
+        // int rc = sqlite3_open(path, &db.db);
+        int flags = SQLITE_OPEN_READWRITE;
+        if (create)
+            flags |= SQLITE_OPEN_CREATE;
+
+        int rc = sqlite3_open_v2(path, &db.db, flags, NULL);
         if (rc != SQLITE_OK)
             return -1;
 

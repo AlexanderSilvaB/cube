@@ -1,3 +1,9 @@
+/**
+ * @Author: Alexander Silva Barbosa
+ * @Date:   1969-12-31 21:00:00
+ * @Last Modified by:   Alexander Silva Barbosa
+ * @Last Modified time: 2021-09-24 23:39:54
+ */
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -1303,13 +1309,13 @@ static void super_(bool canAssign)
     {
         uint8_t argCount = argumentList();
 
-        // pushSuperclass();
+        pushSuperclass();
         emitBytes(OP_SUPER, argCount);
         emitShortAlone(name);
     }
     else
     {
-        // pushSuperclass();
+        pushSuperclass();
         emitShort(OP_GET_SUPER, name);
     }
 }
@@ -2230,6 +2236,10 @@ static void classDeclaration()
 
         namedVariable(className, false);
         emitByte(OP_INHERIT);
+
+        Token superToken;
+        uint16_t super = createSyntheticVariable("super", &superToken);
+        defineVariable(super);
     }
 
     consume(TOKEN_LEFT_BRACE, "Expect '{' before class body.");

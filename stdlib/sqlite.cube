@@ -1,6 +1,6 @@
 native sqlite
 {
-    int open(cstring);
+    int open(cstring, cbool);
     cbool close(int);
     cbool exec(int, cstring);
     list data(int);
@@ -13,9 +13,11 @@ import sqldatabase as default
 class SqliteDB : DB
 {
     var id = -1
-    func init(path)
-    {
-        id = open(path)
+    func init(path, create)
+    {   
+        if(create is null)
+            create = true
+        id = open(path, create)
         if(id < 0)
             throw("Cannot open the database '${path}'")
     }
