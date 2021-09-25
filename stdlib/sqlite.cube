@@ -16,7 +16,7 @@ class SqliteDB : DB
     func init(path, create)
     {   
         if(create is null)
-            create = true
+            create = false
         id = open(path, create)
         if(id < 0)
             throw("Cannot open the database '${path}'")

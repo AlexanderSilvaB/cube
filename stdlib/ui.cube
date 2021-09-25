@@ -199,16 +199,16 @@ class Window
     {
         if(obj is null)
             obj = '';
-        else if(obj is Widget)
-            obj = obj.name
         else if(obj is class)
         {
             obj = obj()
             if(obj is Widget)
-                obj = obj.type
+                obj = obj.className
             else
                 return false
         }
+        else if(obj is Widget)
+            obj = obj.name
 
         var onId = '{}:{}'.format(obj, event);
         this.actions[onId] = action;
@@ -313,6 +313,8 @@ class Window
         {
             shape = Text(shape);
         }
+        println(shape)
+        vars(shape)
         var id = ui_add_shape(this.id, shape.dict());
         if(id == -1)
             return null;

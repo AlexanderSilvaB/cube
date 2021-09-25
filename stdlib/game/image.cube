@@ -1,4 +1,4 @@
-native game
+native libgame
 {
     num load(str);
     num loadRaw(str);

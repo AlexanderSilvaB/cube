@@ -1,3 +1,9 @@
+/**
+ * @Author: Alexander Silva Barbosa
+ * @Date:   1969-12-31 21:00:00
+ * @Last Modified by:   Alexander Silva Barbosa
+ * @Last Modified time: 2021-09-25 00:05:46
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -26,11 +32,17 @@ void freeTable(Table *table)
 static Entry *findEntry(Entry *entries, int capacityMask, ObjString *key)
 {
     uint32_t index = key->hash & capacityMask;
+    // printf("index: %d, key: %s, hash: %d, capacity: %d\n", index, key->chars, key->hash, capacityMask);
     Entry *tombstone = NULL;
 
     for (;;)
     {
         Entry *entry = &entries[index];
+        // if (entry->key != NULL)
+        // {
+        //     printf("%s -> %s\n", entry->key->chars, key->chars);
+        // }
+        // printf("index: %d, key: %s, hash: %d, capacity: %d\n", index, key->chars, key->hash, capacityMask);
         if (entry->key == NULL)
         {
             if (IS_NULL(entry->value))

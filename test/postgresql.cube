@@ -1,14 +1,12 @@
-import sqlite as default
+import postgresql as default
 
-var db = SqliteDB('temp/db.sqlite', true)
+var db = PostgreSql('127.0.0.1', 'pollux', 'pollux123', 'test', true)
 
 var rc = db.create('log', {
-                            'id' : TYPE_INTEGER | AUTO_INCREMENT | PRIMARY_KEY,
+                            'id' : TYPE_INTEGER | PRIMARY_KEY,
                             'message' : TYPE_TEXT,
                             'date' : TYPE_TEXT
                           })
-
-
 println('Create: ', rc)
 if(!rc)
     println(db.getError())

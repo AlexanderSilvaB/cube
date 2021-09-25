@@ -1,3 +1,9 @@
+/**
+ * @Author: Alexander Silva Barbosa
+ * @Date:   1969-12-31 21:00:00
+ * @Last Modified by:   Alexander Silva Barbosa
+ * @Last Modified time: 2021-09-25 00:24:11
+ */
 #include "WM.hpp"
 #include "Shapes.hpp"
 #include <QQuickWidget>

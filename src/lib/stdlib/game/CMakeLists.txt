@@ -16,11 +16,11 @@ if (${SDL2_FOUND})
         
 	include_directories(${SDL2_INCLUDE_DIRS})
 
-	add_library(game SHARED ${SRC})
-	target_link_libraries(game ${SDL2_LIBRARIES})
-	set_target_properties(game PROPERTIES
+	add_library(libgame SHARED ${SRC})
+	target_link_libraries(libgame ${SDL2_LIBRARIES})
+	set_target_properties(libgame PROPERTIES
 			LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/stdlib/libs/)
-	set_target_properties(game PROPERTIES
+	set_target_properties(libgame PROPERTIES
 			RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/stdlib/libs/)
 
 else()

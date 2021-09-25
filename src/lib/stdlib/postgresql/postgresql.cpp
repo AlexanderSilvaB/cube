@@ -2,22 +2,25 @@
  * @Author: Alexander Silva Barbosa
  * @Date:   1969-12-31 21:00:00
  * @Last Modified by:   Alexander Silva Barbosa
- * @Last Modified time: 2021-09-25 00:37:58
+ * @Last Modified time: 2021-09-25 01:35:42
  */
 #include <cube/cubeext.h>
-#include <my_global.h>
-#include <mysql.h>
+#include <libpq-fe.h>
+#include <postgres.h>
 #include <sstream>
 #include <string>
 #include <vector>
 
 typedef struct
 {
-    MYSQL *db;
+    PGconn *db;
     char *message;
     bool closed;
+    int lastId;
     cube_native_var *data;
 } DB;
+
+#include <catalog/pg_type.h>
 
 std::vector<DB> dbs;
 
@@ -96,42 +99,57 @@ extern "C"
 {
     EXPORTED int opendb(char *host, char *user, char *passwd, char *name, bool create)
     {
+        std::stringstream ss;
+        ss << "host=" << host << " hostaddr=" << host;
+        if (user != NULL)
+            ss << " user=" << user;
+        if (passwd != NULL)
+            ss << " password=" << passwd;
+        if (name != NULL)
+            ss << " dbname=" << name;
+
         DB db;
         db.closed = false;
         db.message = NULL;
         db.data = NULL;
-        db.db = mysql_init(NULL);
-        if (db.db == NULL)
-        {
-            fprintf(stderr, "%s\n", mysql_error(db.db));
-            return -1;
-        }
-
-        if (mysql_real_connect(db.db, host, user, passwd, name, 0, NULL, 0) == NULL)
+        db.db = PQconnectdb(ss.str().c_str());
+        if (PQstatus(db.db) == CONNECTION_BAD)
         {
             if (!create)
             {
-                fprintf(stderr, "%s\n", mysql_error(db.db));
-                mysql_close(db.db);
+                fprintf(stderr, "%s\n", PQerrorMessage(db.db));
+                PQfinish(db.db);
                 return -1;
             }
             else
             {
-                if (mysql_real_connect(db.db, host, user, passwd, NULL, 0, NULL, 0) == NULL)
+                ss = std::stringstream();
+                ss << "host=" << host << " hostaddr=" << host;
+                if (user != NULL)
+                    ss << " user=" << user;
+                if (passwd != NULL)
+                    ss << " password=" << passwd;
+
+                db.db = PQconnectdb(ss.str().c_str());
+                if (PQstatus(db.db) == CONNECTION_BAD)
                 {
-                    fprintf(stderr, "%s\n", mysql_error(db.db));
-                    mysql_close(db.db);
+                    fprintf(stderr, "%s\n", PQerrorMessage(db.db));
+                    PQfinish(db.db);
                     return -1;
                 }
 
                 std::stringstream ss;
                 ss << "CREATE DATABASE " << name;
-                if (mysql_query(db.db, ss.str().c_str()))
+                PGresult *res = PQexec(db.db, ss.str().c_str());
+                if (PQresultStatus(res) != PGRES_COMMAND_OK)
                 {
-                    fprintf(stderr, "%s\n", mysql_error(db.db));
-                    mysql_close(db.db);
+                    fprintf(stderr, "%s\n", PQerrorMessage(db.db));
+                    PQclear(res);
+                    PQfinish(db.db);
                     return -1;
                 }
+
+                PQclear(res);
             }
         }
 
@@ -147,7 +165,7 @@ extern "C"
 
         prepare_db(db);
 
-        mysql_close(db->db);
+        PQfinish(db->db);
 
         db->closed = true;
         return true;
@@ -161,24 +179,17 @@ extern "C"
 
         prepare_db(db);
 
-        if (mysql_query(db->db, sql))
+        PGresult *res = PQexec(db->db, sql);
+        if (PQresultStatus(res) != PGRES_TUPLES_OK)
         {
-            db->message = (char *)mysql_error(db->db);
+            db->message = (char *)PQerrorMessage(db->db);
+            PQclear(res);
             return false;
         }
 
+        db->lastId = PQoidValue(res);
+
         cube_native_var *list = NULL;
-
-        MYSQL_RES *result = mysql_store_result(db->db);
-        if (result == NULL)
-            return true;
-
-        int num_fields = mysql_num_fields(result);
-        if (num_fields == 0)
-        {
-            mysql_free_result(result);
-            return true;
-        }
 
         if (db->data == NULL)
             db->data = NATIVE_NULL();
@@ -189,41 +200,47 @@ extern "C"
         if (!IS_NATIVE_LIST(list))
             TO_NATIVE_LIST(list);
 
-        MYSQL_ROW row;
-        MYSQL_FIELD *field;
+        int rows = PQntuples(res);
+        int ncols = PQnfields(res);
 
-        while ((row = mysql_fetch_row(result)))
+        char *field;
+        char *value;
+        int length;
+
+        for (int i = 0; i < rows; i++)
         {
-            mysql_field_seek(result, 0);
-            unsigned long *len = mysql_fetch_lengths(result);
 
             cube_native_var *item = NATIVE_DICT();
 
-            for (int i = 0; i < num_fields; i++)
+            for (int j = 0; j < ncols; j++)
             {
-                field = mysql_fetch_field(result);
-                if (row[i] == NULL || field->type == MYSQL_TYPE_NULL)
+                field = PQfname(res, j);
+                value = PQgetvalue(res, i, j);
+                length = PQgetlength(res, i, j);
+
+                if (PQgetisnull(res, i, j))
                 {
-                    ADD_NATIVE_DICT(item, COPY_STR(field->name), NATIVE_NULL());
+                    ADD_NATIVE_DICT(item, COPY_STR(field), NATIVE_NULL());
                 }
-                else if (IS_NUM(field->type))
-                {
-                    double val = atof(row[i]);
-                    ADD_NATIVE_DICT(item, COPY_STR(field->name), NATIVE_NUMBER(val));
-                }
-                else if (field->type == MYSQL_TYPE_BIT)
-                {
-                    ADD_NATIVE_DICT(item, COPY_STR(field->name), NATIVE_BYTES_COPY(len[i], (unsigned char *)row[i]));
-                }
+                // else if (IS_NUM(field->type))
+                // {
+                //     double val = atof(row[i]);
+                //     ADD_NATIVE_DICT(item, COPY_STR(field->name), NATIVE_NUMBER(val));
+                // }
+                // else if (PQbinaryTuples(res))
+                // {
+                //     ADD_NATIVE_DICT(item, COPY_STR(field->name), NATIVE_BYTES_COPY(len[i], (unsigned char *)row[i]));
+                // }
                 else
                 {
-                    ADD_NATIVE_DICT(item, COPY_STR(field->name), NATIVE_STRING_COPY(row[i]));
+                    ADD_NATIVE_DICT(item, COPY_STR(field), NATIVE_STRING_COPY(value));
                 }
             }
 
             ADD_NATIVE_LIST(list, item);
         }
-        mysql_free_result(result);
+
+        PQclear(res);
 
         return true;
     }
@@ -257,6 +274,6 @@ extern "C"
         if (!getDB(id, &db))
             return -1;
 
-        return mysql_insert_id(db->db);
+        return db->lastId;
     }
 }

@@ -19,7 +19,7 @@ class Log : sql.Model
     var date = sql.String()
 }
 
-var engine = sql.Engine(sql.sqlite.SqliteDB('temp/db.sqlite'))
+var engine = sql.Engine(sql.sqlite.SqliteDB('temp/db.sqlite', true))
 
 engine.create(User)
 engine.create(Log)

@@ -1,4 +1,4 @@
-native game
+native libgame
 {
     num open(str);
     void close(num);

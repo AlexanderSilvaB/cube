@@ -1,4 +1,4 @@
-native mysql
+native postgresql
 {
     int opendb(cstring, cstring, cstring, cstring, cbool);
     cbool close(int);
@@ -10,12 +10,11 @@ native mysql
 
 import sqldatabase as default
 
-class MySqlDB : DB
+class PostgreSql : DB
 {
     var id = -1
     func init(host, user, passwd, name, create)
     {
-        setKey(AUTO_INCREMENT, 'AUTO_INCREMENT')
 
         if(create is null)
             create = false

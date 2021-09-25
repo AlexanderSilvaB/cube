@@ -82,7 +82,9 @@
         "variant": "cpp",
         "forward_list": "cpp",
         "alignedvector3": "c",
-        "openglsupport": "c"
+        "openglsupport": "c",
+        "any": "cpp",
+        "source_location": "cpp"
     },
     "editor.formatOnSave": true,
     "files.watcherExclude": {

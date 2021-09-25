@@ -2,7 +2,7 @@
  * @Author: Alexander Silva Barbosa
  * @Date:   1969-12-31 21:00:00
  * @Last Modified by:   Alexander Silva Barbosa
- * @Last Modified time: 2021-09-24 23:41:17
+ * @Last Modified time: 2021-09-25 00:06:10
  */
 #include <math.h>
 #include <stdarg.h>
@@ -889,11 +889,12 @@ static bool callExtension(Value receiver, ObjString *name, int argCount)
 static bool invokeFromClass(ObjClass *klass, ObjString *name, int argCount, ObjInstance *instance)
 {
     // Look for the method.
+    // printf("%s %s\n", objectToString(OBJ_VAL(klass), true), name->chars);
     Value method;
     ObjClass *selected;
     if (!findMethod(klass, name, &method, &selected))
     {
-        runtimeError("Undefined property '%s'.", name->chars);
+        runtimeError("Undefined property (invoke) '%s'.", name->chars);
         return false;
     }
 
@@ -983,7 +984,7 @@ static bool bindMethod(ObjClass *klass, ObjString *name)
     Value method;
     if (!tableGet(&klass->methods, name, &method))
     {
-        runtimeError("Undefined property '%s'.", name->chars);
+        runtimeError("Undefined property (bind) '%s'.", name->chars);
         return false;
     }
 
