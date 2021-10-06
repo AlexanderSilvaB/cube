@@ -1,3 +1,5 @@
+import lists as default
+
 func str.len()
 {
     return len(this)
@@ -15,3 +17,9 @@ println(s,".len() = ", s.len())
 
 println(5, ".sig() = ", 5.sig())
 println(-5, ".sig() = ", -5.sig())
+
+var data = 1..10
+
+data = data.filter(@(x) => x > 4)
+
+println(data)

@@ -2,7 +2,7 @@
  * @Author: Alexander Silva Barbosa
  * @Date:   1969-12-31 21:00:00
  * @Last Modified by:   Alexander Silva Barbosa
- * @Last Modified time: 2021-09-25 00:06:10
+ * @Last Modified time: 2021-10-05 20:13:52
  */
 #include <math.h>
 #include <stdarg.h>
@@ -894,8 +894,7 @@ static bool invokeFromClass(ObjClass *klass, ObjString *name, int argCount, ObjI
     ObjClass *selected;
     if (!findMethod(klass, name, &method, &selected))
     {
-        runtimeError("Undefined property (invoke) '%s'.", name->chars);
-        return false;
+        return classMethods(name->chars, argCount + 1);
     }
 
     ThreadFrame *threadFrame = currentThread();

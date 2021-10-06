@@ -112,8 +112,9 @@ func pretty(f)
 
             return text
         }
+        
         return makePretty(f(*args), '    ', 0)
     }
-    pass
     return inner
 }
+

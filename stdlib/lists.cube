@@ -1,3 +1,15 @@
+func list.apply(fn)
+{
+    fn(this)
+}
+
+func apply(items, fn)
+{
+    var newItems = copy(items)
+    fn(newItems)
+    return newItems
+}
+
 func list.unique()
 {
     var _unique = []
@@ -7,6 +19,11 @@ func list.unique()
             _unique.add(i)
     }
     return _unique
+}
+
+func unique(items)
+{
+    return items.unique()
 }
 
 func list.removeIf(fn)
@@ -26,6 +43,11 @@ func list.removeIf(fn)
     return _toremove
 }
 
+func removeIf(items, fn)
+{
+    return apply(items, @(x) => x.removeIf(fn))
+}
+
 func list.max()
 {
     if(len(this) == 0)
@@ -39,6 +61,11 @@ func list.max()
     }
 
     return m
+}
+
+func max(items)
+{
+    return items.max()
 }
 
 func list.min()
@@ -56,6 +83,11 @@ func list.min()
     return m
 }
 
+func min(items)
+{
+    return items.min()
+}
+
 func list.each(fn)
 {
     if(fn is not func)
@@ -65,4 +97,62 @@ func list.each(fn)
     {
         fn(i)
     }
+}
+
+func each(items, fn)
+{
+    return apply(items, @(x) => x.each(fn))
+}
+
+func list.map(fn)
+{
+    if(fn is not func)
+        throw('Map parameter must be a func')
+    
+    for(var i = 0; i < len(this); i++)
+    {
+        this[i] = fn(this[i])
+    }
+}
+
+func map(items, fn)
+{
+    return apply(items, @(x) => x.map(fn))
+}
+
+func list.reduce(fn)
+{
+    if(fn is not func)
+        throw('Reduce parameter must be a func')
+    
+    var result = 0
+    for(var i in this)
+    {
+        result = fn(result, i)
+    }
+    return result
+}
+
+func reduce(items, fn)
+{
+    return items.reduce(fn)
+}
+
+func list.filter(fn)
+{
+    if(fn is not func)
+        throw('Filter parameter must be a func')
+    
+    var result = []
+    for(var i in this)
+    {
+        if(fn(i))
+            result.add(i)
+    }
+    return result
+}
+
+func filter(items, fn)
+{
+    return items.filter(fn)
 }

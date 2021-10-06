@@ -1,0 +1,122 @@
+<Rect instance>
+-----------------
+Fields
+-----------------
+id : null
+updated : false
+scale : 1
+height : 480
+y : 0
+x : 0
+angle : 0
+color : "black"
+type : "rect"
+background : null
+width : 600
+-----------------
+Methods
+-----------------
+dict : <func dict>
+init : <func init>
+<Line instance>
+-----------------
+Fields
+-----------------
+id : null
+updated : false
+scale : 1
+x1 : 300
+y2 : 480
+y1 : 0
+angle : 0
+color : "black"
+type : "line"
+background : null
+x2 : 300
+-----------------
+Methods
+-----------------
+dict : <func dict>
+init : <func init>
+<Circle instance>
+-----------------
+Fields
+-----------------
+id : null
+updated : false
+scale : 1
+radius : 20
+y : 240
+x : 300
+angle : 0
+color : "black"
+type : "circle"
+background : null
+-----------------
+Methods
+-----------------
+dict : <func dict>
+init : <func init>
+<Rect instance>
+-----------------
+Fields
+-----------------
+id : null
+updated : false
+scale : 1
+height : 150
+y : 165
+x : 10
+angle : 0
+color : "black"
+type : "rect"
+background : null
+width : 20
+-----------------
+Methods
+-----------------
+dict : <func dict>
+init : <func init>
+<Rect instance>
+-----------------
+Fields
+-----------------
+id : null
+updated : false
+scale : 1
+height : 150
+y : 165
+x : 570
+angle : 0
+color : "black"
+type : "rect"
+background : null
+width : 20
+-----------------
+Methods
+-----------------
+dict : <func dict>
+init : <func init>
+<Text instance>
+-----------------
+Fields
+-----------------
+height : inf
+name : "Text2162220637"
+x : 0
+type : "widget"
+on : {}
+children : []
+y : 0
+enclose : null
+attrib : {}
+placeholder : ""
+className : "QPlainTextEdit"
+textAttr : "plainText"
+text : ""
+width : inf
+-----------------
+Methods
+-----------------
+init : <func init>
+[0m

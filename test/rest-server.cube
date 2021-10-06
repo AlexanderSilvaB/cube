@@ -4,13 +4,13 @@ var users = {}
 
 var app = Server()
 
-@@app.get('/user/{user}')
+@app.get('/user/{user}')
 func getUser(user)
 {
     return users[user]
 }
 
-@@app.post('/user/{user}')
+@app.post('/user/{user}')
 func setUser(user, req)
 {
     users[user] = req.post
