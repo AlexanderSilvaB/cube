@@ -3,7 +3,10 @@ include_directories(..)
 add_subdirectory(external)
 
 include(GNUInstallDirs)
-find_package(Threads)
+
+set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
+set(THREADS_PREFER_PTHREAD_FLAG TRUE)
+find_package(Threads REQUIRED)
 
 include_directories(../libffi-3.3/include)
 include_directories(${CMAKE_BINARY_DIR}/src/lib/libffi-3.3/include)
@@ -61,7 +64,8 @@ if (UNIX)
     target_link_libraries(cube dl)
 endif (UNIX)
 
-target_link_libraries (cube ${CMAKE_THREAD_LIBS_INIT})
+
+target_link_libraries (cube  Threads::Threads)
 
 set_target_properties(cube PROPERTIES PUBLIC_HEADER "${INCLUDES}")
 
