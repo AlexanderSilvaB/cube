@@ -1,4 +1,5 @@
 import ui as default;
+import ui/shapes as default;
 
 var W = 500;
 var H = 400;

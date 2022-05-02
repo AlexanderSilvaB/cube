@@ -23,9 +23,6 @@ native ui
     void ui_update_shape(num, dict);
 }
 
-import ui/shapes as default;
-import ui/widget as default;
-
 class UI
 {
     static var windows = [];
@@ -313,8 +310,6 @@ class Window
         {
             shape = Text(shape);
         }
-        println(shape)
-        vars(shape)
         var id = ui_add_shape(this.id, shape.dict());
         if(id == -1)
             return null;

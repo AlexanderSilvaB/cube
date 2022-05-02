@@ -1,4 +1,5 @@
 import app as default
+import ui/widget as default
 
 class WidgetsTest : App
 {
